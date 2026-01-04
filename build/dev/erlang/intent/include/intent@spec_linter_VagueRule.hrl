@@ -1,0 +1,1 @@
+-record(vague_rule, {behavior :: binary(), field :: binary(), rule :: binary()}).

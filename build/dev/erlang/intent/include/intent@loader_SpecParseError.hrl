@@ -1,0 +1,1 @@
+-record(spec_parse_error, {message :: binary()}).
