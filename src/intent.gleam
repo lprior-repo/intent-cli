@@ -466,11 +466,7 @@ fn interview_command() -> glint.Command(Nil) {
         }
 
       // Resume an existing session
-      id -> {
-        io.println("Resuming interview session: " <> id)
-        io.println_error("Session resume not yet implemented")
-        halt(exit_error)
-      }
+      id -> run_resume_interview(id, export_to)
     }
   })
   |> glint.description("Guided specification discovery through structured interview")
@@ -574,6 +570,82 @@ fn run_interview(
   }
 
   halt(exit_pass)
+}
+
+/// Resume an existing interview session
+fn run_resume_interview(session_id: String, export_to: String) -> Nil {
+  let jsonl_path = ".interview/sessions.jsonl"
+
+  // Load the session from JSONL
+  case interview_storage.get_session_from_jsonl(jsonl_path, session_id) {
+    Error(err) -> {
+      cli_ui.print_error(err)
+      halt(exit_error)
+    }
+    Ok(session) -> {
+      cli_ui.print_header("Resuming Interview: " <> session.id)
+      cli_ui.print_info("Profile: " <> profile_to_display_string(session.profile))
+      io.println("")
+
+      // Show progress
+      io.println("Progress:")
+      io.println("  • Answers collected: " <> string.inspect(list.length(session.answers)))
+      io.println(
+        "  • Gaps detected: " <> string.inspect(list.length(session.gaps)),
+      )
+      io.println(
+        "  • Conflicts detected: " <> string.inspect(list.length(session.conflicts)),
+      )
+      io.println("")
+
+      // Determine which round to resume from
+      let next_round = case session.rounds_completed {
+        0 -> 1
+        r if r < 5 -> r + 1
+        _ -> 5
+      }
+
+      io.println("Resuming from Round " <> string.inspect(next_round))
+      io.println("")
+
+      // Continue the interview from the next round
+      let final_session = interview_loop(session, next_round)
+
+      // Save updated session
+      let save_result = interview_storage.append_session_to_jsonl(
+        final_session,
+        jsonl_path,
+      )
+
+      case save_result {
+        Ok(Nil) -> {
+          io.println("")
+          cli_ui.print_success("Session updated: " <> session.id)
+        }
+        Error(err) -> {
+          cli_ui.print_error("Failed to save session: " <> err)
+        }
+      }
+
+      // Export to spec if requested
+      case export_to {
+        "" -> Nil
+        path -> {
+          let spec_cue = spec_builder.build_spec_from_session(final_session)
+          case simplifile.write(path, spec_cue) {
+            Ok(Nil) -> {
+              cli_ui.print_success("Spec exported to: " <> path)
+            }
+            Error(err) -> {
+              cli_ui.print_error("Failed to export spec: " <> string.inspect(err))
+            }
+          }
+        }
+      }
+
+      halt(exit_pass)
+    }
+  }
 }
 
 /// Main interview loop - asks questions round by round
