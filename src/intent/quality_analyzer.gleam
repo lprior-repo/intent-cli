@@ -4,7 +4,7 @@
 import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/option.{None}
+import gleam/json
 import gleam/string
 import intent/types.{type Spec, type Behavior, type Rule}
 
@@ -202,10 +202,7 @@ fn calculate_testability_score(behaviors: List(Behavior)) -> Int {
   let with_examples =
     behaviors
     |> list.filter(fn(b) {
-      case b.response.example {
-        None -> False
-        _ -> True
-      }
+      b.response.example != json.null()
     })
     |> list.length
 
@@ -220,11 +217,10 @@ fn calculate_testability_score(behaviors: List(Behavior)) -> Int {
 fn calculate_ai_readiness_score(spec: Spec, behaviors: List(Behavior)) -> Int {
   let base = 50
 
-  // Check for AI hints
-  let has_ai_hints = case spec.ai_hints {
-    None -> False
-    _ -> True
-  }
+  // Check for AI hints (has any non-empty implementation suggestions or pitfalls)
+  let has_ai_hints =
+    !list.is_empty(spec.ai_hints.implementation.suggested_stack)
+    || !list.is_empty(spec.ai_hints.pitfalls)
 
   let hints_bonus = case has_ai_hints {
     True -> 20
@@ -255,10 +251,7 @@ fn calculate_ai_readiness_score(spec: Spec, behaviors: List(Behavior)) -> Int {
   let with_examples =
     behaviors
     |> list.filter(fn(b) {
-      case b.response.example {
-        None -> False
-        _ -> True
-      }
+      b.response.example != json.null()
     })
     |> list.length
 
@@ -325,8 +318,7 @@ fn find_quality_issues(
   }
 
   // Check for examples
-  let has_examples = list.any(behaviors, fn(b) { case b.response.example { None -> False
-    _ -> True } })
+  let has_examples = list.any(behaviors, fn(b) { b.response.example != json.null() })
 
   let mut_issues = case has_examples {
     True -> mut_issues

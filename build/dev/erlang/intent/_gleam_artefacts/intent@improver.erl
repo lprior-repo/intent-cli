@@ -109,13 +109,9 @@ append_testability_suggestions(Suggestions, _, Behaviors) ->
         _pipe = Behaviors,
         _pipe@1 = gleam@list:filter(
             _pipe,
-            fun(B) -> case erlang:element(3, erlang:element(8, B)) of
-                    none ->
-                        true;
-
-                    _ ->
-                        false
-                end end
+            fun(B) ->
+                erlang:element(3, erlang:element(8, B)) =:= gleam@json:null()
+            end
         ),
         erlang:length(_pipe@1)
     end,
@@ -136,7 +132,7 @@ append_testability_suggestions(Suggestions, _, Behaviors) ->
             )
     end.
 
--file("src/intent/improver.gleam", 182).
+-file("src/intent/improver.gleam", 179).
 ?DOC(" Add suggestions for improving AI readiness\n").
 -spec append_ai_readiness_suggestions(
     list(improvement_suggestion()),
@@ -195,7 +191,7 @@ suggest_from_quality_issues(Report, Spec) ->
     _pipe@4 = append_testability_suggestions(_pipe@3, Report, Behaviors),
     append_ai_readiness_suggestions(_pipe@4, Report, Behaviors).
 
--file("src/intent/improver.gleam", 217).
+-file("src/intent/improver.gleam", 214).
 ?DOC(" Generate suggestions from lint warnings\n").
 -spec suggest_from_lint_warnings(intent@spec_linter:lint_result()) -> list(improvement_suggestion()).
 suggest_from_lint_warnings(Lint_result) ->
@@ -297,13 +293,13 @@ suggest_improvements(Context) ->
         end
     ).
 
--file("src/intent/improver.gleam", 298).
+-file("src/intent/improver.gleam", 295).
 ?DOC(" Generate a refined spec based on accepted suggestions\n").
 -spec apply_improvements(intent@types:spec(), list(improvement_suggestion())) -> intent@types:spec().
 apply_improvements(Spec, _) ->
     Spec.
 
--file("src/intent/improver.gleam", 308).
+-file("src/intent/improver.gleam", 305).
 ?DOC(" Format improvements for interactive display\n").
 -spec format_improvements(list(improvement_suggestion())) -> binary().
 format_improvements(Suggestions) ->

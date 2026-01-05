@@ -5,7 +5,6 @@ import gleam/dict
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
 import intent/types.{type Spec, type Behavior, type Feature, type Rule, type Method, Get, Post, Put, Patch, Delete, Head, Options}
 
@@ -157,10 +156,10 @@ fn behavior_to_cue(behavior: Behavior) -> String {
 
   let response_line = "  response: {\\n    status: " <> int.to_string(behavior.response.status) <> "\\n"
 
-  let example_line = case behavior.response.example {
-    None -> ""
-    Some(ex) ->
-      "    example: " <> json_to_cue(ex) <> "\\n"
+  let example_line = case behavior.response.example == json.null() {
+    True -> ""
+    False ->
+      "    example: " <> json_to_cue(behavior.response.example) <> "\\n"
   }
 
   let checks_lines = case dict.is_empty(behavior.response.checks) {

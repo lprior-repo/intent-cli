@@ -22,7 +22,7 @@
         list(feature()),
         list(rule()),
         list(anti_pattern()),
-        gleam@option:option(a_i_hints())}.
+        a_i_hints()}.
 
 -type config() :: {config,
         binary(),
@@ -48,35 +48,32 @@
         binary(),
         gleam@dict:dict(binary(), binary()),
         gleam@dict:dict(binary(), gleam@json:json()),
-        gleam@option:option(gleam@json:json())}.
+        gleam@json:json()}.
 
 -type response() :: {response,
         integer(),
-        gleam@option:option(gleam@json:json()),
+        gleam@json:json(),
         gleam@dict:dict(binary(), check()),
-        gleam@option:option(gleam@dict:dict(binary(), binary()))}.
+        gleam@dict:dict(binary(), binary())}.
 
 -type check() :: {check, binary(), binary()}.
 
 -type rule() :: {rule,
         binary(),
         binary(),
-        gleam@option:option('when'()),
+        'when'(),
         rule_check(),
-        gleam@option:option(gleam@json:json())}.
+        gleam@json:json()}.
 
--type 'when'() :: {'when',
-        gleam@option:option(binary()),
-        gleam@option:option(method()),
-        gleam@option:option(binary())}.
+-type 'when'() :: {'when', binary(), method(), binary()}.
 
 -type rule_check() :: {rule_check,
-        gleam@option:option(list(binary())),
-        gleam@option:option(list(binary())),
-        gleam@option:option(list(binary())),
-        gleam@option:option(list(binary())),
-        gleam@option:option(binary()),
-        gleam@option:option(binary())}.
+        list(binary()),
+        list(binary()),
+        list(binary()),
+        list(binary()),
+        binary(),
+        binary()}.
 
 -type anti_pattern() :: {anti_pattern,
         binary(),
@@ -86,9 +83,9 @@
         binary()}.
 
 -type a_i_hints() :: {a_i_hints,
-        gleam@option:option(implementation_hints()),
+        implementation_hints(),
         gleam@dict:dict(binary(), entity_hint()),
-        gleam@option:option(security_hints()),
+        security_hints(),
         list(binary())}.
 
 -type implementation_hints() :: {implementation_hints, list(binary())}.
@@ -96,12 +93,12 @@
 -type entity_hint() :: {entity_hint, gleam@dict:dict(binary(), binary())}.
 
 -type security_hints() :: {security_hints,
-        gleam@option:option(binary()),
-        gleam@option:option(binary()),
-        gleam@option:option(binary()),
-        gleam@option:option(binary())}.
+        binary(),
+        binary(),
+        binary(),
+        binary()}.
 
--file("src/intent/types.gleam", 60).
+-file("src/intent/types.gleam", 59).
 ?DOC(" Convert method to string\n").
 -spec method_to_string(method()) -> binary().
 method_to_string(Method) ->
@@ -128,7 +125,7 @@ method_to_string(Method) ->
             <<"OPTIONS"/utf8>>
     end.
 
--file("src/intent/types.gleam", 73).
+-file("src/intent/types.gleam", 72).
 ?DOC(" Parse method from string\n").
 -spec method_from_string(binary()) -> {ok, method()} | {error, binary()}.
 method_from_string(S) ->

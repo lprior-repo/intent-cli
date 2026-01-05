@@ -6,7 +6,6 @@ import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
 import intent/types.{type Spec, type AntiPattern, type Behavior}
 
@@ -53,9 +52,9 @@ pub fn lint_spec(spec: Spec) -> LintResult {
   let example_warnings =
     behaviors
     |> list.filter_map(fn(b) {
-      case b.response.example {
-        None -> Ok(MissingExample(b.name))
-        _ -> Error(Nil)
+      case b.response.example == json.null() {
+        True -> Ok(MissingExample(b.name))
+        False -> Error(Nil)
       }
     })
 
@@ -74,10 +73,8 @@ pub fn lint_spec(spec: Spec) -> LintResult {
     |> list.flat_map(fn(b) {
       spec.anti_patterns
       |> list.filter(fn(ap) {
-        case b.response.example {
-          None -> False
-          Some(ex) -> contains_anti_pattern_keys(ex, ap)
-        }
+        b.response.example != json.null()
+        && contains_anti_pattern_keys(b.response.example, ap)
       })
       |> list.map(fn(ap) { ap.name })
     })
@@ -105,12 +102,12 @@ fn check_anti_patterns(
   behavior: Behavior,
   patterns: List(AntiPattern),
 ) -> List(LintWarning) {
-  case behavior.response.example {
-    None -> []
-    Some(example) -> {
+  case behavior.response.example == json.null() {
+    True -> []
+    False ->
       patterns
       |> list.filter_map(fn(pattern) {
-        case contains_anti_pattern_keys(example, pattern) {
+        case contains_anti_pattern_keys(behavior.response.example, pattern) {
           False -> Error(Nil)
           True ->
             Ok(
@@ -122,7 +119,6 @@ fn check_anti_patterns(
             )
         }
       })
-    }
   }
 }
 

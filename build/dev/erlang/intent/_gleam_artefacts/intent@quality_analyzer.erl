@@ -230,13 +230,9 @@ calculate_testability_score(Behaviors) ->
         _pipe@4 = Behaviors,
         _pipe@5 = gleam@list:filter(
             _pipe@4,
-            fun(B@2) -> case erlang:element(3, erlang:element(8, B@2)) of
-                    none ->
-                        false;
-
-                    _ ->
-                        true
-                end end
+            fun(B@2) ->
+                erlang:element(3, erlang:element(8, B@2)) /= gleam@json:null()
+            end
         ),
         erlang:length(_pipe@5)
     end,
@@ -250,7 +246,7 @@ calculate_testability_score(Behaviors) ->
     Testability_total = ((Base + Capture_bonus) + Deps_bonus) + Example_bonus,
     gleam@int:min(100, Testability_total).
 
--file("src/intent/quality_analyzer.gleam", 220).
+-file("src/intent/quality_analyzer.gleam", 217).
 ?DOC(
     " Calculate AI readiness score (0-100)\n"
     " Measures how much guidance is available for AI\n"
@@ -261,13 +257,10 @@ calculate_testability_score(Behaviors) ->
 ) -> integer().
 calculate_ai_readiness_score(Spec, Behaviors) ->
     Base = 50,
-    Has_ai_hints = case erlang:element(11, Spec) of
-        none ->
-            false;
-
-        _ ->
-            true
-    end,
+    Has_ai_hints = not gleam@list:is_empty(
+        erlang:element(2, erlang:element(2, erlang:element(11, Spec)))
+    )
+    orelse not gleam@list:is_empty(erlang:element(5, erlang:element(11, Spec))),
     Hints_bonus = case Has_ai_hints of
         true ->
             20;
@@ -314,13 +307,9 @@ calculate_ai_readiness_score(Spec, Behaviors) ->
         _pipe@5 = Behaviors,
         _pipe@6 = gleam@list:filter(
             _pipe@5,
-            fun(B@2) -> case erlang:element(3, erlang:element(8, B@2)) of
-                    none ->
-                        false;
-
-                    _ ->
-                        true
-                end end
+            fun(B@2) ->
+                erlang:element(3, erlang:element(8, B@2)) /= gleam@json:null()
+            end
         ),
         erlang:length(_pipe@6)
     end,
@@ -328,7 +317,7 @@ calculate_ai_readiness_score(Spec, Behaviors) ->
     Ai_readiness_total = ((Base + Hints_bonus) + Why_bonus) + Example_bonus,
     gleam@int:max(0, gleam@int:min(100, Ai_readiness_total)).
 
--file("src/intent/quality_analyzer.gleam", 272).
+-file("src/intent/quality_analyzer.gleam", 265).
 ?DOC(" Find quality issues in spec\n").
 -spec find_quality_issues(
     list(intent@types:behavior()),
@@ -413,13 +402,9 @@ find_quality_issues(Behaviors, Rules) ->
     end,
     Has_examples = gleam@list:any(
         Behaviors,
-        fun(B@4) -> case erlang:element(3, erlang:element(8, B@4)) of
-                none ->
-                    false;
-
-                _ ->
-                    true
-            end end
+        fun(B@4) ->
+            erlang:element(3, erlang:element(8, B@4)) /= gleam@json:null()
+        end
     ),
     Mut_issues@5 = case Has_examples of
         true ->
@@ -454,7 +439,7 @@ find_quality_issues(Behaviors, Rules) ->
     end,
     Mut_issues@7.
 
--file("src/intent/quality_analyzer.gleam", 394).
+-file("src/intent/quality_analyzer.gleam", 386).
 ?DOC(" Helper to add suggestion conditionally\n").
 -spec add_suggestion_if(list(binary()), boolean(), binary()) -> list(binary()).
 add_suggestion_if(Suggestions, Condition, Suggestion) ->
@@ -466,7 +451,7 @@ add_suggestion_if(Suggestions, Condition, Suggestion) ->
             Suggestions
     end.
 
--file("src/intent/quality_analyzer.gleam", 361).
+-file("src/intent/quality_analyzer.gleam", 353).
 ?DOC(" Generate suggestions for improvement\n").
 -spec generate_suggestions(
     list(quality_issue()),
@@ -540,7 +525,7 @@ analyze_spec(Spec) ->
         Issues,
         Suggestions}.
 
--file("src/intent/quality_analyzer.gleam", 441).
+-file("src/intent/quality_analyzer.gleam", 433).
 ?DOC(" Format a quality issue\n").
 -spec format_issue(quality_issue()) -> binary().
 format_issue(Issue) ->
@@ -570,7 +555,7 @@ format_issue(Issue) ->
             <<"  • No AI implementation hints provided"/utf8>>
     end.
 
--file("src/intent/quality_analyzer.gleam", 406).
+-file("src/intent/quality_analyzer.gleam", 398).
 ?DOC(" Format quality report for display\n").
 -spec format_report(quality_report()) -> binary().
 format_report(Report) ->

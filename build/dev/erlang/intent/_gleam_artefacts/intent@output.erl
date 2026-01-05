@@ -41,9 +41,7 @@
         binary(),
         gleam@dict:dict(binary(), binary())}.
 
--type response_summary() :: {response_summary,
-        integer(),
-        gleam@option:option(gleam@json:json())}.
+-type response_summary() :: {response_summary, integer(), gleam@json:json()}.
 
 -type blocked_behavior() :: {blocked_behavior, binary(), binary(), binary()}.
 
@@ -96,8 +94,7 @@ request_summary_to_json(Req) ->
 response_summary_to_json(Resp) ->
     gleam@json:object(
         [{<<"status"/utf8>>, gleam@json:int(erlang:element(2, Resp))},
-            {<<"body"/utf8>>,
-                gleam@option:unwrap(erlang:element(3, Resp), gleam@json:null())}]
+            {<<"body"/utf8>>, erlang:element(3, Resp)}]
     ).
 
 -file("src/intent/output.gleam", 116).

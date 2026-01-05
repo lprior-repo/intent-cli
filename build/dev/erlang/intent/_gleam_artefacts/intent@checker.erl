@@ -22,7 +22,7 @@
         integer(),
         integer()}.
 
--file("src/intent/checker.gleam", 94).
+-file("src/intent/checker.gleam", 91).
 ?DOC(" Check a response header against expected value\n").
 -spec check_header(binary(), binary(), gleam@dict:dict(binary(), binary())) -> check_result().
 check_header(Header_name, Expected_value, Actual_headers) ->
@@ -69,7 +69,7 @@ check_header(Header_name, Expected_value, Actual_headers) ->
                     "' not found in response"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 155).
+-file("src/intent/checker.gleam", 152).
 -spec interpolate_rule(binary(), intent@interpolate:context()) -> binary().
 interpolate_rule(Rule_str, Ctx) ->
     case intent@interpolate:interpolate_string(Ctx, Rule_str) of
@@ -80,7 +80,7 @@ interpolate_rule(Rule_str, Ctx) ->
             Rule_str
     end.
 
--file("src/intent/checker.gleam", 313).
+-file("src/intent/checker.gleam", 307).
 -spec navigate_json_path(gleam@json:json(), list(binary())) -> gleam@option:option(gleam@json:json()).
 navigate_json_path(Value, Path) ->
     case Path of
@@ -111,23 +111,14 @@ navigate_json_path(Value, Path) ->
             end
     end.
 
--file("src/intent/checker.gleam", 306).
+-file("src/intent/checker.gleam", 303).
 ?DOC(" Get a field value from JSON using dot notation\n").
--spec get_field_value(gleam@option:option(gleam@json:json()), binary()) -> gleam@option:option(gleam@json:json()).
+-spec get_field_value(gleam@json:json(), binary()) -> gleam@option:option(gleam@json:json()).
 get_field_value(Body, Field) ->
-    case Body of
-        none ->
-            none;
+    navigate_json_path(Body, gleam@string:split(Field, <<"."/utf8>>)).
 
-        {some, Json_val} ->
-            navigate_json_path(
-                Json_val,
-                gleam@string:split(Field, <<"."/utf8>>)
-            )
-    end.
-
--file("src/intent/checker.gleam", 162).
--spec check_absent(binary(), gleam@option:option(gleam@json:json())) -> check_result().
+-file("src/intent/checker.gleam", 159).
+-spec check_absent(binary(), gleam@json:json()) -> check_result().
 check_absent(Field, Body) ->
     case get_field_value(Body, Field) of
         none ->
@@ -143,8 +134,8 @@ check_absent(Field, Body) ->
                     "' should not be present in response"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 176).
--spec check_present(binary(), gleam@option:option(gleam@json:json())) -> check_result().
+-file("src/intent/checker.gleam", 173).
+-spec check_present(binary(), gleam@json:json()) -> check_result().
 check_present(Field, Body) ->
     case get_field_value(Body, Field) of
         {some, _} ->
@@ -160,7 +151,7 @@ check_present(Field, Body) ->
                     "' must be present in response"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 344).
+-file("src/intent/checker.gleam", 338).
 -spec check_equals_json(gleam@json:json(), gleam@json:json()) -> {ok, nil} |
     {error, binary()}.
 check_equals_json(Value, Expected) ->
@@ -177,7 +168,7 @@ check_equals_json(Value, Expected) ->
                     Actual_str/binary>>}
     end.
 
--file("src/intent/checker.gleam", 354).
+-file("src/intent/checker.gleam", 348).
 -spec check_equals_int(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_equals_int(Value, Expected) ->
@@ -201,7 +192,7 @@ check_equals_int(Value, Expected) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 371).
+-file("src/intent/checker.gleam", 365).
 -spec check_equals_float(gleam@json:json(), float()) -> {ok, nil} |
     {error, binary()}.
 check_equals_float(Value, Expected) ->
@@ -228,7 +219,7 @@ check_equals_float(Value, Expected) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 388).
+-file("src/intent/checker.gleam", 382).
 -spec check_equals_bool(gleam@json:json(), boolean()) -> {ok, nil} |
     {error, binary()}.
 check_equals_bool(Value, Expected) ->
@@ -268,7 +259,7 @@ check_equals_bool(Value, Expected) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 409).
+-file("src/intent/checker.gleam", 403).
 -spec check_is_string(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_string(Value) ->
     case gleam@json:decode(
@@ -284,7 +275,7 @@ check_is_string(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 416).
+-file("src/intent/checker.gleam", 410).
 -spec check_is_integer(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_integer(Value) ->
     case gleam@json:decode(gleam@json:to_string(Value), fun gleam@dynamic:int/1) of
@@ -297,7 +288,7 @@ check_is_integer(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 423).
+-file("src/intent/checker.gleam", 417).
 -spec check_is_number(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_number(Value) ->
     Json_str = gleam@json:to_string(Value),
@@ -316,7 +307,7 @@ check_is_number(Value) ->
             end
     end.
 
--file("src/intent/checker.gleam", 435).
+-file("src/intent/checker.gleam", 429).
 -spec check_is_boolean(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_boolean(Value) ->
     case gleam@json:decode(
@@ -332,7 +323,7 @@ check_is_boolean(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 442).
+-file("src/intent/checker.gleam", 436).
 -spec check_is_array(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_array(Value) ->
     case gleam@json:decode(
@@ -348,7 +339,7 @@ check_is_array(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 449).
+-file("src/intent/checker.gleam", 443).
 -spec check_is_object(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_object(Value) ->
     case gleam@json:decode(
@@ -367,7 +358,7 @@ check_is_object(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 458).
+-file("src/intent/checker.gleam", 452).
 -spec check_is_null(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_null(Value) ->
     case gleam@json:to_string(Value) of
@@ -378,7 +369,7 @@ check_is_null(Value) ->
             {error, <<"Expected null but got "/utf8, Other/binary>>}
     end.
 
--file("src/intent/checker.gleam", 465).
+-file("src/intent/checker.gleam", 459).
 -spec check_non_empty_string(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_non_empty_string(Value) ->
     case gleam@json:decode(
@@ -401,7 +392,7 @@ check_non_empty_string(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 492).
+-file("src/intent/checker.gleam", 486).
 -spec check_string_starting_with(gleam@json:json(), binary()) -> {ok, nil} |
     {error, binary()}.
 check_string_starting_with(Value, Prefix) ->
@@ -428,7 +419,7 @@ check_string_starting_with(Value, Prefix) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 507).
+-file("src/intent/checker.gleam", 501).
 -spec check_string_ending_with(gleam@json:json(), binary()) -> {ok, nil} |
     {error, binary()}.
 check_string_ending_with(Value, Suffix) ->
@@ -455,7 +446,7 @@ check_string_ending_with(Value, Suffix) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 519).
+-file("src/intent/checker.gleam", 513).
 -spec check_string_containing(gleam@json:json(), binary()) -> {ok, nil} |
     {error, binary()}.
 check_string_containing(Value, Substring) ->
@@ -482,7 +473,7 @@ check_string_containing(Value, Substring) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 534).
+-file("src/intent/checker.gleam", 528).
 -spec check_is_email(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_email(Value) ->
     case gleam@json:decode(
@@ -498,7 +489,7 @@ check_is_email(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 541).
+-file("src/intent/checker.gleam", 535).
 -spec check_is_uuid(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_uuid(Value) ->
     case gleam@json:decode(
@@ -514,7 +505,7 @@ check_is_uuid(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 548).
+-file("src/intent/checker.gleam", 542).
 -spec check_is_uri(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_uri(Value) ->
     case gleam@json:decode(
@@ -530,12 +521,12 @@ check_is_uri(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 621).
+-file("src/intent/checker.gleam", 615).
 -spec base64_url_decode(binary()) -> {ok, binary()} | {error, binary()}.
 base64_url_decode(Input) ->
     intent_ffi:base64_url_decode(Input).
 
--file("src/intent/checker.gleam", 590).
+-file("src/intent/checker.gleam", 584).
 -spec validate_jwt_part(binary(), binary()) -> {ok, nil} | {error, binary()}.
 validate_jwt_part(Part, Name) ->
     case base64_url_decode(Part) of
@@ -556,7 +547,7 @@ validate_jwt_part(Part, Name) ->
                     " is not valid Base64URL encoding"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 603).
+-file("src/intent/checker.gleam", 597).
 -spec validate_jwt_header_has_alg(binary()) -> {ok, nil} | {error, binary()}.
 validate_jwt_header_has_alg(Header) ->
     case base64_url_decode(Header) of
@@ -586,7 +577,7 @@ validate_jwt_header_has_alg(Header) ->
             {error, <<"JWT header is not valid Base64URL encoding"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 559).
+-file("src/intent/checker.gleam", 553).
 -spec check_valid_jwt(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_valid_jwt(Value) ->
     case gleam@json:decode(
@@ -626,12 +617,12 @@ check_valid_jwt(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 555).
+-file("src/intent/checker.gleam", 549).
 -spec check_is_jwt(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_jwt(Value) ->
     check_valid_jwt(Value).
 
--file("src/intent/checker.gleam", 625).
+-file("src/intent/checker.gleam", 619).
 -spec check_is_iso8601(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_is_iso8601(Value) ->
     case gleam@json:decode(
@@ -647,7 +638,7 @@ check_is_iso8601(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 632).
+-file("src/intent/checker.gleam", 626).
 -spec check_integer_gte(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_integer_gte(Value, N) ->
@@ -671,7 +662,7 @@ check_integer_gte(Value, N) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 649).
+-file("src/intent/checker.gleam", 643).
 -spec check_integer_gt(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_integer_gt(Value, N) ->
@@ -695,7 +686,7 @@ check_integer_gt(Value, N) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 666).
+-file("src/intent/checker.gleam", 660).
 -spec check_integer_lte(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_integer_lte(Value, N) ->
@@ -719,7 +710,7 @@ check_integer_lte(Value, N) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 683).
+-file("src/intent/checker.gleam", 677).
 -spec check_integer_lt(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_integer_lt(Value, N) ->
@@ -743,7 +734,7 @@ check_integer_lt(Value, N) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 700).
+-file("src/intent/checker.gleam", 694).
 -spec check_integer_between(gleam@json:json(), integer(), integer()) -> {ok,
         nil} |
     {error, binary()}.
@@ -770,7 +761,7 @@ check_integer_between(Value, Low, High) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 719).
+-file("src/intent/checker.gleam", 713).
 -spec check_number_between(gleam@json:json(), float(), float()) -> {ok, nil} |
     {error, binary()}.
 check_number_between(Value, Low, High) ->
@@ -815,7 +806,7 @@ check_number_between(Value, Low, High) ->
             end
     end.
 
--file("src/intent/checker.gleam", 761).
+-file("src/intent/checker.gleam", 755).
 -spec check_not_null(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_not_null(Value) ->
     case gleam@json:to_string(Value) of
@@ -826,7 +817,7 @@ check_not_null(Value) ->
             {ok, nil}
     end.
 
--file("src/intent/checker.gleam", 768).
+-file("src/intent/checker.gleam", 762).
 -spec check_non_empty_array(gleam@json:json()) -> {ok, nil} | {error, binary()}.
 check_non_empty_array(Value) ->
     case gleam@json:decode(
@@ -849,7 +840,7 @@ check_non_empty_array(Value) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 779).
+-file("src/intent/checker.gleam", 773).
 -spec check_array_of_length(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_array_of_length(Value, N) ->
@@ -877,7 +868,7 @@ check_array_of_length(Value, N) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 798).
+-file("src/intent/checker.gleam", 792).
 -spec check_array_min_items(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_array_min_items(Value, N) ->
@@ -905,7 +896,7 @@ check_array_min_items(Value, N) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 817).
+-file("src/intent/checker.gleam", 811).
 -spec check_array_max_items(gleam@json:json(), integer()) -> {ok, nil} |
     {error, binary()}.
 check_array_max_items(Value, N) ->
@@ -933,7 +924,7 @@ check_array_max_items(Value, N) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 940).
+-file("src/intent/checker.gleam", 934).
 -spec json_to_raw_string(gleam@json:json()) -> binary().
 json_to_raw_string(Value) ->
     Encoded = gleam@json:to_string(Value),
@@ -950,7 +941,7 @@ json_to_raw_string(Value) ->
             Encoded
     end.
 
--file("src/intent/checker.gleam", 336).
+-file("src/intent/checker.gleam", 330).
 -spec check_equals_string(gleam@json:json(), binary()) -> {ok, nil} |
     {error, binary()}.
 check_equals_string(Value, Expected) ->
@@ -967,7 +958,7 @@ check_equals_string(Value, Expected) ->
                     "'"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 836).
+-file("src/intent/checker.gleam", 830).
 -spec check_one_of(gleam@json:json(), list(binary())) -> {ok, nil} |
     {error, binary()}.
 check_one_of(Value, Options) ->
@@ -985,7 +976,7 @@ check_one_of(Value, Options) ->
                     "'"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 851).
+-file("src/intent/checker.gleam", 845).
 -spec check_string_contains_json(gleam@json:json(), gleam@json:json()) -> {ok,
         nil} |
     {error, binary()}.
@@ -1014,12 +1005,12 @@ check_string_contains_json(Value, Expected) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 952).
+-file("src/intent/checker.gleam", 946).
 -spec json_to_display_string(gleam@json:json()) -> binary().
 json_to_display_string(Value) ->
     gleam@json:to_string(Value).
 
--file("src/intent/checker.gleam", 476).
+-file("src/intent/checker.gleam", 470).
 -spec check_string_matching(gleam@json:json(), binary()) -> {ok, nil} |
     {error, binary()}.
 check_string_matching(Value, Pattern) ->
@@ -1052,7 +1043,7 @@ check_string_matching(Value, Pattern) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 874).
+-file("src/intent/checker.gleam", 868).
 -spec check_array_where_each(
     gleam@json:json(),
     intent@rule:rule_expr(),
@@ -1147,7 +1138,7 @@ check_array_where_each(Value, Inner_rule, Ctx) ->
                     (gleam@json:to_string(Value))/binary>>}
     end.
 
--file("src/intent/checker.gleam", 211).
+-file("src/intent/checker.gleam", 208).
 -spec evaluate_rule(
     binary(),
     binary(),
@@ -1315,11 +1306,11 @@ evaluate_rule(Field, Rule_str, Parsed, Value, Ctx) ->
                 Explanation}
     end.
 
--file("src/intent/checker.gleam", 190).
+-file("src/intent/checker.gleam", 187).
 -spec check_rule(
     binary(),
     binary(),
-    gleam@option:option(gleam@json:json()),
+    gleam@json:json(),
     intent@interpolate:context()
 ) -> check_result().
 check_rule(Field, Rule_str, Body, Ctx) ->
@@ -1338,12 +1329,12 @@ check_rule(Field, Rule_str, Body, Ctx) ->
             evaluate_rule(Field, Rule_str, Parsed, Value, Ctx)
     end.
 
--file("src/intent/checker.gleam", 137).
+-file("src/intent/checker.gleam", 134).
 ?DOC(" Check a single field against its rule\n").
 -spec check_field(
     binary(),
     intent@types:check(),
-    gleam@option:option(gleam@json:json()),
+    gleam@json:json(),
     intent@interpolate:context()
 ) -> check_result().
 check_field(Field, Check, Body, Ctx) ->
@@ -1387,31 +1378,27 @@ check_response(Expected, Actual, Ctx) ->
                         false
                 end end)
     end,
-    {Header_passed, Header_failed} = case erlang:element(5, Expected) of
-        none ->
-            {[], []};
+    {Header_passed, Header_failed} = begin
+        _pipe@3 = erlang:element(5, Expected),
+        _pipe@4 = maps:to_list(_pipe@3),
+        _pipe@5 = gleam@list:map(
+            _pipe@4,
+            fun(Pair@1) ->
+                {Header_name, Expected_value} = Pair@1,
+                check_header(
+                    Header_name,
+                    Expected_value,
+                    erlang:element(3, Actual)
+                )
+            end
+        ),
+        gleam@list:partition(_pipe@5, fun(Result@1) -> case Result@1 of
+                    {check_passed, _, _} ->
+                        true;
 
-        {some, Expected_headers} ->
-            _pipe@3 = Expected_headers,
-            _pipe@4 = maps:to_list(_pipe@3),
-            _pipe@5 = gleam@list:map(
-                _pipe@4,
-                fun(Pair@1) ->
-                    {Header_name, Expected_value} = Pair@1,
-                    check_header(
-                        Header_name,
-                        Expected_value,
-                        erlang:element(3, Actual)
-                    )
-                end
-            ),
-            gleam@list:partition(_pipe@5, fun(Result@1) -> case Result@1 of
-                        {check_passed, _, _} ->
-                            true;
-
-                        {check_failed, _, _, _, _, _} ->
-                            false
-                    end end)
+                    {check_failed, _, _, _, _, _} ->
+                        false
+                end end)
     end,
     {response_check_result,
         lists:append(Body_passed, Header_passed),

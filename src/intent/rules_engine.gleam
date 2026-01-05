@@ -5,7 +5,6 @@ import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option, None, Some}
 import gleam/regexp
 import gleam/string
 import intent/http_client.{type ExecutionResult}

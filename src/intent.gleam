@@ -18,7 +18,12 @@ import intent/quality_analyzer
 import intent/spec_linter
 import intent/improver
 import intent/interview
+import intent/interview_session
 import intent/interview_storage
+import intent/interview_questions
+import intent/spec_builder
+import intent/bead_templates
+import simplifile
 
 /// Exit codes
 const exit_pass = 0
@@ -43,6 +48,7 @@ pub fn main() {
   |> glint.add(at: ["analyze"], do: analyze_command())
   |> glint.add(at: ["improve"], do: improve_command())
   |> glint.add(at: ["interview"], do: interview_command())
+  |> glint.add(at: ["beads"], do: beads_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -485,14 +491,14 @@ fn interview_command() -> glint.Command(Nil) {
 
 fn run_interview(
   profile: interview.Profile,
-  json_input: String,
+  _json_input: String,
   export_to: String,
 ) -> Nil {
   // Initialize session
   let session_id = "interview-" <> generate_uuid()
   let timestamp = current_timestamp()
 
-  let session = interview.create_session(session_id, profile, timestamp)
+  let session = interview_session.start_interview(profile, session_id, timestamp)
 
   // Print welcome message
   io.println("")
@@ -506,34 +512,195 @@ fn run_interview(
   io.println("This guided interview will help us discover and refine your")
   io.println("specification through structured questioning.")
   io.println("")
-  io.println("We'll ask 25 questions across 5 rounds × 5 perspectives:")
+  io.println("We'll ask questions across 5 rounds × multiple perspectives:")
   io.println("  • Round 1: Core Intent (what are you building?)")
-  io.println("  • Round 2: Error Cases (what can go wrong?)")
-  io.println("  • Round 3: Edge Cases (where are the boundaries?)")
+  io.println("  • Round 2: Scope & Boundaries (what's in/out?)")
+  io.println("  • Round 3: Error Cases (what can go wrong?)")
   io.println("  • Round 4: Security & Compliance (how do we keep it safe?)")
   io.println("  • Round 5: Operations (how does it run in production?)")
   io.println("")
   io.println("Press Ctrl+C to save and exit at any time.")
-  io.println("Session will be saved to: .interview/" <> session_id <> ".jsonl")
+  io.println("Session will be saved to: .interview/sessions.jsonl")
   io.println("")
   io.println("Ready? Let's begin.")
   io.println("")
 
-  // TUI would go here - for now, just stub
-  io.println("⚠️ Interactive TUI not yet implemented")
-  io.println("Stub: waiting for question/answer loop")
-  io.println("")
-  io.println("When implemented, interview will:")
-  io.println("  1. Load questions from schema/questions.cue")
-  io.println("  2. Show one question at a time")
-  io.println("  3. Extract key fields from answers (AI-driven)")
-  io.println("  4. Detect gaps and conflicts")
-  io.println("  5. Pause for critical gaps")
-  io.println("  6. Offer conflict resolution options")
-  io.println("  7. Export final spec as CUE")
-  io.println("")
-  io.println("Session saved (empty): " <> session_id)
+  // Run the interview loop
+  let final_session = interview_loop(session, 1)
+
+  // Save session to JSONL
+  let save_result = interview_storage.append_session_to_jsonl(
+    final_session,
+    ".interview/sessions.jsonl",
+  )
+
+  case save_result {
+    Ok(Nil) -> {
+      io.println("")
+      io.println("✓ Session saved: " <> session_id)
+    }
+    Error(err) -> {
+      io.println_error("✗ Failed to save session: " <> err)
+    }
+  }
+
+  // Export to spec if requested
+  case export_to {
+    "" -> Nil
+    path -> {
+      let spec_cue = spec_builder.build_spec_from_session(final_session)
+      case simplifile.write(path, spec_cue) {
+        Ok(Nil) -> {
+          io.println("✓ Spec exported to: " <> path)
+        }
+        Error(err) -> {
+          io.println_error("✗ Failed to export spec: " <> string.inspect(err))
+        }
+      }
+    }
+  }
+
   halt(exit_pass)
+}
+
+/// Main interview loop - asks questions round by round
+fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.InterviewSession {
+  case round > 5 {
+    True -> session
+    False -> {
+      io.println("")
+      io.println("═══════════════════════════════════════════════════════════════════")
+      io.println("ROUND " <> string.inspect(round) <> "/5")
+      io.println("═══════════════════════════════════════════════════════════════════")
+      io.println("")
+
+      // Get questions for this round
+      case interview_session.get_first_question_for_round(session, round) {
+        Error(_) -> {
+          io.println("(No questions for this round)")
+          interview_loop(session, round + 1)
+        }
+        Ok(first_question) -> {
+          // Ask all questions in this round
+          let updated_session = ask_questions_in_round(session, round, first_question)
+
+          // Check for blocking gaps before proceeding
+          let blocking_gaps = interview_session.get_blocking_gaps(updated_session)
+          case blocking_gaps {
+            [] -> interview_loop(updated_session, round + 1)
+            gaps -> {
+              io.println("")
+              io.println("⚠️ BLOCKING GAPS DETECTED:")
+              list.each(gaps, fn(gap) {
+                io.println("  • " <> gap.description)
+                io.println("    " <> gap.why_needed)
+              })
+              io.println("")
+              interview_loop(updated_session, round + 1)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/// Ask all unanswered questions in a round
+fn ask_questions_in_round(
+  session: interview.InterviewSession,
+  round: Int,
+  _current_question: interview_questions.Question,
+) -> interview.InterviewSession {
+  let profile_str = profile_to_string(session.profile)
+
+  // Get all questions for this round
+  let questions = interview_questions.get_questions_for_round(profile_str, round)
+  let answered_ids = list.map(session.answers, fn(a) { a.question_id })
+
+  // Filter to unanswered questions
+  let unanswered = list.filter(questions, fn(q) {
+    !list.contains(answered_ids, q.id)
+  })
+
+  // Ask each unanswered question
+  list.fold(unanswered, session, fn(sess, question) {
+    ask_single_question(sess, question, round)
+  })
+}
+
+/// Ask a single question and collect answer
+fn ask_single_question(
+  session: interview.InterviewSession,
+  question: interview_questions.Question,
+  round: Int,
+) -> interview.InterviewSession {
+  io.println("")
+  io.print("Q" <> string.inspect(question.priority) <> ": ")
+  io.println(question.question)
+
+  case string.length(question.context) > 0 {
+    True -> io.println("   Context: " <> question.context)
+    False -> Nil
+  }
+
+  case string.length(question.example) > 0 {
+    True -> io.println("   Example: " <> question.example)
+    False -> Nil
+  }
+
+  io.print("")
+  io.print("> ")
+
+  // For now, simulate answer collection
+  // In a real TUI, this would read from stdin
+  let answer_text = "(interview loop ready - awaiting stdin implementation)"
+
+  // Extract fields from answer
+  let extracted = interview.extract_from_answer(
+    question.id,
+    answer_text,
+    question.extract_into,
+  )
+
+  // Calculate confidence
+  let confidence = interview.calculate_confidence(question.id, answer_text, extracted)
+
+  // Create answer record
+  let answer = interview.Answer(
+    question_id: question.id,
+    question_text: question.question,
+    perspective: question.perspective,
+    round: round,
+    response: answer_text,
+    extracted: extracted,
+    confidence: confidence,
+    notes: "",
+    timestamp: current_timestamp(),
+  )
+
+  // Add to session
+  let updated_session = interview_session.add_answer(session, answer)
+
+  // Check for gaps and conflicts
+  let #(sess_with_gaps, _gaps) =
+    interview_session.check_for_gaps(updated_session, question, answer)
+
+  let #(sess_final, _conflicts) =
+    interview_session.check_for_conflicts(sess_with_gaps, answer)
+
+  sess_final
+}
+
+/// Helper: convert Profile to string for questions module
+fn profile_to_string(profile: interview.Profile) -> String {
+  case profile {
+    interview.Api -> "api"
+    interview.Cli -> "cli"
+    interview.Event -> "event"
+    interview.Data -> "data"
+    interview.Workflow -> "workflow"
+    interview.UI -> "ui"
+  }
 }
 
 fn profile_to_display_string(profile: interview.Profile) -> String {
@@ -547,17 +714,72 @@ fn profile_to_display_string(profile: interview.Profile) -> String {
   }
 }
 
+/// The `beads` command - generate work items from interview session
+fn beads_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [session_id, ..] -> {
+        // Load session from JSONL
+        case interview_storage.get_session_from_jsonl(
+          ".interview/sessions.jsonl",
+          session_id,
+        ) {
+          Error(err) -> {
+            io.println_error("Error: " <> err)
+            halt(exit_error)
+          }
+          Ok(session) -> {
+            // Generate beads from session
+            let beads = bead_templates.generate_beads_from_session(session)
+            let bead_count = list.length(beads)
+
+            io.println("")
+            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println("                    BEAD GENERATION")
+            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println("")
+            io.println("Generated " <> string.inspect(bead_count) <> " work items from session: " <> session_id)
+            io.println("")
+
+            // Export to .beads/issues.jsonl
+            let jsonl_output = bead_templates.beads_to_jsonl(beads)
+
+            case simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n") {
+              Ok(Nil) -> {
+                io.println("✓ Beads exported to: .beads/issues.jsonl")
+                io.println("")
+
+                // Show stats
+                let stats = bead_templates.bead_stats(beads)
+                io.println("Summary:")
+                io.println("  Total beads: " <> string.inspect(stats.total))
+
+                halt(exit_pass)
+              }
+              Error(err) -> {
+                io.println_error("✗ Failed to write beads: " <> string.inspect(err))
+                halt(exit_error)
+              }
+            }
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Usage: intent beads <session_id>")
+        io.println_error("")
+        io.println_error("Example: intent beads interview-abc123def456")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Generate work items (beads) from an interview session")
+}
+
 @external(erlang, "intent_ffi", "halt")
 fn halt(code: Int) -> Nil
 
-fn generate_uuid() -> String {
-  // Simple UUID v4 simulation
-  // In production, use a proper UUID library or Erlang uuid:uuid4()
-  "interview-abc123def456"
-}
+@external(erlang, "intent_ffi", "generate_uuid")
+fn generate_uuid() -> String
 
-fn current_timestamp() -> String {
-  // For now, return a fixed timestamp
-  // In production, use erlang:system_time with ISO 8601 formatting
-  "2026-01-04T00:00:00Z"
-}
+@external(erlang, "intent_ffi", "current_timestamp")
+fn current_timestamp() -> String

@@ -229,16 +229,10 @@ fn execute_single_behavior(
         }
         Ok(execution) -> {
           // Update context with response body
-          let ctx = case execution.body {
-            Some(body) -> interpolate.set_response_body(ctx, body)
-            None -> ctx
-          }
+          let ctx = interpolate.set_response_body(ctx, execution.body)
 
           // Update context with request body if present
-          let ctx = case rb.behavior.request.body {
-            Some(body) -> interpolate.set_request_body(ctx, body)
-            None -> ctx
-          }
+          let ctx = interpolate.set_request_body(ctx, rb.behavior.request.body)
 
           // Check the response
           let check_result =
@@ -321,7 +315,7 @@ fn check_rules_for_execution(
             output.BehaviorViolation(
               behavior: behavior_name,
               violations: list.map(violations, rules_engine.format_violation),
-              response: execution.body,
+              response: Some(execution.body),
             ),
           ))
         _ -> Error(Nil)

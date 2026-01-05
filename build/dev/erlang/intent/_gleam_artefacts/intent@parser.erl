@@ -11,7 +11,7 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--file("src/intent/parser.gleam", 88).
+-file("src/intent/parser.gleam", 65).
 -spec parse_string_dict(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), binary())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -20,52 +20,26 @@ parse_string_dict(Data) ->
         Data
     ).
 
--file("src/intent/parser.gleam", 72).
+-file("src/intent/parser.gleam", 58).
 -spec parse_config(gleam@dynamic:dynamic_()) -> {ok, intent@types:config()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_config(Data) ->
     gleam@result:'try'(
-        begin
-            _pipe = (gleam@dynamic:optional_field(
-                <<"base_url"/utf8>>,
-                fun gleam@dynamic:string/1
-            ))(Data),
-            gleam@result:map(
-                _pipe,
-                fun(_capture) -> gleam@option:unwrap(_capture, <<""/utf8>>) end
-            )
-        end,
+        (gleam@dynamic:field(<<"base_url"/utf8>>, fun gleam@dynamic:string/1))(
+            Data
+        ),
         fun(Base_url) ->
             gleam@result:'try'(
-                begin
-                    _pipe@1 = (gleam@dynamic:optional_field(
-                        <<"timeout_ms"/utf8>>,
-                        fun gleam@dynamic:int/1
-                    ))(Data),
-                    gleam@result:map(
-                        _pipe@1,
-                        fun(_capture@1) ->
-                            gleam@option:unwrap(_capture@1, 5000)
-                        end
-                    )
-                end,
+                (gleam@dynamic:field(
+                    <<"timeout_ms"/utf8>>,
+                    fun gleam@dynamic:int/1
+                ))(Data),
                 fun(Timeout_ms) ->
                     gleam@result:'try'(
-                        begin
-                            _pipe@2 = (gleam@dynamic:optional_field(
-                                <<"headers"/utf8>>,
-                                fun parse_string_dict/1
-                            ))(Data),
-                            gleam@result:map(
-                                _pipe@2,
-                                fun(_capture@2) ->
-                                    gleam@option:unwrap(
-                                        _capture@2,
-                                        gleam@dict:new()
-                                    )
-                                end
-                            )
-                        end,
+                        (gleam@dynamic:field(
+                            <<"headers"/utf8>>,
+                            fun parse_string_dict/1
+                        ))(Data),
                         fun(Headers) ->
                             {ok, {config, Base_url, Timeout_ms, Headers}}
                         end
@@ -75,7 +49,7 @@ parse_config(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 139).
+-file("src/intent/parser.gleam", 108).
 -spec parse_method(gleam@dynamic:dynamic_()) -> {ok, intent@types:method()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_method(Data) ->
@@ -107,7 +81,7 @@ parse_method(Data) ->
                     {error, [{decode_error, <<"HTTP method"/utf8>>, S, []}]}
             end end).
 
--file("src/intent/parser.gleam", 189).
+-file("src/intent/parser.gleam", 150).
 ?DOC(" Convert a Dynamic value to Json\n").
 -spec dynamic_to_json(gleam@dynamic:dynamic_()) -> gleam@json:json().
 dynamic_to_json(Data) ->
@@ -224,7 +198,7 @@ dynamic_to_json(Data) ->
             gleam@json:null()
     end.
 
--file("src/intent/parser.gleam", 176).
+-file("src/intent/parser.gleam", 137).
 -spec parse_json_dict(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), gleam@json:json())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -241,13 +215,13 @@ parse_json_dict(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 184).
+-file("src/intent/parser.gleam", 145).
 -spec parse_json_value(gleam@dynamic:dynamic_()) -> {ok, gleam@json:json()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_json_value(Data) ->
     {ok, dynamic_to_json(Data)}.
 
--file("src/intent/parser.gleam", 159).
+-file("src/intent/parser.gleam", 128).
 -spec parse_request(gleam@dynamic:dynamic_()) -> {ok, intent@types:request()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_request(Data) ->
@@ -261,41 +235,19 @@ parse_request(Data) ->
                 ))(Data),
                 fun(Path) ->
                     gleam@result:'try'(
-                        begin
-                            _pipe = (gleam@dynamic:optional_field(
-                                <<"headers"/utf8>>,
-                                fun parse_string_dict/1
-                            ))(Data),
-                            gleam@result:map(
-                                _pipe,
-                                fun(_capture) ->
-                                    gleam@option:unwrap(
-                                        _capture,
-                                        gleam@dict:new()
-                                    )
-                                end
-                            )
-                        end,
+                        (gleam@dynamic:field(
+                            <<"headers"/utf8>>,
+                            fun parse_string_dict/1
+                        ))(Data),
                         fun(Headers) ->
                             gleam@result:'try'(
-                                begin
-                                    _pipe@1 = (gleam@dynamic:optional_field(
-                                        <<"query"/utf8>>,
-                                        fun parse_json_dict/1
-                                    ))(Data),
-                                    gleam@result:map(
-                                        _pipe@1,
-                                        fun(_capture@1) ->
-                                            gleam@option:unwrap(
-                                                _capture@1,
-                                                gleam@dict:new()
-                                            )
-                                        end
-                                    )
-                                end,
+                                (gleam@dynamic:field(
+                                    <<"query"/utf8>>,
+                                    fun parse_json_dict/1
+                                ))(Data),
                                 fun(Query) ->
                                     gleam@result:'try'(
-                                        (gleam@dynamic:optional_field(
+                                        (gleam@dynamic:field(
                                             <<"body"/utf8>>,
                                             fun parse_json_value/1
                                         ))(Data),
@@ -318,7 +270,7 @@ parse_request(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 252).
+-file("src/intent/parser.gleam", 206).
 -spec parse_check(gleam@dynamic:dynamic_()) -> {ok, intent@types:check()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_check(Data) ->
@@ -343,7 +295,7 @@ parse_check(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 245).
+-file("src/intent/parser.gleam", 199).
 -spec parse_checks(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), intent@types:check())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -351,7 +303,7 @@ parse_checks(Data) ->
     _pipe = Data,
     (gleam@dynamic:dict(fun gleam@dynamic:string/1, fun parse_check/1))(_pipe).
 
--file("src/intent/parser.gleam", 230).
+-file("src/intent/parser.gleam", 191).
 -spec parse_response(gleam@dynamic:dynamic_()) -> {ok, intent@types:response()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_response(Data) ->
@@ -359,30 +311,18 @@ parse_response(Data) ->
         (gleam@dynamic:field(<<"status"/utf8>>, fun gleam@dynamic:int/1))(Data),
         fun(Status) ->
             gleam@result:'try'(
-                (gleam@dynamic:optional_field(
-                    <<"example"/utf8>>,
-                    fun parse_json_value/1
-                ))(Data),
+                (gleam@dynamic:field(<<"example"/utf8>>, fun parse_json_value/1))(
+                    Data
+                ),
                 fun(Example) ->
                     gleam@result:'try'(
-                        begin
-                            _pipe = (gleam@dynamic:optional_field(
-                                <<"checks"/utf8>>,
-                                fun parse_checks/1
-                            ))(Data),
-                            gleam@result:map(
-                                _pipe,
-                                fun(_capture) ->
-                                    gleam@option:unwrap(
-                                        _capture,
-                                        gleam@dict:new()
-                                    )
-                                end
-                            )
-                        end,
+                        (gleam@dynamic:field(
+                            <<"checks"/utf8>>,
+                            fun parse_checks/1
+                        ))(Data),
                         fun(Checks) ->
                             gleam@result:'try'(
-                                (gleam@dynamic:optional_field(
+                                (gleam@dynamic:field(
                                     <<"headers"/utf8>>,
                                     fun parse_string_dict/1
                                 ))(Data),
@@ -402,7 +342,7 @@ parse_response(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 106).
+-file("src/intent/parser.gleam", 83).
 -spec parse_behavior(gleam@dynamic:dynamic_()) -> {ok, intent@types:behavior()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_behavior(Data) ->
@@ -416,53 +356,26 @@ parse_behavior(Data) ->
                 ))(Data),
                 fun(Intent) ->
                     gleam@result:'try'(
-                        begin
-                            _pipe = (gleam@dynamic:optional_field(
-                                <<"notes"/utf8>>,
-                                fun gleam@dynamic:string/1
-                            ))(Data),
-                            gleam@result:map(
-                                _pipe,
-                                fun(_capture) ->
-                                    gleam@option:unwrap(_capture, <<""/utf8>>)
-                                end
-                            )
-                        end,
+                        (gleam@dynamic:field(
+                            <<"notes"/utf8>>,
+                            fun gleam@dynamic:string/1
+                        ))(Data),
                         fun(Notes) ->
                             gleam@result:'try'(
-                                begin
-                                    _pipe@1 = (gleam@dynamic:optional_field(
-                                        <<"requires"/utf8>>,
-                                        gleam@dynamic:list(
-                                            fun gleam@dynamic:string/1
-                                        )
-                                    ))(Data),
-                                    gleam@result:map(
-                                        _pipe@1,
-                                        fun(_capture@1) ->
-                                            gleam@option:unwrap(_capture@1, [])
-                                        end
+                                (gleam@dynamic:field(
+                                    <<"requires"/utf8>>,
+                                    gleam@dynamic:list(
+                                        fun gleam@dynamic:string/1
                                     )
-                                end,
+                                ))(Data),
                                 fun(Requires) ->
                                     gleam@result:'try'(
-                                        begin
-                                            _pipe@2 = (gleam@dynamic:optional_field(
-                                                <<"tags"/utf8>>,
-                                                gleam@dynamic:list(
-                                                    fun gleam@dynamic:string/1
-                                                )
-                                            ))(Data),
-                                            gleam@result:map(
-                                                _pipe@2,
-                                                fun(_capture@2) ->
-                                                    gleam@option:unwrap(
-                                                        _capture@2,
-                                                        []
-                                                    )
-                                                end
+                                        (gleam@dynamic:field(
+                                            <<"tags"/utf8>>,
+                                            gleam@dynamic:list(
+                                                fun gleam@dynamic:string/1
                                             )
-                                        end,
+                                        ))(Data),
                                         fun(Tags) ->
                                             gleam@result:'try'(
                                                 (gleam@dynamic:field(
@@ -477,25 +390,10 @@ parse_behavior(Data) ->
                                                         ))(Data),
                                                         fun(Response) ->
                                                             gleam@result:'try'(
-                                                                begin
-                                                                    _pipe@3 = (gleam@dynamic:optional_field(
-                                                                        <<"captures"/utf8>>,
-                                                                        fun parse_string_dict/1
-                                                                    ))(Data),
-                                                                    gleam@result:map(
-                                                                        _pipe@3,
-                                                                        fun(
-                                                                            _capture@3
-                                                                        ) ->
-                                                                            gleam@option:unwrap(
-                                                                                _capture@3,
-                                                                                gleam@dict:new(
-                                                                                    
-                                                                                )
-                                                                            )
-                                                                        end
-                                                                    )
-                                                                end,
+                                                                (gleam@dynamic:field(
+                                                                    <<"captures"/utf8>>,
+                                                                    fun parse_string_dict/1
+                                                                ))(Data),
                                                                 fun(Captures) ->
                                                                     {ok,
                                                                         {behavior,
@@ -524,7 +422,7 @@ parse_behavior(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 94).
+-file("src/intent/parser.gleam", 71).
 -spec parse_feature(gleam@dynamic:dynamic_()) -> {ok, intent@types:feature()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_feature(Data) ->
@@ -559,24 +457,22 @@ parse_feature(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 276).
+-file("src/intent/parser.gleam", 226).
 -spec parse_when(gleam@dynamic:dynamic_()) -> {ok, intent@types:'when'()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_when(Data) ->
     gleam@result:'try'(
-        (gleam@dynamic:optional_field(
-            <<"status"/utf8>>,
-            fun gleam@dynamic:string/1
-        ))(Data),
+        (gleam@dynamic:field(<<"status"/utf8>>, fun gleam@dynamic:string/1))(
+            Data
+        ),
         fun(Status) ->
             gleam@result:'try'(
-                (gleam@dynamic:optional_field(
-                    <<"method"/utf8>>,
-                    fun parse_method/1
-                ))(Data),
+                (gleam@dynamic:field(<<"method"/utf8>>, fun parse_method/1))(
+                    Data
+                ),
                 fun(Method) ->
                     gleam@result:'try'(
-                        (gleam@dynamic:optional_field(
+                        (gleam@dynamic:field(
                             <<"path"/utf8>>,
                             fun gleam@dynamic:string/1
                         ))(Data),
@@ -587,31 +483,31 @@ parse_when(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 289).
+-file("src/intent/parser.gleam", 233).
 -spec parse_rule_check(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:rule_check()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_rule_check(Data) ->
     gleam@result:'try'(
-        (gleam@dynamic:optional_field(
+        (gleam@dynamic:field(
             <<"body_must_not_contain"/utf8>>,
             gleam@dynamic:list(fun gleam@dynamic:string/1)
         ))(Data),
         fun(Body_must_not_contain) ->
             gleam@result:'try'(
-                (gleam@dynamic:optional_field(
+                (gleam@dynamic:field(
                     <<"body_must_contain"/utf8>>,
                     gleam@dynamic:list(fun gleam@dynamic:string/1)
                 ))(Data),
                 fun(Body_must_contain) ->
                     gleam@result:'try'(
-                        (gleam@dynamic:optional_field(
+                        (gleam@dynamic:field(
                             <<"fields_must_exist"/utf8>>,
                             gleam@dynamic:list(fun gleam@dynamic:string/1)
                         ))(Data),
                         fun(Fields_must_exist) ->
                             gleam@result:'try'(
-                                (gleam@dynamic:optional_field(
+                                (gleam@dynamic:field(
                                     <<"fields_must_not_exist"/utf8>>,
                                     gleam@dynamic:list(
                                         fun gleam@dynamic:string/1
@@ -619,13 +515,13 @@ parse_rule_check(Data) ->
                                 ))(Data),
                                 fun(Fields_must_not_exist) ->
                                     gleam@result:'try'(
-                                        (gleam@dynamic:optional_field(
+                                        (gleam@dynamic:field(
                                             <<"header_must_exist"/utf8>>,
                                             fun gleam@dynamic:string/1
                                         ))(Data),
                                         fun(Header_must_exist) ->
                                             gleam@result:'try'(
-                                                (gleam@dynamic:optional_field(
+                                                (gleam@dynamic:field(
                                                     <<"header_must_not_exist"/utf8>>,
                                                     fun gleam@dynamic:string/1
                                                 ))(Data),
@@ -651,7 +547,7 @@ parse_rule_check(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 261).
+-file("src/intent/parser.gleam", 215).
 -spec parse_rule(gleam@dynamic:dynamic_()) -> {ok, intent@types:rule()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_rule(Data) ->
@@ -665,10 +561,9 @@ parse_rule(Data) ->
                 ))(Data),
                 fun(Description) ->
                     gleam@result:'try'(
-                        (gleam@dynamic:optional_field(
-                            <<"when"/utf8>>,
-                            fun parse_when/1
-                        ))(Data),
+                        (gleam@dynamic:field(<<"when"/utf8>>, fun parse_when/1))(
+                            Data
+                        ),
                         fun(When) ->
                             gleam@result:'try'(
                                 (gleam@dynamic:field(
@@ -677,7 +572,7 @@ parse_rule(Data) ->
                                 ))(Data),
                                 fun(Check) ->
                                     gleam@result:'try'(
-                                        (gleam@dynamic:optional_field(
+                                        (gleam@dynamic:field(
                                             <<"example"/utf8>>,
                                             fun parse_json_value/1
                                         ))(Data),
@@ -700,7 +595,7 @@ parse_rule(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 328).
+-file("src/intent/parser.gleam", 268).
 -spec parse_anti_pattern(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:anti_pattern()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -715,49 +610,22 @@ parse_anti_pattern(Data) ->
                 ))(Data),
                 fun(Description) ->
                     gleam@result:'try'(
-                        parse_json_value(
-                            case (gleam@dynamic:field(
-                                <<"bad_example"/utf8>>,
-                                fun gleam@dynamic:dynamic/1
-                            ))(Data) of
-                                {ok, D} ->
-                                    D;
-
-                                {error, _} ->
-                                    Data
-                            end
-                        ),
+                        (gleam@dynamic:field(
+                            <<"bad_example"/utf8>>,
+                            fun parse_json_value/1
+                        ))(Data),
                         fun(Bad_example) ->
                             gleam@result:'try'(
-                                parse_json_value(
-                                    case (gleam@dynamic:field(
-                                        <<"good_example"/utf8>>,
-                                        fun gleam@dynamic:dynamic/1
-                                    ))(Data) of
-                                        {ok, D@1} ->
-                                            D@1;
-
-                                        {error, _} ->
-                                            Data
-                                    end
-                                ),
+                                (gleam@dynamic:field(
+                                    <<"good_example"/utf8>>,
+                                    fun parse_json_value/1
+                                ))(Data),
                                 fun(Good_example) ->
                                     gleam@result:'try'(
-                                        begin
-                                            _pipe = (gleam@dynamic:optional_field(
-                                                <<"why"/utf8>>,
-                                                fun gleam@dynamic:string/1
-                                            ))(Data),
-                                            gleam@result:map(
-                                                _pipe,
-                                                fun(Opt) ->
-                                                    gleam@option:unwrap(
-                                                        Opt,
-                                                        <<""/utf8>>
-                                                    )
-                                                end
-                                            )
-                                        end,
+                                        (gleam@dynamic:field(
+                                            <<"why"/utf8>>,
+                                            fun gleam@dynamic:string/1
+                                        ))(Data),
                                         fun(Why) ->
                                             {ok,
                                                 {anti_pattern,
@@ -777,49 +645,32 @@ parse_anti_pattern(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 377).
+-file("src/intent/parser.gleam", 304).
 -spec parse_implementation_hints(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:implementation_hints()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_implementation_hints(Data) ->
     gleam@result:'try'(
-        begin
-            _pipe = (gleam@dynamic:optional_field(
-                <<"suggested_stack"/utf8>>,
-                gleam@dynamic:list(fun gleam@dynamic:string/1)
-            ))(Data),
-            gleam@result:map(
-                _pipe,
-                fun(_capture) -> gleam@option:unwrap(_capture, []) end
-            )
-        end,
+        (gleam@dynamic:field(
+            <<"suggested_stack"/utf8>>,
+            gleam@dynamic:list(fun gleam@dynamic:string/1)
+        ))(Data),
         fun(Suggested_stack) ->
             {ok, {implementation_hints, Suggested_stack}}
         end
     ).
 
--file("src/intent/parser.gleam", 395).
+-file("src/intent/parser.gleam", 319).
 -spec parse_entity_hint(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:entity_hint()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_entity_hint(Data) ->
     gleam@result:'try'(
-        begin
-            _pipe = (gleam@dynamic:optional_field(
-                <<"fields"/utf8>>,
-                fun parse_string_dict/1
-            ))(Data),
-            gleam@result:map(
-                _pipe,
-                fun(_capture) ->
-                    gleam@option:unwrap(_capture, gleam@dict:new())
-                end
-            )
-        end,
+        (gleam@dynamic:field(<<"fields"/utf8>>, fun parse_string_dict/1))(Data),
         fun(Fields) -> {ok, {entity_hint, Fields}} end
     ).
 
--file("src/intent/parser.gleam", 389).
+-file("src/intent/parser.gleam", 313).
 -spec parse_entities(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), intent@types:entity_hint())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -828,31 +679,31 @@ parse_entities(Data) ->
         Data
     ).
 
--file("src/intent/parser.gleam", 403).
+-file("src/intent/parser.gleam", 324).
 -spec parse_security_hints(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:security_hints()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_security_hints(Data) ->
     gleam@result:'try'(
-        (gleam@dynamic:optional_field(
+        (gleam@dynamic:field(
             <<"password_hashing"/utf8>>,
             fun gleam@dynamic:string/1
         ))(Data),
         fun(Password_hashing) ->
             gleam@result:'try'(
-                (gleam@dynamic:optional_field(
+                (gleam@dynamic:field(
                     <<"jwt_algorithm"/utf8>>,
                     fun gleam@dynamic:string/1
                 ))(Data),
                 fun(Jwt_algorithm) ->
                     gleam@result:'try'(
-                        (gleam@dynamic:optional_field(
+                        (gleam@dynamic:field(
                             <<"jwt_expiry"/utf8>>,
                             fun gleam@dynamic:string/1
                         ))(Data),
                         fun(Jwt_expiry) ->
                             gleam@result:'try'(
-                                (gleam@dynamic:optional_field(
+                                (gleam@dynamic:field(
                                     <<"rate_limiting"/utf8>>,
                                     fun gleam@dynamic:string/1
                                 ))(Data),
@@ -872,51 +723,34 @@ parse_security_hints(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 359).
+-file("src/intent/parser.gleam", 290).
 -spec parse_ai_hints(gleam@dynamic:dynamic_()) -> {ok, intent@types:a_i_hints()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_ai_hints(Data) ->
     gleam@result:'try'(
-        (gleam@dynamic:optional_field(
+        (gleam@dynamic:field(
             <<"implementation"/utf8>>,
             fun parse_implementation_hints/1
         ))(Data),
         fun(Implementation) ->
             gleam@result:'try'(
-                begin
-                    _pipe = (gleam@dynamic:optional_field(
-                        <<"entities"/utf8>>,
-                        fun parse_entities/1
-                    ))(Data),
-                    gleam@result:map(
-                        _pipe,
-                        fun(_capture) ->
-                            gleam@option:unwrap(_capture, gleam@dict:new())
-                        end
-                    )
-                end,
+                (gleam@dynamic:field(<<"entities"/utf8>>, fun parse_entities/1))(
+                    Data
+                ),
                 fun(Entities) ->
                     gleam@result:'try'(
-                        (gleam@dynamic:optional_field(
+                        (gleam@dynamic:field(
                             <<"security"/utf8>>,
                             fun parse_security_hints/1
                         ))(Data),
                         fun(Security) ->
                             gleam@result:'try'(
-                                begin
-                                    _pipe@1 = (gleam@dynamic:optional_field(
-                                        <<"pitfalls"/utf8>>,
-                                        gleam@dynamic:list(
-                                            fun gleam@dynamic:string/1
-                                        )
-                                    ))(Data),
-                                    gleam@result:map(
-                                        _pipe@1,
-                                        fun(_capture@1) ->
-                                            gleam@option:unwrap(_capture@1, [])
-                                        end
+                                (gleam@dynamic:field(
+                                    <<"pitfalls"/utf8>>,
+                                    gleam@dynamic:list(
+                                        fun gleam@dynamic:string/1
                                     )
-                                end,
+                                ))(Data),
                                 fun(Pitfalls) ->
                                     {ok,
                                         {a_i_hints,
@@ -933,8 +767,11 @@ parse_ai_hints(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 19).
-?DOC(" Parse a spec from a JSON value\n").
+-file("src/intent/parser.gleam", 20).
+?DOC(
+    " Parse a spec from a JSON value\n"
+    " All fields are required - no backwards compatibility defaults\n"
+).
 -spec parse_spec(gleam@dynamic:dynamic_()) -> {ok, intent@types:spec()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_spec(Data) ->
@@ -948,54 +785,24 @@ parse_spec(Data) ->
                 ))(Data),
                 fun(Description) ->
                     gleam@result:'try'(
-                        begin
-                            _pipe = (gleam@dynamic:optional_field(
-                                <<"audience"/utf8>>,
-                                fun gleam@dynamic:string/1
-                            ))(Data),
-                            gleam@result:map(
-                                _pipe,
-                                fun(Opt) ->
-                                    gleam@option:unwrap(Opt, <<""/utf8>>)
-                                end
-                            )
-                        end,
+                        (gleam@dynamic:field(
+                            <<"audience"/utf8>>,
+                            fun gleam@dynamic:string/1
+                        ))(Data),
                         fun(Audience) ->
                             gleam@result:'try'(
-                                begin
-                                    _pipe@1 = (gleam@dynamic:optional_field(
-                                        <<"version"/utf8>>,
-                                        fun gleam@dynamic:string/1
-                                    ))(Data),
-                                    gleam@result:map(
-                                        _pipe@1,
-                                        fun(Opt@1) ->
-                                            gleam@option:unwrap(
-                                                Opt@1,
-                                                <<"1.0.0"/utf8>>
-                                            )
-                                        end
-                                    )
-                                end,
+                                (gleam@dynamic:field(
+                                    <<"version"/utf8>>,
+                                    fun gleam@dynamic:string/1
+                                ))(Data),
                                 fun(Version) ->
                                     gleam@result:'try'(
-                                        begin
-                                            _pipe@2 = (gleam@dynamic:optional_field(
-                                                <<"success_criteria"/utf8>>,
-                                                gleam@dynamic:list(
-                                                    fun gleam@dynamic:string/1
-                                                )
-                                            ))(Data),
-                                            gleam@result:map(
-                                                _pipe@2,
-                                                fun(Opt@2) ->
-                                                    gleam@option:unwrap(
-                                                        Opt@2,
-                                                        []
-                                                    )
-                                                end
+                                        (gleam@dynamic:field(
+                                            <<"success_criteria"/utf8>>,
+                                            gleam@dynamic:list(
+                                                fun gleam@dynamic:string/1
                                             )
-                                        end,
+                                        ))(Data),
                                         fun(Success_criteria) ->
                                             gleam@result:'try'(
                                                 (gleam@dynamic:field(
@@ -1004,72 +811,33 @@ parse_spec(Data) ->
                                                 ))(Data),
                                                 fun(Config) ->
                                                     gleam@result:'try'(
-                                                        begin
-                                                            _pipe@3 = (gleam@dynamic:optional_field(
-                                                                <<"features"/utf8>>,
-                                                                gleam@dynamic:list(
-                                                                    fun parse_feature/1
-                                                                )
-                                                            ))(Data),
-                                                            gleam@result:map(
-                                                                _pipe@3,
-                                                                fun(Opt@3) ->
-                                                                    gleam@option:unwrap(
-                                                                        Opt@3,
-                                                                        []
-                                                                    )
-                                                                end
+                                                        (gleam@dynamic:field(
+                                                            <<"features"/utf8>>,
+                                                            gleam@dynamic:list(
+                                                                fun parse_feature/1
                                                             )
-                                                        end,
+                                                        ))(Data),
                                                         fun(Features) ->
                                                             gleam@result:'try'(
-                                                                begin
-                                                                    _pipe@4 = (gleam@dynamic:optional_field(
-                                                                        <<"rules"/utf8>>,
-                                                                        gleam@dynamic:list(
-                                                                            fun parse_rule/1
-                                                                        )
-                                                                    ))(Data),
-                                                                    gleam@result:map(
-                                                                        _pipe@4,
-                                                                        fun(
-                                                                            Opt@4
-                                                                        ) ->
-                                                                            gleam@option:unwrap(
-                                                                                Opt@4,
-                                                                                []
-                                                                            )
-                                                                        end
+                                                                (gleam@dynamic:field(
+                                                                    <<"rules"/utf8>>,
+                                                                    gleam@dynamic:list(
+                                                                        fun parse_rule/1
                                                                     )
-                                                                end,
+                                                                ))(Data),
                                                                 fun(Rules) ->
                                                                     gleam@result:'try'(
-                                                                        begin
-                                                                            _pipe@5 = (gleam@dynamic:optional_field(
-                                                                                <<"anti_patterns"/utf8>>,
-                                                                                gleam@dynamic:list(
-                                                                                    fun parse_anti_pattern/1
-                                                                                )
-                                                                            ))(
-                                                                                Data
-                                                                            ),
-                                                                            gleam@result:map(
-                                                                                _pipe@5,
-                                                                                fun(
-                                                                                    Opt@5
-                                                                                ) ->
-                                                                                    gleam@option:unwrap(
-                                                                                        Opt@5,
-                                                                                        []
-                                                                                    )
-                                                                                end
+                                                                        (gleam@dynamic:field(
+                                                                            <<"anti_patterns"/utf8>>,
+                                                                            gleam@dynamic:list(
+                                                                                fun parse_anti_pattern/1
                                                                             )
-                                                                        end,
+                                                                        ))(Data),
                                                                         fun(
                                                                             Anti_patterns
                                                                         ) ->
                                                                             gleam@result:'try'(
-                                                                                (gleam@dynamic:optional_field(
+                                                                                (gleam@dynamic:field(
                                                                                     <<"ai_hints"/utf8>>,
                                                                                     fun parse_ai_hints/1
                                                                                 ))(

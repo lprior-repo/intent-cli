@@ -3,14 +3,17 @@
 /// Mirrors Beads approach: git-native JSONL + local SQLite for performance
 
 import gleam/dict.{type Dict}
+import gleam/dynamic
 import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
+import simplifile
 import intent/interview.{
   type Answer, type Conflict, type ConflictResolution, type Gap,
   type InterviewSession, type InterviewStage, type Profile,
 }
+import intent/interview_questions.{type Perspective}
 
 /// Session record for storage
 pub type SessionRecord {
@@ -84,13 +87,13 @@ fn answer_to_json(answer: Answer) -> json.Json {
   ])
 }
 
-fn perspective_to_string(perspective: interview.Perspective) -> String {
+fn perspective_to_string(perspective: Perspective) -> String {
   case perspective {
-    interview.User -> "user"
-    interview.Developer -> "developer"
-    interview.Ops -> "ops"
-    interview.Security -> "security"
-    interview.Business -> "business"
+    interview_questions.User -> "user"
+    interview_questions.Developer -> "developer"
+    interview_questions.Ops -> "ops"
+    interview_questions.Security -> "security"
+    interview_questions.Business -> "business"
   }
 }
 
@@ -142,21 +145,54 @@ pub fn append_session_to_jsonl(
   session: InterviewSession,
   jsonl_path: String,
 ) -> Result(Nil, String) {
-  // In real implementation, this would:
-  // 1. Read existing JSONL
-  // 2. Remove any old entry with same session.id
-  // 3. Append new entry
-  // 4. Write back to file
-  // For now, return a stub
-  Ok(Nil)
+  use existing <- result.try(
+    simplifile.read(jsonl_path)
+    |> result.map_error(fn(_) { "" }),
+  )
+
+  let lines = case existing {
+    "" -> []
+    content -> string.split(content, "\n")
+  }
+
+  let filtered = list.filter(lines, fn(line) {
+    // Parse each line and keep if session ID doesn't match
+    case json.decode(line, session_id_decoder) {
+      Ok(id) -> id != session.id
+      Error(_) -> True
+    }
+  })
+
+  let new_line = session_to_jsonl_line(session)
+  let all_lines = list.append(filtered, [new_line])
+  let content = string.join(all_lines, "\n")
+
+  simplifile.write(jsonl_path, content)
+  |> result.map_error(fn(err) { "Failed to write JSONL: " <> string.inspect(err) })
 }
 
 /// List all sessions from JSONL file
 pub fn list_sessions_from_jsonl(jsonl_path: String) -> Result(List(InterviewSession), String) {
-  // Read .interview/sessions.jsonl
-  // Parse each line as JSON
-  // Return List(InterviewSession)
-  Ok([])
+  use content <- result.try(
+    simplifile.read(jsonl_path)
+    |> result.map_error(fn(err) { "Failed to read JSONL: " <> string.inspect(err) }),
+  )
+
+  case string.length(string.trim(content)) {
+    0 -> Ok([])
+    _ -> {
+      let lines = string.split(content, "\n")
+      let sessions = list.filter_map(lines, fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> Error(Nil)
+          _ ->
+            json.decode(line, session_decoder)
+            |> result.map_error(fn(_) { Nil })
+        }
+      })
+      Ok(sessions)
+    }
+  }
 }
 
 /// Get session by ID from JSONL
@@ -273,4 +309,61 @@ pub fn sync_from_jsonl(
     result.try(acc, fn(_) { save_session_to_db(db_path, session) })
   })
   |> result.map(fn(_) { sessions })
+}
+
+// Decoder helpers for JSON parsing
+fn session_id_decoder(json_value: dynamic.Dynamic) -> Result(String, dynamic.DecodeErrors) {
+  dynamic.field("id", dynamic.string)(json_value)
+}
+
+fn session_decoder(json_value: dynamic.Dynamic) -> Result(InterviewSession, dynamic.DecodeErrors) {
+  use id <- result.try(dynamic.field("id", dynamic.string)(json_value))
+  use profile_str <- result.try(dynamic.field("profile", dynamic.string)(json_value))
+  use profile <- result.try(
+    case profile_str {
+      "api" -> Ok(interview.Api)
+      "cli" -> Ok(interview.Cli)
+      "event" -> Ok(interview.Event)
+      "data" -> Ok(interview.Data)
+      "workflow" -> Ok(interview.Workflow)
+      "ui" -> Ok(interview.UI)
+      _ -> Error([dynamic.DecodeError("profile", "invalid profile", [])])
+    },
+  )
+  use created_at <- result.try(dynamic.field("created_at", dynamic.string)(json_value))
+  use updated_at <- result.try(dynamic.field("updated_at", dynamic.string)(json_value))
+  use completed_at <- result.try(
+    dynamic.field("completed_at", dynamic.string)(json_value)
+    |> result.map_error(fn(_) { [] }),
+  )
+  use stage_str <- result.try(dynamic.field("stage", dynamic.string)(json_value))
+  use stage <- result.try(
+    case stage_str {
+      "Discovery" -> Ok(interview.Discovery)
+      "Refinement" -> Ok(interview.Refinement)
+      "Validation" -> Ok(interview.Validation)
+      "Complete" -> Ok(interview.Complete)
+      "Paused" -> Ok(interview.Paused)
+      _ -> Error([dynamic.DecodeError("stage", "invalid stage", [])])
+    },
+  )
+  use rounds_completed <- result.try(dynamic.field("rounds_completed", dynamic.int)(json_value))
+  use raw_notes <- result.try(
+    dynamic.field("raw_notes", dynamic.string)(json_value)
+    |> result.map_error(fn(_) { [] }),
+  )
+
+  Ok(interview.InterviewSession(
+    id: id,
+    profile: profile,
+    created_at: created_at,
+    updated_at: updated_at,
+    completed_at: completed_at,
+    stage: stage,
+    rounds_completed: rounds_completed,
+    answers: [],
+    gaps: [],
+    conflicts: [],
+    raw_notes: raw_notes,
+  ))
 }

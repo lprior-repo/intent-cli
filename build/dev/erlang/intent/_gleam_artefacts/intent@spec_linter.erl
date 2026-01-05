@@ -20,7 +20,7 @@
     {unused_anti_pattern, binary()} |
     {naming_convention, binary(), binary()}.
 
--file("src/intent/spec_linter.gleam", 139).
+-file("src/intent/spec_linter.gleam", 135).
 ?DOC(" Extract all keys from a JSON object (recursively)\n").
 -spec extract_all_keys(gleam@json:json()) -> list(binary()).
 extract_all_keys(Json) ->
@@ -39,7 +39,7 @@ extract_all_keys(Json) ->
             []
     end.
 
--file("src/intent/spec_linter.gleam", 130).
+-file("src/intent/spec_linter.gleam", 126).
 ?DOC(" Check if a JSON example contains the bad pattern keys\n").
 -spec contains_anti_pattern_keys(gleam@json:json(), intent@types:anti_pattern()) -> boolean().
 contains_anti_pattern_keys(Example, Pattern) ->
@@ -50,23 +50,26 @@ contains_anti_pattern_keys(Example, Pattern) ->
         fun(Key) -> gleam@list:contains(Example_keys, Key) end
     ).
 
--file("src/intent/spec_linter.gleam", 104).
+-file("src/intent/spec_linter.gleam", 101).
 ?DOC(" Check for anti-patterns in a behavior's response example\n").
 -spec check_anti_patterns(
     intent@types:behavior(),
     list(intent@types:anti_pattern())
 ) -> list(lint_warning()).
 check_anti_patterns(Behavior, Patterns) ->
-    case erlang:element(3, erlang:element(8, Behavior)) of
-        none ->
+    case erlang:element(3, erlang:element(8, Behavior)) =:= gleam@json:null() of
+        true ->
             [];
 
-        {some, Example} ->
+        false ->
             _pipe = Patterns,
             gleam@list:filter_map(
                 _pipe,
                 fun(Pattern) ->
-                    case contains_anti_pattern_keys(Example, Pattern) of
+                    case contains_anti_pattern_keys(
+                        erlang:element(3, erlang:element(8, Behavior)),
+                        Pattern
+                    ) of
                         false ->
                             {error, nil};
 
@@ -82,7 +85,7 @@ check_anti_patterns(Behavior, Patterns) ->
             )
     end.
 
--file("src/intent/spec_linter.gleam", 151).
+-file("src/intent/spec_linter.gleam", 147).
 ?DOC(" Check for vague rules in a behavior\n").
 -spec check_for_vague_rules(intent@types:behavior()) -> list(lint_warning()).
 check_for_vague_rules(Behavior) ->
@@ -147,7 +150,7 @@ check_for_vague_rules(Behavior) ->
         end
     ).
 
--file("src/intent/spec_linter.gleam", 209).
+-file("src/intent/spec_linter.gleam", 205).
 ?DOC(" Check if a name has invalid characters (not alphanumeric, hyphen, underscore)\n").
 -spec has_invalid_name_chars(binary()) -> boolean().
 has_invalid_name_chars(Name) ->
@@ -168,7 +171,7 @@ has_invalid_name_chars(Name) ->
         end
     ).
 
--file("src/intent/spec_linter.gleam", 194).
+-file("src/intent/spec_linter.gleam", 190).
 ?DOC(" Check naming conventions for behaviors\n").
 -spec check_naming_convention(intent@types:behavior()) -> {ok, lint_warning()} |
     {error, nil}.
@@ -184,7 +187,7 @@ check_naming_convention(Behavior) ->
                     <<"Use kebab-case for behavior names (e.g., 'get-user-by-id')"/utf8>>}}
     end.
 
--file("src/intent/spec_linter.gleam", 29).
+-file("src/intent/spec_linter.gleam", 28).
 ?DOC(" Lint a complete spec\n").
 -spec lint_spec(intent@types:spec()) -> lint_result().
 lint_spec(Spec) ->
@@ -212,13 +215,17 @@ lint_spec(Spec) ->
         _pipe@3 = Behaviors,
         gleam@list:filter_map(
             _pipe@3,
-            fun(B) -> case erlang:element(3, erlang:element(8, B)) of
-                    none ->
+            fun(B) ->
+                case erlang:element(3, erlang:element(8, B)) =:= gleam@json:null(
+                    
+                ) of
+                    true ->
                         {ok, {missing_example, erlang:element(2, B)}};
 
-                    _ ->
+                    false ->
                         {error, nil}
-                end end
+                end
+            end
         )
     end,
     Mut_warnings@3 = lists:append(Mut_warnings@2, Example_warnings),
@@ -234,13 +241,15 @@ lint_spec(Spec) ->
             fun(B@1) -> _pipe@6 = erlang:element(10, Spec),
                 _pipe@7 = gleam@list:filter(
                     _pipe@6,
-                    fun(Ap) -> case erlang:element(3, erlang:element(8, B@1)) of
-                            none ->
-                                false;
-
-                            {some, Ex} ->
-                                contains_anti_pattern_keys(Ex, Ap)
-                        end end
+                    fun(Ap) ->
+                        (erlang:element(3, erlang:element(8, B@1)) /= gleam@json:null(
+                            
+                        ))
+                        andalso contains_anti_pattern_keys(
+                            erlang:element(3, erlang:element(8, B@1)),
+                            Ap
+                        )
+                    end
                 ),
                 gleam@list:map(
                     _pipe@7,
@@ -273,7 +282,7 @@ lint_spec(Spec) ->
             {lint_warnings, Mut_warnings@5}
     end.
 
--file("src/intent/spec_linter.gleam", 230).
+-file("src/intent/spec_linter.gleam", 226).
 ?DOC(" Format a single lint warning\n").
 -spec format_warning(lint_warning()) -> binary().
 format_warning(Warning) ->
@@ -309,7 +318,7 @@ format_warning(Warning) ->
                 Suggestion/binary>>
     end.
 
--file("src/intent/spec_linter.gleam", 220).
+-file("src/intent/spec_linter.gleam", 216).
 ?DOC(" Format lint warnings for display\n").
 -spec format_warnings(list(lint_warning())) -> binary().
 format_warnings(Warnings) ->

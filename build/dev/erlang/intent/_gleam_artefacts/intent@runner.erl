@@ -56,7 +56,7 @@ apply_filters(Behaviors, Options) ->
         end
     ).
 
--file("src/intent/runner.gleam", 277).
+-file("src/intent/runner.gleam", 271).
 -spec apply_captures(
     intent@interpolate:context(),
     intent@types:behavior(),
@@ -120,23 +120,17 @@ execute_single_behavior(Rb, Config, _, Ctx, Failed_set) ->
                         )};
 
                 {ok, Execution} ->
-                    Ctx@1 = case erlang:element(4, Execution) of
-                        {some, Body} ->
-                            intent@interpolate:set_response_body(Ctx, Body);
-
-                        none ->
-                            Ctx
-                    end,
-                    Ctx@2 = case erlang:element(
-                        6,
-                        erlang:element(7, erlang:element(3, Rb))
-                    ) of
-                        {some, Body@1} ->
-                            intent@interpolate:set_request_body(Ctx@1, Body@1);
-
-                        none ->
-                            Ctx@1
-                    end,
+                    Ctx@1 = intent@interpolate:set_response_body(
+                        Ctx,
+                        erlang:element(4, Execution)
+                    ),
+                    Ctx@2 = intent@interpolate:set_request_body(
+                        Ctx@1,
+                        erlang:element(
+                            6,
+                            erlang:element(7, erlang:element(3, Rb))
+                        )
+                    ),
                     Check_result = intent@checker:check_response(
                         erlang:element(8, erlang:element(3, Rb)),
                         Execution,
@@ -210,7 +204,7 @@ execute_behaviors_with_spinner(Behaviors, Config, Spec, Failed_set, Sp) ->
         {lists:reverse(Results@1), Ctx@1, Failed@1}
     end)(_pipe).
 
--file("src/intent/runner.gleam", 307).
+-file("src/intent/runner.gleam", 301).
 -spec check_rules_for_execution(
     intent@http_client:execution_result(),
     list(intent@types:rule()),
@@ -237,7 +231,7 @@ check_rules_for_execution(Execution, Rules, Behavior_name) ->
                                             Violations,
                                             fun intent@rules_engine:format_violation/1
                                         ),
-                                        erlang:element(4, Execution)}}};
+                                        {some, erlang:element(4, Execution)}}}};
 
                         _ ->
                             {error, nil}
@@ -245,7 +239,7 @@ check_rules_for_execution(Execution, Rules, Behavior_name) ->
         end
     ).
 
--file("src/intent/runner.gleam", 333).
+-file("src/intent/runner.gleam", 327).
 -spec group_violations_by_rule(
     list({binary(), binary(), intent@output:behavior_violation()})
 ) -> list(intent@output:rule_violation_group()).
@@ -272,7 +266,7 @@ group_violations_by_rule(Violations) ->
         end
     ).
 
--file("src/intent/runner.gleam", 290).
+-file("src/intent/runner.gleam", 284).
 -spec collect_rule_violations(
     list(behavior_result()),
     list(intent@types:rule())
@@ -295,7 +289,7 @@ collect_rule_violations(Results, Rules) ->
             end end),
     group_violations_by_rule(_pipe@1).
 
--file("src/intent/runner.gleam", 354).
+-file("src/intent/runner.gleam", 348).
 -spec collect_anti_patterns(
     list(behavior_result()),
     list(intent@types:anti_pattern())

@@ -8,5 +8,5 @@
     features :: list(intent@types:feature()),
     rules :: list(intent@types:rule()),
     anti_patterns :: list(intent@types:anti_pattern()),
-    ai_hints :: gleam@option:option(intent@types:a_i_hints())
+    ai_hints :: intent@types:a_i_hints()
 }).

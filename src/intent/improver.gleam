@@ -3,8 +3,8 @@
 
 import gleam/dict
 import gleam/int
+import gleam/json
 import gleam/list
-import gleam/option.{None}
 import gleam/string
 import intent/quality_analyzer.{type QualityReport}
 import intent/spec_linter.{type LintResult}
@@ -152,10 +152,7 @@ fn append_testability_suggestions(
   let missing_examples =
     behaviors
     |> list.filter(fn(b) {
-      case b.response.example {
-        None -> True
-        _ -> False
-      }
+      b.response.example == json.null()
     })
     |> list.length
 

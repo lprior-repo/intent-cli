@@ -15,7 +15,7 @@
 -type execution_result() :: {execution_result,
         integer(),
         gleam@dict:dict(binary(), binary()),
-        gleam@option:option(gleam@json:json()),
+        gleam@json:json(),
         binary(),
         integer(),
         intent@types:method(),
@@ -49,38 +49,31 @@ interpolate_headers(Headers, Ctx) ->
     ).
 
 -file("src/intent/http_client.gleam", 93).
--spec interpolate_body(
-    gleam@option:option(gleam@json:json()),
-    intent@interpolate:context()
-) -> {ok, gleam@option:option(gleam@json:json())} | {error, execution_error()}.
+-spec interpolate_body(gleam@json:json(), intent@interpolate:context()) -> {ok,
+        gleam@json:json()} |
+    {error, execution_error()}.
 interpolate_body(Body, Ctx) ->
-    case Body of
-        none ->
-            {ok, none};
+    Body_str = gleam@json:to_string(Body),
+    case intent@interpolate:interpolate_string(Ctx, Body_str) of
+        {ok, Interpolated_str} ->
+            case gleam@json:decode(
+                Interpolated_str,
+                fun gleam@dynamic:dynamic/1
+            ) of
+                {ok, Data} ->
+                    {ok, intent@parser:dynamic_to_json(Data)};
 
-        {some, Json_body} ->
-            Body_str = gleam@json:to_string(Json_body),
-            case intent@interpolate:interpolate_string(Ctx, Body_str) of
-                {ok, Interpolated_str} ->
-                    case gleam@json:decode(
-                        Interpolated_str,
-                        fun gleam@dynamic:dynamic/1
-                    ) of
-                        {ok, Data} ->
-                            {ok, {some, intent@parser:dynamic_to_json(Data)}};
+                {error, _} ->
+                    {error,
+                        {interpolation_error,
+                            <<"Failed to parse interpolated body as JSON"/utf8>>}}
+            end;
 
-                        {error, _} ->
-                            {error,
-                                {interpolation_error,
-                                    <<"Failed to parse interpolated body as JSON"/utf8>>}}
-                    end;
-
-                {error, E} ->
-                    {error, {interpolation_error, E}}
-            end
+        {error, E} ->
+            {error, {interpolation_error, E}}
     end.
 
--file("src/intent/http_client.gleam", 114).
+-file("src/intent/http_client.gleam", 109).
 -spec merge_headers(
     gleam@dict:dict(binary(), binary()),
     gleam@dict:dict(binary(), binary())
@@ -88,7 +81,7 @@ interpolate_body(Body, Ctx) ->
 merge_headers(Config_headers, Request_headers) ->
     gleam@dict:merge(Config_headers, Request_headers).
 
--file("src/intent/http_client.gleam", 122).
+-file("src/intent/http_client.gleam", 117).
 -spec convert_method(intent@types:method()) -> gleam@http:method().
 convert_method(Method) ->
     case Method of
@@ -114,7 +107,7 @@ convert_method(Method) ->
             options
     end.
 
--file("src/intent/http_client.gleam", 183).
+-file("src/intent/http_client.gleam", 174).
 -spec ensure_leading_slash(binary()) -> binary().
 ensure_leading_slash(Path) ->
     case gleam@string:starts_with(Path, <<"/"/utf8>>) of
@@ -125,12 +118,12 @@ ensure_leading_slash(Path) ->
             <<"/"/utf8, Path/binary>>
     end.
 
--file("src/intent/http_client.gleam", 134).
+-file("src/intent/http_client.gleam", 129).
 -spec build_http_request(
     gleam@http:method(),
     gleam@uri:uri(),
     gleam@dict:dict(binary(), binary()),
-    gleam@option:option(gleam@json:json())
+    gleam@json:json()
 ) -> {ok, gleam@http@request:request(binary())} | {error, execution_error()}.
 build_http_request(Method, Parsed_uri, Headers, Body) ->
     Host = gleam@option:unwrap(
@@ -171,23 +164,19 @@ build_http_request(Method, Parsed_uri, Headers, Body) ->
             )
         end
     ),
-    Req@3 = case Body of
-        {some, Json_body} ->
-            Body_str = gleam@json:to_string(Json_body),
-            _pipe@4 = Req@2,
-            _pipe@5 = gleam@http@request:set_body(_pipe@4, Body_str),
-            gleam@http@request:set_header(
-                _pipe@5,
-                <<"content-type"/utf8>>,
-                <<"application/json"/utf8>>
-            );
-
-        none ->
-            gleam@http@request:set_body(Req@2, <<""/utf8>>)
+    Body_str = gleam@json:to_string(Body),
+    Req@3 = begin
+        _pipe@4 = Req@2,
+        _pipe@5 = gleam@http@request:set_body(_pipe@4, Body_str),
+        gleam@http@request:set_header(
+            _pipe@5,
+            <<"content-type"/utf8>>,
+            <<"application/json"/utf8>>
+        )
     end,
     {ok, Req@3}.
 
--file("src/intent/http_client.gleam", 206).
+-file("src/intent/http_client.gleam", 197).
 -spec parse_response(
     gleam@http@response:response(binary()),
     integer(),
@@ -205,7 +194,7 @@ parse_response(Resp, Elapsed_ms, Method, Path) ->
     end,
     Body = case gleam@string:is_empty(erlang:element(4, Resp)) of
         true ->
-            none;
+            gleam@json:null();
 
         false ->
             case gleam@json:decode(
@@ -213,10 +202,10 @@ parse_response(Resp, Elapsed_ms, Method, Path) ->
                 fun gleam@dynamic:dynamic/1
             ) of
                 {ok, Data} ->
-                    {some, intent@parser:dynamic_to_json(Data)};
+                    intent@parser:dynamic_to_json(Data);
 
                 {error, _} ->
-                    none
+                    gleam@json:null()
             end
     end,
     {execution_result,
@@ -228,12 +217,12 @@ parse_response(Resp, Elapsed_ms, Method, Path) ->
         Method,
         Path}.
 
--file("src/intent/http_client.gleam", 237).
+-file("src/intent/http_client.gleam", 228).
 -spec format_httpc_error(gleam@dynamic:dynamic_()) -> binary().
 format_httpc_error(Error) ->
     <<"HTTP request failed: "/utf8, (gleam@string:inspect(Error))/binary>>.
 
--file("src/intent/http_client.gleam", 190).
+-file("src/intent/http_client.gleam", 181).
 -spec execute_with_timing(
     gleam@http@request:request(binary()),
     intent@types:method(),

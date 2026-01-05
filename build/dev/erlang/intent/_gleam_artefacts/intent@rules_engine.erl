@@ -22,7 +22,7 @@
     {header_missing, binary()} |
     {header_present, binary()}.
 
--file("src/intent/rules_engine.gleam", 77).
+-file("src/intent/rules_engine.gleam", 65).
 -spec check_path_pattern(binary(), binary()) -> boolean().
 check_path_pattern(Pattern, Path) ->
     case Pattern =:= Path of
@@ -39,7 +39,7 @@ check_path_pattern(Pattern, Path) ->
             end
     end.
 
--file("src/intent/rules_engine.gleam", 91).
+-file("src/intent/rules_engine.gleam", 79).
 -spec check_status_condition(binary(), integer()) -> boolean().
 check_status_condition(Expr, Status) ->
     Expr@1 = gleam@string:trim(Expr),
@@ -122,48 +122,30 @@ check_status_condition(Expr, Status) ->
             end
     end.
 
--file("src/intent/rules_engine.gleam", 54).
+-file("src/intent/rules_engine.gleam", 50).
 -spec check_when_conditions(
     intent@types:'when'(),
     intent@http_client:execution_result()
 ) -> boolean().
 check_when_conditions(When, Response) ->
-    Status_ok = case erlang:element(2, When) of
-        none ->
-            true;
-
-        {some, Status_expr} ->
-            check_status_condition(Status_expr, erlang:element(2, Response))
-    end,
-    Method_ok = case erlang:element(3, When) of
-        none ->
-            true;
-
-        {some, Expected_method} ->
-            erlang:element(7, Response) =:= Expected_method
-    end,
-    Path_ok = case erlang:element(4, When) of
-        none ->
-            true;
-
-        {some, Path_pattern} ->
-            check_path_pattern(Path_pattern, erlang:element(8, Response))
-    end,
+    Status_ok = check_status_condition(
+        erlang:element(2, When),
+        erlang:element(2, Response)
+    ),
+    Method_ok = erlang:element(7, Response) =:= erlang:element(3, When),
+    Path_ok = check_path_pattern(
+        erlang:element(4, When),
+        erlang:element(8, Response)
+    ),
     (Status_ok andalso Method_ok) andalso Path_ok.
 
--file("src/intent/rules_engine.gleam", 47).
+-file("src/intent/rules_engine.gleam", 46).
 ?DOC(" Check if a rule applies based on its `when` conditions\n").
 -spec rule_applies(intent@types:rule(), intent@http_client:execution_result()) -> boolean().
 rule_applies(Rule, Response) ->
-    case erlang:element(4, Rule) of
-        none ->
-            true;
+    check_when_conditions(erlang:element(4, Rule), Response).
 
-        {some, When} ->
-            check_when_conditions(When, Response)
-    end.
-
--file("src/intent/rules_engine.gleam", 241).
+-file("src/intent/rules_engine.gleam", 233).
 -spec contains_string(binary(), binary()) -> boolean().
 contains_string(Body, Needle) ->
     gleam_stdlib:contains_string(
@@ -171,7 +153,7 @@ contains_string(Body, Needle) ->
         gleam@string:lowercase(Needle)
     ).
 
--file("src/intent/rules_engine.gleam", 255).
+-file("src/intent/rules_engine.gleam", 242).
 -spec navigate_and_check(gleam@json:json(), list(binary())) -> boolean().
 navigate_and_check(Value, Path) ->
     case Path of
@@ -202,19 +184,13 @@ navigate_and_check(Value, Path) ->
             end
     end.
 
--file("src/intent/rules_engine.gleam", 245).
--spec field_exists(gleam@option:option(gleam@json:json()), binary()) -> boolean().
+-file("src/intent/rules_engine.gleam", 237).
+-spec field_exists(gleam@json:json(), binary()) -> boolean().
 field_exists(Body, Field_path) ->
-    case Body of
-        none ->
-            false;
+    Parts = gleam@string:split(Field_path, <<"."/utf8>>),
+    navigate_and_check(Body, Parts).
 
-        {some, Json_val} ->
-            Parts = gleam@string:split(Field_path, <<"."/utf8>>),
-            navigate_and_check(Json_val, Parts)
-    end.
-
--file("src/intent/rules_engine.gleam", 277).
+-file("src/intent/rules_engine.gleam", 264).
 -spec header_exists(gleam@dict:dict(binary(), binary()), binary()) -> boolean().
 header_exists(Headers, Header_name) ->
     Lower_name = gleam@string:lowercase(Header_name),
@@ -227,97 +203,70 @@ header_exists(Headers, Header_name) ->
         end
     ).
 
--file("src/intent/rules_engine.gleam", 164).
+-file("src/intent/rules_engine.gleam", 152).
 -spec collect_violations(
     intent@types:rule_check(),
     intent@http_client:execution_result()
 ) -> list(rule_violation()).
 collect_violations(Check, Response) ->
     Violations = [],
-    Violations@1 = case erlang:element(2, Check) of
-        none ->
-            Violations;
+    Violations@1 = gleam@list:fold(
+        erlang:element(2, Check),
+        Violations,
+        fun(Acc, Forbidden) ->
+            case contains_string(erlang:element(5, Response), Forbidden) of
+                true ->
+                    [{body_contains, Forbidden, <<"response body"/utf8>>} | Acc];
 
-        {some, Forbidden_strings} ->
-            gleam@list:fold(
-                Forbidden_strings,
-                Violations,
-                fun(Acc, Forbidden) ->
-                    case contains_string(erlang:element(5, Response), Forbidden) of
-                        true ->
-                            [{body_contains,
-                                    Forbidden,
-                                    <<"response body"/utf8>>} |
-                                Acc];
+                false ->
+                    Acc
+            end
+        end
+    ),
+    Violations@2 = gleam@list:fold(
+        erlang:element(3, Check),
+        Violations@1,
+        fun(Acc@1, Required) ->
+            case contains_string(erlang:element(5, Response), Required) of
+                true ->
+                    Acc@1;
 
-                        false ->
-                            Acc
-                    end
-                end
-            )
-    end,
-    Violations@2 = case erlang:element(3, Check) of
-        none ->
-            Violations@1;
+                false ->
+                    [{body_missing, Required} | Acc@1]
+            end
+        end
+    ),
+    Violations@3 = gleam@list:fold(
+        erlang:element(4, Check),
+        Violations@2,
+        fun(Acc@2, Field) ->
+            case field_exists(erlang:element(4, Response), Field) of
+                true ->
+                    Acc@2;
 
-        {some, Required_strings} ->
-            gleam@list:fold(
-                Required_strings,
-                Violations@1,
-                fun(Acc@1, Required) ->
-                    case contains_string(erlang:element(5, Response), Required) of
-                        true ->
-                            Acc@1;
+                false ->
+                    [{field_missing, Field} | Acc@2]
+            end
+        end
+    ),
+    Violations@4 = gleam@list:fold(
+        erlang:element(5, Check),
+        Violations@3,
+        fun(Acc@3, Field@1) ->
+            case field_exists(erlang:element(4, Response), Field@1) of
+                true ->
+                    [{field_present, Field@1} | Acc@3];
 
-                        false ->
-                            [{body_missing, Required} | Acc@1]
-                    end
-                end
-            )
-    end,
-    Violations@3 = case erlang:element(4, Check) of
-        none ->
-            Violations@2;
-
-        {some, Required_fields} ->
-            gleam@list:fold(
-                Required_fields,
-                Violations@2,
-                fun(Acc@2, Field) ->
-                    case field_exists(erlang:element(4, Response), Field) of
-                        true ->
-                            Acc@2;
-
-                        false ->
-                            [{field_missing, Field} | Acc@2]
-                    end
-                end
-            )
-    end,
-    Violations@4 = case erlang:element(5, Check) of
-        none ->
-            Violations@3;
-
-        {some, Forbidden_fields} ->
-            gleam@list:fold(
-                Forbidden_fields,
-                Violations@3,
-                fun(Acc@3, Field@1) ->
-                    case field_exists(erlang:element(4, Response), Field@1) of
-                        true ->
-                            [{field_present, Field@1} | Acc@3];
-
-                        false ->
-                            Acc@3
-                    end
-                end
-            )
-    end,
+                false ->
+                    Acc@3
+            end
+        end
+    ),
     Violations@5 = case erlang:element(6, Check) of
-        none ->
+        <<""/utf8>> ->
             Violations@4;
 
-        {some, Required_header} ->
+        Required_header ->
             case header_exists(erlang:element(3, Response), Required_header) of
                 true ->
                     Violations@4;
@@ -327,10 +276,10 @@ collect_violations(Check, Response) ->
             end
     end,
     Violations@6 = case erlang:element(7, Check) of
-        none ->
+        <<""/utf8>> ->
             Violations@5;
 
-        {some, Forbidden_header} ->
+        Forbidden_header ->
             case header_exists(erlang:element(3, Response), Forbidden_header) of
                 true ->
                     [{header_present, Forbidden_header} | Violations@5];
@@ -341,7 +290,7 @@ collect_violations(Check, Response) ->
     end,
     Violations@6.
 
--file("src/intent/rules_engine.gleam", 151).
+-file("src/intent/rules_engine.gleam", 139).
 ?DOC(" Check a single rule against a response\n").
 -spec check_rule(
     intent@types:rule(),
@@ -361,7 +310,7 @@ check_rule(Rule, Response, _) ->
                 Violations}
     end.
 
--file("src/intent/rules_engine.gleam", 36).
+-file("src/intent/rules_engine.gleam", 35).
 ?DOC(" Check all global rules against a response\n").
 -spec check_rules(
     list(intent@types:rule()),
@@ -379,7 +328,7 @@ check_rules(Rules, Response, Behavior_name) ->
         fun(Rule@1) -> check_rule(Rule@1, Response, Behavior_name) end
     ).
 
--file("src/intent/rules_engine.gleam", 285).
+-file("src/intent/rules_engine.gleam", 272).
 ?DOC(" Format a rule violation as a human-readable string\n").
 -spec format_violation(rule_violation()) -> binary().
 format_violation(Violation) ->

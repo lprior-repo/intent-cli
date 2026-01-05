@@ -1,14 +1,14 @@
 -module(intent_test).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "test/intent_test.gleam").
--export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0]).
+-export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0]).
 
--file("test/intent_test.gleam", 10).
+-file("test/intent_test.gleam", 13).
 -spec main() -> nil.
 main() ->
     gleeunit:main().
 
--file("test/intent_test.gleam", 18).
+-file("test/intent_test.gleam", 21).
 -spec make_behavior(binary(), list(binary())) -> intent@types:behavior().
 make_behavior(Name, Requires) ->
     {behavior,
@@ -22,16 +22,16 @@ make_behavior(Name, Requires) ->
             <<"/"/utf8, Name/binary>>,
             gleam@dict:new(),
             gleam@dict:new(),
-            none},
-        {response, 200, none, gleam@dict:new(), none},
+            gleam@json:null()},
+        {response, 200, gleam@json:null(), gleam@dict:new(), gleam@dict:new()},
         gleam@dict:new()}.
 
--file("test/intent_test.gleam", 42).
+-file("test/intent_test.gleam", 45).
 -spec make_feature(binary(), list(intent@types:behavior())) -> intent@types:feature().
 make_feature(Name, Behaviors) ->
     {feature, Name, <<"Test feature"/utf8>>, Behaviors}.
 
--file("test/intent_test.gleam", 46).
+-file("test/intent_test.gleam", 49).
 -spec make_spec(list(intent@types:feature())) -> intent@types:spec().
 make_spec(Features) ->
     {spec,
@@ -44,9 +44,13 @@ make_spec(Features) ->
         Features,
         [],
         [],
-        none}.
+        {a_i_hints,
+            {implementation_hints, []},
+            gleam@dict:new(),
+            {security_hints, <<""/utf8>>, <<""/utf8>>, <<""/utf8>>, <<""/utf8>>},
+            []}}.
 
--file("test/intent_test.gleam", 65).
+-file("test/intent_test.gleam", 78).
 -spec resolver_simple_no_deps_test() -> nil.
 resolver_simple_no_deps_test() ->
     B1 = make_behavior(<<"first"/utf8>>, []),
@@ -63,7 +67,7 @@ resolver_simple_no_deps_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 84).
+-file("test/intent_test.gleam", 97).
 -spec resolver_linear_dependency_chain_test() -> nil.
 resolver_linear_dependency_chain_test() ->
     B1 = make_behavior(<<"first"/utf8>>, []),
@@ -89,7 +93,7 @@ resolver_linear_dependency_chain_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 108).
+-file("test/intent_test.gleam", 121).
 -spec resolver_multiple_deps_on_one_test() -> nil.
 resolver_multiple_deps_on_one_test() ->
     B1 = make_behavior(<<"base"/utf8>>, []),
@@ -113,12 +117,12 @@ resolver_multiple_deps_on_one_test() ->
                                 file => <<?FILEPATH/utf8>>,
                                 module => <<"intent_test"/utf8>>,
                                 function => <<"resolver_multiple_deps_on_one_test"/utf8>>,
-                                line => 125,
+                                line => 138,
                                 value => _assert_fail,
-                                start => 3149,
-                                'end' => 3179,
-                                pattern_start => 3160,
-                                pattern_end => 3171})
+                                start => 3526,
+                                'end' => 3556,
+                                pattern_start => 3537,
+                                pattern_end => 3548})
             end,
             _pipe@1 = First@1,
             gleeunit_ffi:should_equal(_pipe@1, <<"base"/utf8>>);
@@ -127,7 +131,7 @@ resolver_multiple_deps_on_one_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 133).
+-file("test/intent_test.gleam", 146).
 -spec resolver_missing_dependency_test() -> nil.
 resolver_missing_dependency_test() ->
     B1 = make_behavior(<<"first"/utf8>>, [<<"nonexistent"/utf8>>]),
@@ -147,7 +151,7 @@ resolver_missing_dependency_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 153).
+-file("test/intent_test.gleam", 166).
 -spec resolver_cyclic_dependency_test() -> nil.
 resolver_cyclic_dependency_test() ->
     B1 = make_behavior(<<"first"/utf8>>, [<<"second"/utf8>>]),
@@ -165,7 +169,7 @@ resolver_cyclic_dependency_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 169).
+-file("test/intent_test.gleam", 182).
 -spec resolver_duplicate_name_test() -> nil.
 resolver_duplicate_name_test() ->
     B1 = make_behavior(<<"same-name"/utf8>>, []),
@@ -184,7 +188,7 @@ resolver_duplicate_name_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 188).
+-file("test/intent_test.gleam", 201).
 -spec resolver_cross_feature_deps_test() -> nil.
 resolver_cross_feature_deps_test() ->
     B1 = make_behavior(<<"base"/utf8>>, []),
@@ -212,7 +216,7 @@ resolver_cross_feature_deps_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 252).
+-file("test/intent_test.gleam", 265).
 -spec interpolate_missing_variable_test() -> binary().
 interpolate_missing_variable_test() ->
     Ctx = intent@interpolate:new_context(),
@@ -223,7 +227,7 @@ interpolate_missing_variable_test() ->
     _pipe = Result,
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 261).
+-file("test/intent_test.gleam", 274).
 -spec interpolate_no_variables_test() -> nil.
 interpolate_no_variables_test() ->
     Ctx = intent@interpolate:new_context(),
@@ -240,12 +244,12 @@ interpolate_no_variables_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 277).
+-file("test/intent_test.gleam", 288).
 -spec json_string(binary()) -> gleam@json:json().
 json_string(S) ->
     gleam@json:string(S).
 
--file("test/intent_test.gleam", 218).
+-file("test/intent_test.gleam", 231).
 -spec interpolate_simple_variable_test() -> nil.
 interpolate_simple_variable_test() ->
     Ctx = begin
@@ -271,7 +275,7 @@ interpolate_simple_variable_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 236).
+-file("test/intent_test.gleam", 249).
 -spec interpolate_multiple_variables_test() -> nil.
 interpolate_multiple_variables_test() ->
     Ctx = begin
@@ -299,3 +303,277 @@ interpolate_multiple_variables_test() ->
         {error, _} ->
             gleeunit@should:fail()
     end.
+
+-file("test/intent_test.gleam", 296).
+-spec interview_get_questions_api_round_1_test() -> nil.
+interview_get_questions_api_round_1_test() ->
+    Questions = intent@interview:get_questions_for_round(api, 1),
+    Has_questions = erlang:length(Questions) > 0,
+    _pipe = Has_questions,
+    gleeunit@should:be_true(_pipe).
+
+-file("test/intent_test.gleam", 302).
+-spec interview_get_questions_cli_round_1_test() -> nil.
+interview_get_questions_cli_round_1_test() ->
+    Questions = intent@interview:get_questions_for_round(cli, 1),
+    Has_questions = erlang:length(Questions) > 0,
+    _pipe = Has_questions,
+    gleeunit@should:be_true(_pipe).
+
+-file("test/intent_test.gleam", 308).
+-spec interview_create_session_test() -> nil.
+interview_create_session_test() ->
+    Session = intent@interview:create_session(
+        <<"test-session-1"/utf8>>,
+        api,
+        <<"2024-01-01T00:00:00Z"/utf8>>
+    ),
+    _pipe = erlang:element(2, Session),
+    gleeunit_ffi:should_equal(_pipe, <<"test-session-1"/utf8>>),
+    _pipe@1 = erlang:element(3, Session),
+    gleeunit_ffi:should_equal(_pipe@1, api),
+    _pipe@2 = erlang:element(8, Session),
+    gleeunit_ffi:should_equal(_pipe@2, 0),
+    _pipe@3 = erlang:element(7, Session),
+    gleeunit_ffi:should_equal(_pipe@3, discovery),
+    _pipe@4 = erlang:element(9, Session),
+    _pipe@5 = erlang:length(_pipe@4),
+    gleeunit_ffi:should_equal(_pipe@5, 0).
+
+-file("test/intent_test.gleam", 319).
+-spec interview_extract_auth_method_jwt_test() -> nil.
+interview_extract_auth_method_jwt_test() ->
+    Extracted = intent@interview:extract_from_answer(
+        <<"q1"/utf8>>,
+        <<"We use JWT tokens for authentication"/utf8>>,
+        [<<"auth_method"/utf8>>]
+    ),
+    Auth_method = gleam@dict:get(Extracted, <<"auth_method"/utf8>>),
+    _pipe = Auth_method,
+    gleeunit_ffi:should_equal(_pipe, {ok, <<"jwt"/utf8>>}).
+
+-file("test/intent_test.gleam", 328).
+-spec interview_extract_auth_method_oauth_test() -> nil.
+interview_extract_auth_method_oauth_test() ->
+    Extracted = intent@interview:extract_from_answer(
+        <<"q1"/utf8>>,
+        <<"OAuth 2.0 is our auth standard"/utf8>>,
+        [<<"auth_method"/utf8>>]
+    ),
+    Auth_method = gleam@dict:get(Extracted, <<"auth_method"/utf8>>),
+    _pipe = Auth_method,
+    gleeunit_ffi:should_equal(_pipe, {ok, <<"oauth"/utf8>>}).
+
+-file("test/intent_test.gleam", 337).
+-spec interview_extract_entities_test() -> nil.
+interview_extract_entities_test() ->
+    Extracted = intent@interview:extract_from_answer(
+        <<"q1"/utf8>>,
+        <<"Users, Orders, Products, Payments"/utf8>>,
+        [<<"entities"/utf8>>]
+    ),
+    Entities = gleam@dict:get(Extracted, <<"entities"/utf8>>),
+    _pipe = Entities,
+    gleeunit_ffi:should_equal(
+        _pipe,
+        {ok, <<"Users, Orders, Products, Payments"/utf8>>}
+    ).
+
+-file("test/intent_test.gleam", 347).
+-spec interview_extract_audience_mobile_test() -> nil.
+interview_extract_audience_mobile_test() ->
+    Extracted = intent@interview:extract_from_answer(
+        <<"q1"/utf8>>,
+        <<"Mainly mobile app users"/utf8>>,
+        [<<"audience"/utf8>>]
+    ),
+    Audience = gleam@dict:get(Extracted, <<"audience"/utf8>>),
+    _pipe = Audience,
+    gleeunit_ffi:should_equal(_pipe, {ok, <<"mobile"/utf8>>}).
+
+-file("test/intent_test.gleam", 356).
+-spec interview_detect_gaps_empty_answers_test() -> nil.
+interview_detect_gaps_empty_answers_test() ->
+    Answers = [],
+    Gaps = intent@interview:detect_gaps(api, Answers),
+    Has_gaps = erlang:length(Gaps) > 0,
+    _pipe = Has_gaps,
+    gleeunit@should:be_true(_pipe).
+
+-file("test/intent_test.gleam", 363).
+-spec interview_detect_gaps_with_answers_test() -> nil.
+interview_detect_gaps_with_answers_test() ->
+    Answers = [{answer,
+            <<"q1"/utf8>>,
+            <<"What auth?"/utf8>>,
+            security,
+            1,
+            <<"JWT"/utf8>>,
+            maps:from_list([{<<"auth_method"/utf8>>, <<"jwt"/utf8>>}]),
+            0.9,
+            <<""/utf8>>,
+            <<"2024-01-01T00:00:00Z"/utf8>>},
+        {answer,
+            <<"q2"/utf8>>,
+            <<"What entities?"/utf8>>,
+            developer,
+            1,
+            <<"Users, Tokens"/utf8>>,
+            maps:from_list(
+                [{<<"entities"/utf8>>, <<"Users, Tokens"/utf8>>},
+                    {<<"base_url"/utf8>>, <<"http://localhost:8080"/utf8>>}]
+            ),
+            0.85,
+            <<""/utf8>>,
+            <<"2024-01-01T00:00:00Z"/utf8>>},
+        {answer,
+            <<"q3"/utf8>>,
+            <<"Happy path?"/utf8>>,
+            user,
+            1,
+            <<"Login and get token"/utf8>>,
+            maps:from_list(
+                [{<<"happy_path"/utf8>>, <<"Login and get token"/utf8>>}]
+            ),
+            0.8,
+            <<""/utf8>>,
+            <<"2024-01-01T00:00:00Z"/utf8>>},
+        {answer,
+            <<"q4"/utf8>>,
+            <<"Errors?"/utf8>>,
+            user,
+            2,
+            <<"Wrong password, user not found"/utf8>>,
+            maps:from_list(
+                [{<<"error_cases"/utf8>>, <<"Wrong password"/utf8>>}]
+            ),
+            0.75,
+            <<""/utf8>>,
+            <<"2024-01-01T00:00:00Z"/utf8>>},
+        {answer,
+            <<"q5"/utf8>>,
+            <<"Format?"/utf8>>,
+            developer,
+            1,
+            <<"JSON response format"/utf8>>,
+            maps:from_list([{<<"response_format"/utf8>>, <<"json"/utf8>>}]),
+            0.9,
+            <<""/utf8>>,
+            <<"2024-01-01T00:00:00Z"/utf8>>}],
+    Gaps = intent@interview:detect_gaps(api, Answers),
+    _pipe = Gaps,
+    _pipe@1 = erlang:length(_pipe),
+    gleeunit_ffi:should_equal(_pipe@1, 0).
+
+-file("test/intent_test.gleam", 426).
+-spec interview_detect_conflicts_cap_theorem_test() -> nil.
+interview_detect_conflicts_cap_theorem_test() ->
+    Answers = [{answer,
+            <<"q1"/utf8>>,
+            <<"Performance?"/utf8>>,
+            ops,
+            3,
+            <<"We need fast latency, under 50ms"/utf8>>,
+            maps:from_list([]),
+            0.8,
+            <<""/utf8>>,
+            <<"2024-01-01T00:00:00Z"/utf8>>},
+        {answer,
+            <<"q2"/utf8>>,
+            <<"Consistency?"/utf8>>,
+            developer,
+            3,
+            <<"All data must be strongly consistent"/utf8>>,
+            maps:from_list([]),
+            0.85,
+            <<""/utf8>>,
+            <<"2024-01-01T00:00:00Z"/utf8>>}],
+    Conflicts = intent@interview:detect_conflicts(Answers),
+    _pipe = Conflicts,
+    _pipe@1 = gleam@list:any(
+        _pipe,
+        fun(C) -> erlang:element(2, C) =:= <<"conflict-cap"/utf8>> end
+    ),
+    gleeunit@should:be_true(_pipe@1).
+
+-file("test/intent_test.gleam", 457).
+-spec interview_calculate_confidence_high_test() -> nil.
+interview_calculate_confidence_high_test() ->
+    Extracted = maps:from_list(
+        [{<<"auth_method"/utf8>>, <<"jwt"/utf8>>},
+            {<<"audience"/utf8>>, <<"mobile"/utf8>>}]
+    ),
+    Confidence = intent@interview:calculate_confidence(
+        <<"q1"/utf8>>,
+        <<"This is a very detailed response about JWT authentication and mobile users with specific requirements"/utf8>>,
+        Extracted
+    ),
+    Is_high = Confidence > 0.8,
+    _pipe = Is_high,
+    gleeunit@should:be_true(_pipe).
+
+-file("test/intent_test.gleam", 472).
+-spec interview_add_answer_test() -> nil.
+interview_add_answer_test() ->
+    Session = intent@interview:create_session(
+        <<"test-1"/utf8>>,
+        api,
+        <<"2024-01-01T00:00:00Z"/utf8>>
+    ),
+    Answer = {answer,
+        <<"q1"/utf8>>,
+        <<"Test"/utf8>>,
+        user,
+        1,
+        <<"Test response"/utf8>>,
+        maps:from_list([]),
+        0.8,
+        <<""/utf8>>,
+        <<"2024-01-01T00:01:00Z"/utf8>>},
+    Updated = intent@interview:add_answer(Session, Answer),
+    _pipe = erlang:element(9, Updated),
+    _pipe@1 = erlang:length(_pipe),
+    gleeunit_ffi:should_equal(_pipe@1, 1),
+    _pipe@2 = erlang:element(5, Updated),
+    gleeunit_ffi:should_equal(_pipe@2, <<"2024-01-01T00:01:00Z"/utf8>>).
+
+-file("test/intent_test.gleam", 492).
+-spec interview_complete_round_test() -> nil.
+interview_complete_round_test() ->
+    Session = intent@interview:create_session(
+        <<"test-1"/utf8>>,
+        api,
+        <<"2024-01-01T00:00:00Z"/utf8>>
+    ),
+    After_round_1 = intent@interview:complete_round(Session),
+    _pipe = erlang:element(8, After_round_1),
+    gleeunit_ffi:should_equal(_pipe, 1),
+    _pipe@1 = erlang:element(7, After_round_1),
+    gleeunit_ffi:should_equal(_pipe@1, refinement).
+
+-file("test/intent_test.gleam", 500).
+-spec interview_format_question_critical_test() -> nil.
+interview_format_question_critical_test() ->
+    Question = {question,
+        <<"q1"/utf8>>,
+        1,
+        user,
+        happy_path,
+        critical,
+        <<"What should this do?"/utf8>>,
+        <<"Start simple"/utf8>>,
+        <<"Example here"/utf8>>,
+        <<"text"/utf8>>,
+        [],
+        [],
+        []},
+    Formatted = intent@interview:format_question(Question),
+    _pipe = Formatted,
+    _pipe@1 = gleam_stdlib:contains_string(_pipe, <<"[CRITICAL]"/utf8>>),
+    gleeunit@should:be_true(_pipe@1),
+    _pipe@2 = Formatted,
+    _pipe@3 = gleam_stdlib:contains_string(
+        _pipe@2,
+        <<"What should this do?"/utf8>>
+    ),
+    gleeunit@should:be_true(_pipe@3).

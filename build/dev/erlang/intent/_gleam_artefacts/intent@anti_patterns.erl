@@ -20,7 +20,7 @@
         gleam@json:json(),
         gleam@json:json()}.
 
--file("src/intent/anti_patterns.gleam", 98).
+-file("src/intent/anti_patterns.gleam", 93).
 -spec get_all_keys_from_dynamic(gleam@dynamic:dynamic_()) -> gleam@set:set(binary()).
 get_all_keys_from_dynamic(Data) ->
     case (gleam@dynamic:dict(
@@ -44,7 +44,7 @@ get_all_keys_from_dynamic(Data) ->
             gleam@set:new()
     end.
 
--file("src/intent/anti_patterns.gleam", 81).
+-file("src/intent/anti_patterns.gleam", 76).
 ?DOC(" Get all keys from a JSON object (recursively)\n").
 -spec get_all_keys(gleam@json:json()) -> gleam@set:set(binary()).
 get_all_keys(Value) ->
@@ -73,7 +73,7 @@ get_all_keys(Value) ->
             gleam@set:new()
     end.
 
--file("src/intent/anti_patterns.gleam", 72).
+-file("src/intent/anti_patterns.gleam", 67).
 ?DOC(
     " Extract the keys from bad_example that make it bad\n"
     " (keys present in bad but not in good)\n"
@@ -87,7 +87,7 @@ extract_problem_keys(Pattern) ->
         fun(Key) -> not gleam@set:contains(Good_keys, Key) end
     ).
 
--file("src/intent/anti_patterns.gleam", 115).
+-file("src/intent/anti_patterns.gleam", 110).
 ?DOC(" Check if any bad keys are present in the response\n").
 -spec check_for_bad_keys(gleam@json:json(), gleam@set:set(binary())) -> list(binary()).
 check_for_bad_keys(Body, Bad_keys) ->
@@ -106,30 +106,21 @@ check_for_bad_keys(Body, Bad_keys) ->
     intent@http_client:execution_result()
 ) -> gleam@option:option(anti_pattern_result()).
 detect_pattern(Pattern, Response) ->
-    case erlang:element(4, Response) of
-        none ->
+    Bad_keys = extract_problem_keys(Pattern),
+    Found_problems = check_for_bad_keys(erlang:element(4, Response), Bad_keys),
+    case gleam@list:is_empty(Found_problems) of
+        true ->
             none;
 
-        {some, Body} ->
-            Bad_keys = extract_problem_keys(Pattern),
-            Found_problems = check_for_bad_keys(Body, Bad_keys),
-            case gleam@list:is_empty(Found_problems) of
-                true ->
-                    none;
-
-                false ->
-                    {some,
-                        {anti_pattern_detected,
-                            erlang:element(2, Pattern),
-                            erlang:element(3, Pattern),
-                            <<"Response contains: "/utf8,
-                                (gleam@string:join(
-                                    Found_problems,
-                                    <<", "/utf8>>
-                                ))/binary>>,
-                            erlang:element(4, Pattern),
-                            erlang:element(5, Pattern)}}
-            end
+        false ->
+            {some,
+                {anti_pattern_detected,
+                    erlang:element(2, Pattern),
+                    erlang:element(3, Pattern),
+                    <<"Response contains: "/utf8,
+                        (gleam@string:join(Found_problems, <<", "/utf8>>))/binary>>,
+                    erlang:element(4, Pattern),
+                    erlang:element(5, Pattern)}}
     end.
 
 -file("src/intent/anti_patterns.gleam", 27).
@@ -152,7 +143,7 @@ check_anti_patterns(Patterns, Response, _) ->
             end end
     ).
 
--file("src/intent/anti_patterns.gleam", 124).
+-file("src/intent/anti_patterns.gleam", 119).
 ?DOC(" Format an anti-pattern result as a human-readable string\n").
 -spec format_anti_pattern(anti_pattern_result()) -> binary().
 format_anti_pattern(Result) ->

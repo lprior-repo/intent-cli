@@ -3,11 +3,12 @@
 /// Supports 5 rounds × multiple perspectives = comprehensive requirement capture
 
 import gleam/dict.{type Dict}
-import gleam/json.{type Json}
 import gleam/list
-import gleam/result
 import gleam/string
-import gleam/int
+import intent/interview_questions.{
+  type Perspective, type QuestionCategory, type QuestionPriority,
+  type Question,
+}
 
 /// Profile types - determines which questions to ask
 pub type Profile {
@@ -26,50 +27,6 @@ pub type InterviewStage {
   Validation
   Complete
   Paused
-}
-
-/// Perspective/role answering questions
-pub type Perspective {
-  User
-  Developer
-  Ops
-  Security
-  Business
-}
-
-/// Question category
-pub type QuestionCategory {
-  HappyPath
-  ErrorCase
-  EdgeCase
-  Constraint
-  Dependency
-  NonFunctional
-}
-
-/// Question priority
-pub type QuestionPriority {
-  Critical
-  Important
-  NiceTohave
-}
-
-/// A single question
-pub type Question {
-  Question(
-    id: String,
-    round: Int,
-    perspective: Perspective,
-    category: QuestionCategory,
-    priority: QuestionPriority,
-    question: String,
-    context: String,
-    example: String,
-    expected_type: String,
-    extract_into: List(String),
-    depends_on: List(String),
-    blocks: List(String),
-  )
 }
 
 /// A single answer with metadata
@@ -206,9 +163,17 @@ fn extract_auth_method(text: String) -> Result(String, String) {
 fn extract_entities(text: String) -> Result(String, String) {
   // Look for capitalized words (likely entity names)
   let words = string.split(text, " ")
-  let entities = list.filter(words, fn(word) {
-    let first_char = string.slice(word, 0, 1)
-    string.uppercase(first_char) == first_char && string.length(word) > 2
+  let entities = list.filter_map(words, fn(word) {
+    // Remove trailing punctuation
+    let clean_word = case string.ends_with(word, ",") {
+      True -> string.slice(word, 0, string.length(word) - 1)
+      False -> word
+    }
+    let first_char = string.slice(clean_word, 0, 1)
+    case string.uppercase(first_char) == first_char && string.length(clean_word) > 2 {
+      True -> Ok(clean_word)
+      False -> Error(Nil)
+    }
   })
   case entities {
     [] -> Error("No entities found")
@@ -240,16 +205,24 @@ fn extract_audience(text: String) -> Result(String, String) {
   }
 }
 
-/// Get questions for a specific round, profile, and perspective
+/// Get questions for a specific round and profile
+/// Delegate to interview_questions module
 pub fn get_questions_for_round(
   profile: Profile,
   round: Int,
-  perspective: Perspective,
 ) -> List(Question) {
-  // This would normally load from questions.cue
-  // For now, return a skeleton structure
-  // In production, this loads from the schema
-  []
+  // Convert profile to string
+  let profile_str = case profile {
+    Api -> "api"
+    Cli -> "cli"
+    Event -> "event"
+    Data -> "data"
+    Workflow -> "workflow"
+    UI -> "ui"
+  }
+
+  // Call the dedicated questions module
+  interview_questions.get_questions_for_round(profile_str, round)
 }
 
 /// Detect gaps from collected answers
@@ -402,9 +375,9 @@ pub fn calculate_confidence(
 /// Format a question for display
 pub fn format_question(question: Question) -> String {
   let priority_str = case question.priority {
-    Critical -> "[CRITICAL]"
-    Important -> "[IMPORTANT]"
-    NiceTohave -> ""
+    interview_questions.Critical -> "[CRITICAL]"
+    interview_questions.Important -> "[IMPORTANT]"
+    interview_questions.NiceTohave -> ""
   }
 
   let context_str = case string.length(question.context) > 0 {

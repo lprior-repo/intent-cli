@@ -14,7 +14,7 @@
 
 -type generated_c_u_e() :: {generated_c_u_e, binary(), list(binary()), binary()}.
 
--file("src/intent/cue_generator.gleam", 87).
+-file("src/intent/cue_generator.gleam", 86).
 ?DOC(" Check if spec has HTTP behaviors\n").
 -spec has_http_behaviors(intent@types:spec()) -> boolean().
 has_http_behaviors(Spec) ->
@@ -22,21 +22,21 @@ has_http_behaviors(Spec) ->
     gleam@list:any(_pipe, fun(F) -> _pipe@1 = erlang:element(4, F),
             gleam@list:any(_pipe@1, fun(_) -> true end) end).
 
--file("src/intent/cue_generator.gleam", 96).
+-file("src/intent/cue_generator.gleam", 95).
 ?DOC(" Check if spec has regex patterns in rules\n").
 -spec has_regex_in_rules(intent@types:spec()) -> boolean().
 has_regex_in_rules(Spec) ->
     _pipe = erlang:element(9, Spec),
     gleam@list:any(_pipe, fun(_) -> false end).
 
--file("src/intent/cue_generator.gleam", 104).
+-file("src/intent/cue_generator.gleam", 103).
 ?DOC(" Check if spec has time-based rules\n").
 -spec has_time_rules(intent@types:spec()) -> boolean().
 has_time_rules(Spec) ->
     _pipe = erlang:element(9, Spec),
     gleam@list:any(_pipe, fun(_) -> false end).
 
--file("src/intent/cue_generator.gleam", 217).
+-file("src/intent/cue_generator.gleam", 216).
 ?DOC(" Convert HTTP Method to string\n").
 -spec method_to_string(intent@types:method()) -> binary().
 method_to_string(Method) ->
@@ -63,7 +63,7 @@ method_to_string(Method) ->
             <<"OPTIONS"/utf8>>
     end.
 
--file("src/intent/cue_generator.gleam", 230).
+-file("src/intent/cue_generator.gleam", 229).
 ?DOC(" Convert a Rule to CUE code\n").
 -spec rule_to_cue(intent@types:rule()) -> binary().
 rule_to_cue(Rule) ->
@@ -74,13 +74,13 @@ rule_to_cue(Rule) ->
         "\\\"
 }"/utf8>>.
 
--file("src/intent/cue_generator.gleam", 237).
+-file("src/intent/cue_generator.gleam", 236).
 ?DOC(" Convert JSON to CUE representation\n").
 -spec json_to_cue(gleam@json:json()) -> binary().
 json_to_cue(Json) ->
     gleam@json:to_string(Json).
 
--file("src/intent/cue_generator.gleam", 125).
+-file("src/intent/cue_generator.gleam", 124).
 ?DOC(" Convert a Behavior to CUE code\n").
 -spec behavior_to_cue(intent@types:behavior()) -> binary().
 behavior_to_cue(Behavior) ->
@@ -136,12 +136,15 @@ behavior_to_cue(Behavior) ->
     Response_line = <<<<"  response: {\\n    status: "/utf8,
             (gleam@int:to_string(erlang:element(2, erlang:element(8, Behavior))))/binary>>/binary,
         "\\n"/utf8>>,
-    Example_line = case erlang:element(3, erlang:element(8, Behavior)) of
-        none ->
+    Example_line = case erlang:element(3, erlang:element(8, Behavior)) =:= gleam@json:null(
+        
+    ) of
+        true ->
             <<""/utf8>>;
 
-        {some, Ex} ->
-            <<<<"    example: "/utf8, (json_to_cue(Ex))/binary>>/binary,
+        false ->
+            <<<<"    example: "/utf8,
+                    (json_to_cue(erlang:element(3, erlang:element(8, Behavior))))/binary>>/binary,
                 "\\n"/utf8>>
     end,
     Checks_lines = case gleam@dict:is_empty(
@@ -246,7 +249,7 @@ behavior_to_cue(Behavior) ->
             Captures_line/binary>>/binary,
         "}"/utf8>>.
 
--file("src/intent/cue_generator.gleam", 112).
+-file("src/intent/cue_generator.gleam", 111).
 ?DOC(" Convert a Feature to CUE code\n").
 -spec feature_to_cue(intent@types:feature()) -> binary().
 feature_to_cue(Feature) ->
@@ -265,7 +268,7 @@ feature_to_cue(Feature) ->
         "
 }"/utf8>>.
 
--file("src/intent/cue_generator.gleam", 242).
+-file("src/intent/cue_generator.gleam", 241).
 ?DOC(" Format generated CUE for output\n").
 -spec format_cue(generated_c_u_e()) -> binary().
 format_cue(Generated) ->
@@ -281,7 +284,7 @@ format_cue(Generated) ->
             Import_section/binary>>/binary,
         (erlang:element(4, Generated))/binary>>.
 
--file("src/intent/cue_generator.gleam", 252).
+-file("src/intent/cue_generator.gleam", 251).
 ?DOC(" Helper to conditionally append items\n").
 -spec append_if(list(binary()), boolean(), list(binary())) -> list(binary()).
 append_if(Items, Condition, To_append) ->
@@ -293,7 +296,7 @@ append_if(Items, Condition, To_append) ->
             Items
     end.
 
--file("src/intent/cue_generator.gleam", 70).
+-file("src/intent/cue_generator.gleam", 69).
 ?DOC(" Generate imports needed for the spec\n").
 -spec generate_imports(intent@types:spec()) -> list(binary()).
 generate_imports(Spec) ->
@@ -310,7 +313,7 @@ generate_imports(Spec) ->
     ),
     append_if(_pipe@2, has_time_rules(Spec), [<<"import \\\"time\\\""/utf8>>]).
 
--file("src/intent/cue_generator.gleam", 22).
+-file("src/intent/cue_generator.gleam", 21).
 ?DOC(" Generate CUE code from a Spec\n").
 -spec spec_to_cue(intent@types:spec()) -> generated_c_u_e().
 spec_to_cue(Spec) ->
