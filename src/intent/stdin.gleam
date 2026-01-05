@@ -2,14 +2,10 @@
 /// Provides functions for interactive command-line prompts
 
 @external(erlang, "intent_ffi_stdin", "read_line")
-pub fn read_line() -> Result(String, String) {
-  Error("Not implemented")
-}
+pub fn read_line() -> Result(String, String)
 
 @external(erlang, "intent_ffi_stdin", "read_line_trimmed")
-pub fn read_line_trimmed() -> Result(String, String) {
-  Error("Not implemented")
-}
+pub fn read_line_trimmed() -> Result(String, String)
 
 /// Read a single line from stdin, validating it's not empty
 /// Returns error if input is empty or whitespace-only
@@ -36,7 +32,12 @@ fn read_until_blank_helper(
   line_count: Int,
 ) -> Result(String, String) {
   case read_line_trimmed() {
-    Error(reason) -> Error("Failed to read input: " <> reason)
+    Error(_reason) -> {
+      case line_count {
+        0 -> Error("Failed to read input")
+        _ -> Ok(string.join(list.reverse(lines), "\n"))
+      }
+    }
     Ok(line) -> {
       case string.is_empty(line) {
         // User entered blank line - stop collecting
