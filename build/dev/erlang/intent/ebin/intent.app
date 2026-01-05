@@ -14,6 +14,8 @@
                     simplifile,
                     spinner]},
     {description, "Human-writes, AI-verifies, AI-implements - Contract-driven API testing"},
-    {modules, []},
+    {modules, [intent,
+               intent@stdin,
+               intent_ffi_stdin]},
     {registered, []}
 ]}.

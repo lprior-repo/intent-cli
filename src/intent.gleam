@@ -23,6 +23,7 @@ import intent/interview_storage
 import intent/interview_questions
 import intent/spec_builder
 import intent/bead_templates
+import intent/stdin
 import simplifile
 
 /// Exit codes
@@ -649,11 +650,17 @@ fn ask_single_question(
   }
 
   io.print("")
-  io.print("> ")
 
-  // For now, simulate answer collection
-  // In a real TUI, this would read from stdin
-  let answer_text = "(interview loop ready - awaiting stdin implementation)"
+  // Read answer from stdin with validation
+  let answer_text = case stdin.prompt_for_answer("> ") {
+    Ok(text) -> text
+    Error(err) -> {
+      io.println_error("Error reading input: " <> err)
+      io.println("")
+      // Return placeholder if input fails
+      "(input error - please try again)"
+    }
+  }
 
   // Extract fields from answer
   let extracted = interview.extract_from_answer(
