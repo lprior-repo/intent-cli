@@ -1,2 +1,17 @@
 # bv (beads viewer) local config and caches
 .bv/
+
+# Gleam build artifacts
+build/
+*.beam
+
+# Node dependencies
+node_modules/
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
