@@ -74,8 +74,7 @@ fn parse_feature(data: Dynamic) -> Result(Feature, List(DecodeError)) {
     dynamic.field("description", dynamic.string)(data)
   )
   use behaviors <- result.try(
-    dynamic.optional_field("behaviors", dynamic.list(parse_behavior))(data)
-    |> result.map(option.unwrap(_, []))
+    dynamic.field("behaviors", dynamic.list(parse_behavior))(data)
   )
   Ok(Feature(name, description, behaviors))
 }
@@ -205,10 +204,7 @@ fn parse_checks(
 
 fn parse_check(data: Dynamic) -> Result(Check, List(DecodeError)) {
   use rule <- result.try(dynamic.field("rule", dynamic.string)(data))
-  use why <- result.try(
-    dynamic.optional_field("why", dynamic.string)(data)
-    |> result.map(option.unwrap(_, ""))
-  )
+  use why <- result.try(dynamic.field("why", dynamic.string)(data))
   Ok(Check(rule, why))
 }
 

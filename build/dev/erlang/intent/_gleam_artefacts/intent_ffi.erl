@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -26,3 +26,18 @@ base64_url_decode(Input) when is_binary(Input) ->
     catch
         _:_ -> {error, invalid_base64}
     end.
+
+%% Generate UUID v4 (simple implementation)
+generate_uuid() ->
+    <<A:32, B:16, C:16, D:16, E:48>> = crypto:strong_rand_bytes(16),
+    Parts = [to_hex(A, 8), "-", to_hex(B, 4), "-", to_hex(C, 4), "-", to_hex(D, 4), "-", to_hex(E, 12)],
+    list_to_binary(Parts).
+
+to_hex(N, Width) ->
+    Hex = integer_to_list(N, 16),
+    string:pad(Hex, Width, leading, $0).
+
+%% Get current timestamp in ISO 8601 format
+current_timestamp() ->
+    Now = erlang:system_time(millisecond),
+    calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]).

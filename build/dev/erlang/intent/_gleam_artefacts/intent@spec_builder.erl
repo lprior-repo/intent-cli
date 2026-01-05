@@ -1,0 +1,317 @@
+-module(intent@spec_builder).
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
+-define(FILEPATH, "src/intent/spec_builder.gleam").
+-export([extract_features_from_answers/1, extract_behaviors_from_answers/2, extract_constraints_from_answers/1, extract_security_requirements/1, extract_non_functional_requirements/1, build_spec_from_session/1]).
+
+-if(?OTP_RELEASE >= 27).
+-define(MODULEDOC(Str), -moduledoc(Str)).
+-define(DOC(Str), -doc(Str)).
+-else.
+-define(MODULEDOC(Str), -compile([])).
+-define(DOC(Str), -compile([])).
+-endif.
+
+-file("src/intent/spec_builder.gleam", 36).
+?DOC(" Extract feature names/titles from answers\n").
+-spec extract_features_from_answers(list(intent@interview:answer())) -> list(binary()).
+extract_features_from_answers(Answers) ->
+    _pipe = Answers,
+    _pipe@1 = gleam@list:filter(
+        _pipe,
+        fun(Answer) ->
+            gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"feature"/utf8>>
+            )
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"capability"/utf8>>
+            )
+        end
+    ),
+    _pipe@2 = gleam@list:map(
+        _pipe@1,
+        fun(Answer@1) ->
+            Trimmed = gleam@string:trim(erlang:element(6, Answer@1)),
+            case gleam@string:length(Trimmed) > 0 of
+                true ->
+                    Trimmed;
+
+                false ->
+                    <<""/utf8>>
+            end
+        end
+    ),
+    gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
+
+-file("src/intent/spec_builder.gleam", 56).
+?DOC(" Extract API behaviors (methods, paths, status codes)\n").
+-spec extract_behaviors_from_answers(
+    list(intent@interview:answer()),
+    intent@interview:profile()
+) -> binary().
+extract_behaviors_from_answers(Answers, _) ->
+    Api_answers = gleam@list:filter(
+        Answers,
+        fun(Answer) ->
+            (gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"endpoint"/utf8>>
+            )
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"path"/utf8>>
+            ))
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"method"/utf8>>
+            )
+        end
+    ),
+    case Api_answers of
+        [] ->
+            <<"// Define API behaviors here
+behaviors: {
+  // Add endpoint definitions
+}"/utf8>>;
+
+        Answers@1 ->
+            <<<<"// API behaviors from interview
+behaviors: {
+"/utf8,
+                    (begin
+                        _pipe = gleam@list:map(
+                            Answers@1,
+                            fun(Answer@1) ->
+                                <<<<<<"  // "/utf8,
+                                            (erlang:element(3, Answer@1))/binary>>/binary,
+                                        "
+  // "/utf8>>/binary,
+                                    (gleam@string:trim(
+                                        erlang:element(6, Answer@1)
+                                    ))/binary>>
+                            end
+                        ),
+                        gleam@string:join(_pipe, <<"\n"/utf8>>)
+                    end)/binary>>/binary,
+                "\n}"/utf8>>
+    end.
+
+-file("src/intent/spec_builder.gleam", 97).
+?DOC(" Extract constraints from answers\n").
+-spec extract_constraints_from_answers(list(intent@interview:answer())) -> list(binary()).
+extract_constraints_from_answers(Answers) ->
+    _pipe = Answers,
+    _pipe@1 = gleam@list:filter(
+        _pipe,
+        fun(Answer) ->
+            (gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"constraint"/utf8>>
+            )
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"limit"/utf8>>
+            ))
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"requirement"/utf8>>
+            )
+        end
+    ),
+    _pipe@2 = gleam@list:map(
+        _pipe@1,
+        fun(Answer@1) -> gleam@string:trim(erlang:element(6, Answer@1)) end
+    ),
+    gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
+
+-file("src/intent/spec_builder.gleam", 117).
+?DOC(" Extract security requirements from answers\n").
+-spec extract_security_requirements(list(intent@interview:answer())) -> binary().
+extract_security_requirements(Answers) ->
+    Security_answers = gleam@list:filter(
+        Answers,
+        fun(Answer) ->
+            (gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"auth"/utf8>>
+            )
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"security"/utf8>>
+            ))
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"permission"/utf8>>
+            )
+        end
+    ),
+    case Security_answers of
+        [] ->
+            <<"security: {
+  authentication: \"todo\"
+  authorization: \"todo\"
+}"/utf8>>;
+
+        Answers@1 ->
+            <<<<"security: {
+"/utf8,
+                    (begin
+                        _pipe = gleam@list:map(
+                            Answers@1,
+                            fun(Answer@1) ->
+                                <<<<<<<<"  // "/utf8,
+                                                (erlang:element(3, Answer@1))/binary>>/binary,
+                                            "
+  requirement: \""/utf8>>/binary,
+                                        (gleam@string:trim(
+                                            erlang:element(6, Answer@1)
+                                        ))/binary>>/binary,
+                                    "\""/utf8>>
+                            end
+                        ),
+                        gleam@string:join(_pipe, <<"\n"/utf8>>)
+                    end)/binary>>/binary,
+                "\n}"/utf8>>
+    end.
+
+-file("src/intent/spec_builder.gleam", 151).
+?DOC(" Extract non-functional requirements (SLA, scale, monitoring)\n").
+-spec extract_non_functional_requirements(list(intent@interview:answer())) -> list(binary()).
+extract_non_functional_requirements(Answers) ->
+    _pipe = Answers,
+    _pipe@1 = gleam@list:filter(
+        _pipe,
+        fun(Answer) ->
+            (((gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"sla"/utf8>>
+            )
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"scale"/utf8>>
+            ))
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"performance"/utf8>>
+            ))
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"monitoring"/utf8>>
+            ))
+            orelse gleam_stdlib:contains_string(
+                gleam@string:lowercase(erlang:element(3, Answer)),
+                <<"latency"/utf8>>
+            )
+        end
+    ),
+    _pipe@2 = gleam@list:map(
+        _pipe@1,
+        fun(Answer@1) -> gleam@string:trim(erlang:element(6, Answer@1)) end
+    ),
+    gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
+
+-file("src/intent/spec_builder.gleam", 179).
+?DOC(" Build the main body of the spec\n").
+-spec build_spec_body(
+    list(binary()),
+    binary(),
+    list(binary()),
+    binary(),
+    list(binary())
+) -> binary().
+build_spec_body(Features, Behaviors, Constraints, Security, Non_functional) ->
+    Features_section = case Features of
+        [] ->
+            <<"// Features
+features: {
+  // Add feature definitions
+}"/utf8>>;
+
+        Features@1 ->
+            <<<<"// Features extracted from interview
+features: {
+"/utf8,
+                    (begin
+                        _pipe = gleam@list:map(
+                            Features@1,
+                            fun(Feature) ->
+                                <<<<"  \""/utf8, Feature/binary>>/binary,
+                                    "\": true"/utf8>>
+                            end
+                        ),
+                        gleam@string:join(_pipe, <<"\n"/utf8>>)
+                    end)/binary>>/binary,
+                "\n}"/utf8>>
+    end,
+    Constraints_section = case Constraints of
+        [] ->
+            <<""/utf8>>;
+
+        Constraints@1 ->
+            <<<<"\n\n// Constraints and requirements
+constraints: {
+"/utf8,
+                    (begin
+                        _pipe@1 = gleam@list:map(
+                            Constraints@1,
+                            fun(Constraint) ->
+                                <<"  // "/utf8, Constraint/binary>>
+                            end
+                        ),
+                        gleam@string:join(_pipe@1, <<"\n"/utf8>>)
+                    end)/binary>>/binary,
+                "\n}"/utf8>>
+    end,
+    Non_functional_section = case Non_functional of
+        [] ->
+            <<""/utf8>>;
+
+        Nf ->
+            <<<<"\n\n// Non-functional requirements
+nonFunctional: {
+"/utf8,
+                    (begin
+                        _pipe@2 = gleam@list:map(
+                            Nf,
+                            fun(Requirement) ->
+                                <<"  // "/utf8, Requirement/binary>>
+                            end
+                        ),
+                        gleam@string:join(_pipe@2, <<"\n"/utf8>>)
+                    end)/binary>>/binary,
+                "\n}"/utf8>>
+    end,
+    <<<<<<<<<<<<Features_section/binary, "\n\n"/utf8>>/binary,
+                        Behaviors/binary>>/binary,
+                    "\n\n"/utf8>>/binary,
+                Security/binary>>/binary,
+            Constraints_section/binary>>/binary,
+        Non_functional_section/binary>>.
+
+-file("src/intent/spec_builder.gleam", 11).
+?DOC(" Build a CUE spec from a completed interview session\n").
+-spec build_spec_from_session(intent@interview:interview_session()) -> binary().
+build_spec_from_session(Session) ->
+    Features = extract_features_from_answers(erlang:element(9, Session)),
+    Behaviors = extract_behaviors_from_answers(
+        erlang:element(9, Session),
+        erlang:element(3, Session)
+    ),
+    Constraints = extract_constraints_from_answers(erlang:element(9, Session)),
+    Security = extract_security_requirements(erlang:element(9, Session)),
+    Non_functional = extract_non_functional_requirements(
+        erlang:element(9, Session)
+    ),
+    Spec = {generated_c_u_e,
+        <<"package api"/utf8>>,
+        [],
+        build_spec_body(
+            Features,
+            Behaviors,
+            Constraints,
+            Security,
+            Non_functional
+        )},
+    <<<<(erlang:element(2, Spec))/binary, "\n\n"/utf8>>/binary,
+        (erlang:element(4, Spec))/binary>>.

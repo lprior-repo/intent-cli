@@ -1,7 +1,7 @@
 -module(intent@interview_storage).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "src/intent/interview_storage.gleam").
--export([session_to_json/1, session_to_jsonl_line/1, append_session_to_jsonl/2, list_sessions_from_jsonl/1, get_session_from_jsonl/2, init_database/1, save_session_to_db/2, query_sessions_by_profile/2, query_ready_sessions/1, sync_to_jsonl/3, sync_from_jsonl/2]).
+-export([session_to_json/1, session_to_jsonl_line/1, init_database/1, save_session_to_db/2, query_sessions_by_profile/2, query_ready_sessions/1, append_session_to_jsonl/2, sync_to_jsonl/3, list_sessions_from_jsonl/1, get_session_from_jsonl/2, sync_from_jsonl/2]).
 -export_type([session_record/0]).
 
 -if(?OTP_RELEASE >= 27).
@@ -22,7 +22,7 @@
         integer(),
         binary()}.
 
--file("src/intent/interview_storage.gleam", 50).
+-file("src/intent/interview_storage.gleam", 52).
 -spec profile_to_string(intent@interview:profile()) -> binary().
 profile_to_string(Profile) ->
     case Profile of
@@ -45,7 +45,7 @@ profile_to_string(Profile) ->
             <<"ui"/utf8>>
     end.
 
--file("src/intent/interview_storage.gleam", 61).
+-file("src/intent/interview_storage.gleam", 63).
 -spec stage_to_string(intent@interview:interview_stage()) -> binary().
 stage_to_string(Stage) ->
     case Stage of
@@ -65,7 +65,7 @@ stage_to_string(Stage) ->
             <<"paused"/utf8>>
     end.
 
--file("src/intent/interview_storage.gleam", 88).
+-file("src/intent/interview_storage.gleam", 90).
 -spec perspective_to_string(intent@interview_questions:perspective()) -> binary().
 perspective_to_string(Perspective) ->
     case Perspective of
@@ -85,7 +85,7 @@ perspective_to_string(Perspective) ->
             <<"business"/utf8>>
     end.
 
--file("src/intent/interview_storage.gleam", 71).
+-file("src/intent/interview_storage.gleam", 73).
 -spec answer_to_json(intent@interview:answer()) -> gleam@json:json().
 answer_to_json(Answer) ->
     gleam@json:object(
@@ -117,7 +117,7 @@ answer_to_json(Answer) ->
                 gleam@json:string(erlang:element(10, Answer))}]
     ).
 
--file("src/intent/interview_storage.gleam", 98).
+-file("src/intent/interview_storage.gleam", 100).
 -spec gap_to_json(intent@interview:gap()) -> gleam@json:json().
 gap_to_json(Gap) ->
     gleam@json:object(
@@ -133,7 +133,7 @@ gap_to_json(Gap) ->
             {<<"resolution"/utf8>>, gleam@json:string(erlang:element(10, Gap))}]
     ).
 
--file("src/intent/interview_storage.gleam", 124).
+-file("src/intent/interview_storage.gleam", 126).
 -spec conflict_resolution_to_json(intent@interview:conflict_resolution()) -> gleam@json:json().
 conflict_resolution_to_json(Res) ->
     gleam@json:object(
@@ -144,7 +144,7 @@ conflict_resolution_to_json(Res) ->
                 gleam@json:string(erlang:element(5, Res))}]
     ).
 
--file("src/intent/interview_storage.gleam", 112).
+-file("src/intent/interview_storage.gleam", 114).
 -spec conflict_to_json(intent@interview:conflict()) -> gleam@json:json().
 conflict_to_json(Conflict) ->
     {Between_1, Between_2} = erlang:element(3, Conflict),
@@ -166,7 +166,7 @@ conflict_to_json(Conflict) ->
             {<<"chosen"/utf8>>, gleam@json:int(erlang:element(7, Conflict))}]
     ).
 
--file("src/intent/interview_storage.gleam", 34).
+-file("src/intent/interview_storage.gleam", 36).
 ?DOC(
     " JSONL operations - git-friendly line-delimited JSON\n"
     " Each line is a complete session snapshot\n"
@@ -204,7 +204,7 @@ session_to_json(Session) ->
                 gleam@json:string(erlang:element(12, Session))}]
     ).
 
--file("src/intent/interview_storage.gleam", 134).
+-file("src/intent/interview_storage.gleam", 136).
 ?DOC(" Encode session to JSONL line (for git storage)\n").
 -spec session_to_jsonl_line(intent@interview:interview_session()) -> binary().
 session_to_jsonl_line(Session) ->
@@ -212,47 +212,7 @@ session_to_jsonl_line(Session) ->
     _pipe@1 = session_to_json(_pipe),
     gleam@json:to_string(_pipe@1).
 
--file("src/intent/interview_storage.gleam", 142).
-?DOC(
-    " Write session to .interview/sessions.jsonl\n"
-    " Each session ID appears once, most recent last (for efficient updates)\n"
-).
--spec append_session_to_jsonl(intent@interview:interview_session(), binary()) -> {ok,
-        nil} |
-    {error, binary()}.
-append_session_to_jsonl(Session, Jsonl_path) ->
-    {ok, nil}.
-
--file("src/intent/interview_storage.gleam", 156).
-?DOC(" List all sessions from JSONL file\n").
--spec list_sessions_from_jsonl(binary()) -> {ok,
-        list(intent@interview:interview_session())} |
-    {error, binary()}.
-list_sessions_from_jsonl(Jsonl_path) ->
-    {ok, []}.
-
--file("src/intent/interview_storage.gleam", 164).
-?DOC(" Get session by ID from JSONL\n").
--spec get_session_from_jsonl(binary(), binary()) -> {ok,
-        intent@interview:interview_session()} |
-    {error, binary()}.
-get_session_from_jsonl(Jsonl_path, Session_id) ->
-    _pipe = list_sessions_from_jsonl(Jsonl_path),
-    gleam@result:'try'(
-        _pipe,
-        fun(Sessions) ->
-            _pipe@1 = gleam@list:find(
-                Sessions,
-                fun(S) -> erlang:element(2, S) =:= Session_id end
-            ),
-            gleam@result:map_error(
-                _pipe@1,
-                fun(_) -> <<"Session not found: "/utf8, Session_id/binary>> end
-            )
-        end
-    ).
-
--file("src/intent/interview_storage.gleam", 217).
+-file("src/intent/interview_storage.gleam", 252).
 ?DOC(
     " SQLite operations - local database for queries and performance\n"
     " Database schema:\n"
@@ -300,7 +260,7 @@ get_session_from_jsonl(Jsonl_path, Session_id) ->
 init_database(Db_path) ->
     {ok, nil}.
 
--file("src/intent/interview_storage.gleam", 226).
+-file("src/intent/interview_storage.gleam", 261).
 ?DOC(" Save session to SQLite\n").
 -spec save_session_to_db(binary(), intent@interview:interview_session()) -> {ok,
         nil} |
@@ -308,7 +268,7 @@ init_database(Db_path) ->
 save_session_to_db(Db_path, Session) ->
     {ok, nil}.
 
--file("src/intent/interview_storage.gleam", 236).
+-file("src/intent/interview_storage.gleam", 271).
 ?DOC(" Query sessions by profile\n").
 -spec query_sessions_by_profile(binary(), binary()) -> {ok,
         list(session_record())} |
@@ -316,14 +276,68 @@ save_session_to_db(Db_path, Session) ->
 query_sessions_by_profile(Db_path, Profile) ->
     {ok, []}.
 
--file("src/intent/interview_storage.gleam", 244).
+-file("src/intent/interview_storage.gleam", 279).
 ?DOC(" Query ready sessions (active, not complete, has gaps)\n").
 -spec query_ready_sessions(binary()) -> {ok, list(session_record())} |
     {error, binary()}.
 query_ready_sessions(Db_path) ->
     {ok, []}.
 
--file("src/intent/interview_storage.gleam", 254).
+-file("src/intent/interview_storage.gleam", 315).
+-spec session_id_decoder(gleam@dynamic:dynamic_()) -> {ok, binary()} |
+    {error, list(gleam@dynamic:decode_error())}.
+session_id_decoder(Json_value) ->
+    (gleam@dynamic:field(<<"id"/utf8>>, fun gleam@dynamic:string/1))(Json_value).
+
+-file("src/intent/interview_storage.gleam", 144).
+?DOC(
+    " Write session to .interview/sessions.jsonl\n"
+    " Each session ID appears once, most recent last (for efficient updates)\n"
+).
+-spec append_session_to_jsonl(intent@interview:interview_session(), binary()) -> {ok,
+        nil} |
+    {error, binary()}.
+append_session_to_jsonl(Session, Jsonl_path) ->
+    gleam@result:'try'(
+        begin
+            _pipe = simplifile:read(Jsonl_path),
+            gleam@result:map_error(_pipe, fun(_) -> <<""/utf8>> end)
+        end,
+        fun(Existing) ->
+            Lines = case Existing of
+                <<""/utf8>> ->
+                    [];
+
+                Content ->
+                    gleam@string:split(Content, <<"\n"/utf8>>)
+            end,
+            Filtered = gleam@list:filter(
+                Lines,
+                fun(Line) ->
+                    case gleam@json:decode(Line, fun session_id_decoder/1) of
+                        {ok, Id} ->
+                            Id /= erlang:element(2, Session);
+
+                        {error, _} ->
+                            true
+                    end
+                end
+            ),
+            New_line = session_to_jsonl_line(Session),
+            All_lines = lists:append(Filtered, [New_line]),
+            Content@1 = gleam@string:join(All_lines, <<"\n"/utf8>>),
+            _pipe@1 = simplifile:write(Jsonl_path, Content@1),
+            gleam@result:map_error(
+                _pipe@1,
+                fun(Err) ->
+                    <<"Failed to write JSONL: "/utf8,
+                        (gleam@string:inspect(Err))/binary>>
+                end
+            )
+        end
+    ).
+
+-file("src/intent/interview_storage.gleam", 289).
 ?DOC(
     " Sync operations - keep SQLite and JSONL in sync\n"
     " Strategy: JSONL is source of truth for git\n"
@@ -345,7 +359,237 @@ sync_to_jsonl(Session, Db_path, Jsonl_path) ->
         end
     ).
 
--file("src/intent/interview_storage.gleam", 266).
+-file("src/intent/interview_storage.gleam", 319).
+-spec session_decoder(gleam@dynamic:dynamic_()) -> {ok,
+        intent@interview:interview_session()} |
+    {error, list(gleam@dynamic:decode_error())}.
+session_decoder(Json_value) ->
+    gleam@result:'try'(
+        (gleam@dynamic:field(<<"id"/utf8>>, fun gleam@dynamic:string/1))(
+            Json_value
+        ),
+        fun(Id) ->
+            gleam@result:'try'(
+                (gleam@dynamic:field(
+                    <<"profile"/utf8>>,
+                    fun gleam@dynamic:string/1
+                ))(Json_value),
+                fun(Profile_str) -> gleam@result:'try'(case Profile_str of
+                            <<"api"/utf8>> ->
+                                {ok, api};
+
+                            <<"cli"/utf8>> ->
+                                {ok, cli};
+
+                            <<"event"/utf8>> ->
+                                {ok, event};
+
+                            <<"data"/utf8>> ->
+                                {ok, data};
+
+                            <<"workflow"/utf8>> ->
+                                {ok, workflow};
+
+                            <<"ui"/utf8>> ->
+                                {ok, u_i};
+
+                            _ ->
+                                {error,
+                                    [{decode_error,
+                                            <<"profile"/utf8>>,
+                                            <<"invalid profile"/utf8>>,
+                                            []}]}
+                        end, fun(Profile) ->
+                            gleam@result:'try'(
+                                (gleam@dynamic:field(
+                                    <<"created_at"/utf8>>,
+                                    fun gleam@dynamic:string/1
+                                ))(Json_value),
+                                fun(Created_at) ->
+                                    gleam@result:'try'(
+                                        (gleam@dynamic:field(
+                                            <<"updated_at"/utf8>>,
+                                            fun gleam@dynamic:string/1
+                                        ))(Json_value),
+                                        fun(Updated_at) ->
+                                            gleam@result:'try'(
+                                                begin
+                                                    _pipe = (gleam@dynamic:field(
+                                                        <<"completed_at"/utf8>>,
+                                                        fun gleam@dynamic:string/1
+                                                    ))(Json_value),
+                                                    gleam@result:map_error(
+                                                        _pipe,
+                                                        fun(_) -> [] end
+                                                    )
+                                                end,
+                                                fun(Completed_at) ->
+                                                    gleam@result:'try'(
+                                                        (gleam@dynamic:field(
+                                                            <<"stage"/utf8>>,
+                                                            fun gleam@dynamic:string/1
+                                                        ))(Json_value),
+                                                        fun(Stage_str) ->
+                                                            gleam@result:'try'(
+                                                                case Stage_str of
+                                                                    <<"Discovery"/utf8>> ->
+                                                                        {ok,
+                                                                            discovery};
+
+                                                                    <<"Refinement"/utf8>> ->
+                                                                        {ok,
+                                                                            refinement};
+
+                                                                    <<"Validation"/utf8>> ->
+                                                                        {ok,
+                                                                            validation};
+
+                                                                    <<"Complete"/utf8>> ->
+                                                                        {ok,
+                                                                            complete};
+
+                                                                    <<"Paused"/utf8>> ->
+                                                                        {ok,
+                                                                            paused};
+
+                                                                    _ ->
+                                                                        {error,
+                                                                            [{decode_error,
+                                                                                    <<"stage"/utf8>>,
+                                                                                    <<"invalid stage"/utf8>>,
+                                                                                    []}]}
+                                                                end,
+                                                                fun(Stage) ->
+                                                                    gleam@result:'try'(
+                                                                        (gleam@dynamic:field(
+                                                                            <<"rounds_completed"/utf8>>,
+                                                                            fun gleam@dynamic:int/1
+                                                                        ))(
+                                                                            Json_value
+                                                                        ),
+                                                                        fun(
+                                                                            Rounds_completed
+                                                                        ) ->
+                                                                            gleam@result:'try'(
+                                                                                begin
+                                                                                    _pipe@1 = (gleam@dynamic:field(
+                                                                                        <<"raw_notes"/utf8>>,
+                                                                                        fun gleam@dynamic:string/1
+                                                                                    ))(
+                                                                                        Json_value
+                                                                                    ),
+                                                                                    gleam@result:map_error(
+                                                                                        _pipe@1,
+                                                                                        fun(
+                                                                                            _
+                                                                                        ) ->
+                                                                                            []
+                                                                                        end
+                                                                                    )
+                                                                                end,
+                                                                                fun(
+                                                                                    Raw_notes
+                                                                                ) ->
+                                                                                    {ok,
+                                                                                        {interview_session,
+                                                                                            Id,
+                                                                                            Profile,
+                                                                                            Created_at,
+                                                                                            Updated_at,
+                                                                                            Completed_at,
+                                                                                            Stage,
+                                                                                            Rounds_completed,
+                                                                                            [],
+                                                                                            [],
+                                                                                            [],
+                                                                                            Raw_notes}}
+                                                                                end
+                                                                            )
+                                                                        end
+                                                                    )
+                                                                end
+                                                            )
+                                                        end
+                                                    )
+                                                end
+                                            )
+                                        end
+                                    )
+                                end
+                            )
+                        end) end
+            )
+        end
+    ).
+
+-file("src/intent/interview_storage.gleam", 175).
+?DOC(" List all sessions from JSONL file\n").
+-spec list_sessions_from_jsonl(binary()) -> {ok,
+        list(intent@interview:interview_session())} |
+    {error, binary()}.
+list_sessions_from_jsonl(Jsonl_path) ->
+    gleam@result:'try'(
+        begin
+            _pipe = simplifile:read(Jsonl_path),
+            gleam@result:map_error(
+                _pipe,
+                fun(Err) ->
+                    <<"Failed to read JSONL: "/utf8,
+                        (gleam@string:inspect(Err))/binary>>
+                end
+            )
+        end,
+        fun(Content) -> case gleam@string:length(gleam@string:trim(Content)) of
+                0 ->
+                    {ok, []};
+
+                _ ->
+                    Lines = gleam@string:split(Content, <<"\n"/utf8>>),
+                    Sessions = gleam@list:filter_map(
+                        Lines,
+                        fun(Line) ->
+                            case gleam@string:length(gleam@string:trim(Line)) of
+                                0 ->
+                                    {error, nil};
+
+                                _ ->
+                                    _pipe@1 = gleam@json:decode(
+                                        Line,
+                                        fun session_decoder/1
+                                    ),
+                                    gleam@result:map_error(
+                                        _pipe@1,
+                                        fun(_) -> nil end
+                                    )
+                            end
+                        end
+                    ),
+                    {ok, Sessions}
+            end end
+    ).
+
+-file("src/intent/interview_storage.gleam", 199).
+?DOC(" Get session by ID from JSONL\n").
+-spec get_session_from_jsonl(binary(), binary()) -> {ok,
+        intent@interview:interview_session()} |
+    {error, binary()}.
+get_session_from_jsonl(Jsonl_path, Session_id) ->
+    _pipe = list_sessions_from_jsonl(Jsonl_path),
+    gleam@result:'try'(
+        _pipe,
+        fun(Sessions) ->
+            _pipe@1 = gleam@list:find(
+                Sessions,
+                fun(S) -> erlang:element(2, S) =:= Session_id end
+            ),
+            gleam@result:map_error(
+                _pipe@1,
+                fun(_) -> <<"Session not found: "/utf8, Session_id/binary>> end
+            )
+        end
+    ).
+
+-file("src/intent/interview_storage.gleam", 301).
 -spec sync_from_jsonl(binary(), binary()) -> {ok,
         list(intent@interview:interview_session())} |
     {error, binary()}.
