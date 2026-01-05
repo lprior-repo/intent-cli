@@ -17,6 +17,8 @@ import intent/types
 import intent/quality_analyzer
 import intent/spec_linter
 import intent/improver
+import intent/interview
+import intent/interview_storage
 
 /// Exit codes
 const exit_pass = 0
@@ -40,6 +42,7 @@ pub fn main() {
   |> glint.add(at: ["lint"], do: lint_command())
   |> glint.add(at: ["analyze"], do: analyze_command())
   |> glint.add(at: ["improve"], do: improve_command())
+  |> glint.add(at: ["interview"], do: interview_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -403,5 +406,158 @@ fn improve_command() -> glint.Command(Nil) {
   |> glint.description("Suggest improvements based on quality analysis and linting")
 }
 
+/// The `interview` command - guided specification discovery
+fn interview_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let profile_str =
+      flag.get_string(input.flags, "profile")
+      |> result.unwrap("api")
+
+    let resume_id =
+      flag.get_string(input.flags, "resume")
+      |> result.unwrap("")
+
+    let export_to =
+      flag.get_string(input.flags, "export")
+      |> result.unwrap("")
+
+    let json_input =
+      flag.get_string(input.flags, "answers")
+      |> result.unwrap("")
+
+    case resume_id {
+      // Resume an existing session
+      "" ->
+        case string.lowercase(profile_str) {
+          "api" -> run_interview(interview.Api, json_input, export_to)
+          "cli" -> run_interview(interview.Cli, json_input, export_to)
+          "event" -> run_interview(interview.Event, json_input, export_to)
+          "data" -> run_interview(interview.Data, json_input, export_to)
+          "workflow" -> run_interview(interview.Workflow, json_input, export_to)
+          "ui" -> run_interview(interview.UI, json_input, export_to)
+          _ -> {
+            io.println_error(
+              "Error: unknown profile '" <> profile_str <> "'",
+            )
+            io.println_error(
+              "Valid profiles: api, cli, event, data, workflow, ui",
+            )
+            halt(exit_error)
+          }
+        }
+
+      // Resume an existing session
+      id -> {
+        io.println("Resuming interview session: " <> id)
+        io.println_error("Session resume not yet implemented")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Guided specification discovery through structured interview")
+  |> glint.flag(
+    "profile",
+    flag.string()
+    |> flag.default("api")
+    |> flag.description(
+      "System profile: api, cli, event, data, workflow, or ui",
+    ),
+  )
+  |> glint.flag(
+    "resume",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Resume existing interview session by ID"),
+  )
+  |> glint.flag(
+    "answers",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Path to YAML/JSON file with pre-filled answers"),
+  )
+  |> glint.flag(
+    "export",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Export completed interview to spec file"),
+  )
+}
+
+fn run_interview(
+  profile: interview.Profile,
+  json_input: String,
+  export_to: String,
+) -> Nil {
+  // Initialize session
+  let session_id = "interview-" <> generate_uuid()
+  let timestamp = current_timestamp()
+
+  let session = interview.create_session(session_id, profile, timestamp)
+
+  // Print welcome message
+  io.println("")
+  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println("                    INTENT INTERVIEW")
+  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println("")
+  io.println("Profile: " <> profile_to_display_string(profile))
+  io.println("Session: " <> session_id)
+  io.println("")
+  io.println("This guided interview will help us discover and refine your")
+  io.println("specification through structured questioning.")
+  io.println("")
+  io.println("We'll ask 25 questions across 5 rounds × 5 perspectives:")
+  io.println("  • Round 1: Core Intent (what are you building?)")
+  io.println("  • Round 2: Error Cases (what can go wrong?)")
+  io.println("  • Round 3: Edge Cases (where are the boundaries?)")
+  io.println("  • Round 4: Security & Compliance (how do we keep it safe?)")
+  io.println("  • Round 5: Operations (how does it run in production?)")
+  io.println("")
+  io.println("Press Ctrl+C to save and exit at any time.")
+  io.println("Session will be saved to: .interview/" <> session_id <> ".jsonl")
+  io.println("")
+  io.println("Ready? Let's begin.")
+  io.println("")
+
+  // TUI would go here - for now, just stub
+  io.println("⚠️ Interactive TUI not yet implemented")
+  io.println("Stub: waiting for question/answer loop")
+  io.println("")
+  io.println("When implemented, interview will:")
+  io.println("  1. Load questions from schema/questions.cue")
+  io.println("  2. Show one question at a time")
+  io.println("  3. Extract key fields from answers (AI-driven)")
+  io.println("  4. Detect gaps and conflicts")
+  io.println("  5. Pause for critical gaps")
+  io.println("  6. Offer conflict resolution options")
+  io.println("  7. Export final spec as CUE")
+  io.println("")
+  io.println("Session saved (empty): " <> session_id)
+  halt(exit_pass)
+}
+
+fn profile_to_display_string(profile: interview.Profile) -> String {
+  case profile {
+    interview.Api -> "API"
+    interview.Cli -> "CLI"
+    interview.Event -> "Event System"
+    interview.Data -> "Data System"
+    interview.Workflow -> "Workflow"
+    interview.UI -> "User Interface"
+  }
+}
+
 @external(erlang, "intent_ffi", "halt")
 fn halt(code: Int) -> Nil
+
+fn generate_uuid() -> String {
+  // Simple UUID v4 simulation
+  // In production, use a proper UUID library or Erlang uuid:uuid4()
+  "interview-abc123def456"
+}
+
+fn current_timestamp() -> String {
+  // For now, return a fixed timestamp
+  // In production, use erlang:system_time with ISO 8601 formatting
+  "2026-01-04T00:00:00Z"
+}
