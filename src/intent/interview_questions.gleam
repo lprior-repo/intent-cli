@@ -2,8 +2,6 @@
 /// Hardcoded questions for each round and perspective
 /// In production, this would load from questions.cue
 
-import gleam/option.{type Option}
-
 // Question types duplicated here to avoid circular imports
 pub type Perspective {
   User
@@ -50,14 +48,14 @@ pub fn get_questions_for_round(
   profile: String,
   round: Int,
 ) -> List(Question) {
-  case #(profile, round) {
-    #("api", 1) -> round_1_api()
-    #("cli", 1) -> round_1_cli()
-    #("event", 1) -> round_1_event()
-    #("data", 1) -> round_1_data()
-    #("workflow", 1) -> round_1_workflow()
-    #("ui", 1) -> round_1_ui()
-    #("api", 2) -> round_2_api()
+  case profile, round {
+    "api", 1 -> round_1_api()
+    "cli", 1 -> round_1_cli()
+    "event", 1 -> round_1_event()
+    "data", 1 -> round_1_data()
+    "workflow", 1 -> round_1_workflow()
+    "ui", 1 -> round_1_ui()
+    "api", 2 -> round_2_api()
     #("cli", 2) -> round_2_cli()
     #("event", 2) -> round_2_event()
     #("data", 2) -> round_2_data()

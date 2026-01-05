@@ -4,7 +4,6 @@ import gleam/dict.{type Dict}
 import gleam/dynamic.{type DecodeError, type Dynamic}
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option
 import gleam/result
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
