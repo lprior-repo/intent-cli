@@ -24,6 +24,7 @@ import intent/interview_questions
 import intent/spec_builder
 import intent/bead_templates
 import intent/stdin
+import intent/cli_ui
 import simplifile
 
 /// Exit codes
@@ -113,10 +114,12 @@ fn run_check(
   // Load the spec
   case loader.load_spec(spec_path) {
     Error(e) -> {
-      io.println_error("Error: " <> loader.format_error(e))
+      cli_ui.print_error(loader.format_error(e))
       halt(exit_invalid)
     }
     Ok(spec) -> {
+      cli_ui.print_header("Checking spec: " <> spec.name)
+
       // Build run options
       let options =
         runner.RunOptions(
@@ -147,9 +150,18 @@ fn run_check(
 
       // Exit with appropriate code
       let exit_code = case result {
-        output.SpecResult(pass: True, ..) -> exit_pass
-        output.SpecResult(blocked: blocked, ..) if blocked > 0 -> exit_blocked
-        _ -> exit_fail
+        output.SpecResult(pass: True, ..) -> {
+          cli_ui.print_success("All checks passed!")
+          exit_pass
+        }
+        output.SpecResult(blocked: blocked, ..) if blocked > 0 -> {
+          cli_ui.print_warning("Blocked behaviors detected")
+          exit_blocked
+        }
+        _ -> {
+          cli_ui.print_error("Check failed")
+          exit_fail
+        }
       }
       halt(exit_code)
     }
@@ -163,18 +175,18 @@ fn validate_command() -> glint.Command(Nil) {
       [spec_path, ..] -> {
         case loader.validate_cue(spec_path) {
           Ok(_) -> {
-            io.println("Valid: " <> spec_path)
+            cli_ui.print_success("Valid spec: " <> spec_path)
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Invalid: " <> loader.format_error(e))
+            cli_ui.print_error("Invalid spec: " <> loader.format_error(e))
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent validate <spec.cue>")
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent validate <spec.cue>")
         halt(exit_error)
       }
     }
