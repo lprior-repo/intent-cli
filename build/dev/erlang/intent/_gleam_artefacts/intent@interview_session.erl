@@ -11,7 +11,7 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--file("src/intent/interview_session.gleam", 17).
+-file("src/intent/interview_session.gleam", 16).
 ?DOC(" Initialize a new interview session\n").
 -spec start_interview(intent@interview:profile(), binary(), binary()) -> intent@interview:interview_session().
 start_interview(Profile, Session_id, Timestamp) ->
@@ -28,7 +28,7 @@ start_interview(Profile, Session_id, Timestamp) ->
         [],
         <<""/utf8>>}.
 
--file("src/intent/interview_session.gleam", 62).
+-file("src/intent/interview_session.gleam", 61).
 ?DOC(" Add an answer to the session\n").
 -spec add_answer(
     intent@interview:interview_session(),
@@ -48,7 +48,7 @@ add_answer(Session, Answer) ->
         erlang:element(11, Session),
         erlang:element(12, Session)}.
 
--file("src/intent/interview_session.gleam", 71).
+-file("src/intent/interview_session.gleam", 70).
 ?DOC(" Get all answered question IDs\n").
 -spec get_answered_question_ids(intent@interview:interview_session()) -> list(binary()).
 get_answered_question_ids(Session) ->
@@ -57,7 +57,7 @@ get_answered_question_ids(Session) ->
         fun(Answer) -> erlang:element(2, Answer) end
     ).
 
--file("src/intent/interview_session.gleam", 90).
+-file("src/intent/interview_session.gleam", 89).
 ?DOC(" Detect blocking gaps in the answer\n").
 -spec detect_blocking_gaps(
     intent@interview_questions:question(),
@@ -84,7 +84,7 @@ detect_blocking_gaps(Question, Answer) ->
             []
     end.
 
--file("src/intent/interview_session.gleam", 76).
+-file("src/intent/interview_session.gleam", 75).
 ?DOC(" Check for gaps after answering a question\n").
 -spec check_for_gaps(
     intent@interview:interview_session(),
@@ -107,7 +107,7 @@ check_for_gaps(Session, Question, Answer) ->
         erlang:element(12, Session)},
     {Updated_session, Blocking_gaps}.
 
--file("src/intent/interview_session.gleam", 138).
+-file("src/intent/interview_session.gleam", 137).
 ?DOC(" Detect conflicts between two answers\n").
 -spec detect_answer_pair_conflicts(
     intent@interview:answer(),
@@ -152,11 +152,11 @@ detect_answer_pair_conflicts(Answer1, Answer2) ->
                     []
             end;
 
-        _ ->
+        {_, _} ->
             []
     end.
 
--file("src/intent/interview_session.gleam", 126).
+-file("src/intent/interview_session.gleam", 125).
 ?DOC(" Detect conflicting requirements\n").
 -spec detect_conflicts_in_session(
     intent@interview:interview_session(),
@@ -173,7 +173,7 @@ detect_conflicts_in_session(Session, New_answer) ->
     ),
     Conflicts_found.
 
--file("src/intent/interview_session.gleam", 113).
+-file("src/intent/interview_session.gleam", 112).
 ?DOC(" Check for conflicts between answers\n").
 -spec check_for_conflicts(
     intent@interview:interview_session(),
@@ -195,7 +195,7 @@ check_for_conflicts(Session, New_answer) ->
         erlang:element(12, Session)},
     {Updated_session, Conflicts}.
 
--file("src/intent/interview_session.gleam", 178).
+-file("src/intent/interview_session.gleam", 177).
 ?DOC(" Mark a round as complete\n").
 -spec complete_round(intent@interview:interview_session()) -> intent@interview:interview_session().
 complete_round(Session) ->
@@ -231,7 +231,7 @@ complete_round(Session) ->
         erlang:element(11, Session),
         erlang:element(12, Session)}.
 
--file("src/intent/interview_session.gleam", 226).
+-file("src/intent/interview_session.gleam", 225).
 ?DOC(" Resolve a conflict by choosing an option\n").
 -spec resolve_conflict(
     intent@interview:interview_session(),
@@ -269,7 +269,7 @@ resolve_conflict(Session, Conflict_id, Chosen_option) ->
             Updated_conflicts,
             erlang:element(12, Session)}}.
 
--file("src/intent/interview_session.gleam", 249).
+-file("src/intent/interview_session.gleam", 248).
 ?DOC(" Mark a gap as resolved\n").
 -spec resolve_gap(intent@interview:interview_session(), binary(), binary()) -> intent@interview:interview_session().
 resolve_gap(Session, Gap_id, Resolution) ->
@@ -305,7 +305,7 @@ resolve_gap(Session, Gap_id, Resolution) ->
         erlang:element(11, Session),
         erlang:element(12, Session)}.
 
--file("src/intent/interview_session.gleam", 273).
+-file("src/intent/interview_session.gleam", 272).
 ?DOC(" Get all unresolved blocking gaps\n").
 -spec get_blocking_gaps(intent@interview:interview_session()) -> list(intent@interview:gap()).
 get_blocking_gaps(Session) ->
@@ -316,7 +316,7 @@ get_blocking_gaps(Session) ->
         end
     ).
 
--file("src/intent/interview_session.gleam", 280).
+-file("src/intent/interview_session.gleam", 279).
 ?DOC(" Get all unresolved conflicts\n").
 -spec get_unresolved_conflicts(intent@interview:interview_session()) -> list(intent@interview:conflict()).
 get_unresolved_conflicts(Session) ->
@@ -325,7 +325,7 @@ get_unresolved_conflicts(Session) ->
         fun(Conflict) -> erlang:element(7, Conflict) =:= -1 end
     ).
 
--file("src/intent/interview_session.gleam", 287).
+-file("src/intent/interview_session.gleam", 286).
 ?DOC(" Check if interview can proceed (no blocking gaps)\n").
 -spec can_proceed(intent@interview:interview_session()) -> {ok, nil} |
     {error, binary()}.
@@ -345,7 +345,7 @@ can_proceed(Session) ->
                     (gleam@string:join(Gap_descriptions, <<"; "/utf8>>))/binary>>}
     end.
 
--file("src/intent/interview_session.gleam", 326).
+-file("src/intent/interview_session.gleam", 325).
 ?DOC(" Helper: convert Profile to string\n").
 -spec profile_to_string(intent@interview:profile()) -> binary().
 profile_to_string(Profile) ->
@@ -369,7 +369,7 @@ profile_to_string(Profile) ->
             <<"ui"/utf8>>
     end.
 
--file("src/intent/interview_session.gleam", 34).
+-file("src/intent/interview_session.gleam", 33).
 ?DOC(" Get first question for a given round\n").
 -spec get_first_question_for_round(
     intent@interview:interview_session(),
@@ -391,7 +391,7 @@ get_first_question_for_round(Session, Round) ->
             {ok, First}
     end.
 
--file("src/intent/interview_session.gleam", 48).
+-file("src/intent/interview_session.gleam", 47).
 ?DOC(" Get next unanswered question in current round\n").
 -spec get_next_question_in_round(
     intent@interview:interview_session(),
@@ -414,7 +414,7 @@ get_next_question_in_round(Session, Round) ->
                     (gleam@string:inspect(Round))/binary>>}
     end.
 
--file("src/intent/interview_session.gleam", 196).
+-file("src/intent/interview_session.gleam", 195).
 ?DOC(" Get current round number based on answers\n").
 -spec get_current_round(intent@interview:interview_session()) -> integer().
 get_current_round(Session) ->
@@ -455,7 +455,7 @@ get_current_round(Session) ->
             end
     end.
 
--file("src/intent/interview_session.gleam", 299).
+-file("src/intent/interview_session.gleam", 298).
 ?DOC(" Format progress summary\n").
 -spec format_progress(intent@interview:interview_session()) -> binary().
 format_progress(Session) ->
@@ -489,7 +489,7 @@ format_progress(Session) ->
             " | Conflicts: "/utf8>>/binary,
         (gleam@string:inspect(Conflict_count))/binary>>.
 
--file("src/intent/interview_session.gleam", 338).
+-file("src/intent/interview_session.gleam", 337).
 ?DOC(" Helper: convert string to Profile\n").
 -spec string_to_profile(binary()) -> {ok, intent@interview:profile()} |
     {error, binary()}.

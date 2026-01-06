@@ -28,20 +28,16 @@
         gleam@dict:dict(binary(), integer()),
         gleam@dict:dict(integer(), integer())}.
 
--file("src/intent/bead_templates.gleam", 42).
+-file("src/intent/bead_templates.gleam", 43).
 ?DOC(" Generate API endpoint beads\n").
 -spec generate_api_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_api_beads(Session, Profile) ->
     Endpoint_answers = gleam@list:filter(
         erlang:element(9, Session),
         fun(Answer) ->
-            gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"endpoint"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"path"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"endpoint"/utf8>>, <<"path"/utf8>>]
             )
         end
     ),
@@ -64,20 +60,16 @@ generate_api_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 72).
+-file("src/intent/bead_templates.gleam", 69).
 ?DOC(" Generate CLI command beads\n").
 -spec generate_cli_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_cli_beads(Session, Profile) ->
     Command_answers = gleam@list:filter(
         erlang:element(9, Session),
         fun(Answer) ->
-            gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"command"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"subcommand"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"command"/utf8>>, <<"subcommand"/utf8>>]
             )
         end
     ),
@@ -100,20 +92,16 @@ generate_cli_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 102).
+-file("src/intent/bead_templates.gleam", 95).
 ?DOC(" Generate event beads\n").
 -spec generate_event_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_event_beads(Session, Profile) ->
     Event_answers = gleam@list:filter(
         erlang:element(9, Session),
         fun(Answer) ->
-            gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"event"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"message"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"event"/utf8>>, <<"message"/utf8>>]
             )
         end
     ),
@@ -136,24 +124,16 @@ generate_event_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 132).
+-file("src/intent/bead_templates.gleam", 121).
 ?DOC(" Generate data model beads\n").
 -spec generate_data_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_data_beads(Session, Profile) ->
     Entity_answers = gleam@list:filter(
         erlang:element(9, Session),
         fun(Answer) ->
-            (gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"entity"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"data model"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"schema"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"entity"/utf8>>, <<"data model"/utf8>>, <<"schema"/utf8>>]
             )
         end
     ),
@@ -176,24 +156,16 @@ generate_data_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 166).
+-file("src/intent/bead_templates.gleam", 147).
 ?DOC(" Generate workflow beads\n").
 -spec generate_workflow_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_workflow_beads(Session, Profile) ->
     Workflow_answers = gleam@list:filter(
         erlang:element(9, Session),
         fun(Answer) ->
-            (gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"workflow"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"process"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"step"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"workflow"/utf8>>, <<"process"/utf8>>, <<"step"/utf8>>]
             )
         end
     ),
@@ -218,24 +190,16 @@ generate_workflow_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 200).
+-file("src/intent/bead_templates.gleam", 173).
 ?DOC(" Generate UI screen beads\n").
 -spec generate_ui_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_ui_beads(Session, Profile) ->
     Screen_answers = gleam@list:filter(
         erlang:element(9, Session),
         fun(Answer) ->
-            (gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"screen"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"view"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"interface"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"screen"/utf8>>, <<"view"/utf8>>, <<"interface"/utf8>>]
             )
         end
     ),
@@ -258,7 +222,7 @@ generate_ui_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 234).
+-file("src/intent/bead_templates.gleam", 199).
 ?DOC(" Convert bead record to JSONL line format (for .beads/issues.jsonl)\n").
 -spec bead_to_jsonl_line(bead_record()) -> binary().
 bead_to_jsonl_line(Bead) ->
@@ -277,7 +241,7 @@ bead_to_jsonl_line(Bead) ->
     _pipe = gleam@json:object(Json_list),
     gleam@json:to_string(_pipe).
 
--file("src/intent/bead_templates.gleam", 261).
+-file("src/intent/bead_templates.gleam", 226).
 ?DOC(" Format beads for output as JSONL (newline-delimited JSON)\n").
 -spec beads_to_jsonl(list(bead_record())) -> binary().
 beads_to_jsonl(Beads) ->
@@ -285,7 +249,7 @@ beads_to_jsonl(Beads) ->
     _pipe@1 = gleam@list:map(_pipe, fun bead_to_jsonl_line/1),
     gleam@string:join(_pipe@1, <<"\n"/utf8>>).
 
--file("src/intent/bead_templates.gleam", 268).
+-file("src/intent/bead_templates.gleam", 233).
 ?DOC(" Extract beads with specific issue type\n").
 -spec filter_beads_by_type(list(bead_record()), binary()) -> list(bead_record()).
 filter_beads_by_type(Beads, Issue_type) ->
@@ -294,7 +258,7 @@ filter_beads_by_type(Beads, Issue_type) ->
         fun(Bead) -> erlang:element(6, Bead) =:= Issue_type end
     ).
 
--file("src/intent/bead_templates.gleam", 276).
+-file("src/intent/bead_templates.gleam", 241).
 ?DOC(" Sort beads by priority (higher number = higher priority)\n").
 -spec sort_beads_by_priority(list(bead_record())) -> list(bead_record()).
 sort_beads_by_priority(Beads) ->
@@ -305,7 +269,7 @@ sort_beads_by_priority(Beads) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 283).
+-file("src/intent/bead_templates.gleam", 248).
 ?DOC(" Add dependency between beads (updates beads in place)\n").
 -spec add_dependency(list(bead_record()), binary(), binary()) -> list(bead_record()).
 add_dependency(Beads, From_title, To_title) ->
@@ -329,7 +293,7 @@ add_dependency(Beads, From_title, To_title) ->
             end end
     ).
 
--file("src/intent/bead_templates.gleam", 301).
+-file("src/intent/bead_templates.gleam", 266).
 ?DOC(" Helper: convert Profile to string\n").
 -spec profile_to_string(intent@interview:profile()) -> binary().
 profile_to_string(Profile) ->
@@ -353,7 +317,7 @@ profile_to_string(Profile) ->
             <<"ui"/utf8>>
     end.
 
--file("src/intent/bead_templates.gleam", 28).
+-file("src/intent/bead_templates.gleam", 29).
 ?DOC(" Generate beads from a completed interview session\n").
 -spec generate_beads_from_session(intent@interview:interview_session()) -> list(bead_record()).
 generate_beads_from_session(Session) ->
@@ -378,7 +342,7 @@ generate_beads_from_session(Session) ->
             generate_ui_beads(Session, Profile_str)
     end.
 
--file("src/intent/bead_templates.gleam", 322).
+-file("src/intent/bead_templates.gleam", 287).
 ?DOC(" Calculate stats for a list of beads\n").
 -spec bead_stats(list(bead_record())) -> bead_stats().
 bead_stats(Beads) ->

@@ -30,7 +30,7 @@
     untested_rules |
     missing_a_i_hints.
 
--file("src/intent/quality_analyzer.gleam", 68).
+-file("src/intent/quality_analyzer.gleam", 69).
 ?DOC(
     " Calculate coverage score (0-100)\n"
     " Measures how many error cases and edge cases are tested\n"
@@ -58,13 +58,13 @@ calculate_coverage_score(Behaviors, Rules) ->
         gleam@list:any(
             _pipe@2,
             fun(B@1) ->
-                gleam_stdlib:contains_string(
-                    gleam@string:lowercase(erlang:element(2, B@1)),
-                    <<"auth"/utf8>>
+                intent@case_insensitive:contains_any_ignore_case(
+                    erlang:element(2, B@1),
+                    [<<"auth"/utf8>>]
                 )
-                orelse gleam_stdlib:contains_string(
-                    gleam@string:lowercase(erlang:element(3, B@1)),
-                    <<"auth"/utf8>>
+                orelse intent@case_insensitive:contains_any_ignore_case(
+                    erlang:element(3, B@1),
+                    [<<"auth"/utf8>>]
                 )
             end
         )
@@ -81,21 +81,13 @@ calculate_coverage_score(Behaviors, Rules) ->
         gleam@list:any(
             _pipe@3,
             fun(B@2) ->
-                ((gleam_stdlib:contains_string(
-                    gleam@string:lowercase(erlang:element(2, B@2)),
-                    <<"empty"/utf8>>
+                intent@case_insensitive:contains_any_ignore_case(
+                    erlang:element(2, B@2),
+                    [<<"empty"/utf8>>, <<"invalid"/utf8>>, <<"max"/utf8>>]
                 )
-                orelse gleam_stdlib:contains_string(
-                    gleam@string:lowercase(erlang:element(2, B@2)),
-                    <<"invalid"/utf8>>
-                ))
-                orelse gleam_stdlib:contains_string(
-                    gleam@string:lowercase(erlang:element(2, B@2)),
-                    <<"max"/utf8>>
-                ))
-                orelse gleam_stdlib:contains_string(
-                    gleam@string:lowercase(erlang:element(3, B@2)),
-                    <<"edge"/utf8>>
+                orelse intent@case_insensitive:contains_any_ignore_case(
+                    erlang:element(3, B@2),
+                    [<<"edge"/utf8>>]
                 )
             end
         )
@@ -111,7 +103,7 @@ calculate_coverage_score(Behaviors, Rules) ->
     Coverage_total = (((Base + Error_bonus) + Auth_bonus) + Edge_bonus) + Antipattern_bonus,
     gleam@int:min(100, Coverage_total).
 
--file("src/intent/quality_analyzer.gleam", 123).
+-file("src/intent/quality_analyzer.gleam", 122).
 ?DOC(
     " Calculate clarity score (0-100)\n"
     " Measures how well documented the spec is\n"
@@ -200,7 +192,7 @@ calculate_clarity_score(Behaviors) ->
     Clarity_total = ((Base + Intent_bonus) + Notes_bonus) + Vague_penalty,
     gleam@int:max(0, gleam@int:min(100, Clarity_total)).
 
--file("src/intent/quality_analyzer.gleam", 182).
+-file("src/intent/quality_analyzer.gleam", 181).
 ?DOC(
     " Calculate testability score (0-100)\n"
     " Measures how well structured for execution\n"
@@ -246,7 +238,7 @@ calculate_testability_score(Behaviors) ->
     Testability_total = ((Base + Capture_bonus) + Deps_bonus) + Example_bonus,
     gleam@int:min(100, Testability_total).
 
--file("src/intent/quality_analyzer.gleam", 217).
+-file("src/intent/quality_analyzer.gleam", 216).
 ?DOC(
     " Calculate AI readiness score (0-100)\n"
     " Measures how much guidance is available for AI\n"
@@ -317,7 +309,7 @@ calculate_ai_readiness_score(Spec, Behaviors) ->
     Ai_readiness_total = ((Base + Hints_bonus) + Why_bonus) + Example_bonus,
     gleam@int:max(0, gleam@int:min(100, Ai_readiness_total)).
 
--file("src/intent/quality_analyzer.gleam", 265).
+-file("src/intent/quality_analyzer.gleam", 264).
 ?DOC(" Find quality issues in spec\n").
 -spec find_quality_issues(
     list(intent@types:behavior()),
@@ -339,9 +331,9 @@ find_quality_issues(Behaviors, Rules) ->
     Has_auth_test = gleam@list:any(
         Behaviors,
         fun(B@1) ->
-            gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(2, B@1)),
-                <<"auth"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(2, B@1),
+                [<<"auth"/utf8>>]
             )
         end
     ),
@@ -355,13 +347,9 @@ find_quality_issues(Behaviors, Rules) ->
     Has_edge_cases = gleam@list:any(
         Behaviors,
         fun(B@2) ->
-            gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(2, B@2)),
-                <<"empty"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(2, B@2)),
-                <<"invalid"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(2, B@2),
+                [<<"empty"/utf8>>, <<"invalid"/utf8>>]
             )
         end
     ),
@@ -439,7 +427,7 @@ find_quality_issues(Behaviors, Rules) ->
     end,
     Mut_issues@7.
 
--file("src/intent/quality_analyzer.gleam", 386).
+-file("src/intent/quality_analyzer.gleam", 384).
 ?DOC(" Helper to add suggestion conditionally\n").
 -spec add_suggestion_if(list(binary()), boolean(), binary()) -> list(binary()).
 add_suggestion_if(Suggestions, Condition, Suggestion) ->
@@ -451,7 +439,7 @@ add_suggestion_if(Suggestions, Condition, Suggestion) ->
             Suggestions
     end.
 
--file("src/intent/quality_analyzer.gleam", 353).
+-file("src/intent/quality_analyzer.gleam", 351).
 ?DOC(" Generate suggestions for improvement\n").
 -spec generate_suggestions(
     list(quality_issue()),
@@ -491,7 +479,7 @@ generate_suggestions(Issues, _, _) ->
         <<"Add 'why' explanations to validation rules to clarify intent"/utf8>>
     ).
 
--file("src/intent/quality_analyzer.gleam", 37).
+-file("src/intent/quality_analyzer.gleam", 38).
 ?DOC(" Analyze spec quality\n").
 -spec analyze_spec(intent@types:spec()) -> quality_report().
 analyze_spec(Spec) ->
@@ -525,7 +513,7 @@ analyze_spec(Spec) ->
         Issues,
         Suggestions}.
 
--file("src/intent/quality_analyzer.gleam", 433).
+-file("src/intent/quality_analyzer.gleam", 431).
 ?DOC(" Format a quality issue\n").
 -spec format_issue(quality_issue()) -> binary().
 format_issue(Issue) ->
@@ -555,7 +543,7 @@ format_issue(Issue) ->
             <<"  • No AI implementation hints provided"/utf8>>
     end.
 
--file("src/intent/quality_analyzer.gleam", 398).
+-file("src/intent/quality_analyzer.gleam", 396).
 ?DOC(" Format quality report for display\n").
 -spec format_report(quality_report()) -> binary().
 format_report(Report) ->

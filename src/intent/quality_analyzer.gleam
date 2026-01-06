@@ -6,6 +6,7 @@ import gleam/int
 import gleam/list
 import gleam/json
 import gleam/string
+import intent/case_insensitive.{contains_any_ignore_case}
 import intent/types.{type Spec, type Behavior, type Rule}
 
 /// Quality metrics for a spec
@@ -87,8 +88,8 @@ fn calculate_coverage_score(
   let has_auth_test =
     behaviors
     |> list.any(fn(b) {
-      string.contains(string.lowercase(b.name), "auth")
-      || string.contains(string.lowercase(b.intent), "auth")
+      contains_any_ignore_case(b.name, ["auth"])
+      || contains_any_ignore_case(b.intent, ["auth"])
     })
 
   let auth_bonus = case has_auth_test {
@@ -100,10 +101,8 @@ fn calculate_coverage_score(
   let has_edge_cases =
     behaviors
     |> list.any(fn(b) {
-      string.contains(string.lowercase(b.name), "empty")
-      || string.contains(string.lowercase(b.name), "invalid")
-      || string.contains(string.lowercase(b.name), "max")
-      || string.contains(string.lowercase(b.intent), "edge")
+      contains_any_ignore_case(b.name, ["empty", "invalid", "max"])
+      || contains_any_ignore_case(b.intent, ["edge"])
     })
 
   let edge_bonus = case has_edge_cases {
@@ -280,7 +279,7 @@ fn find_quality_issues(
   // Check for auth tests
   let has_auth_test =
     list.any(behaviors, fn(b) {
-      string.contains(string.lowercase(b.name), "auth")
+      contains_any_ignore_case(b.name, ["auth"])
     })
 
   let mut_issues = case has_auth_test {
@@ -291,8 +290,7 @@ fn find_quality_issues(
   // Check for edge cases
   let has_edge_cases =
     list.any(behaviors, fn(b) {
-      string.contains(string.lowercase(b.name), "empty")
-      || string.contains(string.lowercase(b.name), "invalid")
+      contains_any_ignore_case(b.name, ["empty", "invalid"])
     })
 
   let mut_issues = case has_edge_cases {

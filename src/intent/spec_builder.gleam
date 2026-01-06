@@ -1,11 +1,15 @@
 /// Spec Builder
 /// Converts interview session answers into valid CUE specifications
 
-import gleam/dict.{type Dict}
 import gleam/list
 import gleam/string
+import intent/case_insensitive.{contains_any_ignore_case}
 import intent/interview.{type InterviewSession, type Answer, type Profile}
-import intent/cue_generator
+
+/// Generated CUE code
+pub type GeneratedCUE {
+  GeneratedCUE(package: String, imports: List(String), body: String)
+}
 
 /// Build a CUE spec from a completed interview session
 pub fn build_spec_from_session(session: InterviewSession) -> String {
@@ -16,8 +20,8 @@ pub fn build_spec_from_session(session: InterviewSession) -> String {
   let non_functional =
     extract_non_functional_requirements(session.answers)
 
-  // Build a minimal Spec type to use with cue_generator
-  let spec = cue_generator.GeneratedCUE(
+  // Build a minimal Spec type for CUE generation
+  let spec = GeneratedCUE(
     package: "package api",
     imports: [],
     body: build_spec_body(
@@ -36,11 +40,7 @@ pub fn build_spec_from_session(session: InterviewSession) -> String {
 pub fn extract_features_from_answers(answers: List(Answer)) -> List(String) {
   answers
   |> list.filter(fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "feature")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "capability",
-      )
+    contains_any_ignore_case(answer.question_text, ["feature", "capability"])
   })
   |> list.map(fn(answer) {
     let trimmed = string.trim(answer.response)
@@ -58,18 +58,7 @@ pub fn extract_behaviors_from_answers(
   _profile: Profile,
 ) -> String {
   let api_answers = list.filter(answers, fn(answer) {
-    string.contains(
-      string.lowercase(answer.question_text),
-      "endpoint",
-    )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "path",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "method",
-      )
+    contains_any_ignore_case(answer.question_text, ["endpoint", "path", "method"])
   })
 
   case api_answers {
@@ -97,15 +86,7 @@ behaviors: {
 pub fn extract_constraints_from_answers(answers: List(Answer)) -> List(String) {
   answers
   |> list.filter(fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "constraint")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "limit",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "requirement",
-      )
+    contains_any_ignore_case(answer.question_text, ["constraint", "limit", "requirement"])
   })
   |> list.map(fn(answer) {
     string.trim(answer.response)
@@ -116,15 +97,7 @@ pub fn extract_constraints_from_answers(answers: List(Answer)) -> List(String) {
 /// Extract security requirements from answers
 pub fn extract_security_requirements(answers: List(Answer)) -> String {
   let security_answers = list.filter(answers, fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "auth")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "security",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "permission",
-      )
+    contains_any_ignore_case(answer.question_text, ["auth", "security", "permission"])
   })
 
   case security_answers {
@@ -151,23 +124,7 @@ pub fn extract_security_requirements(answers: List(Answer)) -> String {
 pub fn extract_non_functional_requirements(answers: List(Answer)) -> List(String) {
   answers
   |> list.filter(fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "sla")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "scale",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "performance",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "monitoring",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "latency",
-      )
+    contains_any_ignore_case(answer.question_text, ["sla", "scale", "performance", "monitoring", "latency"])
   })
   |> list.map(fn(answer) {
     string.trim(answer.response)

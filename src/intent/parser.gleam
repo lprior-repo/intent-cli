@@ -4,7 +4,6 @@ import gleam/dict.{type Dict}
 import gleam/dynamic.{type DecodeError, type Dynamic}
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option
 import gleam/result
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
@@ -191,7 +190,10 @@ fn parse_response(data: Dynamic) -> Result(Response, List(DecodeError)) {
   use status <- result.try(dynamic.field("status", dynamic.int)(data))
   use example <- result.try(dynamic.field("example", parse_json_value)(data))
   use checks <- result.try(dynamic.field("checks", parse_checks)(data))
-  use headers <- result.try(dynamic.field("headers", parse_string_dict)(data))
+  // Headers are optional - use empty dict if not present
+  let headers =
+    dynamic.field("headers", parse_string_dict)(data)
+    |> result.unwrap(dict.new())
   Ok(Response(status, example, checks, headers))
 }
 

@@ -2,6 +2,7 @@
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "src/intent/spec_builder.gleam").
 -export([extract_features_from_answers/1, extract_behaviors_from_answers/2, extract_constraints_from_answers/1, extract_security_requirements/1, extract_non_functional_requirements/1, build_spec_from_session/1]).
+-export_type([generated_c_u_e/0]).
 
 -if(?OTP_RELEASE >= 27).
 -define(MODULEDOC(Str), -moduledoc(Str)).
@@ -11,7 +12,9 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--file("src/intent/spec_builder.gleam", 36).
+-type generated_c_u_e() :: {generated_c_u_e, binary(), list(binary()), binary()}.
+
+-file("src/intent/spec_builder.gleam", 40).
 ?DOC(" Extract feature names/titles from answers\n").
 -spec extract_features_from_answers(list(intent@interview:answer())) -> list(binary()).
 extract_features_from_answers(Answers) ->
@@ -19,13 +22,9 @@ extract_features_from_answers(Answers) ->
     _pipe@1 = gleam@list:filter(
         _pipe,
         fun(Answer) ->
-            gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"feature"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"capability"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"feature"/utf8>>, <<"capability"/utf8>>]
             )
         end
     ),
@@ -54,17 +53,9 @@ extract_behaviors_from_answers(Answers, _) ->
     Api_answers = gleam@list:filter(
         Answers,
         fun(Answer) ->
-            (gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"endpoint"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"path"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"method"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"endpoint"/utf8>>, <<"path"/utf8>>, <<"method"/utf8>>]
             )
         end
     ),
@@ -97,7 +88,7 @@ behaviors: {
                 "\n}"/utf8>>
     end.
 
--file("src/intent/spec_builder.gleam", 97).
+-file("src/intent/spec_builder.gleam", 86).
 ?DOC(" Extract constraints from answers\n").
 -spec extract_constraints_from_answers(list(intent@interview:answer())) -> list(binary()).
 extract_constraints_from_answers(Answers) ->
@@ -105,17 +96,11 @@ extract_constraints_from_answers(Answers) ->
     _pipe@1 = gleam@list:filter(
         _pipe,
         fun(Answer) ->
-            (gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"constraint"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"limit"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"requirement"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"constraint"/utf8>>,
+                    <<"limit"/utf8>>,
+                    <<"requirement"/utf8>>]
             )
         end
     ),
@@ -125,24 +110,16 @@ extract_constraints_from_answers(Answers) ->
     ),
     gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
 
--file("src/intent/spec_builder.gleam", 117).
+-file("src/intent/spec_builder.gleam", 98).
 ?DOC(" Extract security requirements from answers\n").
 -spec extract_security_requirements(list(intent@interview:answer())) -> binary().
 extract_security_requirements(Answers) ->
     Security_answers = gleam@list:filter(
         Answers,
         fun(Answer) ->
-            (gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"auth"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"security"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"permission"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"auth"/utf8>>, <<"security"/utf8>>, <<"permission"/utf8>>]
             )
         end
     ),
@@ -175,7 +152,7 @@ extract_security_requirements(Answers) ->
                 "\n}"/utf8>>
     end.
 
--file("src/intent/spec_builder.gleam", 151).
+-file("src/intent/spec_builder.gleam", 124).
 ?DOC(" Extract non-functional requirements (SLA, scale, monitoring)\n").
 -spec extract_non_functional_requirements(list(intent@interview:answer())) -> list(binary()).
 extract_non_functional_requirements(Answers) ->
@@ -183,25 +160,13 @@ extract_non_functional_requirements(Answers) ->
     _pipe@1 = gleam@list:filter(
         _pipe,
         fun(Answer) ->
-            (((gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"sla"/utf8>>
-            )
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"scale"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"performance"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"monitoring"/utf8>>
-            ))
-            orelse gleam_stdlib:contains_string(
-                gleam@string:lowercase(erlang:element(3, Answer)),
-                <<"latency"/utf8>>
+            intent@case_insensitive:contains_any_ignore_case(
+                erlang:element(3, Answer),
+                [<<"sla"/utf8>>,
+                    <<"scale"/utf8>>,
+                    <<"performance"/utf8>>,
+                    <<"monitoring"/utf8>>,
+                    <<"latency"/utf8>>]
             )
         end
     ),
@@ -211,7 +176,7 @@ extract_non_functional_requirements(Answers) ->
     ),
     gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
 
--file("src/intent/spec_builder.gleam", 179).
+-file("src/intent/spec_builder.gleam", 136).
 ?DOC(" Build the main body of the spec\n").
 -spec build_spec_body(
     list(binary()),
@@ -289,7 +254,7 @@ nonFunctional: {
             Constraints_section/binary>>/binary,
         Non_functional_section/binary>>.
 
--file("src/intent/spec_builder.gleam", 11).
+-file("src/intent/spec_builder.gleam", 15).
 ?DOC(" Build a CUE spec from a completed interview session\n").
 -spec build_spec_from_session(intent@interview:interview_session()) -> binary().
 build_spec_from_session(Session) ->

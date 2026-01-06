@@ -2,6 +2,7 @@
 /// Contract-driven API testing tool
 
 import argv
+import gleam/dict
 import gleam/io
 import gleam/json
 import gleam/list
@@ -18,9 +19,9 @@ import intent/quality_analyzer
 import intent/spec_linter
 import intent/improver
 import intent/interview
-import intent/interview_session
 import intent/interview_storage
 import intent/interview_questions
+import intent/question_types.{type Question}
 import intent/spec_builder
 import intent/bead_templates
 import intent/stdin
@@ -51,6 +52,9 @@ pub fn main() {
   |> glint.add(at: ["improve"], do: improve_command())
   |> glint.add(at: ["interview"], do: interview_command())
   |> glint.add(at: ["beads"], do: beads_command())
+  |> glint.add(at: ["history"], do: history_command())
+  |> glint.add(at: ["diff"], do: diff_command())
+  |> glint.add(at: ["sessions"], do: sessions_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -507,7 +511,7 @@ fn run_interview(
   let session_id = "interview-" <> generate_uuid()
   let timestamp = current_timestamp()
 
-  let session = interview_session.start_interview(profile, session_id, timestamp)
+  let session = interview.create_session(session_id, profile, timestamp)
 
   // Print welcome message
   io.println("")
@@ -660,7 +664,7 @@ fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.
       io.println("")
 
       // Get questions for this round
-      case interview_session.get_first_question_for_round(session, round) {
+      case interview.get_first_question_for_round(session, round) {
         Error(_) -> {
           io.println("(No questions for this round)")
           interview_loop(session, round + 1)
@@ -670,7 +674,7 @@ fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.
           let updated_session = ask_questions_in_round(session, round, first_question)
 
           // Check for blocking gaps before proceeding
-          let blocking_gaps = interview_session.get_blocking_gaps(updated_session)
+          let blocking_gaps = interview.get_blocking_gaps(updated_session)
           case blocking_gaps {
             [] -> interview_loop(updated_session, round + 1)
             gaps -> {
@@ -694,7 +698,7 @@ fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.
 fn ask_questions_in_round(
   session: interview.InterviewSession,
   round: Int,
-  _current_question: interview_questions.Question,
+  _current_question: Question,
 ) -> interview.InterviewSession {
   let profile_str = profile_to_string(session.profile)
 
@@ -716,7 +720,7 @@ fn ask_questions_in_round(
 /// Ask a single question and collect answer
 fn ask_single_question(
   session: interview.InterviewSession,
-  question: interview_questions.Question,
+  question: Question,
   round: Int,
 ) -> interview.InterviewSession {
   io.println("")
@@ -770,14 +774,14 @@ fn ask_single_question(
   )
 
   // Add to session
-  let updated_session = interview_session.add_answer(session, answer)
+  let updated_session = interview.add_answer(session, answer)
 
   // Check for gaps and conflicts
   let #(sess_with_gaps, _gaps) =
-    interview_session.check_for_gaps(updated_session, question, answer)
+    interview.check_for_gaps(updated_session, question, answer)
 
   let #(sess_final, _conflicts) =
-    interview_session.check_for_conflicts(sess_with_gaps, answer)
+    interview.check_for_conflicts(sess_with_gaps, answer)
 
   sess_final
 }
@@ -864,6 +868,226 @@ fn beads_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Generate work items (beads) from an interview session")
+}
+
+/// The `history` command - view session snapshot history
+fn history_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let history_path = ".interview/history.jsonl"
+
+    case input.args {
+      [session_id, ..] -> {
+        case interview_storage.list_session_history(history_path, session_id) {
+          Error(err) -> {
+            cli_ui.print_error(err)
+            halt(exit_error)
+          }
+          Ok([]) -> {
+            cli_ui.print_warning("No history found for session: " <> session_id)
+            io.println("")
+            io.println("Tip: Session history is recorded when you save snapshots")
+            io.println("during an interview with --snapshot flag.")
+            halt(exit_pass)
+          }
+          Ok(snapshots) -> {
+            cli_ui.print_header("Session History: " <> session_id)
+            io.println("")
+
+            list.each(snapshots, fn(snapshot) {
+              io.println("┌─ " <> snapshot.snapshot_id)
+              io.println("│  Time: " <> snapshot.timestamp)
+              io.println("│  Stage: " <> snapshot.stage)
+              io.println("│  Description: " <> snapshot.description)
+              io.println("│  Answers: " <> string.inspect(dict.size(snapshot.answers)))
+              io.println("│  Gaps: " <> string.inspect(snapshot.gaps_count))
+              io.println("│  Conflicts: " <> string.inspect(snapshot.conflicts_count))
+              io.println("└─")
+              io.println("")
+            })
+
+            halt(exit_pass)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("Session ID required")
+        io.println("")
+        io.println("Usage: intent history <session-id>")
+        io.println("")
+        io.println("Example: intent history interview-abc123")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("View snapshot history for an interview session")
+}
+
+/// The `diff` command - compare two sessions
+fn diff_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let jsonl_path = ".interview/sessions.jsonl"
+
+    case input.args {
+      [from_id, to_id, ..] -> {
+        // Load both sessions
+        case interview_storage.get_session_from_jsonl(jsonl_path, from_id) {
+          Error(err) -> {
+            cli_ui.print_error("Failed to load 'from' session: " <> err)
+            halt(exit_error)
+          }
+          Ok(from_session) -> {
+            case interview_storage.get_session_from_jsonl(jsonl_path, to_id) {
+              Error(err) -> {
+                cli_ui.print_error("Failed to load 'to' session: " <> err)
+                halt(exit_error)
+              }
+              Ok(to_session) -> {
+                // Compute and display diff
+                let diff = interview_storage.diff_sessions(from_session, to_session)
+                cli_ui.print_header("Session Comparison")
+                io.println("")
+                io.println(interview_storage.format_diff(diff))
+
+                // Summary stats
+                io.println("")
+                let total_changes =
+                  list.length(diff.answers_added)
+                  + list.length(diff.answers_modified)
+                  + list.length(diff.answers_removed)
+
+                case total_changes {
+                  0 -> cli_ui.print_info("No answer changes between sessions")
+                  n -> cli_ui.print_info(string.inspect(n) <> " total answer changes")
+                }
+
+                halt(exit_pass)
+              }
+            }
+          }
+        }
+      }
+      [single_id] -> {
+        // Compare session with its previous version (if exists)
+        cli_ui.print_error("Two session IDs required for comparison")
+        io.println("")
+        io.println("Usage: intent diff <from-session> <to-session>")
+        io.println("")
+        io.println("Tip: Use 'intent sessions' to list available sessions")
+        io.println("     Session provided: " <> single_id)
+        halt(exit_error)
+      }
+      [] -> {
+        cli_ui.print_error("Session IDs required")
+        io.println("")
+        io.println("Usage: intent diff <from-session> <to-session>")
+        io.println("")
+        io.println("Compare two interview sessions and show differences")
+        io.println("in answers, gaps, conflicts, and stage.")
+        io.println("")
+        io.println("Example:")
+        io.println("  intent diff interview-abc123 interview-def456")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Compare two interview sessions and show differences")
+}
+
+/// The `sessions` command - list all interview sessions
+fn sessions_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let jsonl_path = ".interview/sessions.jsonl"
+
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let profile_filter =
+      flag.get_string(input.flags, "profile")
+      |> result.unwrap("")
+
+    case interview_storage.list_sessions_from_jsonl(jsonl_path) {
+      Error(_) -> {
+        // File doesn't exist yet - treat as empty
+        cli_ui.print_warning("No interview sessions found")
+        io.println("")
+        io.println("Start a new interview with:")
+        io.println("  intent interview --profile api")
+        halt(exit_pass)
+      }
+      Ok([]) -> {
+        cli_ui.print_warning("No interview sessions found")
+        io.println("")
+        io.println("Start a new interview with:")
+        io.println("  intent interview --profile api")
+        halt(exit_pass)
+      }
+      Ok(sessions) -> {
+        // Filter by profile if specified
+        let filtered = case profile_filter {
+          "" -> sessions
+          p -> list.filter(sessions, fn(s) {
+            profile_to_string(s.profile) == string.lowercase(p)
+          })
+        }
+
+        case is_json {
+          True -> {
+            let json_sessions = json.array(filtered, interview_storage.session_to_json)
+            io.println(json.to_string(json_sessions))
+          }
+          False -> {
+            cli_ui.print_header("Interview Sessions")
+            io.println("")
+
+            list.each(filtered, fn(session) {
+              let status_icon = case session.stage {
+                interview.Complete -> "✓"
+                interview.Paused -> "⏸"
+                _ -> "●"
+              }
+
+              io.println(status_icon <> " " <> session.id)
+              io.println("  Profile: " <> profile_to_display_string(session.profile))
+              io.println("  Stage: " <> stage_to_display_string(session.stage))
+              io.println("  Rounds: " <> string.inspect(session.rounds_completed) <> "/5")
+              io.println("  Answers: " <> string.inspect(list.length(session.answers)))
+              io.println("  Created: " <> session.created_at)
+              io.println("  Updated: " <> session.updated_at)
+              io.println("")
+            })
+
+            io.println("Total: " <> string.inspect(list.length(filtered)) <> " session(s)")
+          }
+        }
+
+        halt(exit_pass)
+      }
+    }
+  })
+  |> glint.description("List all interview sessions")
+  |> glint.flag(
+    "json",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Output as JSON"),
+  )
+  |> glint.flag(
+    "profile",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Filter by profile (api, cli, event, etc.)"),
+  )
+}
+
+fn stage_to_display_string(stage: interview.InterviewStage) -> String {
+  case stage {
+    interview.Discovery -> "Discovery"
+    interview.Refinement -> "Refinement"
+    interview.Validation -> "Validation"
+    interview.Complete -> "Complete"
+    interview.Paused -> "Paused"
+  }
 }
 
 @external(erlang, "intent_ffi", "halt")

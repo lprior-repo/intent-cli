@@ -1,11 +1,13 @@
 /// Interview Session Storage
 /// Dual persistence: SQLite for querying, JSONL for git-friendly version control
 /// Mirrors Beads approach: git-native JSONL + local SQLite for performance
+/// Includes answer history tracking and diff comparison
 
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import simplifile
@@ -13,7 +15,9 @@ import intent/interview.{
   type Answer, type Conflict, type ConflictResolution, type Gap,
   type InterviewSession, type InterviewStage, type Profile,
 }
-import intent/interview_questions.{type Perspective}
+import intent/question_types.{
+  type Perspective, Business, Developer, Ops, Security, User,
+}
 
 /// Session record for storage
 pub type SessionRecord {
@@ -27,6 +31,403 @@ pub type SessionRecord {
     rounds_completed: Int,
     raw_notes: String,
   )
+}
+
+// =============================================================================
+// Answer History Tracking
+// =============================================================================
+
+/// A historical version of an answer
+pub type AnswerVersion {
+  AnswerVersion(
+    version: Int,
+    response: String,
+    extracted: Dict(String, String),
+    confidence: Float,
+    timestamp: String,
+    change_reason: String,
+  )
+}
+
+/// Answer with full history
+pub type AnswerWithHistory {
+  AnswerWithHistory(
+    question_id: String,
+    question_text: String,
+    perspective: Perspective,
+    round: Int,
+    current: Answer,
+    history: List(AnswerVersion),
+    notes: String,
+  )
+}
+
+/// Session snapshot for diff comparison
+pub type SessionSnapshot {
+  SessionSnapshot(
+    session_id: String,
+    snapshot_id: String,
+    timestamp: String,
+    description: String,
+    answers: Dict(String, String),  // question_id -> response
+    gaps_count: Int,
+    conflicts_count: Int,
+    stage: String,
+  )
+}
+
+/// Diff between two sessions or snapshots
+pub type SessionDiff {
+  SessionDiff(
+    from_id: String,
+    to_id: String,
+    from_timestamp: String,
+    to_timestamp: String,
+    answers_added: List(AnswerDiff),
+    answers_modified: List(AnswerDiff),
+    answers_removed: List(String),
+    gaps_added: Int,
+    gaps_resolved: Int,
+    conflicts_added: Int,
+    conflicts_resolved: Int,
+    stage_changed: Option(#(String, String)),
+  )
+}
+
+/// Diff for a single answer
+pub type AnswerDiff {
+  AnswerDiff(
+    question_id: String,
+    question_text: String,
+    old_response: Option(String),
+    new_response: String,
+    change_type: AnswerChangeType,
+  )
+}
+
+/// Type of change to an answer
+pub type AnswerChangeType {
+  Added
+  Modified
+  Removed
+}
+
+// =============================================================================
+// History Operations
+// =============================================================================
+
+/// Create an AnswerVersion from an Answer
+pub fn answer_to_version(
+  answer: Answer,
+  version: Int,
+  change_reason: String,
+) -> AnswerVersion {
+  AnswerVersion(
+    version: version,
+    response: answer.response,
+    extracted: answer.extracted,
+    confidence: answer.confidence,
+    timestamp: answer.timestamp,
+    change_reason: change_reason,
+  )
+}
+
+/// Create a session snapshot for comparison
+pub fn create_snapshot(
+  session: InterviewSession,
+  description: String,
+) -> SessionSnapshot {
+  let answers_dict = list.fold(session.answers, dict.new(), fn(acc, answer) {
+    dict.insert(acc, answer.question_id, answer.response)
+  })
+
+  let unresolved_gaps = list.filter(session.gaps, fn(g) { !g.resolved })
+  let unresolved_conflicts = list.filter(session.conflicts, fn(c) { c.chosen < 0 })
+
+  SessionSnapshot(
+    session_id: session.id,
+    snapshot_id: session.id <> "-" <> session.updated_at,
+    timestamp: session.updated_at,
+    description: description,
+    answers: answers_dict,
+    gaps_count: list.length(unresolved_gaps),
+    conflicts_count: list.length(unresolved_conflicts),
+    stage: stage_to_string(session.stage),
+  )
+}
+
+/// Compare two sessions and produce a diff
+pub fn diff_sessions(
+  from_session: InterviewSession,
+  to_session: InterviewSession,
+) -> SessionDiff {
+  // Build lookup maps for answers
+  let from_answers = list.fold(from_session.answers, dict.new(), fn(acc, a) {
+    dict.insert(acc, a.question_id, a)
+  })
+  let to_answers = list.fold(to_session.answers, dict.new(), fn(acc, a) {
+    dict.insert(acc, a.question_id, a)
+  })
+
+  // Find added answers (in to but not in from)
+  let added = list.filter_map(to_session.answers, fn(answer) {
+    case dict.get(from_answers, answer.question_id) {
+      Ok(_) -> Error(Nil)
+      Error(_) -> Ok(AnswerDiff(
+        question_id: answer.question_id,
+        question_text: answer.question_text,
+        old_response: None,
+        new_response: answer.response,
+        change_type: Added,
+      ))
+    }
+  })
+
+  // Find modified answers (in both but different)
+  let modified = list.filter_map(to_session.answers, fn(answer) {
+    case dict.get(from_answers, answer.question_id) {
+      Ok(old_answer) -> {
+        case old_answer.response == answer.response {
+          True -> Error(Nil)
+          False -> Ok(AnswerDiff(
+            question_id: answer.question_id,
+            question_text: answer.question_text,
+            old_response: Some(old_answer.response),
+            new_response: answer.response,
+            change_type: Modified,
+          ))
+        }
+      }
+      Error(_) -> Error(Nil)
+    }
+  })
+
+  // Find removed answers (in from but not in to)
+  let removed = list.filter_map(from_session.answers, fn(answer) {
+    case dict.get(to_answers, answer.question_id) {
+      Ok(_) -> Error(Nil)
+      Error(_) -> Ok(answer.question_id)
+    }
+  })
+
+  // Count gap changes
+  let from_unresolved_gaps = list.filter(from_session.gaps, fn(g) { !g.resolved })
+  let to_unresolved_gaps = list.filter(to_session.gaps, fn(g) { !g.resolved })
+  let gaps_added = list.length(to_unresolved_gaps) - list.length(from_unresolved_gaps)
+  let gaps_resolved = case gaps_added < 0 { True -> -gaps_added False -> 0 }
+
+  // Count conflict changes
+  let from_unresolved_conflicts = list.filter(from_session.conflicts, fn(c) { c.chosen < 0 })
+  let to_unresolved_conflicts = list.filter(to_session.conflicts, fn(c) { c.chosen < 0 })
+  let conflicts_added = list.length(to_unresolved_conflicts) - list.length(from_unresolved_conflicts)
+  let conflicts_resolved = case conflicts_added < 0 { True -> -conflicts_added False -> 0 }
+
+  // Check stage change
+  let stage_changed = case from_session.stage == to_session.stage {
+    True -> None
+    False -> Some(#(stage_to_string(from_session.stage), stage_to_string(to_session.stage)))
+  }
+
+  SessionDiff(
+    from_id: from_session.id,
+    to_id: to_session.id,
+    from_timestamp: from_session.updated_at,
+    to_timestamp: to_session.updated_at,
+    answers_added: added,
+    answers_modified: modified,
+    answers_removed: removed,
+    gaps_added: case gaps_added > 0 { True -> gaps_added False -> 0 },
+    gaps_resolved: gaps_resolved,
+    conflicts_added: case conflicts_added > 0 { True -> conflicts_added False -> 0 },
+    conflicts_resolved: conflicts_resolved,
+    stage_changed: stage_changed,
+  )
+}
+
+/// Format a SessionDiff as a human-readable string
+pub fn format_diff(diff: SessionDiff) -> String {
+  let lines = []
+
+  // Header
+  let lines = list.append(lines, [
+    "Session Diff: " <> diff.from_id <> " → " <> diff.to_id,
+    "Time: " <> diff.from_timestamp <> " → " <> diff.to_timestamp,
+    "",
+  ])
+
+  // Stage change
+  let lines = case diff.stage_changed {
+    Some(#(from, to)) -> list.append(lines, ["Stage: " <> from <> " → " <> to, ""])
+    None -> lines
+  }
+
+  // Answers added
+  let lines = case list.length(diff.answers_added) {
+    0 -> lines
+    n -> {
+      let header = ["Answers Added (" <> string.inspect(n) <> "):"]
+      let answer_lines = list.map(diff.answers_added, fn(a) {
+        "  + [" <> a.question_id <> "] " <> truncate(a.new_response, 50)
+      })
+      list.append(lines, list.append(header, list.append(answer_lines, [""])))
+    }
+  }
+
+  // Answers modified
+  let lines = case list.length(diff.answers_modified) {
+    0 -> lines
+    n -> {
+      let header = ["Answers Modified (" <> string.inspect(n) <> "):"]
+      let answer_lines = list.flat_map(diff.answers_modified, fn(a) {
+        let old = case a.old_response {
+          Some(r) -> truncate(r, 40)
+          None -> "(none)"
+        }
+        [
+          "  ~ [" <> a.question_id <> "]",
+          "    - " <> old,
+          "    + " <> truncate(a.new_response, 40),
+        ]
+      })
+      list.append(lines, list.append(header, list.append(answer_lines, [""])))
+    }
+  }
+
+  // Answers removed
+  let lines = case list.length(diff.answers_removed) {
+    0 -> lines
+    n -> {
+      let header = ["Answers Removed (" <> string.inspect(n) <> "):"]
+      let answer_lines = list.map(diff.answers_removed, fn(id) {
+        "  - [" <> id <> "]"
+      })
+      list.append(lines, list.append(header, list.append(answer_lines, [""])))
+    }
+  }
+
+  // Gaps and conflicts summary
+  let lines = case diff.gaps_added > 0 || diff.gaps_resolved > 0 {
+    True -> list.append(lines, [
+      "Gaps: +" <> string.inspect(diff.gaps_added) <> " added, -" <> string.inspect(diff.gaps_resolved) <> " resolved",
+    ])
+    False -> lines
+  }
+
+  let lines = case diff.conflicts_added > 0 || diff.conflicts_resolved > 0 {
+    True -> list.append(lines, [
+      "Conflicts: +" <> string.inspect(diff.conflicts_added) <> " added, -" <> string.inspect(diff.conflicts_resolved) <> " resolved",
+    ])
+    False -> lines
+  }
+
+  string.join(lines, "\n")
+}
+
+/// Truncate a string with ellipsis
+fn truncate(s: String, max_len: Int) -> String {
+  let trimmed = string.trim(s)
+  case string.length(trimmed) > max_len {
+    True -> string.slice(trimmed, 0, max_len - 3) <> "..."
+    False -> trimmed
+  }
+}
+
+// =============================================================================
+// Session History JSONL
+// =============================================================================
+
+/// Append a session snapshot to history JSONL
+/// File: .interview/history.jsonl
+pub fn append_to_history(
+  session: InterviewSession,
+  description: String,
+  history_path: String,
+) -> Result(Nil, String) {
+  let snapshot = create_snapshot(session, description)
+  let line = snapshot_to_jsonl_line(snapshot)
+
+  use existing <- result.try(
+    simplifile.read(history_path)
+    |> result.unwrap("")
+    |> Ok
+  )
+
+  let content = case string.length(string.trim(existing)) {
+    0 -> line
+    _ -> existing <> "\n" <> line
+  }
+
+  simplifile.write(history_path, content)
+  |> result.map_error(fn(err) { "Failed to write history: " <> string.inspect(err) })
+}
+
+fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
+  json.object([
+    #("session_id", json.string(snapshot.session_id)),
+    #("snapshot_id", json.string(snapshot.snapshot_id)),
+    #("timestamp", json.string(snapshot.timestamp)),
+    #("description", json.string(snapshot.description)),
+    #("answers", json.object(
+      dict.to_list(snapshot.answers)
+      |> list.map(fn(pair) { #(pair.0, json.string(pair.1)) })
+    )),
+    #("gaps_count", json.int(snapshot.gaps_count)),
+    #("conflicts_count", json.int(snapshot.conflicts_count)),
+    #("stage", json.string(snapshot.stage)),
+  ])
+  |> json.to_string
+}
+
+/// List all snapshots for a session from history
+pub fn list_session_history(
+  history_path: String,
+  session_id: String,
+) -> Result(List(SessionSnapshot), String) {
+  use content <- result.try(
+    simplifile.read(history_path)
+    |> result.map_error(fn(err) { "Failed to read history: " <> string.inspect(err) })
+  )
+
+  case string.length(string.trim(content)) {
+    0 -> Ok([])
+    _ -> {
+      let lines = string.split(content, "\n")
+      let snapshots = list.filter_map(lines, fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> Error(Nil)
+          _ ->
+            json.decode(line, snapshot_decoder)
+            |> result.map_error(fn(_) { Nil })
+        }
+      })
+      |> list.filter(fn(s) { s.session_id == session_id })
+      Ok(snapshots)
+    }
+  }
+}
+
+fn snapshot_decoder(json_value: dynamic.Dynamic) -> Result(SessionSnapshot, dynamic.DecodeErrors) {
+  use session_id <- result.try(dynamic.field("session_id", dynamic.string)(json_value))
+  use snapshot_id <- result.try(dynamic.field("snapshot_id", dynamic.string)(json_value))
+  use timestamp <- result.try(dynamic.field("timestamp", dynamic.string)(json_value))
+  use description <- result.try(dynamic.field("description", dynamic.string)(json_value))
+  use answers_list <- result.try(
+    dynamic.field("answers", dynamic.dict(dynamic.string, dynamic.string))(json_value)
+  )
+  use gaps_count <- result.try(dynamic.field("gaps_count", dynamic.int)(json_value))
+  use conflicts_count <- result.try(dynamic.field("conflicts_count", dynamic.int)(json_value))
+  use stage <- result.try(dynamic.field("stage", dynamic.string)(json_value))
+
+  Ok(SessionSnapshot(
+    session_id: session_id,
+    snapshot_id: snapshot_id,
+    timestamp: timestamp,
+    description: description,
+    answers: answers_list,
+    gaps_count: gaps_count,
+    conflicts_count: conflicts_count,
+    stage: stage,
+  ))
 }
 
 /// JSONL operations - git-friendly line-delimited JSON
@@ -89,11 +490,11 @@ fn answer_to_json(answer: Answer) -> json.Json {
 
 fn perspective_to_string(perspective: Perspective) -> String {
   case perspective {
-    interview_questions.User -> "user"
-    interview_questions.Developer -> "developer"
-    interview_questions.Ops -> "ops"
-    interview_questions.Security -> "security"
-    interview_questions.Business -> "business"
+    User -> "user"
+    Developer -> "developer"
+    Ops -> "ops"
+    Security -> "security"
+    Business -> "business"
   }
 }
 
@@ -249,7 +650,7 @@ pub fn get_session_from_jsonl(
 /// );
 
 /// Initialize SQLite database (create tables if not exist)
-pub fn init_database(db_path: String) -> Result(Nil, String) {
+pub fn init_database(_db_path: String) -> Result(Nil, String) {
   // In real implementation:
   // 1. Check if .interview/interview.db exists
   // 2. If not, create it with schema above
@@ -259,8 +660,8 @@ pub fn init_database(db_path: String) -> Result(Nil, String) {
 
 /// Save session to SQLite
 pub fn save_session_to_db(
-  db_path: String,
-  session: InterviewSession,
+  _db_path: String,
+  _session: InterviewSession,
 ) -> Result(Nil, String) {
   // INSERT or UPDATE sessions table
   // DELETE and INSERT answers/gaps/conflicts to maintain referential integrity
@@ -269,14 +670,14 @@ pub fn save_session_to_db(
 
 /// Query sessions by profile
 pub fn query_sessions_by_profile(
-  db_path: String,
-  profile: String,
+  _db_path: String,
+  _profile: String,
 ) -> Result(List(SessionRecord), String) {
   Ok([])
 }
 
 /// Query ready sessions (active, not complete, has gaps)
-pub fn query_ready_sessions(db_path: String) -> Result(List(SessionRecord), String) {
+pub fn query_ready_sessions(_db_path: String) -> Result(List(SessionRecord), String) {
   Ok([])
 }
 

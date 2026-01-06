@@ -11,7 +11,7 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--file("src/intent/parser.gleam", 65).
+-file("src/intent/parser.gleam", 64).
 -spec parse_string_dict(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), binary())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -20,7 +20,7 @@ parse_string_dict(Data) ->
         Data
     ).
 
--file("src/intent/parser.gleam", 58).
+-file("src/intent/parser.gleam", 57).
 -spec parse_config(gleam@dynamic:dynamic_()) -> {ok, intent@types:config()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_config(Data) ->
@@ -49,7 +49,7 @@ parse_config(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 107).
+-file("src/intent/parser.gleam", 106).
 -spec parse_method(gleam@dynamic:dynamic_()) -> {ok, intent@types:method()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_method(Data) ->
@@ -81,7 +81,7 @@ parse_method(Data) ->
                     {error, [{decode_error, <<"HTTP method"/utf8>>, S, []}]}
             end end).
 
--file("src/intent/parser.gleam", 149).
+-file("src/intent/parser.gleam", 148).
 ?DOC(" Convert a Dynamic value to Json\n").
 -spec dynamic_to_json(gleam@dynamic:dynamic_()) -> gleam@json:json().
 dynamic_to_json(Data) ->
@@ -198,7 +198,7 @@ dynamic_to_json(Data) ->
             gleam@json:null()
     end.
 
--file("src/intent/parser.gleam", 136).
+-file("src/intent/parser.gleam", 135).
 -spec parse_json_dict(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), gleam@json:json())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -215,13 +215,13 @@ parse_json_dict(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 144).
+-file("src/intent/parser.gleam", 143).
 -spec parse_json_value(gleam@dynamic:dynamic_()) -> {ok, gleam@json:json()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_json_value(Data) ->
     {ok, dynamic_to_json(Data)}.
 
--file("src/intent/parser.gleam", 127).
+-file("src/intent/parser.gleam", 126).
 -spec parse_request(gleam@dynamic:dynamic_()) -> {ok, intent@types:request()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_request(Data) ->
@@ -270,7 +270,7 @@ parse_request(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 205).
+-file("src/intent/parser.gleam", 207).
 -spec parse_check(gleam@dynamic:dynamic_()) -> {ok, intent@types:check()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_check(Data) ->
@@ -286,7 +286,7 @@ parse_check(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 198).
+-file("src/intent/parser.gleam", 200).
 -spec parse_checks(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), intent@types:check())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -294,7 +294,7 @@ parse_checks(Data) ->
     _pipe = Data,
     (gleam@dynamic:dict(fun gleam@dynamic:string/1, fun parse_check/1))(_pipe).
 
--file("src/intent/parser.gleam", 190).
+-file("src/intent/parser.gleam", 189).
 -spec parse_response(gleam@dynamic:dynamic_()) -> {ok, intent@types:response()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_response(Data) ->
@@ -312,20 +312,14 @@ parse_response(Data) ->
                             fun parse_checks/1
                         ))(Data),
                         fun(Checks) ->
-                            gleam@result:'try'(
-                                (gleam@dynamic:field(
+                            Headers = begin
+                                _pipe = (gleam@dynamic:field(
                                     <<"headers"/utf8>>,
                                     fun parse_string_dict/1
                                 ))(Data),
-                                fun(Headers) ->
-                                    {ok,
-                                        {response,
-                                            Status,
-                                            Example,
-                                            Checks,
-                                            Headers}}
-                                end
-                            )
+                                gleam@result:unwrap(_pipe, gleam@dict:new())
+                            end,
+                            {ok, {response, Status, Example, Checks, Headers}}
                         end
                     )
                 end
@@ -333,7 +327,7 @@ parse_response(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 82).
+-file("src/intent/parser.gleam", 81).
 -spec parse_behavior(gleam@dynamic:dynamic_()) -> {ok, intent@types:behavior()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_behavior(Data) ->
@@ -413,7 +407,7 @@ parse_behavior(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 71).
+-file("src/intent/parser.gleam", 70).
 -spec parse_feature(gleam@dynamic:dynamic_()) -> {ok, intent@types:feature()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_feature(Data) ->
@@ -440,7 +434,7 @@ parse_feature(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 222).
+-file("src/intent/parser.gleam", 224).
 -spec parse_when(gleam@dynamic:dynamic_()) -> {ok, intent@types:'when'()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_when(Data) ->
@@ -466,7 +460,7 @@ parse_when(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 229).
+-file("src/intent/parser.gleam", 231).
 -spec parse_rule_check(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:rule_check()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -530,7 +524,7 @@ parse_rule_check(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 211).
+-file("src/intent/parser.gleam", 213).
 -spec parse_rule(gleam@dynamic:dynamic_()) -> {ok, intent@types:rule()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_rule(Data) ->
@@ -578,7 +572,7 @@ parse_rule(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 264).
+-file("src/intent/parser.gleam", 266).
 -spec parse_anti_pattern(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:anti_pattern()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -628,7 +622,7 @@ parse_anti_pattern(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 300).
+-file("src/intent/parser.gleam", 302).
 -spec parse_implementation_hints(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:implementation_hints()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -643,7 +637,7 @@ parse_implementation_hints(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 315).
+-file("src/intent/parser.gleam", 317).
 -spec parse_entity_hint(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:entity_hint()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -653,7 +647,7 @@ parse_entity_hint(Data) ->
         fun(Fields) -> {ok, {entity_hint, Fields}} end
     ).
 
--file("src/intent/parser.gleam", 309).
+-file("src/intent/parser.gleam", 311).
 -spec parse_entities(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), intent@types:entity_hint())} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -662,7 +656,7 @@ parse_entities(Data) ->
         Data
     ).
 
--file("src/intent/parser.gleam", 320).
+-file("src/intent/parser.gleam", 322).
 -spec parse_security_hints(gleam@dynamic:dynamic_()) -> {ok,
         intent@types:security_hints()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -706,7 +700,7 @@ parse_security_hints(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 286).
+-file("src/intent/parser.gleam", 288).
 -spec parse_ai_hints(gleam@dynamic:dynamic_()) -> {ok, intent@types:a_i_hints()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_ai_hints(Data) ->
@@ -750,7 +744,7 @@ parse_ai_hints(Data) ->
         end
     ).
 
--file("src/intent/parser.gleam", 20).
+-file("src/intent/parser.gleam", 19).
 ?DOC(
     " Parse a spec from a JSON value\n"
     " All fields are required - no backwards compatibility defaults\n"

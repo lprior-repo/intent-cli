@@ -169,5 +169,13 @@ package intent
 }
 
 #EntityHint: {
-	fields?: [string]: string
+	fields?: [string]: string | #FieldHint
+}
+
+#FieldHint: {
+	description?: string
+	type?:        string
+	validation?:  string
+	example?:     string
+	sensitive?:   bool | *false
 }

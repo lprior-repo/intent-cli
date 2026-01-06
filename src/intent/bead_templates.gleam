@@ -3,11 +3,12 @@
 
 import gleam/dict.{type Dict}
 import gleam/int
-import gleam/json.{type Json}
+import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
-import intent/interview.{type InterviewSession, type Answer, type Profile}
+import intent/case_insensitive.{contains_any_ignore_case}
+import intent/interview.{type InterviewSession, type Profile}
 
 /// A single work item (bead) record
 pub type BeadRecord {
@@ -41,11 +42,7 @@ pub fn generate_beads_from_session(session: InterviewSession) -> List(BeadRecord
 /// Generate API endpoint beads
 fn generate_api_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
   let endpoint_answers = list.filter(session.answers, fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "endpoint")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "path",
-      )
+    contains_any_ignore_case(answer.question_text, ["endpoint", "path"])
   })
 
   list.map(endpoint_answers, fn(answer) {
@@ -71,11 +68,7 @@ fn generate_api_beads(session: InterviewSession, profile: String) -> List(BeadRe
 /// Generate CLI command beads
 fn generate_cli_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
   let command_answers = list.filter(session.answers, fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "command")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "subcommand",
-      )
+    contains_any_ignore_case(answer.question_text, ["command", "subcommand"])
   })
 
   list.map(command_answers, fn(answer) {
@@ -101,11 +94,7 @@ fn generate_cli_beads(session: InterviewSession, profile: String) -> List(BeadRe
 /// Generate event beads
 fn generate_event_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
   let event_answers = list.filter(session.answers, fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "event")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "message",
-      )
+    contains_any_ignore_case(answer.question_text, ["event", "message"])
   })
 
   list.map(event_answers, fn(answer) {
@@ -131,15 +120,7 @@ fn generate_event_beads(session: InterviewSession, profile: String) -> List(Bead
 /// Generate data model beads
 fn generate_data_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
   let entity_answers = list.filter(session.answers, fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "entity")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "data model",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "schema",
-      )
+    contains_any_ignore_case(answer.question_text, ["entity", "data model", "schema"])
   })
 
   list.map(entity_answers, fn(answer) {
@@ -165,15 +146,7 @@ fn generate_data_beads(session: InterviewSession, profile: String) -> List(BeadR
 /// Generate workflow beads
 fn generate_workflow_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
   let workflow_answers = list.filter(session.answers, fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "workflow")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "process",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "step",
-      )
+    contains_any_ignore_case(answer.question_text, ["workflow", "process", "step"])
   })
 
   list.map(workflow_answers, fn(answer) {
@@ -199,15 +172,7 @@ fn generate_workflow_beads(session: InterviewSession, profile: String) -> List(B
 /// Generate UI screen beads
 fn generate_ui_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
   let screen_answers = list.filter(session.answers, fn(answer) {
-    string.contains(string.lowercase(answer.question_text), "screen")
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "view",
-      )
-      || string.contains(
-        string.lowercase(answer.question_text),
-        "interface",
-      )
+    contains_any_ignore_case(answer.question_text, ["screen", "view", "interface"])
   })
 
   list.map(screen_answers, fn(answer) {

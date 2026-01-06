@@ -240,7 +240,7 @@ package intent
 }
 
 #EntityHint: {
-	fields?: [string]: #FieldHint
+	fields?: [string]: string | #FieldHint
 }
 
 #FieldHint: {

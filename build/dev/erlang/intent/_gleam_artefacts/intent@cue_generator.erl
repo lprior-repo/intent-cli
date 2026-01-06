@@ -37,33 +37,6 @@ has_time_rules(Spec) ->
     gleam@list:any(_pipe, fun(_) -> false end).
 
 -file("src/intent/cue_generator.gleam", 216).
-?DOC(" Convert HTTP Method to string\n").
--spec method_to_string(intent@types:method()) -> binary().
-method_to_string(Method) ->
-    case Method of
-        get ->
-            <<"GET"/utf8>>;
-
-        post ->
-            <<"POST"/utf8>>;
-
-        put ->
-            <<"PUT"/utf8>>;
-
-        patch ->
-            <<"PATCH"/utf8>>;
-
-        delete ->
-            <<"DELETE"/utf8>>;
-
-        head ->
-            <<"HEAD"/utf8>>;
-
-        options ->
-            <<"OPTIONS"/utf8>>
-    end.
-
--file("src/intent/cue_generator.gleam", 229).
 ?DOC(" Convert a Rule to CUE code\n").
 -spec rule_to_cue(intent@types:rule()) -> binary().
 rule_to_cue(Rule) ->
@@ -74,7 +47,7 @@ rule_to_cue(Rule) ->
         "\\\"
 }"/utf8>>.
 
--file("src/intent/cue_generator.gleam", 236).
+-file("src/intent/cue_generator.gleam", 223).
 ?DOC(" Convert JSON to CUE representation\n").
 -spec json_to_cue(gleam@json:json()) -> binary().
 json_to_cue(Json) ->
@@ -84,7 +57,9 @@ json_to_cue(Json) ->
 ?DOC(" Convert a Behavior to CUE code\n").
 -spec behavior_to_cue(intent@types:behavior()) -> binary().
 behavior_to_cue(Behavior) ->
-    Method = method_to_string(erlang:element(2, erlang:element(7, Behavior))),
+    Method = intent@types:method_to_string(
+        erlang:element(2, erlang:element(7, Behavior))
+    ),
     Path = erlang:element(3, erlang:element(7, Behavior)),
     Intent_line = case gleam@string:is_empty(erlang:element(3, Behavior)) of
         true ->
@@ -268,7 +243,7 @@ feature_to_cue(Feature) ->
         "
 }"/utf8>>.
 
--file("src/intent/cue_generator.gleam", 241).
+-file("src/intent/cue_generator.gleam", 228).
 ?DOC(" Format generated CUE for output\n").
 -spec format_cue(generated_c_u_e()) -> binary().
 format_cue(Generated) ->
@@ -284,7 +259,7 @@ format_cue(Generated) ->
             Import_section/binary>>/binary,
         (erlang:element(4, Generated))/binary>>.
 
--file("src/intent/cue_generator.gleam", 251).
+-file("src/intent/cue_generator.gleam", 238).
 ?DOC(" Helper to conditionally append items\n").
 -spec append_if(list(binary()), boolean(), list(binary())) -> list(binary()).
 append_if(Items, Condition, To_append) ->
