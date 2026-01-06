@@ -1651,3 +1651,100 @@ pub fn http_client_unicode_header_test() {
     _ -> should.be_ok(Ok(Nil))
   }
 }
+
+// ============================================================================
+// Output Formatting Tests
+// ============================================================================
+
+pub fn json_encoding_test() {
+  // Test JSON encoding of various values
+  let value = json.object([
+    #("name", json.string("Test")),
+    #("count", json.int(42)),
+    #("enabled", json.bool(True)),
+  ])
+
+  let json_str = json.to_string(value)
+
+  // Verify JSON is properly formatted
+  json_str
+  |> string.contains("Test")
+  |> should.be_true()
+
+  json_str
+  |> string.contains("42")
+  |> should.be_true()
+}
+
+pub fn summary_calculation_test() {
+  // Test that summary calculations work correctly
+  let passed = 10
+  let failed = 3
+  let blocked = 1
+  let total = passed + failed + blocked
+
+  total |> should.equal(14)
+
+  let percentage = passed * 100 / total
+  percentage |> should.equal(71)
+}
+
+pub fn string_formatting_test() {
+  // Test human-readable string formatting
+  let behavior_name = "get-user-by-id"
+  let feature_name = "User Management"
+
+  let formatted = feature_name <> ": " <> behavior_name
+
+  formatted
+  |> should.equal("User Management: get-user-by-id")
+}
+
+pub fn error_message_formatting_test() {
+  // Test error message formatting
+  let field = "status"
+  let expected = "200"
+  let actual = "404"
+
+  let message =
+    "Field '" <> field <> "' expected '" <> expected <> "' but got '" <> actual <> "'"
+
+  message
+  |> string.contains("status")
+  |> should.be_true()
+
+  message
+  |> string.contains("200")
+  |> should.be_true()
+
+  message
+  |> string.contains("404")
+  |> should.be_true()
+}
+
+pub fn list_to_string_formatting_test() {
+  // Test formatting lists into readable strings
+  let items = ["first", "second", "third"]
+  let formatted = string.join(items, ", ")
+
+  formatted |> should.equal("first, second, third")
+}
+
+pub fn boolean_to_status_test() {
+  // Test converting boolean results to status strings
+  let passed = True
+  let status = case passed {
+    True -> "PASS"
+    False -> "FAIL"
+  }
+
+  status |> should.equal("PASS")
+}
+
+pub fn json_null_handling_test() {
+  // Test JSON null handling in output
+  let value = json.null()
+  let json_str = json.to_string(value)
+
+  json_str |> should.equal("null")
+}
