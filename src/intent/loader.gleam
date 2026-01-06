@@ -2,6 +2,7 @@
 
 import gleam/dynamic
 import gleam/json
+import gleam/list
 import gleam/string
 import gleam_community/ansi
 import intent/parser
@@ -83,16 +84,48 @@ fn parse_json_spec(json_str: String) -> Result(Spec, LoadError) {
 }
 
 fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
-  errors
-  |> string.inspect
+  case errors {
+    [] -> "Unknown decode error"
+    [error] -> format_single_decode_error(error)
+    multiple -> {
+      "Multiple decode errors:\n"
+      <> string.join(
+        list.map(multiple, fn(e) { "  • " <> format_single_decode_error(e) }),
+        "\n",
+      )
+    }
+  }
+}
+
+fn format_single_decode_error(error: dynamic.DecodeError) -> String {
+  let path_str =
+    case error.path {
+      [] -> "at root"
+      path_parts ->
+        "at " <> string.join(path_parts, ".") <> " (path: ." <> string.join(
+          path_parts,
+          ".",
+        ) <> ")"
+    }
+
+  "Expected " <> error.expected <> " but found " <> error.found <> " " <> path_str
 }
 
 fn format_json_error(error: json.DecodeError) -> String {
   case error {
-    json.UnexpectedEndOfInput -> "Unexpected end of input"
-    json.UnexpectedByte(b) -> "Unexpected byte: " <> b
-    json.UnexpectedSequence(s) -> "Unexpected sequence: " <> s
-    json.UnexpectedFormat(errs) -> format_decode_errors(errs)
+    json.UnexpectedEndOfInput ->
+      "Unexpected end of input - JSON is incomplete or truncated.\n"
+      <> "  • Check that your JSON is properly closed with matching braces/brackets"
+    json.UnexpectedByte(b) ->
+      "Unexpected byte: '" <> b <> "' in JSON at this position.\n"
+      <> "  • Check for syntax errors like missing commas, quotes, or brackets\n"
+      <> "  • Ensure strings are properly quoted"
+    json.UnexpectedSequence(s) ->
+      "Unexpected sequence: '" <> s <> "' in JSON.\n"
+      <> "  • This sequence is not valid JSON syntax\n"
+      <> "  • Check for typos or invalid characters"
+    json.UnexpectedFormat(errs) ->
+      "JSON format error:\n" <> format_decode_errors(errs)
   }
 }
 

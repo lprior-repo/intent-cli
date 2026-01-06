@@ -285,6 +285,22 @@ fn suggest_from_lint_warnings(lint_result: LintResult) -> List(ImprovementSugges
               ),
             )
           }
+
+          spec_linter.DuplicateBehavior(behavior1, behavior2, similarity) -> {
+            Ok(
+              ImprovementSuggestion(
+                title: "Consolidate duplicate behaviors",
+                description: "Behaviors '" <> behavior1 <> "' and '" <> behavior2 <> "' are similar (" <> similarity <> ")",
+                reasoning: "Duplicate behaviors increase maintenance burden and reduce clarity",
+                impact_score: 25,
+                proposed_change: RefineVagueRule(
+                  behavior1,
+                  "consolidation",
+                  "Merge with " <> behavior2 <> " or clarify differences",
+                ),
+              ),
+            )
+          }
         }
       })
     }

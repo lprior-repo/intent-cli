@@ -18,7 +18,7 @@
     {json_parse_error, binary()} |
     {spec_parse_error, binary()}.
 
--file("src/intent/loader.gleam", 54).
+-file("src/intent/loader.gleam", 55).
 ?DOC(" Validate a CUE file without exporting\n").
 -spec validate_cue(binary()) -> {ok, nil} | {error, load_error()}.
 validate_cue(Path) ->
@@ -35,30 +35,75 @@ validate_cue(Path) ->
             {error, {cue_validation_error, Stderr}}
     end.
 
--file("src/intent/loader.gleam", 85).
+-file("src/intent/loader.gleam", 100).
+-spec format_single_decode_error(gleam@dynamic:decode_error()) -> binary().
+format_single_decode_error(Error) ->
+    Path_str = case erlang:element(4, Error) of
+        [] ->
+            <<"at root"/utf8>>;
+
+        Path_parts ->
+            <<<<<<<<"at "/utf8,
+                            (gleam@string:join(Path_parts, <<"."/utf8>>))/binary>>/binary,
+                        " (path: ."/utf8>>/binary,
+                    (gleam@string:join(Path_parts, <<"."/utf8>>))/binary>>/binary,
+                ")"/utf8>>
+    end,
+    <<<<<<<<<<"Expected "/utf8, (erlang:element(2, Error))/binary>>/binary,
+                    " but found "/utf8>>/binary,
+                (erlang:element(3, Error))/binary>>/binary,
+            " "/utf8>>/binary,
+        Path_str/binary>>.
+
+-file("src/intent/loader.gleam", 86).
 -spec format_decode_errors(list(gleam@dynamic:decode_error())) -> binary().
 format_decode_errors(Errors) ->
-    _pipe = Errors,
-    gleam@string:inspect(_pipe).
+    case Errors of
+        [] ->
+            <<"Unknown decode error"/utf8>>;
 
--file("src/intent/loader.gleam", 90).
+        [Error] ->
+            format_single_decode_error(Error);
+
+        Multiple ->
+            <<"Multiple decode errors:\n"/utf8,
+                (gleam@string:join(
+                    gleam@list:map(
+                        Multiple,
+                        fun(E) ->
+                            <<"  • "/utf8,
+                                (format_single_decode_error(E))/binary>>
+                        end
+                    ),
+                    <<"\n"/utf8>>
+                ))/binary>>
+    end.
+
+-file("src/intent/loader.gleam", 114).
 -spec format_json_error(gleam@json:decode_error()) -> binary().
 format_json_error(Error) ->
     case Error of
         unexpected_end_of_input ->
-            <<"Unexpected end of input"/utf8>>;
+            <<"Unexpected end of input - JSON is incomplete or truncated.\n"/utf8,
+                "  • Check that your JSON is properly closed with matching braces/brackets"/utf8>>;
 
         {unexpected_byte, B} ->
-            <<"Unexpected byte: "/utf8, B/binary>>;
+            <<<<<<<<"Unexpected byte: '"/utf8, B/binary>>/binary,
+                        "' in JSON at this position.\n"/utf8>>/binary,
+                    "  • Check for syntax errors like missing commas, quotes, or brackets\n"/utf8>>/binary,
+                "  • Ensure strings are properly quoted"/utf8>>;
 
         {unexpected_sequence, S} ->
-            <<"Unexpected sequence: "/utf8, S/binary>>;
+            <<<<<<<<"Unexpected sequence: '"/utf8, S/binary>>/binary,
+                        "' in JSON.\n"/utf8>>/binary,
+                    "  • This sequence is not valid JSON syntax\n"/utf8>>/binary,
+                "  • Check for typos or invalid characters"/utf8>>;
 
         {unexpected_format, Errs} ->
-            format_decode_errors(Errs)
+            <<"JSON format error:\n"/utf8, (format_decode_errors(Errs))/binary>>
     end.
 
--file("src/intent/loader.gleam", 69).
+-file("src/intent/loader.gleam", 70).
 -spec parse_json_spec(binary()) -> {ok, intent@types:spec()} |
     {error, load_error()}.
 parse_json_spec(Json_str) ->
@@ -80,7 +125,7 @@ parse_json_spec(Json_str) ->
             {error, {json_parse_error, format_json_error(E)}}
     end.
 
--file("src/intent/loader.gleam", 61).
+-file("src/intent/loader.gleam", 62).
 -spec export_and_parse(binary()) -> {ok, intent@types:spec()} |
     {error, load_error()}.
 export_and_parse(Path) ->
@@ -97,7 +142,7 @@ export_and_parse(Path) ->
             {error, {cue_export_error, Stderr}}
     end.
 
--file("src/intent/loader.gleam", 31).
+-file("src/intent/loader.gleam", 32).
 -spec load_and_parse(binary()) -> {ok, intent@types:spec()} |
     {error, load_error()}.
 load_and_parse(Path) ->
@@ -118,7 +163,7 @@ load_and_parse(Path) ->
             {error, E}
     end.
 
--file("src/intent/loader.gleam", 23).
+-file("src/intent/loader.gleam", 24).
 ?DOC(" Load a spec from a CUE file\n").
 -spec load_spec(binary()) -> {ok, intent@types:spec()} | {error, load_error()}.
 load_spec(Path) ->
@@ -130,7 +175,7 @@ load_spec(Path) ->
             {error, {file_not_found, Path}}
     end.
 
--file("src/intent/loader.gleam", 100).
+-file("src/intent/loader.gleam", 133).
 ?DOC(" Export a spec to JSON format (for AI consumption)\n").
 -spec export_spec_json(binary()) -> {ok, binary()} | {error, load_error()}.
 export_spec_json(Path) ->
@@ -153,7 +198,7 @@ export_spec_json(Path) ->
             {error, {file_not_found, Path}}
     end.
 
--file("src/intent/loader.gleam", 112).
+-file("src/intent/loader.gleam", 145).
 ?DOC(" Format a LoadError as a human-readable string\n").
 -spec format_error(load_error()) -> binary().
 format_error(Error) ->

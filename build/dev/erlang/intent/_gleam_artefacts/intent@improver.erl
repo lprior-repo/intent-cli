@@ -269,7 +269,27 @@ suggest_from_lint_warnings(Lint_result) ->
                                     {refine_vague_rule,
                                         Behavior@3,
                                         <<"response.example"/utf8>>,
-                                        <<"Remove keys matching anti-pattern bad_example"/utf8>>}}}
+                                        <<"Remove keys matching anti-pattern bad_example"/utf8>>}}};
+
+                        {duplicate_behavior, Behavior1, Behavior2, Similarity} ->
+                            {ok,
+                                {improvement_suggestion,
+                                    <<"Consolidate duplicate behaviors"/utf8>>,
+                                    <<<<<<<<<<<<"Behaviors '"/utf8,
+                                                            Behavior1/binary>>/binary,
+                                                        "' and '"/utf8>>/binary,
+                                                    Behavior2/binary>>/binary,
+                                                "' are similar ("/utf8>>/binary,
+                                            Similarity/binary>>/binary,
+                                        ")"/utf8>>,
+                                    <<"Duplicate behaviors increase maintenance burden and reduce clarity"/utf8>>,
+                                    25,
+                                    {refine_vague_rule,
+                                        Behavior1,
+                                        <<"consolidation"/utf8>>,
+                                        <<<<"Merge with "/utf8,
+                                                Behavior2/binary>>/binary,
+                                            " or clarify differences"/utf8>>}}}
                     end end)
     end.
 
@@ -293,13 +313,13 @@ suggest_improvements(Context) ->
         end
     ).
 
--file("src/intent/improver.gleam", 295).
+-file("src/intent/improver.gleam", 311).
 ?DOC(" Generate a refined spec based on accepted suggestions\n").
 -spec apply_improvements(intent@types:spec(), list(improvement_suggestion())) -> intent@types:spec().
 apply_improvements(Spec, _) ->
     Spec.
 
--file("src/intent/improver.gleam", 305).
+-file("src/intent/improver.gleam", 321).
 ?DOC(" Format improvements for interactive display\n").
 -spec format_improvements(list(improvement_suggestion())) -> binary().
 format_improvements(Suggestions) ->
