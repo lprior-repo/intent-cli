@@ -1259,3 +1259,255 @@ pub fn rules_engine_format_violation_header_missing_test() {
   |> string.contains("X-Custom")
   |> should.be_true()
 }
+
+// ============================================================================
+// Resolver Advanced Tests
+// ============================================================================
+
+pub fn resolver_complex_diamond_dependency_test() {
+  // Diamond pattern: b3 and b4 both depend on b1, b5 depends on both
+  let b1 = make_behavior("base", [])
+  let b3 = make_behavior("left", ["base"])
+  let b4 = make_behavior("right", ["base"])
+  let b5 = make_behavior("merge", ["left", "right"])
+
+  let spec = make_spec([make_feature("Feature A", [b1, b3, b4, b5])])
+  let result = resolver.resolve_execution_order(spec)
+
+  case result {
+    Ok(resolved) -> {
+      list.length(resolved) |> should.equal(4)
+      let names = list.map(resolved, fn(rb) { rb.behavior.name })
+      // base should come first
+      let assert [first, ..] = names
+      first |> should.equal("base")
+      // merge should come last (it has two dependencies)
+      case list.last(names) {
+        Ok(last) -> last |> should.equal("merge")
+        Error(_) -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn resolver_multiple_branches_test() {
+  // Multiple independent branches
+  let b1 = make_behavior("root", [])
+  let b2 = make_behavior("branch-a-1", ["root"])
+  let b3 = make_behavior("branch-a-2", ["branch-a-1"])
+  let b4 = make_behavior("branch-b-1", ["root"])
+  let b5 = make_behavior("branch-b-2", ["branch-b-1"])
+
+  let spec = make_spec([make_feature("Feature", [b1, b2, b3, b4, b5])])
+  let result = resolver.resolve_execution_order(spec)
+
+  case result {
+    Ok(resolved) -> {
+      list.length(resolved) |> should.equal(5)
+      let names = list.map(resolved, fn(rb) { rb.behavior.name })
+      // Check that all expected behaviors are present
+      list.any(names, fn(n) { n == "root" }) |> should.be_true()
+      list.any(names, fn(n) { n == "branch-a-1" }) |> should.be_true()
+      list.any(names, fn(n) { n == "branch-a-2" }) |> should.be_true()
+      list.any(names, fn(n) { n == "branch-b-1" }) |> should.be_true()
+      list.any(names, fn(n) { n == "branch-b-2" }) |> should.be_true()
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn resolver_deep_chain_test() {
+  // Long dependency chain: b5 -> b4 -> b3 -> b2 -> b1
+  let b1 = make_behavior("step1", [])
+  let b2 = make_behavior("step2", ["step1"])
+  let b3 = make_behavior("step3", ["step2"])
+  let b4 = make_behavior("step4", ["step3"])
+  let b5 = make_behavior("step5", ["step4"])
+
+  let spec = make_spec([make_feature("Feature", [b1, b2, b3, b4, b5])])
+  let result = resolver.resolve_execution_order(spec)
+
+  case result {
+    Ok(resolved) -> {
+      list.length(resolved) |> should.equal(5)
+      let names = list.map(resolved, fn(rb) { rb.behavior.name })
+      names |> should.equal(["step1", "step2", "step3", "step4", "step5"])
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+// ============================================================================
+// Empty/Null Response Handling Tests
+// ============================================================================
+
+pub fn rules_engine_empty_body_test() {
+  // Test rule application with empty response body
+  let rule = types.Rule(
+    name: "Empty body rule",
+    description: "Handle empty response",
+    when: types.When(status: "== 204", method: types.Delete, path: "/resource"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = http_client.ExecutionResult(
+    status: 204,
+    headers: dict.new(),
+    body: json.null(),
+    raw_body: "",
+    elapsed_ms: 50,
+    request_method: types.Delete,
+    request_path: "/resource",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test")
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_null_json_value_test() {
+  // Test handling of null JSON values
+  let rule = types.Rule(
+    name: "Null handling rule",
+    description: "Handle null values",
+    when: types.When(status: "== 200", method: types.Get, path: "/nullable"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = http_client.ExecutionResult(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("value", json.null())]),
+    raw_body: "{\"value\":null}",
+    elapsed_ms: 60,
+    request_method: types.Get,
+    request_path: "/nullable",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test")
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_whitespace_body_test() {
+  // Test handling of whitespace-only body
+  let rule = types.Rule(
+    name: "Whitespace rule",
+    description: "Handle whitespace body",
+    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    check: types.RuleCheck(
+      body_must_not_contain: ["error"],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = http_client.ExecutionResult(
+    status: 200,
+    headers: dict.new(),
+    body: json.null(),
+    raw_body: "   \n\t  ",
+    elapsed_ms: 40,
+    request_method: types.Get,
+    request_path: "/test",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test")
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_nested_null_field_test() {
+  // Test checking for null in nested fields
+  let rule = types.Rule(
+    name: "Nested null rule",
+    description: "Check nested fields",
+    when: types.When(status: "== 200", method: types.Get, path: "/nested"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: ["user"],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = http_client.ExecutionResult(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("user", json.null())]),
+    raw_body: "{\"user\":null}",
+    elapsed_ms: 55,
+    request_method: types.Get,
+    request_path: "/nested",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test")
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_empty_object_test() {
+  // Test handling of empty objects
+  let rule = types.Rule(
+    name: "Empty object rule",
+    description: "Handle empty objects",
+    when: types.When(status: "== 200", method: types.Get, path: "/data"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: ["data"],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = http_client.ExecutionResult(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("data", json.object([]))]),
+    raw_body: "{\"data\":{}}",
+    elapsed_ms: 65,
+    request_method: types.Get,
+    request_path: "/data",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test")
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}

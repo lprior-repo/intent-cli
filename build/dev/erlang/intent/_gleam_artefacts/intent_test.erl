@@ -1,7 +1,7 @@
 -module(intent_test).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "test/intent_test.gleam").
--export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0, http_client_url_construction_simple_test/0, http_client_path_interpolation_test/0, http_client_missing_variable_interpolation_test/0, http_client_header_interpolation_test/0, http_client_header_merge_test/0, http_client_body_json_interpolation_test/0, http_client_invalid_url_test/0, http_client_https_url_test/0, http_client_custom_port_test/0, http_client_path_leading_slash_test/0, http_client_method_conversion_get_test/0, http_client_method_conversion_post_test/0, http_client_multiple_header_merge_test/0, rules_engine_check_when_status_equals_test/0, rules_engine_check_when_status_greater_than_test/0, rules_engine_check_when_status_less_than_test/0, rules_engine_check_when_method_mismatch_test/0, rules_engine_check_when_path_exact_match_test/0, rules_engine_check_when_path_regex_match_test/0, rules_engine_check_body_must_contain_test/0, rules_engine_check_body_must_not_contain_test/0, rules_engine_check_body_must_not_contain_violation_test/0, rules_engine_check_body_must_contain_violation_test/0, rules_engine_check_multiple_rules_test/0, rules_engine_format_violation_body_contains_test/0, rules_engine_format_violation_body_missing_test/0, rules_engine_format_violation_field_missing_test/0, rules_engine_format_violation_header_missing_test/0]).
+-export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0, http_client_url_construction_simple_test/0, http_client_path_interpolation_test/0, http_client_missing_variable_interpolation_test/0, http_client_header_interpolation_test/0, http_client_header_merge_test/0, http_client_body_json_interpolation_test/0, http_client_invalid_url_test/0, http_client_https_url_test/0, http_client_custom_port_test/0, http_client_path_leading_slash_test/0, http_client_method_conversion_get_test/0, http_client_method_conversion_post_test/0, http_client_multiple_header_merge_test/0, rules_engine_check_when_status_equals_test/0, rules_engine_check_when_status_greater_than_test/0, rules_engine_check_when_status_less_than_test/0, rules_engine_check_when_method_mismatch_test/0, rules_engine_check_when_path_exact_match_test/0, rules_engine_check_when_path_regex_match_test/0, rules_engine_check_body_must_contain_test/0, rules_engine_check_body_must_not_contain_test/0, rules_engine_check_body_must_not_contain_violation_test/0, rules_engine_check_body_must_contain_violation_test/0, rules_engine_check_multiple_rules_test/0, rules_engine_format_violation_body_contains_test/0, rules_engine_format_violation_body_missing_test/0, rules_engine_format_violation_field_missing_test/0, rules_engine_format_violation_header_missing_test/0, resolver_complex_diamond_dependency_test/0, resolver_multiple_branches_test/0, resolver_deep_chain_test/0, rules_engine_empty_body_test/0, rules_engine_null_json_value_test/0, rules_engine_whitespace_body_test/0, rules_engine_nested_null_field_test/0, rules_engine_empty_object_test/0]).
 
 -file("test/intent_test.gleam", 15).
 -spec main() -> nil.
@@ -1247,3 +1247,257 @@ rules_engine_format_violation_header_missing_test() ->
     _pipe = Formatted,
     _pipe@1 = gleam_stdlib:contains_string(_pipe, <<"X-Custom"/utf8>>),
     gleeunit@should:be_true(_pipe@1).
+
+-file("test/intent_test.gleam", 1267).
+-spec resolver_complex_diamond_dependency_test() -> nil.
+resolver_complex_diamond_dependency_test() ->
+    B1 = make_behavior(<<"base"/utf8>>, []),
+    B3 = make_behavior(<<"left"/utf8>>, [<<"base"/utf8>>]),
+    B4 = make_behavior(<<"right"/utf8>>, [<<"base"/utf8>>]),
+    B5 = make_behavior(<<"merge"/utf8>>, [<<"left"/utf8>>, <<"right"/utf8>>]),
+    Spec = make_spec([make_feature(<<"Feature A"/utf8>>, [B1, B3, B4, B5])]),
+    Result = intent@resolver:resolve_execution_order(Spec),
+    case Result of
+        {ok, Resolved} ->
+            _pipe = erlang:length(Resolved),
+            gleeunit_ffi:should_equal(_pipe, 4),
+            Names = gleam@list:map(
+                Resolved,
+                fun(Rb) -> erlang:element(2, erlang:element(3, Rb)) end
+            ),
+            First@1 = case Names of
+                [First | _] -> First;
+                _assert_fail ->
+                    erlang:error(#{gleam_error => let_assert,
+                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
+                                file => <<?FILEPATH/utf8>>,
+                                module => <<"intent_test"/utf8>>,
+                                function => <<"resolver_complex_diamond_dependency_test"/utf8>>,
+                                line => 1282,
+                                value => _assert_fail,
+                                start => 35152,
+                                'end' => 35182,
+                                pattern_start => 35163,
+                                pattern_end => 35174})
+            end,
+            _pipe@1 = First@1,
+            gleeunit_ffi:should_equal(_pipe@1, <<"base"/utf8>>),
+            case gleam@list:last(Names) of
+                {ok, Last} ->
+                    _pipe@2 = Last,
+                    gleeunit_ffi:should_equal(_pipe@2, <<"merge"/utf8>>);
+
+                {error, _} ->
+                    gleeunit@should:fail()
+            end;
+
+        {error, _} ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1294).
+-spec resolver_multiple_branches_test() -> nil.
+resolver_multiple_branches_test() ->
+    B1 = make_behavior(<<"root"/utf8>>, []),
+    B2 = make_behavior(<<"branch-a-1"/utf8>>, [<<"root"/utf8>>]),
+    B3 = make_behavior(<<"branch-a-2"/utf8>>, [<<"branch-a-1"/utf8>>]),
+    B4 = make_behavior(<<"branch-b-1"/utf8>>, [<<"root"/utf8>>]),
+    B5 = make_behavior(<<"branch-b-2"/utf8>>, [<<"branch-b-1"/utf8>>]),
+    Spec = make_spec([make_feature(<<"Feature"/utf8>>, [B1, B2, B3, B4, B5])]),
+    Result = intent@resolver:resolve_execution_order(Spec),
+    case Result of
+        {ok, Resolved} ->
+            _pipe = erlang:length(Resolved),
+            gleeunit_ffi:should_equal(_pipe, 5),
+            Names = gleam@list:map(
+                Resolved,
+                fun(Rb) -> erlang:element(2, erlang:element(3, Rb)) end
+            ),
+            _pipe@1 = gleam@list:any(Names, fun(N) -> N =:= <<"root"/utf8>> end),
+            gleeunit@should:be_true(_pipe@1),
+            _pipe@2 = gleam@list:any(
+                Names,
+                fun(N@1) -> N@1 =:= <<"branch-a-1"/utf8>> end
+            ),
+            gleeunit@should:be_true(_pipe@2),
+            _pipe@3 = gleam@list:any(
+                Names,
+                fun(N@2) -> N@2 =:= <<"branch-a-2"/utf8>> end
+            ),
+            gleeunit@should:be_true(_pipe@3),
+            _pipe@4 = gleam@list:any(
+                Names,
+                fun(N@3) -> N@3 =:= <<"branch-b-1"/utf8>> end
+            ),
+            gleeunit@should:be_true(_pipe@4),
+            _pipe@5 = gleam@list:any(
+                Names,
+                fun(N@4) -> N@4 =:= <<"branch-b-2"/utf8>> end
+            ),
+            gleeunit@should:be_true(_pipe@5);
+
+        {error, _} ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1320).
+-spec resolver_deep_chain_test() -> nil.
+resolver_deep_chain_test() ->
+    B1 = make_behavior(<<"step1"/utf8>>, []),
+    B2 = make_behavior(<<"step2"/utf8>>, [<<"step1"/utf8>>]),
+    B3 = make_behavior(<<"step3"/utf8>>, [<<"step2"/utf8>>]),
+    B4 = make_behavior(<<"step4"/utf8>>, [<<"step3"/utf8>>]),
+    B5 = make_behavior(<<"step5"/utf8>>, [<<"step4"/utf8>>]),
+    Spec = make_spec([make_feature(<<"Feature"/utf8>>, [B1, B2, B3, B4, B5])]),
+    Result = intent@resolver:resolve_execution_order(Spec),
+    case Result of
+        {ok, Resolved} ->
+            _pipe = erlang:length(Resolved),
+            gleeunit_ffi:should_equal(_pipe, 5),
+            Names = gleam@list:map(
+                Resolved,
+                fun(Rb) -> erlang:element(2, erlang:element(3, Rb)) end
+            ),
+            _pipe@1 = Names,
+            gleeunit_ffi:should_equal(
+                _pipe@1,
+                [<<"step1"/utf8>>,
+                    <<"step2"/utf8>>,
+                    <<"step3"/utf8>>,
+                    <<"step4"/utf8>>,
+                    <<"step5"/utf8>>]
+            );
+
+        {error, _} ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1345).
+-spec rules_engine_empty_body_test() -> nil.
+rules_engine_empty_body_test() ->
+    Rule = {rule,
+        <<"Empty body rule"/utf8>>,
+        <<"Handle empty response"/utf8>>,
+        {'when', <<"== 204"/utf8>>, delete, <<"/resource"/utf8>>},
+        {rule_check, [], [], [], [], <<""/utf8>>, <<""/utf8>>},
+        gleam@json:null()},
+    Response = {execution_result,
+        204,
+        gleam@dict:new(),
+        gleam@json:null(),
+        <<""/utf8>>,
+        50,
+        delete,
+        <<"/resource"/utf8>>},
+    Results = intent@rules_engine:check_rules([Rule], Response, <<"test"/utf8>>),
+    case Results of
+        [{rule_passed, _}] ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1379).
+-spec rules_engine_null_json_value_test() -> nil.
+rules_engine_null_json_value_test() ->
+    Rule = {rule,
+        <<"Null handling rule"/utf8>>,
+        <<"Handle null values"/utf8>>,
+        {'when', <<"== 200"/utf8>>, get, <<"/nullable"/utf8>>},
+        {rule_check, [], [], [], [], <<""/utf8>>, <<""/utf8>>},
+        gleam@json:null()},
+    Response = {execution_result,
+        200,
+        gleam@dict:new(),
+        gleam@json:object([{<<"value"/utf8>>, gleam@json:null()}]),
+        <<"{\"value\":null}"/utf8>>,
+        60,
+        get,
+        <<"/nullable"/utf8>>},
+    Results = intent@rules_engine:check_rules([Rule], Response, <<"test"/utf8>>),
+    case Results of
+        [{rule_passed, _}] ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1413).
+-spec rules_engine_whitespace_body_test() -> nil.
+rules_engine_whitespace_body_test() ->
+    Rule = {rule,
+        <<"Whitespace rule"/utf8>>,
+        <<"Handle whitespace body"/utf8>>,
+        {'when', <<"== 200"/utf8>>, get, <<"/test"/utf8>>},
+        {rule_check, [<<"error"/utf8>>], [], [], [], <<""/utf8>>, <<""/utf8>>},
+        gleam@json:null()},
+    Response = {execution_result,
+        200,
+        gleam@dict:new(),
+        gleam@json:null(),
+        <<"   \n\t  "/utf8>>,
+        40,
+        get,
+        <<"/test"/utf8>>},
+    Results = intent@rules_engine:check_rules([Rule], Response, <<"test"/utf8>>),
+    case Results of
+        [{rule_passed, _}] ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1447).
+-spec rules_engine_nested_null_field_test() -> nil.
+rules_engine_nested_null_field_test() ->
+    Rule = {rule,
+        <<"Nested null rule"/utf8>>,
+        <<"Check nested fields"/utf8>>,
+        {'when', <<"== 200"/utf8>>, get, <<"/nested"/utf8>>},
+        {rule_check, [], [], [<<"user"/utf8>>], [], <<""/utf8>>, <<""/utf8>>},
+        gleam@json:null()},
+    Response = {execution_result,
+        200,
+        gleam@dict:new(),
+        gleam@json:object([{<<"user"/utf8>>, gleam@json:null()}]),
+        <<"{\"user\":null}"/utf8>>,
+        55,
+        get,
+        <<"/nested"/utf8>>},
+    Results = intent@rules_engine:check_rules([Rule], Response, <<"test"/utf8>>),
+    case Results of
+        [{rule_passed, _}] ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1481).
+-spec rules_engine_empty_object_test() -> nil.
+rules_engine_empty_object_test() ->
+    Rule = {rule,
+        <<"Empty object rule"/utf8>>,
+        <<"Handle empty objects"/utf8>>,
+        {'when', <<"== 200"/utf8>>, get, <<"/data"/utf8>>},
+        {rule_check, [], [], [<<"data"/utf8>>], [], <<""/utf8>>, <<""/utf8>>},
+        gleam@json:null()},
+    Response = {execution_result,
+        200,
+        gleam@dict:new(),
+        gleam@json:object([{<<"data"/utf8>>, gleam@json:object([])}]),
+        <<"{\"data\":{}}"/utf8>>,
+        65,
+        get,
+        <<"/data"/utf8>>},
+    Results = intent@rules_engine:check_rules([Rule], Response, <<"test"/utf8>>),
+    case Results of
+        [{rule_passed, _}] ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
