@@ -1,7 +1,7 @@
 -module(intent_test).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "test/intent_test.gleam").
--export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0, http_client_url_construction_simple_test/0, http_client_path_interpolation_test/0, http_client_missing_variable_interpolation_test/0, http_client_header_interpolation_test/0, http_client_header_merge_test/0, http_client_body_json_interpolation_test/0, http_client_invalid_url_test/0, http_client_https_url_test/0, http_client_custom_port_test/0, http_client_path_leading_slash_test/0, http_client_method_conversion_get_test/0, http_client_method_conversion_post_test/0, http_client_multiple_header_merge_test/0, rules_engine_check_when_status_equals_test/0, rules_engine_check_when_status_greater_than_test/0, rules_engine_check_when_status_less_than_test/0, rules_engine_check_when_method_mismatch_test/0, rules_engine_check_when_path_exact_match_test/0, rules_engine_check_when_path_regex_match_test/0, rules_engine_check_body_must_contain_test/0, rules_engine_check_body_must_not_contain_test/0, rules_engine_check_body_must_not_contain_violation_test/0, rules_engine_check_body_must_contain_violation_test/0, rules_engine_check_multiple_rules_test/0, rules_engine_format_violation_body_contains_test/0, rules_engine_format_violation_body_missing_test/0, rules_engine_format_violation_field_missing_test/0, rules_engine_format_violation_header_missing_test/0, resolver_complex_diamond_dependency_test/0, resolver_multiple_branches_test/0, resolver_deep_chain_test/0, rules_engine_empty_body_test/0, rules_engine_null_json_value_test/0, rules_engine_whitespace_body_test/0, rules_engine_nested_null_field_test/0, rules_engine_empty_object_test/0]).
+-export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0, http_client_url_construction_simple_test/0, http_client_path_interpolation_test/0, http_client_missing_variable_interpolation_test/0, http_client_header_interpolation_test/0, http_client_header_merge_test/0, http_client_body_json_interpolation_test/0, http_client_invalid_url_test/0, http_client_https_url_test/0, http_client_custom_port_test/0, http_client_path_leading_slash_test/0, http_client_method_conversion_get_test/0, http_client_method_conversion_post_test/0, http_client_multiple_header_merge_test/0, rules_engine_check_when_status_equals_test/0, rules_engine_check_when_status_greater_than_test/0, rules_engine_check_when_status_less_than_test/0, rules_engine_check_when_method_mismatch_test/0, rules_engine_check_when_path_exact_match_test/0, rules_engine_check_when_path_regex_match_test/0, rules_engine_check_body_must_contain_test/0, rules_engine_check_body_must_not_contain_test/0, rules_engine_check_body_must_not_contain_violation_test/0, rules_engine_check_body_must_contain_violation_test/0, rules_engine_check_multiple_rules_test/0, rules_engine_format_violation_body_contains_test/0, rules_engine_format_violation_body_missing_test/0, rules_engine_format_violation_field_missing_test/0, rules_engine_format_violation_header_missing_test/0, resolver_complex_diamond_dependency_test/0, resolver_multiple_branches_test/0, resolver_deep_chain_test/0, rules_engine_empty_body_test/0, rules_engine_null_json_value_test/0, rules_engine_whitespace_body_test/0, rules_engine_nested_null_field_test/0, rules_engine_empty_object_test/0, interpolate_unicode_variable_test/0, interpolate_unicode_in_path_test/0, rules_engine_unicode_body_content_test/0, rules_engine_emoji_in_description_test/0, interpolate_special_characters_test/0, http_client_unicode_header_test/0]).
 
 -file("test/intent_test.gleam", 15).
 -spec main() -> nil.
@@ -1500,4 +1500,152 @@ rules_engine_empty_object_test() ->
 
         _ ->
             gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1519).
+-spec interpolate_unicode_variable_test() -> nil.
+interpolate_unicode_variable_test() ->
+    Ctx = begin
+        _pipe = intent@interpolate:new_context(),
+        intent@interpolate:set_variable(
+            _pipe,
+            <<"emoji"/utf8>>,
+            json_string(<<"🎉"/utf8>>)
+        )
+    end,
+    Result = intent@interpolate:interpolate_string(
+        Ctx,
+        <<"status: ${emoji}"/utf8>>
+    ),
+    case Result of
+        {ok, S} ->
+            _pipe@1 = S,
+            gleeunit_ffi:should_equal(_pipe@1, <<"status: 🎉"/utf8>>);
+
+        {error, _} ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1532).
+-spec interpolate_unicode_in_path_test() -> nil.
+interpolate_unicode_in_path_test() ->
+    Ctx = begin
+        _pipe = intent@interpolate:new_context(),
+        intent@interpolate:set_variable(
+            _pipe,
+            <<"category"/utf8>>,
+            json_string(<<"réclame"/utf8>>)
+        )
+    end,
+    Result = intent@interpolate:interpolate_string(
+        Ctx,
+        <<"/search/${category}"/utf8>>
+    ),
+    case Result of
+        {ok, S} ->
+            _pipe@1 = S,
+            gleeunit_ffi:should_equal(_pipe@1, <<"/search/réclame"/utf8>>);
+
+        {error, _} ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1545).
+-spec rules_engine_unicode_body_content_test() -> nil.
+rules_engine_unicode_body_content_test() ->
+    Rule = {rule,
+        <<"Unicode content rule"/utf8>>,
+        <<"Check for Unicode in response"/utf8>>,
+        {'when', <<"== 200"/utf8>>, get, <<"/message"/utf8>>},
+        {rule_check, [], [<<"✓"/utf8>>], [], [], <<""/utf8>>, <<""/utf8>>},
+        gleam@json:null()},
+    Response = {execution_result,
+        200,
+        gleam@dict:new(),
+        gleam@json:null(),
+        <<"Status: ✓ All systems operational"/utf8>>,
+        50,
+        get,
+        <<"/message"/utf8>>},
+    Results = intent@rules_engine:check_rules([Rule], Response, <<"test"/utf8>>),
+    case Results of
+        [{rule_passed, _}] ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1579).
+-spec rules_engine_emoji_in_description_test() -> nil.
+rules_engine_emoji_in_description_test() ->
+    Rule = {rule,
+        <<"emoji_test"/utf8>>,
+        <<"Check emoji support 🚀 in descriptions"/utf8>>,
+        {'when', <<"== 200"/utf8>>, get, <<"/status"/utf8>>},
+        {rule_check, [], [], [], [], <<""/utf8>>, <<""/utf8>>},
+        gleam@json:null()},
+    Response = {execution_result,
+        200,
+        gleam@dict:new(),
+        gleam@json:null(),
+        <<"ok"/utf8>>,
+        50,
+        get,
+        <<"/status"/utf8>>},
+    Results = intent@rules_engine:check_rules([Rule], Response, <<"test"/utf8>>),
+    case Results of
+        [{rule_passed, Name}] ->
+            _pipe = Name,
+            gleeunit_ffi:should_equal(_pipe, <<"emoji_test"/utf8>>);
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1615).
+-spec interpolate_special_characters_test() -> nil.
+interpolate_special_characters_test() ->
+    Ctx = begin
+        _pipe = intent@interpolate:new_context(),
+        intent@interpolate:set_variable(
+            _pipe,
+            <<"special"/utf8>>,
+            json_string(<<"@#$%^&*()"/utf8>>)
+        )
+    end,
+    Result = intent@interpolate:interpolate_string(
+        Ctx,
+        <<"chars: ${special}"/utf8>>
+    ),
+    case Result of
+        {ok, S} ->
+            _pipe@1 = S,
+            gleeunit_ffi:should_equal(_pipe@1, <<"chars: @#$%^&*()"/utf8>>);
+
+        {error, _} ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 1628).
+-spec http_client_unicode_header_test() -> nil.
+http_client_unicode_header_test() ->
+    Config = {config,
+        <<"http://localhost:8080"/utf8>>,
+        5000,
+        maps:from_list([{<<"X-Custom"/utf8>>, <<"café"/utf8>>}])},
+    Request = {request,
+        get,
+        <<"/test"/utf8>>,
+        maps:from_list([{<<"X-Greeting"/utf8>>, <<"こんにちは"/utf8>>}]),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
     end.

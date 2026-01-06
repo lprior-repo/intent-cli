@@ -1511,3 +1511,143 @@ pub fn rules_engine_empty_object_test() {
     _ -> should.fail()
   }
 }
+
+// ============================================================================
+// Unicode and Special Character Support Tests
+// ============================================================================
+
+pub fn interpolate_unicode_variable_test() {
+  let ctx =
+    interpolate.new_context()
+    |> interpolate.set_variable("emoji", json_string("🎉"))
+
+  let result = interpolate.interpolate_string(ctx, "status: ${emoji}")
+
+  case result {
+    Ok(s) -> s |> should.equal("status: 🎉")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn interpolate_unicode_in_path_test() {
+  let ctx =
+    interpolate.new_context()
+    |> interpolate.set_variable("category", json_string("réclame"))
+
+  let result = interpolate.interpolate_string(ctx, "/search/${category}")
+
+  case result {
+    Ok(s) -> s |> should.equal("/search/réclame")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn rules_engine_unicode_body_content_test() {
+  // Test body checks with Unicode characters
+  let rule = types.Rule(
+    name: "Unicode content rule",
+    description: "Check for Unicode in response",
+    when: types.When(status: "== 200", method: types.Get, path: "/message"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: ["✓"],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = http_client.ExecutionResult(
+    status: 200,
+    headers: dict.new(),
+    body: json.null(),
+    raw_body: "Status: ✓ All systems operational",
+    elapsed_ms: 50,
+    request_method: types.Get,
+    request_path: "/message",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test")
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_emoji_in_description_test() {
+  // Test emoji in rule descriptions
+  let rule = types.Rule(
+    name: "emoji_test",
+    description: "Check emoji support 🚀 in descriptions",
+    when: types.When(status: "== 200", method: types.Get, path: "/status"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = http_client.ExecutionResult(
+    status: 200,
+    headers: dict.new(),
+    body: json.null(),
+    raw_body: "ok",
+    elapsed_ms: 50,
+    request_method: types.Get,
+    request_path: "/status",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test")
+  // Description should contain emoji but not affect rule execution
+  case results {
+    [rules_engine.RulePassed(name)] ->
+      name |> should.equal("emoji_test")
+    _ -> should.fail()
+  }
+}
+
+pub fn interpolate_special_characters_test() {
+  let ctx =
+    interpolate.new_context()
+    |> interpolate.set_variable("special", json_string("@#$%^&*()"))
+
+  let result = interpolate.interpolate_string(ctx, "chars: ${special}")
+
+  case result {
+    Ok(s) -> s |> should.equal("chars: @#$%^&*()")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn http_client_unicode_header_test() {
+  // Test Unicode in HTTP headers
+  let config = types.Config(
+    base_url: "http://localhost:8080",
+    timeout_ms: 5000,
+    headers: dict.from_list([#("X-Custom", "café")]),
+  )
+
+  let request = types.Request(
+    method: types.Get,
+    path: "/test",
+    headers: dict.from_list([#("X-Greeting", "こんにちは")]),
+    query: dict.new(),
+    body: json.null(),
+  )
+
+  let ctx = interpolate.new_context()
+
+  let result = http_client.execute_request(config, request, ctx)
+
+  // Should handle Unicode headers without interpolation errors
+  case result {
+    Error(http_client.InterpolationError(_)) -> should.fail()
+    _ -> should.be_ok(Ok(Nil))
+  }
+}
