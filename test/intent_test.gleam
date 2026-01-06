@@ -7,10 +7,12 @@ import gleeunit/should
 import intent/interpolate
 import intent/interview
 import intent/interview_questions
+import intent/interview_storage
 import intent/resolver
 import intent/rules_engine
 import intent/types
 import intent/http_client
+import intent/bead_templates
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -1747,4 +1749,679 @@ pub fn json_null_handling_test() {
   let json_str = json.to_string(value)
 
   json_str |> should.equal("null")
+}
+
+// ============================================================================
+// Beads Generation Tests
+// ============================================================================
+
+pub fn bead_generation_api_profile_test() {
+  // Test generating beads from API profile session
+  let session = interview.InterviewSession(
+    id: "test-api-session",
+    profile: interview.Api,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "What API endpoints do you need?",
+        response: "GET /users and POST /users for user management",
+        round: 1,
+        perspective: interview_questions.User,
+        confidence: 0.95,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+      interview.Answer(
+        question_id: "q2",
+        question_text: "What is the endpoint path?",
+        response: "/users",
+        round: 1,
+        perspective: interview_questions.Developer,
+        confidence: 0.9,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "API interview notes",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+
+  // Verify beads were generated
+  list.is_empty(beads) |> should.equal(False)
+
+  // Verify first bead structure
+  case list.first(beads) {
+    Ok(first_bead) -> {
+      first_bead.profile_type |> should.equal("api")
+      first_bead.issue_type |> should.equal("api_endpoint")
+      first_bead.priority |> should.equal(3)
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn bead_generation_cli_profile_test() {
+  // Test generating beads from CLI profile session
+  let session = interview.InterviewSession(
+    id: "test-cli-session",
+    profile: interview.Cli,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "What commands do you need?",
+        response: "list command to show all users",
+        round: 1,
+        perspective: interview_questions.User,
+        confidence: 0.9,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "CLI interview notes",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+  list.is_empty(beads) |> should.equal(False)
+
+  case list.first(beads) {
+    Ok(first_bead) ->
+      first_bead.profile_type |> should.equal("cli")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn bead_to_jsonl_format_test() {
+  // Test bead to JSONL conversion
+  let bead = bead_templates.BeadRecord(
+    title: "Test Implementation",
+    description: "A test bead for validation",
+    profile_type: "api",
+    priority: 2,
+    issue_type: "api_endpoint",
+    labels: ["api", "test"],
+    ai_hints: "Implement according to spec",
+    acceptance_criteria: ["Works correctly", "Passes tests"],
+    dependencies: [],
+  )
+
+  let jsonl_line = bead_templates.bead_to_jsonl_line(bead)
+
+  // Verify JSON structure
+  jsonl_line |> string.contains("\"title\"") |> should.be_true()
+  jsonl_line |> string.contains("\"Test Implementation\"") |> should.be_true()
+  jsonl_line |> string.contains("\"description\"") |> should.be_true()
+  jsonl_line |> string.contains("\"profile_type\"") |> should.be_true()
+  jsonl_line |> string.contains("\"api\"") |> should.be_true()
+}
+
+pub fn beads_to_jsonl_multiple_test() {
+  // Test converting multiple beads to JSONL format
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "First Bead",
+      description: "First task",
+      profile_type: "api",
+      priority: 3,
+      issue_type: "feature",
+      labels: ["high"],
+      ai_hints: "Do this first",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "Second Bead",
+      description: "Second task",
+      profile_type: "data",
+      priority: 2,
+      issue_type: "schema",
+      labels: ["medium"],
+      ai_hints: "Then do this",
+      acceptance_criteria: [],
+      dependencies: ["First Bead"],
+    ),
+  ]
+
+  let jsonl = bead_templates.beads_to_jsonl(beads)
+
+  // Verify multiple lines
+  let lines = string.split(jsonl, "\n")
+  list.length(lines) |> should.equal(2)
+
+  // Verify both beads are present
+  jsonl |> string.contains("First Bead") |> should.be_true()
+  jsonl |> string.contains("Second Bead") |> should.be_true()
+  jsonl |> string.contains("First task") |> should.be_true()
+  jsonl |> string.contains("Second task") |> should.be_true()
+}
+
+pub fn bead_stats_calculation_test() {
+  // Test bead statistics calculation
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "API 1",
+      description: "desc",
+      profile_type: "api",
+      priority: 3,
+      issue_type: "endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "API 2",
+      description: "desc",
+      profile_type: "api",
+      priority: 3,
+      issue_type: "endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "Data 1",
+      description: "desc",
+      profile_type: "data",
+      priority: 2,
+      issue_type: "schema",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let stats = bead_templates.bead_stats(beads)
+
+  stats.total |> should.equal(3)
+
+  // Verify by_type counts
+  dict.get(stats.by_type, "endpoint")
+  |> should.equal(Ok(2))
+
+  dict.get(stats.by_type, "schema")
+  |> should.equal(Ok(1))
+
+  // Verify by_priority counts
+  dict.get(stats.by_priority, 3)
+  |> should.equal(Ok(2))
+
+  dict.get(stats.by_priority, 2)
+  |> should.equal(Ok(1))
+}
+
+pub fn filter_beads_by_type_test() {
+  // Test filtering beads by issue type
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "Endpoint 1",
+      description: "desc",
+      profile_type: "api",
+      priority: 1,
+      issue_type: "endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "Schema 1",
+      description: "desc",
+      profile_type: "data",
+      priority: 1,
+      issue_type: "schema",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "Endpoint 2",
+      description: "desc",
+      profile_type: "api",
+      priority: 1,
+      issue_type: "endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let endpoints = bead_templates.filter_beads_by_type(beads, "endpoint")
+  list.length(endpoints) |> should.equal(2)
+
+  let schemas = bead_templates.filter_beads_by_type(beads, "schema")
+  list.length(schemas) |> should.equal(1)
+}
+
+pub fn sort_beads_by_priority_test() {
+  // Test sorting beads by priority (higher number = higher priority)
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "Low Priority",
+      description: "desc",
+      profile_type: "api",
+      priority: 1,
+      issue_type: "task",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "High Priority",
+      description: "desc",
+      profile_type: "api",
+      priority: 5,
+      issue_type: "task",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "Medium Priority",
+      description: "desc",
+      profile_type: "api",
+      priority: 3,
+      issue_type: "task",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let sorted = bead_templates.sort_beads_by_priority(beads)
+
+  // First should be highest priority
+  case list.first(sorted) {
+    Ok(first) -> first.title |> should.equal("High Priority")
+    Error(_) -> should.fail()
+  }
+
+  // Last should be lowest priority
+  case list.last(sorted) {
+    Ok(last) -> last.title |> should.equal("Low Priority")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn add_bead_dependency_test() {
+  // Test adding dependencies between beads
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "Schema Design",
+      description: "desc",
+      profile_type: "data",
+      priority: 1,
+      issue_type: "schema",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+    bead_templates.BeadRecord(
+      title: "API Endpoint",
+      description: "desc",
+      profile_type: "api",
+      priority: 1,
+      issue_type: "endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let updated =
+    bead_templates.add_dependency(beads, "API Endpoint", "Schema Design")
+
+  case list.last(updated) {
+    Ok(endpoint_bead) -> {
+      endpoint_bead.title |> should.equal("API Endpoint")
+      list.contains(endpoint_bead.dependencies, "Schema Design")
+      |> should.be_true()
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn empty_session_beads_test() {
+  // Test generating beads from session with no answers
+  let session = interview.InterviewSession(
+    id: "empty-session",
+    profile: interview.Api,
+    stage: interview.Complete,
+    rounds_completed: 0,
+    answers: [],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+
+  // Should handle empty session gracefully
+  list.length(beads) |> should.equal(0)
+}
+
+pub fn interview_session_to_json_test() {
+  // Test conversion of interview session to JSON for storage
+  let session = interview.InterviewSession(
+    id: "test-session-123",
+    profile: interview.Api,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "Test question",
+        response: "Test response",
+        round: 1,
+        perspective: interview_questions.User,
+        confidence: 0.85,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "Test notes",
+  )
+
+  let json = interview_storage.session_to_json(session)
+  let json_str = json.to_string(json)
+
+  // Verify session data is serialized
+  json_str |> string.contains("test-session-123") |> should.be_true()
+  json_str |> string.contains("\"api\"") |> should.be_true()
+  json_str |> string.contains("\"complete\"") |> should.be_true()
+  json_str |> string.contains("Test question") |> should.be_true()
+}
+
+pub fn bead_generation_event_profile_test() {
+  // Test generating beads from Event profile session
+  let session = interview.InterviewSession(
+    id: "test-event-session",
+    profile: interview.Event,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "What events should be emitted?",
+        response: "user.created and user.updated events",
+        round: 1,
+        perspective: interview_questions.Developer,
+        confidence: 0.92,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "Event interview notes",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+  list.is_empty(beads) |> should.equal(False)
+
+  case list.first(beads) {
+    Ok(first_bead) ->
+      first_bead.profile_type |> should.equal("event")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn bead_generation_data_profile_test() {
+  // Test generating beads from Data profile session
+  let session = interview.InterviewSession(
+    id: "test-data-session",
+    profile: interview.Data,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "What data models are needed?",
+        response: "User model with id, name, email fields",
+        round: 1,
+        perspective: interview_questions.Developer,
+        confidence: 0.88,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "Data interview notes",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+  list.is_empty(beads) |> should.equal(False)
+
+  case list.first(beads) {
+    Ok(first_bead) ->
+      first_bead.profile_type |> should.equal("data")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn bead_generation_workflow_profile_test() {
+  // Test generating beads from Workflow profile session
+  let session = interview.InterviewSession(
+    id: "test-workflow-session",
+    profile: interview.Workflow,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "What workflows exist?",
+        response: "User signup workflow with email verification",
+        round: 1,
+        perspective: interview_questions.Business,
+        confidence: 0.9,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "Workflow interview notes",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+  list.is_empty(beads) |> should.equal(False)
+
+  case list.first(beads) {
+    Ok(first_bead) ->
+      first_bead.profile_type |> should.equal("workflow")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn bead_generation_ui_profile_test() {
+  // Test generating beads from UI profile session
+  let session = interview.InterviewSession(
+    id: "test-ui-session",
+    profile: interview.UI,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "What UI screens do you need?",
+        response: "User dashboard and settings screen",
+        round: 1,
+        perspective: interview_questions.User,
+        confidence: 0.87,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "UI interview notes",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+  list.is_empty(beads) |> should.equal(False)
+
+  case list.first(beads) {
+    Ok(first_bead) ->
+      first_bead.profile_type |> should.equal("ui")
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn bead_record_required_fields_test() {
+  // Test that bead records have all required fields
+  let bead = bead_templates.BeadRecord(
+    title: "Required fields test",
+    description: "Testing all required fields present",
+    profile_type: "api",
+    priority: 1,
+    issue_type: "endpoint",
+    labels: ["test"],
+    ai_hints: "Test hints",
+    acceptance_criteria: ["Criterion 1"],
+    dependencies: ["dependency1"],
+  )
+
+  // Verify all fields are non-empty strings or have sensible values
+  string.is_empty(bead.title) |> should.equal(False)
+  string.is_empty(bead.description) |> should.equal(False)
+  string.is_empty(bead.profile_type) |> should.equal(False)
+  bead.priority |> should.equal(1)
+  string.is_empty(bead.issue_type) |> should.equal(False)
+  list.length(bead.labels) |> should.equal(1)
+  string.is_empty(bead.ai_hints) |> should.equal(False)
+  list.length(bead.acceptance_criteria) |> should.equal(1)
+  list.length(bead.dependencies) |> should.equal(1)
+}
+
+pub fn bead_stats_empty_list_test() {
+  // Test stats calculation with empty bead list
+  let beads: List(bead_templates.BeadRecord) = []
+  let stats = bead_templates.bead_stats(beads)
+
+  stats.total |> should.equal(0)
+  dict.is_empty(stats.by_type) |> should.be_true()
+  dict.is_empty(stats.by_priority) |> should.be_true()
+}
+
+pub fn bead_multiple_dependencies_test() {
+  // Test adding multiple dependencies to a bead
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "Implementation",
+      description: "desc",
+      profile_type: "api",
+      priority: 1,
+      issue_type: "endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let step1 = bead_templates.add_dependency(beads, "Implementation", "Schema")
+  let step2 = bead_templates.add_dependency(step1, "Implementation", "Auth")
+
+  case list.first(step2) {
+    Ok(bead) -> {
+      list.length(bead.dependencies) |> should.equal(2)
+      list.contains(bead.dependencies, "Schema") |> should.be_true()
+      list.contains(bead.dependencies, "Auth") |> should.be_true()
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn bead_generation_preserves_answer_content_test() {
+  // Test that bead generation uses interview answer content
+  let answer_text = "Create an API endpoint at /api/users that returns a list of all users with pagination support"
+  let session = interview.InterviewSession(
+    id: "test-content-session",
+    profile: interview.Api,
+    stage: interview.Complete,
+    rounds_completed: 5,
+    answers: [
+      interview.Answer(
+        question_id: "q1",
+        question_text: "Describe the endpoint",
+        response: answer_text,
+        round: 1,
+        perspective: interview_questions.Developer,
+        confidence: 0.95,
+        extracted: dict.new(),
+        notes: "",
+        timestamp: "2026-01-05T00:00:00Z",
+      ),
+    ],
+    gaps: [],
+    conflicts: [],
+    created_at: "2026-01-05T00:00:00Z",
+    updated_at: "2026-01-05T00:00:00Z",
+    completed_at: "2026-01-05T00:00:00Z",
+    raw_notes: "Content preservation test notes",
+  )
+
+  let beads = bead_templates.generate_beads_from_session(session)
+
+  case list.first(beads) {
+    Ok(first_bead) -> {
+      // Bead description should contain the answer content
+      first_bead.description
+      |> string.contains(answer_text)
+      |> should.be_true()
+    }
+    Error(_) -> should.fail()
+  }
 }
