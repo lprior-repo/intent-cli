@@ -220,7 +220,87 @@ parse_response(Resp, Elapsed_ms, Method, Path) ->
 -file("src/intent/http_client.gleam", 228).
 -spec format_httpc_error(gleam@dynamic:dynamic_()) -> binary().
 format_httpc_error(Error) ->
-    <<"HTTP request failed: "/utf8, (gleam@string:inspect(Error))/binary>>.
+    Error_str = begin
+        _pipe = gleam@string:inspect(Error),
+        gleam@string:lowercase(_pipe)
+    end,
+    Check_patterns = fun(Patterns) ->
+        gleam@list:any(
+            Patterns,
+            fun(P) -> gleam_stdlib:contains_string(Error_str, P) end
+        )
+    end,
+    Message = case Check_patterns([<<"timeout"/utf8>>]) of
+        true ->
+            <<<<<<"Connection timeout: The request took too long to complete.\n"/utf8,
+                        "  • Check if the target API is responding slowly\n"/utf8>>/binary,
+                    "  • Try increasing the timeout_ms in your config\n"/utf8>>/binary,
+                "  • Verify the base_url is correct and accessible"/utf8>>;
+
+        false ->
+            case Check_patterns(
+                [<<"econnrefused"/utf8>>, <<"connection_refused"/utf8>>]
+            ) of
+                true ->
+                    <<<<<<"Connection refused: Cannot connect to the target server.\n"/utf8,
+                                "  • Check if the base_url is correct\n"/utf8>>/binary,
+                            "  • Verify the server is running and listening on the specified port\n"/utf8>>/binary,
+                        "  • Ensure your network firewall allows connections to this server"/utf8>>;
+
+                false ->
+                    case Check_patterns(
+                        [<<"nxdomain"/utf8>>, <<"enotfound"/utf8>>]
+                    ) of
+                        true ->
+                            <<<<<<"DNS resolution failed: Cannot find the hostname.\n"/utf8,
+                                        "  • Check if the base_url hostname is spelled correctly\n"/utf8>>/binary,
+                                    "  • Verify your network connection\n"/utf8>>/binary,
+                                "  • Try pinging the hostname to test DNS resolution"/utf8>>;
+
+                        false ->
+                            case Check_patterns(
+                                [<<"ssl"/utf8>>, <<"certificate"/utf8>>]
+                            ) of
+                                true ->
+                                    <<<<<<"SSL/TLS certificate error: Cannot verify the server's certificate.\n"/utf8,
+                                                "  • The server may have an invalid or expired certificate\n"/utf8>>/binary,
+                                            "  • Check if your system's certificate store is up to date\n"/utf8>>/binary,
+                                        "  • For development, ensure you're using the correct base_url scheme (http vs https)"/utf8>>;
+
+                                false ->
+                                    case Check_patterns([<<"eacces"/utf8>>]) of
+                                        true ->
+                                            <<<<"Permission denied: No access to the specified resource.\n"/utf8,
+                                                    "  • Check if you have permission to access the target URL\n"/utf8>>/binary,
+                                                "  • Verify the base_url and path are correct"/utf8>>;
+
+                                        false ->
+                                            case Check_patterns(
+                                                [<<"ehostunreach"/utf8>>,
+                                                    <<"enetunreach"/utf8>>]
+                                            ) of
+                                                true ->
+                                                    <<<<<<"Network unreachable: Cannot reach the target host.\n"/utf8,
+                                                                "  • Check your network connection\n"/utf8>>/binary,
+                                                            "  • Verify the host is accessible from your location\n"/utf8>>/binary,
+                                                        "  • Check for firewall or VPN restrictions"/utf8>>;
+
+                                                false ->
+                                                    <<<<<<<<<<"HTTP request failed: "/utf8,
+                                                                        (gleam@string:inspect(
+                                                                            Error
+                                                                        ))/binary>>/binary,
+                                                                    "\n"/utf8>>/binary,
+                                                                "  • Check the base_url and ensure the target server is reachable\n"/utf8>>/binary,
+                                                            "  • Verify the request path and headers are correct\n"/utf8>>/binary,
+                                                        "  • Try running with a simpler request to isolate the issue"/utf8>>
+                                            end
+                                    end
+                            end
+                    end
+            end
+    end,
+    Message.
 
 -file("src/intent/http_client.gleam", 181).
 -spec execute_with_timing(

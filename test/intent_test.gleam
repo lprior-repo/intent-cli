@@ -8,7 +8,9 @@ import intent/interpolate
 import intent/interview
 import intent/interview_questions
 import intent/resolver
+import intent/rules_engine
 import intent/types
+import intent/http_client
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -522,8 +524,6 @@ pub fn interview_format_question_critical_test() {
 // HTTP Client Tests
 // ============================================================================
 
-import intent/http_client
-
 pub fn http_client_url_construction_simple_test() {
   // Test simple URL construction without interpolation
   let config = types.Config(
@@ -896,4 +896,366 @@ pub fn http_client_multiple_header_merge_test() {
     Error(http_client.InterpolationError(_)) -> should.fail()
     _ -> should.be_ok(Ok(Nil))
   }
+}
+
+// ============================================================================
+// Rules Engine Tests
+// ============================================================================
+
+fn make_execution_result(
+  status: Int,
+  body_str: String,
+  method: types.Method,
+  path: String,
+) -> http_client.ExecutionResult {
+  http_client.ExecutionResult(
+    status: status,
+    headers: dict.new(),
+    body: json.object([#("test", json.string(body_str))]),
+    raw_body: body_str,
+    elapsed_ms: 100,
+    request_method: method,
+    request_path: path,
+  )
+}
+
+pub fn rules_engine_check_when_status_equals_test() {
+  // Test status condition with exact match (== 200)
+  let rule = types.Rule(
+    name: "Check 200 OK",
+    description: "Verify 200 response",
+    when: types.When(status: "== 200", method: types.Get, path: "/users"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "ok", types.Get, "/users")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  list.length(results)
+  |> should.equal(1)
+
+  case results {
+    [rules_engine.RulePassed(name)] -> name |> should.equal("Check 200 OK")
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_when_status_greater_than_test() {
+  // Test status condition with > operator
+  let rule = types.Rule(
+    name: "Check 4xx error",
+    description: "Verify error status",
+    when: types.When(status: "> 399", method: types.Post, path: "/create"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(400, "bad request", types.Post, "/create")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  list.length(results)
+  |> should.equal(1)
+
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_when_status_less_than_test() {
+  // Test status condition with < operator
+  let rule = types.Rule(
+    name: "Check success range",
+    description: "Verify 2xx status",
+    when: types.When(status: "< 300", method: types.Get, path: "/data"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(201, "created", types.Get, "/data")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_when_method_mismatch_test() {
+  // Test that rule doesn't apply when method doesn't match
+  let rule = types.Rule(
+    name: "POST rule",
+    description: "Only for POST",
+    when: types.When(status: "== 200", method: types.Post, path: "/create"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "ok", types.Get, "/create")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  // Rule should not apply because method is GET, not POST
+  list.length(results)
+  |> should.equal(0)
+}
+
+pub fn rules_engine_check_when_path_exact_match_test() {
+  // Test exact path matching
+  let rule = types.Rule(
+    name: "Exact path rule",
+    description: "Check exact path",
+    when: types.When(status: "== 200", method: types.Get, path: "/exact/path"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "ok", types.Get, "/exact/path")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_when_path_regex_match_test() {
+  // Test regex path matching
+  let rule = types.Rule(
+    name: "Regex path rule",
+    description: "Check regex path",
+    when: types.When(status: "== 200", method: types.Get, path: "^/users/.*"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "ok", types.Get, "/users/123")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_body_must_contain_test() {
+  // Test body_must_contain check
+  let rule = types.Rule(
+    name: "Body content rule",
+    description: "Verify body contains text",
+    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: ["success"],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "Operation was a success", types.Get, "/test")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_body_must_not_contain_test() {
+  // Test body_must_not_contain check
+  let rule = types.Rule(
+    name: "No error rule",
+    description: "Verify no error in body",
+    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    check: types.RuleCheck(
+      body_must_not_contain: ["error"],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "This is clean data", types.Get, "/test")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_body_must_not_contain_violation_test() {
+  // Test body_must_not_contain violation
+  let rule = types.Rule(
+    name: "No error rule",
+    description: "Verify no error in body",
+    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    check: types.RuleCheck(
+      body_must_not_contain: ["error"],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response =
+    make_execution_result(200, "This has an error in it", types.Get, "/test")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [rules_engine.RuleFailed(name, _, violations)] -> {
+      name |> should.equal("No error rule")
+      list.length(violations) |> should.equal(1)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_body_must_contain_violation_test() {
+  // Test body_must_contain violation
+  let rule = types.Rule(
+    name: "Required text rule",
+    description: "Verify required text",
+    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: ["required"],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "This is missing it", types.Get, "/test")
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [rules_engine.RuleFailed(_, _, violations)] -> {
+      list.length(violations) |> should.equal(1)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn rules_engine_check_multiple_rules_test() {
+  // Test multiple rules applied in sequence
+  let rule1 = types.Rule(
+    name: "Rule 1",
+    description: "First rule",
+    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let rule2 = types.Rule(
+    name: "Rule 2",
+    description: "Second rule",
+    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    check: types.RuleCheck(
+      body_must_not_contain: [],
+      body_must_contain: [],
+      fields_must_exist: [],
+      fields_must_not_exist: [],
+      header_must_exist: "",
+      header_must_not_exist: "",
+    ),
+    example: json.null(),
+  )
+
+  let response = make_execution_result(200, "ok", types.Get, "/test")
+  let results = rules_engine.check_rules([rule1, rule2], response, "test_behavior")
+
+  list.length(results) |> should.equal(2)
+}
+
+pub fn rules_engine_format_violation_body_contains_test() {
+  let violation = rules_engine.BodyContains("forbidden", "response body")
+  let formatted = rules_engine.format_violation(violation)
+  formatted
+  |> string.contains("forbidden")
+  |> should.be_true()
+}
+
+pub fn rules_engine_format_violation_body_missing_test() {
+  let violation = rules_engine.BodyMissing("required")
+  let formatted = rules_engine.format_violation(violation)
+  formatted
+  |> string.contains("required")
+  |> should.be_true()
+}
+
+pub fn rules_engine_format_violation_field_missing_test() {
+  let violation = rules_engine.FieldMissing("user.id")
+  let formatted = rules_engine.format_violation(violation)
+  formatted
+  |> string.contains("user.id")
+  |> should.be_true()
+}
+
+pub fn rules_engine_format_violation_header_missing_test() {
+  let violation = rules_engine.HeaderMissing("X-Custom")
+  let formatted = rules_engine.format_violation(violation)
+  formatted
+  |> string.contains("X-Custom")
+  |> should.be_true()
 }
