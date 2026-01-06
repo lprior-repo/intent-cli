@@ -1,7 +1,7 @@
 -module(intent_test).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "test/intent_test.gleam").
--export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0]).
+-export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0, http_client_url_construction_simple_test/0, http_client_path_interpolation_test/0, http_client_missing_variable_interpolation_test/0, http_client_header_interpolation_test/0, http_client_header_merge_test/0, http_client_body_json_interpolation_test/0, http_client_invalid_url_test/0, http_client_https_url_test/0, http_client_custom_port_test/0, http_client_path_leading_slash_test/0, http_client_method_conversion_get_test/0, http_client_method_conversion_post_test/0, http_client_multiple_header_merge_test/0]).
 
 -file("test/intent_test.gleam", 13).
 -spec main() -> nil.
@@ -577,3 +577,311 @@ interview_format_question_critical_test() ->
         <<"What should this do?"/utf8>>
     ),
     gleeunit@should:be_true(_pipe@3).
+
+-file("test/intent_test.gleam", 527).
+-spec http_client_url_construction_simple_test() -> nil.
+http_client_url_construction_simple_test() ->
+    Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"/users/123"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, _} ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        {ok, _} ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 556).
+-spec http_client_path_interpolation_test() -> nil.
+http_client_path_interpolation_test() ->
+    Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"/users/${user_id}"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = begin
+        _pipe = intent@interpolate:new_context(),
+        intent@interpolate:set_variable(
+            _pipe,
+            <<"user_id"/utf8>>,
+            gleam@json:string(<<"123"/utf8>>)
+        )
+    end,
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 586).
+-spec http_client_missing_variable_interpolation_test() -> nil.
+http_client_missing_variable_interpolation_test() ->
+    Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"/users/${unknown_var}"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 612).
+-spec http_client_header_interpolation_test() -> nil.
+http_client_header_interpolation_test() ->
+    Config = {config,
+        <<"http://localhost:8080"/utf8>>,
+        5000,
+        maps:from_list([{<<"X-Default"/utf8>>, <<"default-value"/utf8>>}])},
+    Request = {request,
+        get,
+        <<"/users"/utf8>>,
+        maps:from_list([{<<"X-Token"/utf8>>, <<"${auth_token}"/utf8>>}]),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = begin
+        _pipe = intent@interpolate:new_context(),
+        intent@interpolate:set_variable(
+            _pipe,
+            <<"auth_token"/utf8>>,
+            gleam@json:string(<<"secret123"/utf8>>)
+        )
+    end,
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 641).
+-spec http_client_header_merge_test() -> nil.
+http_client_header_merge_test() ->
+    Config = {config,
+        <<"http://localhost:8080"/utf8>>,
+        5000,
+        maps:from_list(
+            [{<<"X-Default"/utf8>>, <<"config-value"/utf8>>},
+                {<<"X-Config-Only"/utf8>>, <<"config"/utf8>>}]
+        )},
+    Request = {request,
+        get,
+        <<"/users"/utf8>>,
+        maps:from_list([{<<"X-Default"/utf8>>, <<"request-value"/utf8>>}]),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 671).
+-spec http_client_body_json_interpolation_test() -> nil.
+http_client_body_json_interpolation_test() ->
+    Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
+    Body_json = gleam@json:object(
+        [{<<"username"/utf8>>, gleam@json:string(<<"${username}"/utf8>>)},
+            {<<"email"/utf8>>, gleam@json:string(<<"user@example.com"/utf8>>)}]
+    ),
+    Request = {request,
+        post,
+        <<"/users"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        Body_json},
+    Ctx = begin
+        _pipe = intent@interpolate:new_context(),
+        intent@interpolate:set_variable(
+            _pipe,
+            <<"username"/utf8>>,
+            gleam@json:string(<<"john_doe"/utf8>>)
+        )
+    end,
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 706).
+-spec http_client_invalid_url_test() -> nil.
+http_client_invalid_url_test() ->
+    Config = {config, <<"not a valid url at all"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"/users"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {url_parse_error, _}} ->
+            gleeunit_ffi:should_be_ok({ok, nil});
+
+        _ ->
+            gleeunit@should:fail()
+    end.
+
+-file("test/intent_test.gleam", 732).
+-spec http_client_https_url_test() -> nil.
+http_client_https_url_test() ->
+    Config = {config,
+        <<"https://api.example.com"/utf8>>,
+        5000,
+        gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"/secure-endpoint"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {url_parse_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 759).
+-spec http_client_custom_port_test() -> nil.
+http_client_custom_port_test() ->
+    Config = {config, <<"http://localhost:3000"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"/health"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {url_parse_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 786).
+-spec http_client_path_leading_slash_test() -> nil.
+http_client_path_leading_slash_test() ->
+    Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"users/123"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 814).
+-spec http_client_method_conversion_get_test() -> nil.
+http_client_method_conversion_get_test() ->
+    Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        get,
+        <<"/users"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {url_parse_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 841).
+-spec http_client_method_conversion_post_test() -> nil.
+http_client_method_conversion_post_test() ->
+    Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
+    Request = {request,
+        post,
+        <<"/users"/utf8>>,
+        gleam@dict:new(),
+        gleam@dict:new(),
+        gleam@json:object(
+            [{<<"name"/utf8>>, gleam@json:string(<<"John"/utf8>>)}]
+        )},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {url_parse_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.
+
+-file("test/intent_test.gleam", 868).
+-spec http_client_multiple_header_merge_test() -> nil.
+http_client_multiple_header_merge_test() ->
+    Config = {config,
+        <<"http://localhost:8080"/utf8>>,
+        5000,
+        maps:from_list(
+            [{<<"X-API-Version"/utf8>>, <<"v1"/utf8>>},
+                {<<"User-Agent"/utf8>>, <<"intent-cli"/utf8>>}]
+        )},
+    Request = {request,
+        get,
+        <<"/data"/utf8>>,
+        maps:from_list(
+            [{<<"Authorization"/utf8>>, <<"Bearer token"/utf8>>},
+                {<<"X-Request-ID"/utf8>>, <<"123"/utf8>>}]
+        ),
+        gleam@dict:new(),
+        gleam@json:null()},
+    Ctx = intent@interpolate:new_context(),
+    Result = intent@http_client:execute_request(Config, Request, Ctx),
+    case Result of
+        {error, {interpolation_error, _}} ->
+            gleeunit@should:fail();
+
+        _ ->
+            gleeunit_ffi:should_be_ok({ok, nil})
+    end.

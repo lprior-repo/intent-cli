@@ -11,7 +11,7 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--file("src/intent.gleam", 231).
+-file("src/intent.gleam", 243).
 -spec print_spec_summary(intent@types:spec()) -> nil.
 print_spec_summary(Spec) ->
     gleam@io:println(<<"Spec: "/utf8, (erlang:element(2, Spec))/binary>>),
@@ -104,7 +104,7 @@ print_spec_summary(Spec) ->
     end,
     nil.
 
--file("src/intent.gleam", 702).
+-file("src/intent.gleam", 786).
 ?DOC(" Helper: convert Profile to string for questions module\n").
 -spec profile_to_string(intent@interview:profile()) -> binary().
 profile_to_string(Profile) ->
@@ -128,7 +128,7 @@ profile_to_string(Profile) ->
             <<"ui"/utf8>>
     end.
 
--file("src/intent.gleam", 713).
+-file("src/intent.gleam", 797).
 -spec profile_to_display_string(intent@interview:profile()) -> binary().
 profile_to_display_string(Profile) ->
     case Profile of
@@ -151,7 +151,7 @@ profile_to_display_string(Profile) ->
             <<"User Interface"/utf8>>
     end.
 
--file("src/intent.gleam", 633).
+-file("src/intent.gleam", 717).
 ?DOC(" Ask a single question and collect answer\n").
 -spec ask_single_question(
     intent@interview:interview_session(),
@@ -226,7 +226,7 @@ ask_single_question(Session, Question, Round) ->
     ),
     Sess_final.
 
--file("src/intent.gleam", 610).
+-file("src/intent.gleam", 694).
 ?DOC(" Ask all unanswered questions in a round\n").
 -spec ask_questions_in_round(
     intent@interview:interview_session(),
@@ -255,7 +255,7 @@ ask_questions_in_round(Session, Round, _) ->
         fun(Sess, Question) -> ask_single_question(Sess, Question, Round) end
     ).
 
--file("src/intent.gleam", 568).
+-file("src/intent.gleam", 652).
 ?DOC(" Main interview loop - asks questions round by round\n").
 -spec interview_loop(intent@interview:interview_session(), integer()) -> intent@interview:interview_session().
 interview_loop(Session, Round) ->
@@ -321,7 +321,7 @@ interview_loop(Session, Round) ->
             end
     end.
 
--file("src/intent.gleam", 493).
+-file("src/intent.gleam", 501).
 -spec run_interview(intent@interview:profile(), binary(), binary()) -> nil.
 run_interview(Profile, _, Export_to) ->
     Session_id = <<"interview-"/utf8, (intent_ffi:generate_uuid())/binary>>,
@@ -412,17 +412,18 @@ run_interview(Profile, _, Export_to) ->
     end,
     intent_ffi:halt(0).
 
--file("src/intent.gleam", 105).
+-file("src/intent.gleam", 106).
 -spec run_check(binary(), binary(), boolean(), binary(), binary(), boolean()) -> nil.
 run_check(Spec_path, Target_url, Is_json, Feature_filter, Only_filter, Verbose) ->
     case intent@loader:load_spec(Spec_path) of
         {error, E} ->
-            gleam@io:println_error(
-                <<"Error: "/utf8, (intent@loader:format_error(E))/binary>>
-            ),
+            intent@cli_ui:print_error(intent@loader:format_error(E)),
             intent_ffi:halt(3);
 
         {ok, Spec} ->
+            intent@cli_ui:print_header(
+                <<"Checking spec: "/utf8, (erlang:element(2, Spec))/binary>>
+            ),
             Options = {run_options, case Feature_filter of
                     <<""/utf8>> ->
                         none;
@@ -447,18 +448,23 @@ run_check(Spec_path, Target_url, Is_json, Feature_filter, Only_filter, Verbose) 
             end,
             Exit_code = case Result of
                 {spec_result, true, _, _, _, _, _, _, _, _, _} ->
+                    intent@cli_ui:print_success(<<"All checks passed!"/utf8>>),
                     0;
 
                 {spec_result, _, _, _, Blocked, _, _, _, _, _, _} when Blocked > 0 ->
+                    intent@cli_ui:print_warning(
+                        <<"Blocked behaviors detected"/utf8>>
+                    ),
                     2;
 
                 _ ->
+                    intent@cli_ui:print_error(<<"Check failed"/utf8>>),
                     1
             end,
             intent_ffi:halt(Exit_code)
     end.
 
--file("src/intent.gleam", 57).
+-file("src/intent.gleam", 58).
 ?DOC(" The `check` command - run spec against a target\n").
 -spec check_command() -> glint:command(nil).
 check_command() ->
@@ -580,7 +586,7 @@ check_command() ->
         end
     ).
 
--file("src/intent.gleam", 160).
+-file("src/intent.gleam", 172).
 ?DOC(" The `validate` command - validate CUE spec without running\n").
 -spec validate_command() -> glint:command(nil).
 validate_command() ->
@@ -588,24 +594,24 @@ validate_command() ->
                 [Spec_path | _] ->
                     case intent@loader:validate_cue(Spec_path) of
                         {ok, _} ->
-                            gleam@io:println(
-                                <<"Valid: "/utf8, Spec_path/binary>>
+                            intent@cli_ui:print_success(
+                                <<"Valid spec: "/utf8, Spec_path/binary>>
                             ),
                             intent_ffi:halt(0);
 
                         {error, E} ->
-                            gleam@io:println_error(
-                                <<"Invalid: "/utf8,
+                            intent@cli_ui:print_error(
+                                <<"Invalid spec: "/utf8,
                                     (intent@loader:format_error(E))/binary>>
                             ),
                             intent_ffi:halt(3)
                     end;
 
                 [] ->
-                    gleam@io:println_error(
-                        <<"Error: spec file path required"/utf8>>
+                    intent@cli_ui:print_error(
+                        <<"spec file path required"/utf8>>
                     ),
-                    gleam@io:println_error(
+                    gleam@io:println(
                         <<"Usage: intent validate <spec.cue>"/utf8>>
                     ),
                     intent_ffi:halt(4)
@@ -615,7 +621,7 @@ validate_command() ->
         <<"Validate a CUE spec file without running tests"/utf8>>
     ).
 
--file("src/intent.gleam", 186).
+-file("src/intent.gleam", 198).
 ?DOC(" The `show` command - pretty print a parsed spec\n").
 -spec show_command() -> glint:command(nil).
 show_command() ->
@@ -682,7 +688,7 @@ show_command() ->
         end
     ).
 
--file("src/intent.gleam", 294).
+-file("src/intent.gleam", 306).
 ?DOC(" The `export` command - export spec to JSON\n").
 -spec export_command() -> glint:command(nil).
 export_command() ->
@@ -712,7 +718,7 @@ export_command() ->
             end end),
     glint:description(_pipe, <<"Export spec to JSON format"/utf8>>).
 
--file("src/intent.gleam", 320).
+-file("src/intent.gleam", 332).
 ?DOC(" The `lint` command - check for specification anti-patterns\n").
 -spec lint_command() -> glint:command(nil).
 lint_command() ->
@@ -759,7 +765,7 @@ lint_command() ->
         <<"Check spec for anti-patterns and quality issues"/utf8>>
     ).
 
--file("src/intent.gleam", 355).
+-file("src/intent.gleam", 367).
 ?DOC(" The `analyze` command - analyze spec quality\n").
 -spec analyze_command() -> glint:command(nil).
 analyze_command() ->
@@ -795,7 +801,7 @@ analyze_command() ->
         <<"Analyze spec quality and provide improvement suggestions"/utf8>>
     ).
 
--file("src/intent.gleam", 382).
+-file("src/intent.gleam", 394).
 ?DOC(" The `improve` command - suggest improvements\n").
 -spec improve_command() -> glint:command(nil).
 improve_command() ->
@@ -841,7 +847,104 @@ improve_command() ->
         <<"Suggest improvements based on quality analysis and linting"/utf8>>
     ).
 
--file("src/intent.gleam", 417).
+-file("src/intent.gleam", 576).
+?DOC(" Resume an existing interview session\n").
+-spec run_resume_interview(binary(), binary()) -> nil.
+run_resume_interview(Session_id, Export_to) ->
+    Jsonl_path = <<".interview/sessions.jsonl"/utf8>>,
+    case intent@interview_storage:get_session_from_jsonl(Jsonl_path, Session_id) of
+        {error, Err} ->
+            intent@cli_ui:print_error(Err),
+            intent_ffi:halt(4);
+
+        {ok, Session} ->
+            intent@cli_ui:print_header(
+                <<"Resuming Interview: "/utf8,
+                    (erlang:element(2, Session))/binary>>
+            ),
+            intent@cli_ui:print_info(
+                <<"Profile: "/utf8,
+                    (profile_to_display_string(erlang:element(3, Session)))/binary>>
+            ),
+            gleam@io:println(<<""/utf8>>),
+            gleam@io:println(<<"Progress:"/utf8>>),
+            gleam@io:println(
+                <<"  • Answers collected: "/utf8,
+                    (gleam@string:inspect(
+                        erlang:length(erlang:element(9, Session))
+                    ))/binary>>
+            ),
+            gleam@io:println(
+                <<"  • Gaps detected: "/utf8,
+                    (gleam@string:inspect(
+                        erlang:length(erlang:element(10, Session))
+                    ))/binary>>
+            ),
+            gleam@io:println(
+                <<"  • Conflicts detected: "/utf8,
+                    (gleam@string:inspect(
+                        erlang:length(erlang:element(11, Session))
+                    ))/binary>>
+            ),
+            gleam@io:println(<<""/utf8>>),
+            Next_round = case erlang:element(8, Session) of
+                0 ->
+                    1;
+
+                R when R < 5 ->
+                    R + 1;
+
+                _ ->
+                    5
+            end,
+            gleam@io:println(
+                <<"Resuming from Round "/utf8,
+                    (gleam@string:inspect(Next_round))/binary>>
+            ),
+            gleam@io:println(<<""/utf8>>),
+            Final_session = interview_loop(Session, Next_round),
+            Save_result = intent@interview_storage:append_session_to_jsonl(
+                Final_session,
+                Jsonl_path
+            ),
+            case Save_result of
+                {ok, nil} ->
+                    gleam@io:println(<<""/utf8>>),
+                    intent@cli_ui:print_success(
+                        <<"Session updated: "/utf8,
+                            (erlang:element(2, Session))/binary>>
+                    );
+
+                {error, Err@1} ->
+                    intent@cli_ui:print_error(
+                        <<"Failed to save session: "/utf8, Err@1/binary>>
+                    )
+            end,
+            case Export_to of
+                <<""/utf8>> ->
+                    nil;
+
+                Path ->
+                    Spec_cue = intent@spec_builder:build_spec_from_session(
+                        Final_session
+                    ),
+                    case simplifile:write(Path, Spec_cue) of
+                        {ok, nil} ->
+                            intent@cli_ui:print_success(
+                                <<"Spec exported to: "/utf8, Path/binary>>
+                            );
+
+                        {error, Err@2} ->
+                            intent@cli_ui:print_error(
+                                <<"Failed to export spec: "/utf8,
+                                    (gleam@string:inspect(Err@2))/binary>>
+                            )
+                    end
+            end,
+            intent_ffi:halt(0)
+    end.
+
+-file("src/intent.gleam", 429).
 ?DOC(" The `interview` command - guided specification discovery\n").
 -spec interview_command() -> glint:command(nil).
 interview_command() ->
@@ -909,13 +1012,7 @@ interview_command() ->
                     end;
 
                 Id ->
-                    gleam@io:println(
-                        <<"Resuming interview session: "/utf8, Id/binary>>
-                    ),
-                    gleam@io:println_error(
-                        <<"Session resume not yet implemented"/utf8>>
-                    ),
-                    intent_ffi:halt(4)
+                    run_resume_interview(Id, Export_to)
             end
         end
     ),
@@ -972,7 +1069,7 @@ interview_command() ->
         end
     ).
 
--file("src/intent.gleam", 725).
+-file("src/intent.gleam", 809).
 ?DOC(" The `beads` command - generate work items from interview session\n").
 -spec beads_command() -> glint:command(nil).
 beads_command() ->
@@ -1059,7 +1156,7 @@ beads_command() ->
         <<"Generate work items (beads) from an interview session"/utf8>>
     ).
 
--file("src/intent.gleam", 40).
+-file("src/intent.gleam", 41).
 -spec main() -> nil.
 main() ->
     _pipe = glint:new(),
