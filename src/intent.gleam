@@ -26,6 +26,11 @@ import intent/spec_builder
 import intent/bead_templates
 import intent/stdin
 import intent/cli_ui
+import intent/kirk/quality_analyzer as kirk_quality
+import intent/kirk/inversion_checker
+import intent/kirk/coverage_analyzer
+import intent/kirk/gap_detector
+import intent/kirk/compact_format
 import simplifile
 
 /// Exit codes
@@ -55,6 +60,13 @@ pub fn main() {
   |> glint.add(at: ["history"], do: history_command())
   |> glint.add(at: ["diff"], do: diff_command())
   |> glint.add(at: ["sessions"], do: sessions_command())
+  // KIRK commands
+  |> glint.add(at: ["quality"], do: kirk_quality_command())
+  |> glint.add(at: ["invert"], do: kirk_invert_command())
+  |> glint.add(at: ["coverage"], do: kirk_coverage_command())
+  |> glint.add(at: ["gaps"], do: kirk_gaps_command())
+  |> glint.add(at: ["compact"], do: kirk_compact_command())
+  |> glint.add(at: ["prototext"], do: kirk_prototext_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -1089,6 +1101,311 @@ fn stage_to_display_string(stage: interview.InterviewStage) -> String {
     interview.Paused -> "Paused"
   }
 }
+
+// =============================================================================
+// KIRK COMMANDS
+// =============================================================================
+
+/// The `quality` command - KIRK quality analysis
+fn kirk_quality_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let report = kirk_quality.analyze_quality(spec)
+            case is_json {
+              True -> {
+                let json_obj = json.object([
+                  #("completeness", json.float(report.completeness)),
+                  #("consistency", json.float(report.consistency)),
+                  #("testability", json.float(report.testability)),
+                  #("clarity", json.float(report.clarity)),
+                  #("security", json.float(report.security)),
+                  #("overall", json.float(report.overall)),
+                  #("issues", json.array(report.issues, fn(i) {
+                    json.object([
+                      #("field", json.string(i.field)),
+                      #("issue", json.string(i.issue)),
+                      #("severity", json.string(kirk_quality.severity_to_string(i.severity))),
+                    ])
+                  })),
+                ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> io.println(kirk_quality.format_report(report))
+            }
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            cli_ui.print_error(loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent quality <spec.cue> [--json]")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
+  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+}
+
+/// The `invert` command - KIRK inversion analysis
+fn kirk_invert_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let report = inversion_checker.analyze_inversions(spec)
+            case is_json {
+              True -> {
+                let json_obj = json.object([
+                  #("score", json.float(report.score)),
+                  #("security_gaps", json.array(report.security_gaps, gap_to_json)),
+                  #("usability_gaps", json.array(report.usability_gaps, gap_to_json)),
+                  #("integration_gaps", json.array(report.integration_gaps, gap_to_json)),
+                  #("suggested_behaviors", json.array(report.suggested_behaviors, fn(s) {
+                    json.object([
+                      #("name", json.string(s.name)),
+                      #("intent", json.string(s.intent)),
+                      #("expected_status", json.int(s.expected_status)),
+                      #("category", json.string(s.category)),
+                    ])
+                  })),
+                ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> io.println(inversion_checker.format_report(report))
+            }
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            cli_ui.print_error(loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent invert <spec.cue> [--json]")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Inversion analysis - what failure cases are missing?")
+  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+}
+
+fn gap_to_json(gap: inversion_checker.InversionGap) -> json.Json {
+  json.object([
+    #("category", json.string(gap.category)),
+    #("description", json.string(gap.description)),
+    #("severity", json.string(inversion_checker.severity_to_string(gap.severity))),
+    #("what_could_fail", json.string(gap.what_could_fail)),
+  ])
+}
+
+/// The `coverage` command - KIRK coverage analysis
+fn kirk_coverage_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let report = coverage_analyzer.analyze_coverage(spec)
+            case is_json {
+              True -> {
+                let json_obj = json.object([
+                  #("overall_score", json.float(report.overall_score)),
+                  #("methods", json.object(
+                    report.methods
+                    |> dict.to_list()
+                    |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) })
+                  )),
+                  #("status_codes", json.object(
+                    report.status_codes
+                    |> dict.to_list()
+                    |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) })
+                  )),
+                  #("owasp_score", json.float(report.owasp.score)),
+                  #("owasp_missing", json.array(report.owasp.missing, json.string)),
+                ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> io.println(coverage_analyzer.format_report(report))
+            }
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            cli_ui.print_error(loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent coverage <spec.cue> [--json]")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
+  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+}
+
+/// The `gaps` command - KIRK gap detection
+fn kirk_gaps_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let report = gap_detector.detect_gaps(spec)
+            case is_json {
+              True -> {
+                let json_obj = json.object([
+                  #("total_gaps", json.int(report.total_gaps)),
+                  #("severity_breakdown", json.object([
+                    #("critical", json.int(report.severity_breakdown.critical)),
+                    #("high", json.int(report.severity_breakdown.high)),
+                    #("medium", json.int(report.severity_breakdown.medium)),
+                    #("low", json.int(report.severity_breakdown.low)),
+                  ])),
+                  #("inversion_gaps", json.array(report.inversion_gaps, detected_gap_to_json)),
+                  #("second_order_gaps", json.array(report.second_order_gaps, detected_gap_to_json)),
+                  #("checklist_gaps", json.array(report.checklist_gaps, detected_gap_to_json)),
+                  #("coverage_gaps", json.array(report.coverage_gaps, detected_gap_to_json)),
+                  #("security_gaps", json.array(report.security_gaps, detected_gap_to_json)),
+                ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> io.println(gap_detector.format_report(report))
+            }
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            cli_ui.print_error(loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent gaps <spec.cue> [--json]")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Detect gaps using mental models")
+  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+}
+
+fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
+  json.object([
+    #("type", json.string(gap_detector.gap_type_to_string(gap.gap_type))),
+    #("description", json.string(gap.description)),
+    #("severity", json.string(gap_detector.severity_to_string(gap.severity))),
+    #("suggestion", json.string(gap.suggestion)),
+    #("mental_model", json.string(gap.mental_model)),
+  ])
+}
+
+/// The `compact` command - KIRK compact format (CIN)
+fn kirk_compact_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let show_tokens =
+      flag.get_bool(input.flags, "tokens")
+      |> result.unwrap(False)
+
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let compact = compact_format.spec_to_compact(spec)
+            let output = compact_format.format_compact(compact)
+            io.println(output)
+
+            case show_tokens {
+              True -> {
+                let #(full, compact_tokens, savings) = compact_format.compare_token_usage(spec)
+                io.println("")
+                io.println("─────────────────────────────────────")
+                io.println("Token Analysis:")
+                io.println("  Full JSON:    ~" <> string.inspect(full) <> " tokens")
+                io.println("  Compact CIN:  ~" <> string.inspect(compact_tokens) <> " tokens")
+                io.println("  Savings:      " <> string.inspect(float.round(savings)) <> "%")
+              }
+              False -> Nil
+            }
+
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            cli_ui.print_error(loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent compact <spec.cue> [--tokens]")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Convert to Compact Intent Notation (token-efficient)")
+  |> glint.flag("tokens", flag.bool() |> flag.default(False) |> flag.description("Show token comparison"))
+}
+
+/// The `prototext` command - KIRK protobuf text format output
+fn kirk_prototext_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let output = compact_format.spec_to_prototext(spec)
+            io.println(output)
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            cli_ui.print_error(loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent prototext <spec.cue>")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Export to Protobuf text format")
+}
+
+import gleam/float
 
 @external(erlang, "intent_ffi", "halt")
 fn halt(code: Int) -> Nil
