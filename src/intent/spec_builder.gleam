@@ -1,10 +1,17 @@
 /// Spec Builder
 /// Converts interview session answers into valid CUE specifications
 
+import gleam/dict
+import gleam/int
+import gleam/json
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/interview.{type InterviewSession, type Answer, type Profile}
+import intent/interview.{type Answer, type InterviewSession, type Profile}
+import intent/types.{
+  type Behavior, type Spec, AIHints, Behavior, Config, Feature, Get,
+  ImplementationHints, Request, Response, SecurityHints, Spec,
+}
 
 /// Generated CUE code
 pub type GeneratedCUE {
@@ -190,4 +197,24 @@ nonFunctional: {
   <> security
   <> constraints_section
   <> non_functional_section
+}
+
+/// Create a test spec with N behaviors - pure functional composition
+pub fn create_test_spec(behavior_count: Int) -> Spec {
+  let behaviors =
+    list.range(1, behavior_count)
+    |> list.map(fn(i) { make_behavior("b" <> int.to_string(i)) })
+  Spec(
+    name: "test", description: "test", audience: "test", version: "1.0.0",
+    success_criteria: [], config: Config("http://test", 1000, dict.new()),
+    features: [Feature("test-feature", "test", behaviors)],
+    rules: [], anti_patterns: [],
+    ai_hints: AIHints(ImplementationHints([]), dict.new(), SecurityHints("", "", "", ""), []),
+  )
+}
+
+fn make_behavior(name: String) -> Behavior {
+  Behavior(name:, intent: "test", notes: "", requires: [], tags: [],
+    request: Request(Get, "/", dict.new(), dict.new(), json.null()),
+    response: Response(200, json.null(), dict.new(), dict.new()), captures: dict.new())
 }

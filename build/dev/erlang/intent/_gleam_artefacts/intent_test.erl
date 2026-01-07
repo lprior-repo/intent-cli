@@ -119,10 +119,10 @@ resolver_multiple_deps_on_one_test() ->
                                 function => <<"resolver_multiple_deps_on_one_test"/utf8>>,
                                 line => 150,
                                 value => _assert_fail,
-                                start => 3907,
-                                'end' => 3937,
-                                pattern_start => 3918,
-                                pattern_end => 3929})
+                                start => 3896,
+                                'end' => 3926,
+                                pattern_start => 3907,
+                                pattern_end => 3918})
             end,
             _pipe@1 = First@1,
             gleeunit_ffi:should_equal(_pipe@1, <<"base"/utf8>>);
@@ -1281,10 +1281,10 @@ resolver_complex_diamond_dependency_test() ->
                                 function => <<"resolver_complex_diamond_dependency_test"/utf8>>,
                                 line => 1293,
                                 value => _assert_fail,
-                                start => 35270,
-                                'end' => 35300,
-                                pattern_start => 35281,
-                                pattern_end => 35292})
+                                start => 35259,
+                                'end' => 35289,
+                                pattern_start => 35270,
+                                pattern_end => 35281})
             end,
             _pipe@1 = First@1,
             gleeunit_ffi:should_equal(_pipe@1, <<"base"/utf8>>),

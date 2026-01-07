@@ -1,7 +1,7 @@
 -module(intent@spec_builder).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "src/intent/spec_builder.gleam").
--export([extract_features_from_answers/1, extract_behaviors_from_answers/2, extract_constraints_from_answers/1, extract_security_requirements/1, extract_non_functional_requirements/1, build_spec_from_session/1]).
+-export([extract_features_from_answers/1, extract_behaviors_from_answers/2, extract_constraints_from_answers/1, extract_security_requirements/1, extract_non_functional_requirements/1, build_spec_from_session/1, create_test_spec/1]).
 -export_type([generated_c_u_e/0]).
 
 -if(?OTP_RELEASE >= 27).
@@ -14,7 +14,7 @@
 
 -type generated_c_u_e() :: {generated_c_u_e, binary(), list(binary()), binary()}.
 
--file("src/intent/spec_builder.gleam", 40).
+-file("src/intent/spec_builder.gleam", 47).
 ?DOC(" Extract feature names/titles from answers\n").
 -spec extract_features_from_answers(list(intent@interview:answer())) -> list(binary()).
 extract_features_from_answers(Answers) ->
@@ -43,7 +43,7 @@ extract_features_from_answers(Answers) ->
     ),
     gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
 
--file("src/intent/spec_builder.gleam", 56).
+-file("src/intent/spec_builder.gleam", 63).
 ?DOC(" Extract API behaviors (methods, paths, status codes)\n").
 -spec extract_behaviors_from_answers(
     list(intent@interview:answer()),
@@ -88,7 +88,7 @@ behaviors: {
                 "\n}"/utf8>>
     end.
 
--file("src/intent/spec_builder.gleam", 86).
+-file("src/intent/spec_builder.gleam", 93).
 ?DOC(" Extract constraints from answers\n").
 -spec extract_constraints_from_answers(list(intent@interview:answer())) -> list(binary()).
 extract_constraints_from_answers(Answers) ->
@@ -110,7 +110,7 @@ extract_constraints_from_answers(Answers) ->
     ),
     gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
 
--file("src/intent/spec_builder.gleam", 98).
+-file("src/intent/spec_builder.gleam", 105).
 ?DOC(" Extract security requirements from answers\n").
 -spec extract_security_requirements(list(intent@interview:answer())) -> binary().
 extract_security_requirements(Answers) ->
@@ -152,7 +152,7 @@ extract_security_requirements(Answers) ->
                 "\n}"/utf8>>
     end.
 
--file("src/intent/spec_builder.gleam", 124).
+-file("src/intent/spec_builder.gleam", 131).
 ?DOC(" Extract non-functional requirements (SLA, scale, monitoring)\n").
 -spec extract_non_functional_requirements(list(intent@interview:answer())) -> list(binary()).
 extract_non_functional_requirements(Answers) ->
@@ -176,7 +176,7 @@ extract_non_functional_requirements(Answers) ->
     ),
     gleam@list:filter(_pipe@2, fun(S) -> S /= <<""/utf8>> end).
 
--file("src/intent/spec_builder.gleam", 136).
+-file("src/intent/spec_builder.gleam", 143).
 ?DOC(" Build the main body of the spec\n").
 -spec build_spec_body(
     list(binary()),
@@ -254,7 +254,7 @@ nonFunctional: {
             Constraints_section/binary>>/binary,
         Non_functional_section/binary>>.
 
--file("src/intent/spec_builder.gleam", 15).
+-file("src/intent/spec_builder.gleam", 22).
 ?DOC(" Build a CUE spec from a completed interview session\n").
 -spec build_spec_from_session(intent@interview:interview_session()) -> binary().
 build_spec_from_session(Session) ->
@@ -280,3 +280,50 @@ build_spec_from_session(Session) ->
         )},
     <<<<(erlang:element(2, Spec))/binary, "\n\n"/utf8>>/binary,
         (erlang:element(4, Spec))/binary>>.
+
+-file("src/intent/spec_builder.gleam", 216).
+-spec make_behavior(binary()) -> intent@types:behavior().
+make_behavior(Name) ->
+    {behavior,
+        Name,
+        <<"test"/utf8>>,
+        <<""/utf8>>,
+        [],
+        [],
+        {request,
+            get,
+            <<"/"/utf8>>,
+            gleam@dict:new(),
+            gleam@dict:new(),
+            gleam@json:null()},
+        {response, 200, gleam@json:null(), gleam@dict:new(), gleam@dict:new()},
+        gleam@dict:new()}.
+
+-file("src/intent/spec_builder.gleam", 203).
+?DOC(" Create a test spec with N behaviors - pure functional composition\n").
+-spec create_test_spec(integer()) -> intent@types:spec().
+create_test_spec(Behavior_count) ->
+    Behaviors = begin
+        _pipe = gleam@list:range(1, Behavior_count),
+        gleam@list:map(
+            _pipe,
+            fun(I) ->
+                make_behavior(<<"b"/utf8, (gleam@int:to_string(I))/binary>>)
+            end
+        )
+    end,
+    {spec,
+        <<"test"/utf8>>,
+        <<"test"/utf8>>,
+        <<"test"/utf8>>,
+        <<"1.0.0"/utf8>>,
+        [],
+        {config, <<"http://test"/utf8>>, 1000, gleam@dict:new()},
+        [{feature, <<"test-feature"/utf8>>, <<"test"/utf8>>, Behaviors}],
+        [],
+        [],
+        {a_i_hints,
+            {implementation_hints, []},
+            gleam@dict:new(),
+            {security_hints, <<""/utf8>>, <<""/utf8>>, <<""/utf8>>, <<""/utf8>>},
+            []}}.
