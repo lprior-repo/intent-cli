@@ -5,6 +5,9 @@
 build/
 *.beam
 
+# Erlang
+erl_crash.dump
+
 # Node dependencies
 node_modules/
 
@@ -15,3 +18,7 @@ node_modules/
 *.swo
 *~
 .DS_Store
+Thumbs.db
+
+# Test outputs
+*.test
