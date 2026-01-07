@@ -1128,6 +1128,42 @@ hard_gate_all() {
 }
 
 #---------------------------------------------------------------------------
+# THE MUDROOM: Pre-Lock Test File Sanitization
+#---------------------------------------------------------------------------
+# The "Mudroom" ensures test files are clean BEFORE they're locked.
+# This prevents the Implementer from receiving poisoned (warning-filled) test files.
+# If the test file has warnings, we reject it and force the Auditor to fix it.
+
+mudroom_check() {
+    log_phase "THE MUDROOM CHECK"
+    log_info "Verifying test file is clean before locking..."
+
+    local output
+    output=$(gleam build 2>&1)
+    local exit_code=$?
+
+    # Check for compilation failure
+    if [ $exit_code -ne 0 ]; then
+        log_error "MUDROOM FAIL: Test file causes compilation error"
+        echo "$output" | head -20
+        log_error "AUDITOR: You must fix the compilation errors in your test before proceeding."
+        return 1
+    fi
+
+    # Check for warnings (Gleam outputs warnings to stderr/stdout)
+    if echo "$output" | grep -qiE "warning:|warn:"; then
+        log_error "MUDROOM FAIL: Test file contains compilation warnings"
+        echo "$output" | grep -iE "warning:|warn:" | head -10
+        log_error "AUDITOR: You must fix unused imports/arguments in your test file before proceeding."
+        log_error "         The test file must be 100% clean before it gets locked."
+        return 1
+    fi
+
+    log_success "MUDROOM PASS: Test file is clean - safe to lock"
+    return 0
+}
+
+#---------------------------------------------------------------------------
 # CUE Schema Validation
 #---------------------------------------------------------------------------
 
@@ -1368,6 +1404,17 @@ run_auditor() {
     # Save auditor's reasoning to history for implementer
     LAST_AUDITOR_REASONING="$auditor_output"
     append_history "AUDITOR" "$iteration" "$auditor_output"
+
+    # THE MUDROOM CHECK: Ensure test file is clean before locking
+    if ! mudroom_check; then
+        log_error "Test file must be cleaned by the AUDITOR before proceeding."
+        log_error "Auditor: Fix the warnings/errors and try again."
+
+        # Keep tests unlocked so auditor can fix them on next iteration
+        # DO NOT lock_tests here - let auditor fix issues first
+
+        return 1  # Signal failure to main loop, will retry with auditor
+    fi
 
     lock_tests
 
@@ -1947,8 +1994,104 @@ process_single_bead() {
 # Main Entry Point
 #---------------------------------------------------------------------------
 
+preflight_check() {
+    log_phase "PRE-FLIGHT ENVIRONMENT CHECK"
+    local issues=0
+
+    # 1. Check git status - no uncommitted changes should exist
+    log_info "Checking git state..."
+    if ! git diff --quiet; then
+        log_error "❌ PREFLIGHT FAIL: Uncommitted changes in working directory"
+        git status --short | head -10
+        issues=$((issues + 1))
+    else
+        log_success "✓ Git working directory clean"
+    fi
+
+    if ! git diff --cached --quiet; then
+        log_error "❌ PREFLIGHT FAIL: Staged changes pending commit"
+        git diff --cached --name-only | head -10
+        issues=$((issues + 1))
+    else
+        log_success "✓ Git staging area clean"
+    fi
+
+    # 2. Check file permissions - should all be writable
+    log_info "Checking file permissions..."
+    if [ -d "src/" ]; then
+        if ! [ -w "src/" ]; then
+            log_error "❌ PREFLIGHT FAIL: src/ directory is not writable"
+            issues=$((issues + 1))
+        else
+            log_success "✓ src/ is writable"
+        fi
+    fi
+
+    if [ -d "test/" ]; then
+        if ! [ -w "test/" ]; then
+            log_error "❌ PREFLIGHT FAIL: test/ directory is not writable"
+            issues=$((issues + 1))
+        else
+            log_success "✓ test/ is writable"
+        fi
+    fi
+
+    # 3. Check compilation baseline
+    log_info "Checking compilation baseline (gleam build)..."
+    if ! gleam build 2>&1 | grep -qiE "error:|fail:"; then
+        log_success "✓ Code compiles without errors"
+    else
+        log_error "❌ PREFLIGHT FAIL: Code does not compile - fix errors before starting"
+        gleam build 2>&1 | grep -iE "error:|fail:" | head -10
+        issues=$((issues + 1))
+    fi
+
+    # 4. Check test baseline
+    log_info "Checking test baseline (gleam test)..."
+    if gleam test 2>&1 >/dev/null; then
+        log_success "✓ All tests pass in baseline state"
+    else
+        log_error "❌ PREFLIGHT FAIL: Some tests already fail - fix before starting"
+        issues=$((issues + 1))
+    fi
+
+    # 5. Check beads are accessible (if in bead mode)
+    if [ "$BEAD_MODE" = true ] || [ "$ALL_BEADS_MODE" = true ]; then
+        log_info "Checking beads accessibility..."
+        if ! command -v bd >/dev/null 2>&1; then
+            log_warning "⚠️  bd command not found - beads may not be accessible"
+        else
+            log_success "✓ bd command available"
+        fi
+    fi
+
+    # Summary
+    echo ""
+    if [ $issues -eq 0 ]; then
+        log_success "✅ PREFLIGHT CHECK PASSED - Environment is clean and ready"
+        return 0
+    else
+        log_error "❌ PREFLIGHT CHECK FAILED - $issues issue(s) detected"
+        log_error "Fix these issues before starting the TDD-TCR loop:"
+        log_error "  - Commit or clean working directory changes"
+        log_error "  - Ensure src/ and test/ are writable"
+        log_error "  - Fix compilation errors"
+        log_error "  - Fix failing tests"
+        echo ""
+        return 1
+    fi
+}
+
 main() {
     check_dependencies
+
+    # Pre-flight check - exit immediately if environment is not clean
+    if ! preflight_check; then
+        log_error "ABORTING: Environment not ready for TDD-TCR loop"
+        exit 1
+    fi
+
+    echo ""
 
     # Handle --all mode: process all open beads
     if [ "$ALL_BEADS_MODE" = true ]; then
