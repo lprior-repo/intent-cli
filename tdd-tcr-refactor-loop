@@ -33,22 +33,34 @@ set -eo pipefail
 SCRIPT_NAME="tdd-tcr-refactor-loop"
 PIDFILE="/tmp/tdd-tcr-refactor.pid"
 
-# Kill all TDD-TCR related processes
+# Kill all TDD-TCR related processes spawned by this script
 kill_all_processes() {
     echo "Killing all TDD-TCR related processes..."
     local my_pid=$$
     local my_ppid=$PPID
 
-    # Kill child claude processes spawned by this script
-    pkill -9 -f "claude.*AUDITOR" 2>/dev/null || true
-    pkill -9 -f "claude.*IMPLEMENTER" 2>/dev/null || true
-    pkill -9 -f "claude.*ARCHITECT" 2>/dev/null || true
-    pkill -9 -f "claude.*REVIEWER" 2>/dev/null || true
+    # Kill child processes tracked in PID files
+    # Only kill PIDs we actually started, not all processes matching a pattern
+    if [ -f "$PIDFILE" ]; then
+        local stored_pid=$(cat "$PIDFILE" 2>/dev/null)
+        if [ -n "$stored_pid" ] && [ "$stored_pid" != "$my_pid" ]; then
+            # Check if process is actually running and from this script
+            if kill -0 "$stored_pid" 2>/dev/null; then
+                kill -15 "$stored_pid" 2>/dev/null || true
+                sleep 1
+                kill -9 "$stored_pid" 2>/dev/null || true
+            fi
+        fi
+    fi
 
-    # Kill any other instances of this script (except current PID and parent)
+    # Only kill other instances of THIS SCRIPT by checking for the script name
+    # Exclude current PID and parent PID
     for pid in $(pgrep -f "$SCRIPT_NAME" 2>/dev/null || true); do
         if [ "$pid" != "$my_pid" ] && [ "$pid" != "$my_ppid" ]; then
-            kill -9 "$pid" 2>/dev/null || true
+            # Verify this is actually a tdd-tcr script (check if it's running this exact file)
+            if [ -n "$(ps -p "$pid" -o cmd= 2>/dev/null | grep -F "$SCRIPT_NAME")" ]; then
+                kill -15 "$pid" 2>/dev/null || true
+            fi
         fi
     done
 
@@ -56,7 +68,7 @@ kill_all_processes() {
     rm -f "$PIDFILE"
 
     sleep 1
-    echo "All TDD-TCR processes killed."
+    echo "All TDD-TCR processes cleaned up."
 }
 
 # Full reset: kill processes + reset git state + unlock files
@@ -66,10 +78,9 @@ full_reset() {
     # Kill processes first
     kill_all_processes
 
-    # Unlock all files
-    echo "Unlocking all files..."
-    chmod -R u+w src/ 2>/dev/null || true
-    chmod -R u+w test/ 2>/dev/null || true
+    # Remove lock files (no chmod needed)
+    echo "Removing lock files..."
+    rm -f "$SRC_LOCK_FILE" "$TEST_LOCK_FILE" 2>/dev/null || true
 
     # Reset any in-progress beads back to open
     if command -v bd >/dev/null 2>&1; then
@@ -101,9 +112,8 @@ esac
 # ALWAYS reset on startup - clean slate every run
 echo "Resetting environment for clean start..."
 kill_all_processes
-chmod -R u+w src/ 2>/dev/null || true
-chmod -R u+w test/ 2>/dev/null || true
-rm -f "$HISTORY_FILE" 2>/dev/null || true
+# Remove lock files from previous runs
+rm -f "$SRC_LOCK_FILE" "$TEST_LOCK_FILE" 2>/dev/null || true
 
 # Write PID file for tracking
 echo $$ > "$PIDFILE"
@@ -422,11 +432,20 @@ show_bv_triage() {
     fi
 }
 
+# Generate UUID with fallback (uuidgen may not be available on all systems)
+generate_uuid() {
+    if command -v uuidgen >/dev/null 2>&1; then
+        uuidgen
+    else
+        # Fallback: use timestamp + random
+        echo "$(date +%s)-$(( RANDOM % 10000 ))-$(( RANDOM % 10000 ))"
+    fi
+}
+
 # Dependency checks
 check_dependencies() {
     local missing=()
     command -v claude >/dev/null 2>&1 || missing+=("claude")
-    command -v uuidgen >/dev/null 2>&1 || missing+=("uuidgen")
     command -v jq >/dev/null 2>&1 || missing+=("jq")
     git rev-parse --git-dir >/dev/null 2>&1 || missing+=("git (not in a repository)")
 
@@ -535,7 +554,8 @@ setup_bead() {
 }
 
 # Check for --all mode first
-if [ "$1" = "--all" ] || [ "$1" = "-a" ]; then
+if [ "$1" = "--all" ] || [ "$1" = "-a" ] || [ -z "$1" ]; then
+    # Default to --all mode if no arguments provided
     ALL_BEADS_MODE=true
     BEAD_MODE=true
 # Check for single bead mode
@@ -854,36 +874,51 @@ show_tdd_cycle() {
 # Lock management
 #---------------------------------------------------------------------------
 
+# Lock mechanism using sentinel files (safer and more reliable than chmod)
+SRC_LOCK_FILE=".factory/.src.locked"
+TEST_LOCK_FILE=".factory/.test.locked"
+
+_create_lock() {
+    local lock_file="$1"
+    mkdir -p "$(dirname "$lock_file")"
+    echo "locked-at-$(date -Iseconds)" > "$lock_file"
+}
+
+_remove_lock() {
+    local lock_file="$1"
+    rm -f "$lock_file"
+}
+
 lock_all() {
     log_info "Locking all source and test files..."
-    chmod -R a-w "$SRC_DIR/" 2>/dev/null || true
-    chmod -R a-w "$TEST_DIR/" 2>/dev/null || true
+    _create_lock "$SRC_LOCK_FILE"
+    _create_lock "$TEST_LOCK_FILE"
 }
 
 unlock_src() {
     log_info "Unlocking src/ for implementer..."
-    chmod -R u+w "$SRC_DIR/"
+    _remove_lock "$SRC_LOCK_FILE"
 }
 
 lock_src() {
     log_info "Locking src/..."
-    chmod -R a-w "$SRC_DIR/"
+    _create_lock "$SRC_LOCK_FILE"
 }
 
 unlock_tests() {
     log_info "Unlocking test/ for auditor..."
-    chmod -R u+w "$TEST_DIR/"
+    _remove_lock "$TEST_LOCK_FILE"
 }
 
 lock_tests() {
     log_info "Locking test/..."
-    chmod -R a-w "$TEST_DIR/"
+    _create_lock "$TEST_LOCK_FILE"
 }
 
 unlock_all() {
     log_info "Unlocking all files..."
-    chmod -R u+w "$SRC_DIR/" 2>/dev/null || true
-    chmod -R u+w "$TEST_DIR/" 2>/dev/null || true
+    _remove_lock "$SRC_LOCK_FILE"
+    _remove_lock "$TEST_LOCK_FILE"
 }
 
 #---------------------------------------------------------------------------
@@ -1391,7 +1426,7 @@ run_auditor() {
     prompt=$(auditor_prompt "$iteration" "$last_result" "$todo_context")
 
     log_info "Invoking auditor AI (new session, sonnet-4.5)..."
-    AUDITOR_SESSION_ID=$(uuidgen)
+    AUDITOR_SESSION_ID=$(generate_uuid)
     auditor_output=$(claude -p \
         --model sonnet \
         --session-id "$AUDITOR_SESSION_ID" \
@@ -2175,9 +2210,10 @@ main() {
 
 cleanup() {
     local exit_code=$?
-    log_info "Cleaning up locks..."
-    chmod -R u+w "$SRC_DIR/" 2>/dev/null || true
-    chmod -R u+w "$TEST_DIR/" 2>/dev/null || true
+    log_info "Cleaning up..."
+    # Remove lock files
+    _remove_lock "$SRC_LOCK_FILE"
+    _remove_lock "$TEST_LOCK_FILE"
 
     # If bead mode and exiting with error (interrupted or failed), mark bead as failed
     if [ "$BEAD_MODE" = true ] && [ $exit_code -ne 0 ]; then
