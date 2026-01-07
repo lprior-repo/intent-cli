@@ -1506,7 +1506,7 @@ run_implementer() {
         prompt=$(implementer_prompt "$test_output" "$attempt" "$LAST_AUDITOR_REASONING" "$ai_learnings" "$use_escalation")
 
         log_info "Invoking implementer AI (new session, $model)..."
-        IMPLEMENTER_SESSION_ID=$(uuidgen)
+        IMPLEMENTER_SESSION_ID=$(generate_uuid)
         impl_output=$(claude -p \
             --model "$model" \
             --session-id "$IMPLEMENTER_SESSION_ID" \
@@ -1580,7 +1580,7 @@ run_architect() {
     prompt=$(architect_prompt "$iteration" "$session_history" "$ai_learnings")
 
     log_info "Invoking architect AI (new session, sonnet for deeper analysis)..."
-    ARCHITECT_SESSION_ID=$(uuidgen)
+    ARCHITECT_SESSION_ID=$(generate_uuid)
     architect_output=$(claude -p \
         --model sonnet \
         --session-id "$ARCHITECT_SESSION_ID" \
@@ -1626,7 +1626,7 @@ run_reviewer() {
     prompt=$(reviewer_prompt)
 
     log_info "Invoking reviewer AI (new session, sonnet-4.5)..."
-    REVIEWER_SESSION_ID=$(uuidgen)
+    REVIEWER_SESSION_ID=$(generate_uuid)
     REVIEWER_OUTPUT=$(claude -p \
         --model sonnet \
         --session-id "$REVIEWER_SESSION_ID" \
