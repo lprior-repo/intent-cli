@@ -43,9 +43,9 @@
 ).
 -spec decode_bits(
     bitstring(),
-    fun((gleam@dynamic:dynamic_()) -> {ok, FSK} |
+    fun((gleam@dynamic:dynamic_()) -> {ok, FSL} |
         {error, list(gleam@dynamic:decode_error())})
-) -> {ok, FSK} | {error, decode_error()}.
+) -> {ok, FSL} | {error, decode_error()}.
 decode_bits(Json, Decoder) ->
     gleam@result:then(
         gleam_json_ffi:decode(Json),
@@ -59,9 +59,9 @@ decode_bits(Json, Decoder) ->
 -file("src/gleam/json.gleam", 45).
 -spec do_decode(
     binary(),
-    fun((gleam@dynamic:dynamic_()) -> {ok, FSG} |
+    fun((gleam@dynamic:dynamic_()) -> {ok, FSH} |
         {error, list(gleam@dynamic:decode_error())})
-) -> {ok, FSG} | {error, decode_error()}.
+) -> {ok, FSH} | {error, decode_error()}.
 do_decode(Json, Decoder) ->
     Bits = gleam_stdlib:identity(Json),
     decode_bits(Bits, Decoder).
@@ -90,9 +90,9 @@ do_decode(Json, Decoder) ->
 ).
 -spec decode(
     binary(),
-    fun((gleam@dynamic:dynamic_()) -> {ok, FSC} |
+    fun((gleam@dynamic:dynamic_()) -> {ok, FSD} |
         {error, list(gleam@dynamic:decode_error())})
-) -> {ok, FSC} | {error, decode_error()}.
+) -> {ok, FSD} | {error, decode_error()}.
 decode(Json, Decoder) ->
     do_decode(Json, Decoder).
 
@@ -224,7 +224,7 @@ null() ->
     " \"null\"\n"
     " ```\n"
 ).
--spec nullable(gleam@option:option(FSQ), fun((FSQ) -> json())) -> json().
+-spec nullable(gleam@option:option(FSR), fun((FSR) -> json())) -> json().
 nullable(Input, Inner_type) ->
     case Input of
         {some, Value} ->
@@ -278,7 +278,7 @@ preprocessed_array(From) ->
     " \"[1, 2, 3]\"\n"
     " ```\n"
 ).
--spec array(list(FSU), fun((FSU) -> json())) -> json().
+-spec array(list(FSV), fun((FSV) -> json())) -> json().
 array(Entries, Inner_type) ->
     _pipe = Entries,
     _pipe@1 = gleam@list:map(_pipe, Inner_type),

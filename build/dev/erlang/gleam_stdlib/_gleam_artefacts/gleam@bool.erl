@@ -408,7 +408,7 @@ to_string(Bool) ->
     " // -> \"Hello, Kamaka\"\n"
     " ```\n"
 ).
--spec guard(boolean(), DHY, fun(() -> DHY)) -> DHY.
+-spec guard(boolean(), DHZ, fun(() -> DHZ)) -> DHZ.
 guard(Requirement, Consequence, Alternative) ->
     case Requirement of
         true ->
@@ -450,7 +450,7 @@ guard(Requirement, Consequence, Alternative) ->
     " // -> \"Welcome, User 54\"\n"
     " ```\n"
 ).
--spec lazy_guard(boolean(), fun(() -> DHZ), fun(() -> DHZ)) -> DHZ.
+-spec lazy_guard(boolean(), fun(() -> DIA), fun(() -> DIA)) -> DIA.
 lazy_guard(Requirement, Consequence, Alternative) ->
     case Requirement of
         true ->

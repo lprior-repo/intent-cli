@@ -20,24 +20,24 @@
     {s, internal(binary())} |
     {l_s, internal(list(binary()))}.
 
--opaque flag_builder(IJS) :: {flag_builder,
+-opaque flag_builder(ILR) :: {flag_builder,
         binary(),
-        fun((binary()) -> {ok, IJS} | {error, snag:snag()}),
-        fun((internal(IJS)) -> value()),
-        gleam@option:option(IJS)}.
+        fun((binary()) -> {ok, ILR} | {error, snag:snag()}),
+        fun((internal(ILR)) -> value()),
+        gleam@option:option(ILR)}.
 
--opaque internal(IJT) :: {internal,
-        gleam@option:option(IJT),
-        fun((binary()) -> {ok, IJT} | {error, snag:snag()})}.
+-opaque internal(ILS) :: {internal,
+        gleam@option:option(ILS),
+        fun((binary()) -> {ok, ILS} | {error, snag:snag()})}.
 
 -type flag() :: {flag, value(), binary()}.
 
 -file("src/glint/flag.gleam", 141).
 ?DOC(" initialize custom builders using a Value constructor and a parsing function\n").
 -spec new(
-    fun((internal(IKK)) -> value()),
-    fun((binary()) -> {ok, IKK} | {error, snag:snag()})
-) -> flag_builder(IKK).
+    fun((internal(IMJ)) -> value()),
+    fun((binary()) -> {ok, IMJ} | {error, snag:snag()})
+) -> flag_builder(IMJ).
 new(Valuer, P) ->
     {flag_builder, <<""/utf8>>, P, Valuer, none}.
 
@@ -67,9 +67,9 @@ build(Fb) ->
 
 -file("src/glint/flag.gleam", 175).
 -spec attempt(
-    {ok, ILB} | {error, ILC},
-    fun((ILB) -> {ok, any()} | {error, ILC})
-) -> {ok, ILB} | {error, ILC}.
+    {ok, INA} | {error, INB},
+    fun((INA) -> {ok, any()} | {error, INB})
+) -> {ok, INA} | {error, INB}.
 attempt(Val, F) ->
     gleam@result:'try'(Val, fun(A) -> gleam@result:replace(F(A), A) end).
 
@@ -79,18 +79,18 @@ attempt(Val, F) ->
     " this function should not be used directly unless\n"
 ).
 -spec wrap_with_constraint(
-    fun((binary()) -> {ok, IKV} | {error, snag:snag()}),
-    fun((IKV) -> {ok, nil} | {error, snag:snag()})
-) -> fun((binary()) -> {ok, IKV} | {error, snag:snag()}).
+    fun((binary()) -> {ok, IMU} | {error, snag:snag()}),
+    fun((IMU) -> {ok, nil} | {error, snag:snag()})
+) -> fun((binary()) -> {ok, IMU} | {error, snag:snag()}).
 wrap_with_constraint(P, Constraint) ->
     fun(Input) -> attempt(P(Input), Constraint) end.
 
 -file("src/glint/flag.gleam", 156).
 ?DOC(" attach a constraint to a `Flag`\n").
 -spec constraint(
-    flag_builder(IKR),
-    fun((IKR) -> {ok, nil} | {error, snag:snag()})
-) -> flag_builder(IKR).
+    flag_builder(IMQ),
+    fun((IMQ) -> {ok, nil} | {error, snag:snag()})
+) -> flag_builder(IMQ).
 constraint(Builder, Constraint) ->
     {flag_builder,
         erlang:element(2, Builder),
@@ -100,7 +100,7 @@ constraint(Builder, Constraint) ->
 
 -file("src/glint/flag.gleam", 196).
 ?DOC(" attach a description to a `Flag`\n").
--spec description(flag_builder(ILK), binary()) -> flag_builder(ILK).
+-spec description(flag_builder(INJ), binary()) -> flag_builder(INJ).
 description(Builder, Description) ->
     {flag_builder,
         Description,
@@ -110,7 +110,7 @@ description(Builder, Description) ->
 
 -file("src/glint/flag.gleam", 205).
 ?DOC(" Set the default value for a flag `Value`\n").
--spec default(flag_builder(ILN), ILN) -> flag_builder(ILN).
+-spec default(flag_builder(INM), INM) -> flag_builder(INM).
 default(Builder, Default) ->
     {flag_builder,
         erlang:element(2, Builder),
@@ -135,7 +135,7 @@ flag_not_provided_error() ->
     snag:error(<<"no value provided"/utf8>>).
 
 -file("src/glint/flag.gleam", 270).
--spec construct_value(binary(), internal(ILX), fun((internal(ILX)) -> value())) -> {ok,
+-spec construct_value(binary(), internal(INW), fun((internal(INW)) -> value())) -> {ok,
         value()} |
     {error, snag:snag()}.
 construct_value(Input, Internal, Constructor) ->
@@ -390,8 +390,8 @@ attempt_toggle_flag(Flags, Key) ->
 -spec get_value(
     gleam@dict:dict(binary(), flag()),
     binary(),
-    fun((flag()) -> {ok, IMD} | {error, snag:snag()})
-) -> {ok, IMD} | {error, snag:snag()}.
+    fun((flag()) -> {ok, IOC} | {error, snag:snag()})
+) -> {ok, IOC} | {error, snag:snag()}.
 get_value(Flags, Key, Kind) ->
     _pipe = access(Flags, Key),
     _pipe@1 = gleam@result:'try'(_pipe, Kind),

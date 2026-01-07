@@ -14,12 +14,12 @@
 
 -type pid_() :: any().
 
--opaque subject(GJH) :: {subject, pid_(), gleam@erlang:reference_()} |
-    {gleam_phantom, GJH}.
+-opaque subject(GJI) :: {subject, pid_(), gleam@erlang:reference_()} |
+    {gleam_phantom, GJI}.
 
 -type do_not_leak() :: any().
 
--type selector(GJI) :: any() | {gleam_phantom, GJI}.
+-type selector(GJJ) :: any() | {gleam_phantom, GJJ}.
 
 -type exit_message() :: {exit_message, pid_(), exit_reason()}.
 
@@ -33,9 +33,9 @@
 
 -type process_down() :: {process_down, pid_(), gleam@dynamic:dynamic_()}.
 
--type call_error(GJJ) :: {callee_down, gleam@dynamic:dynamic_()} |
+-type call_error(GJK) :: {callee_down, gleam@dynamic:dynamic_()} |
     call_timeout |
-    {gleam_phantom, GJJ}.
+    {gleam_phantom, GJK}.
 
 -type timer() :: any().
 
@@ -114,7 +114,7 @@ subject_owner(Subject) ->
     " send(subject, \"Hello, Joe!\")\n"
     " ```\n"
 ).
--spec send(subject(GJS), GJS) -> nil.
+-spec send(subject(GJT), GJT) -> nil.
 send(Subject, Message) ->
     erlang:send(
         erlang:element(2, Subject),
@@ -139,7 +139,7 @@ send(Subject, Message) ->
     "\n"
     " The `within` parameter specifies the timeout duration in milliseconds.\n"
 ).
--spec 'receive'(subject(GJU), integer()) -> {ok, GJU} | {error, nil}.
+-spec 'receive'(subject(GJV), integer()) -> {ok, GJV} | {error, nil}.
 'receive'(Subject, Timeout) ->
     gleam_erlang_ffi:'receive'(Subject, Timeout).
 
@@ -149,7 +149,7 @@ send(Subject, Message) ->
     "\n"
     " Same as `receive` but waits forever and returns the message as is.\n"
 ).
--spec receive_forever(subject(GJY)) -> GJY.
+-spec receive_forever(subject(GJZ)) -> GJZ.
 receive_forever(Subject) ->
     gleam_erlang_ffi:'receive'(Subject).
 
@@ -181,7 +181,7 @@ new_selector() ->
     "\n"
     " The `within` parameter specifies the timeout duration in milliseconds.\n"
 ).
--spec select(selector(GKC), integer()) -> {ok, GKC} | {error, nil}.
+-spec select(selector(GKD), integer()) -> {ok, GKD} | {error, nil}.
 select(From, Within) ->
     gleam_erlang_ffi:select(From, Within).
 
@@ -190,7 +190,7 @@ select(From, Within) ->
     " Similar to the `select` function but will wait forever for a message to\n"
     " arrive rather than timing out after a specified amount of time.\n"
 ).
--spec select_forever(selector(GKG)) -> GKG.
+-spec select_forever(selector(GKH)) -> GKH.
 select_forever(From) ->
     gleam_erlang_ffi:select(From).
 
@@ -202,7 +202,7 @@ select_forever(From) ->
     " This function can be used to change the type of messages received and may\n"
     " be useful when combined with the `merge_selector` function.\n"
 ).
--spec map_selector(selector(GKI), fun((GKI) -> GKK)) -> selector(GKK).
+-spec map_selector(selector(GKJ), fun((GKJ) -> GKL)) -> selector(GKL).
 map_selector(A, B) ->
     gleam_erlang_ffi:map_selector(A, B).
 
@@ -214,7 +214,7 @@ map_selector(A, B) ->
     " If a subject is handled by both selectors the handler function of the\n"
     " second selector is used.\n"
 ).
--spec merge_selector(selector(GKM), selector(GKM)) -> selector(GKM).
+-spec merge_selector(selector(GKN), selector(GKN)) -> selector(GKN).
 merge_selector(A, B) ->
     gleam_erlang_ffi:merge_selector(A, B).
 
@@ -236,7 +236,7 @@ flush_messages() ->
     " sent to the process when a linked process exits the process must call the\n"
     " `trap_exit` beforehand.\n"
 ).
--spec selecting_trapped_exits(selector(GKQ), fun((exit_message()) -> GKQ)) -> selector(GKQ).
+-spec selecting_trapped_exits(selector(GKR), fun((exit_message()) -> GKR)) -> selector(GKR).
 selecting_trapped_exits(Selector, Handler) ->
     Tag = erlang:binary_to_atom(<<"EXIT"/utf8>>),
     Handler@1 = fun(Message) ->
@@ -273,7 +273,7 @@ selecting_trapped_exits(Selector, Handler) ->
     "\n"
     " See `deselecting` to remove a subject from a selector.\n"
 ).
--spec selecting(selector(GKT), subject(GKV), fun((GKV) -> GKT)) -> selector(GKT).
+-spec selecting(selector(GKU), subject(GKW), fun((GKW) -> GKU)) -> selector(GKU).
 selecting(Selector, Subject, Transform) ->
     Handler = fun(Message) -> Transform(erlang:element(2, Message)) end,
     gleam_erlang_ffi:insert_selector_handler(
@@ -292,10 +292,10 @@ selecting(Selector, Subject, Transform) ->
     " other BEAM languages that do not use the `Subject` type.\n"
 ).
 -spec selecting_record2(
-    selector(GLD),
+    selector(GLE),
     any(),
-    fun((gleam@dynamic:dynamic_()) -> GLD)
-) -> selector(GLD).
+    fun((gleam@dynamic:dynamic_()) -> GLE)
+) -> selector(GLE).
 selecting_record2(Selector, Tag, Transform) ->
     Handler = fun(Message) -> Transform(erlang:element(2, Message)) end,
     gleam_erlang_ffi:insert_selector_handler(Selector, {Tag, 2}, Handler).
@@ -310,10 +310,10 @@ selecting_record2(Selector, Tag, Transform) ->
     " other BEAM languages that do not use the `Subject` type.\n"
 ).
 -spec selecting_record3(
-    selector(GLH),
+    selector(GLI),
     any(),
-    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLH)
-) -> selector(GLH).
+    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLI)
+) -> selector(GLI).
 selecting_record3(Selector, Tag, Transform) ->
     Handler = fun(Message) ->
         Transform(erlang:element(2, Message), erlang:element(3, Message))
@@ -330,10 +330,10 @@ selecting_record3(Selector, Tag, Transform) ->
     " other BEAM languages that do not use the `Subject` type.\n"
 ).
 -spec selecting_record4(
-    selector(GLL),
+    selector(GLM),
     any(),
-    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLL)
-) -> selector(GLL).
+    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLM)
+) -> selector(GLM).
 selecting_record4(Selector, Tag, Transform) ->
     Handler = fun(Message) ->
         Transform(
@@ -354,10 +354,10 @@ selecting_record4(Selector, Tag, Transform) ->
     " other BEAM languages that do not use the `Subject` type.\n"
 ).
 -spec selecting_record5(
-    selector(GLP),
+    selector(GLQ),
     any(),
-    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLP)
-) -> selector(GLP).
+    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLQ)
+) -> selector(GLQ).
 selecting_record5(Selector, Tag, Transform) ->
     Handler = fun(Message) ->
         Transform(
@@ -379,10 +379,10 @@ selecting_record5(Selector, Tag, Transform) ->
     " other BEAM languages that do not use the `Subject` type.\n"
 ).
 -spec selecting_record6(
-    selector(GLT),
+    selector(GLU),
     any(),
-    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLT)
-) -> selector(GLT).
+    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLU)
+) -> selector(GLU).
 selecting_record6(Selector, Tag, Transform) ->
     Handler = fun(Message) ->
         Transform(
@@ -405,10 +405,10 @@ selecting_record6(Selector, Tag, Transform) ->
     " other BEAM languages that do not use the `Subject` type.\n"
 ).
 -spec selecting_record7(
-    selector(GLX),
+    selector(GLY),
     any(),
-    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLX)
-) -> selector(GLX).
+    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GLY)
+) -> selector(GLY).
 selecting_record7(Selector, Tag, Transform) ->
     Handler = fun(Message) ->
         Transform(
@@ -432,10 +432,10 @@ selecting_record7(Selector, Tag, Transform) ->
     " other BEAM languages that do not use the `Subject` type.\n"
 ).
 -spec selecting_record8(
-    selector(GMB),
+    selector(GMC),
     any(),
-    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GMB)
-) -> selector(GMB).
+    fun((gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_(), gleam@dynamic:dynamic_()) -> GMC)
+) -> selector(GMC).
 selecting_record8(Selector, Tag, Transform) ->
     Handler = fun(Message) ->
         Transform(
@@ -459,7 +459,7 @@ selecting_record8(Selector, Tag, Transform) ->
     " is handled, or when you need to handle messages from other BEAM languages\n"
     " which do not use subjects or record format messages.\n"
 ).
--spec selecting_anything(selector(GMF), fun((gleam@dynamic:dynamic_()) -> GMF)) -> selector(GMF).
+-spec selecting_anything(selector(GMG), fun((gleam@dynamic:dynamic_()) -> GMG)) -> selector(GMG).
 selecting_anything(Selector, Handler) ->
     gleam_erlang_ffi:insert_selector_handler(Selector, anything, Handler).
 
@@ -468,7 +468,7 @@ selecting_anything(Selector, Handler) ->
     " Remove a new `Subject` from the `Selector` so that its messages will not be\n"
     " selected from the receiver process inbox.\n"
 ).
--spec deselecting(selector(GKY), subject(any())) -> selector(GKY).
+-spec deselecting(selector(GKZ), subject(any())) -> selector(GKZ).
 deselecting(Selector, Subject) ->
     gleam_erlang_ffi:remove_selector_handler(
         Selector,
@@ -534,10 +534,10 @@ monitor_process(Pid) ->
     " [`deselecting_process_down`](#deselecting_process_down).\n"
 ).
 -spec selecting_process_down(
-    selector(GMR),
+    selector(GMS),
     process_monitor(),
-    fun((process_down()) -> GMR)
-) -> selector(GMR).
+    fun((process_down()) -> GMS)
+) -> selector(GMS).
 selecting_process_down(Selector, Monitor, Mapping) ->
     gleam_erlang_ffi:insert_selector_handler(
         Selector,
@@ -563,7 +563,7 @@ demonitor_process(Monitor) ->
     " [`selecting_process_down`](#selecting_process_down). If the `ProcessMonitor` is not in the\n"
     " `Selector` it will be returned unchanged.\n"
 ).
--spec deselecting_process_down(selector(GMU), process_monitor()) -> selector(GMU).
+-spec deselecting_process_down(selector(GMV), process_monitor()) -> selector(GMV).
 deselecting_process_down(Selector, Monitor) ->
     gleam_erlang_ffi:remove_selector_handler(
         Selector,
@@ -579,8 +579,8 @@ deselecting_process_down(Selector, Monitor) ->
     "\n"
     " The `within` parameter specifies the timeout duration in milliseconds.\n"
 ).
--spec try_call(subject(GMX), fun((subject(GMZ)) -> GMX), integer()) -> {ok, GMZ} |
-    {error, call_error(GMZ)}.
+-spec try_call(subject(GMY), fun((subject(GNA)) -> GMY), integer()) -> {ok, GNA} |
+    {error, call_error(GNA)}.
 try_call(Subject, Make_request, Timeout) ->
     Reply_subject = new_subject(),
     Monitor = monitor_process(subject_owner(Subject)),
@@ -618,7 +618,7 @@ try_call(Subject, Make_request, Timeout) ->
     "\n"
     " The `within` parameter specifies the timeout duration in milliseconds.\n"
 ).
--spec call(subject(GNE), fun((subject(GNG)) -> GNE), integer()) -> GNG.
+-spec call(subject(GNF), fun((subject(GNH)) -> GNF), integer()) -> GNH.
 call(Subject, Make_request, Timeout) ->
     Resp@1 = case try_call(Subject, Make_request, Timeout) of
         {ok, Resp} -> Resp;
@@ -644,7 +644,7 @@ call(Subject, Make_request, Timeout) ->
     "\n"
     " If the receiving process exits then an error is returned.\n"
 ).
--spec try_call_forever(subject(GNM), fun((subject(GNO)) -> GNM)) -> {ok, GNO} |
+-spec try_call_forever(subject(GNN), fun((subject(GNP)) -> GNN)) -> {ok, GNP} |
     {error, call_error(any())}.
 try_call_forever(Subject, Make_request) ->
     Reply_subject = new_subject(),
@@ -676,7 +676,7 @@ try_call_forever(Subject, Make_request) ->
     " If you wish an error to be returned instead see the `try_call_forever`\n"
     " function.\n"
 ).
--spec call_forever(subject(GNI), fun((subject(GNK)) -> GNI)) -> GNK.
+-spec call_forever(subject(GNJ), fun((subject(GNL)) -> GNJ)) -> GNL.
 call_forever(Subject, Make_request) ->
     Response@1 = case try_call_forever(Subject, Make_request) of
         {ok, Response} -> Response;
@@ -719,7 +719,7 @@ unlink(Pid) ->
 
 -file("src/gleam/erlang/process.gleam", 716).
 ?DOC(" Send a message over a channel after a specified number of milliseconds.\n").
--spec send_after(subject(GNV), integer(), GNV) -> timer().
+-spec send_after(subject(GNW), integer(), GNW) -> timer().
 send_after(Subject, Delay, Message) ->
     erlang:send_after(
         Delay,

@@ -12,7 +12,7 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--opaque set(EZT) :: {set, gleam@dict:dict(EZT, list(nil))}.
+-opaque set(EZU) :: {set, gleam@dict:dict(EZU, list(nil))}.
 
 -file("src/gleam/set.gleam", 32).
 ?DOC(" Creates a new empty set.\n").
@@ -82,7 +82,7 @@ is_empty(Set) ->
     " // -> False\n"
     " ```\n"
 ).
--spec contains(set(FAE), FAE) -> boolean().
+-spec contains(set(FAF), FAF) -> boolean().
 contains(Set, Member) ->
     _pipe = erlang:element(2, Set),
     _pipe@1 = gleam@dict:get(_pipe, Member),
@@ -105,7 +105,7 @@ contains(Set, Member) ->
     " // -> False\n"
     " ```\n"
 ).
--spec delete(set(FAG), FAG) -> set(FAG).
+-spec delete(set(FAH), FAH) -> set(FAH).
 delete(Set, Member) ->
     {set, gleam@dict:delete(erlang:element(2, Set), Member)}.
 
@@ -125,7 +125,7 @@ delete(Set, Member) ->
     " // -> [2]\n"
     " ```\n"
 ).
--spec to_list(set(FAJ)) -> list(FAJ).
+-spec to_list(set(FAK)) -> list(FAK).
 to_list(Set) ->
     gleam@dict:keys(erlang:element(2, Set)).
 
@@ -146,7 +146,7 @@ to_list(Set) ->
     " // -> 13\n"
     " ```\n"
 ).
--spec fold(set(FAP), FAR, fun((FAR, FAP) -> FAR)) -> FAR.
+-spec fold(set(FAQ), FAS, fun((FAS, FAQ) -> FAS)) -> FAS.
 fold(Set, Initial, Reducer) ->
     gleam@dict:fold(
         erlang:element(2, Set),
@@ -172,7 +172,7 @@ fold(Set, Initial, Reducer) ->
     " // -> [4, 6, 44]\n"
     " ```\n"
 ).
--spec filter(set(FAS), fun((FAS) -> boolean())) -> set(FAS).
+-spec filter(set(FAT), fun((FAT) -> boolean())) -> set(FAT).
 filter(Set, Predicate) ->
     {set,
         gleam@dict:filter(erlang:element(2, Set), fun(M, _) -> Predicate(M) end)}.
@@ -189,7 +189,7 @@ filter(Set, Predicate) ->
     " // -> [2, 4]\n"
     " ```\n"
 ).
--spec drop(set(FAZ), list(FAZ)) -> set(FAZ).
+-spec drop(set(FBA), list(FBA)) -> set(FBA).
 drop(Set, Disallowed) ->
     gleam@list:fold(Disallowed, Set, fun delete/2).
 
@@ -209,12 +209,12 @@ drop(Set, Disallowed) ->
     " // -> [1, 3]\n"
     " ```\n"
 ).
--spec take(set(FBD), list(FBD)) -> set(FBD).
+-spec take(set(FBE), list(FBE)) -> set(FBE).
 take(Set, Desired) ->
     {set, gleam@dict:take(erlang:element(2, Set), Desired)}.
 
 -file("src/gleam/set.gleam", 267).
--spec order(set(FBH), set(FBH)) -> {set(FBH), set(FBH)}.
+-spec order(set(FBI), set(FBI)) -> {set(FBI), set(FBI)}.
 order(First, Second) ->
     case maps:size(erlang:element(2, First)) > maps:size(
         erlang:element(2, Second)
@@ -239,7 +239,7 @@ order(First, Second) ->
     " // -> [2]\n"
     " ```\n"
 ).
--spec intersection(set(FBQ), set(FBQ)) -> set(FBQ).
+-spec intersection(set(FBR), set(FBR)) -> set(FBR).
 intersection(First, Second) ->
     {Larger, Smaller} = order(First, Second),
     take(Larger, to_list(Smaller)).
@@ -256,7 +256,7 @@ intersection(First, Second) ->
     " // -> [1]\n"
     " ```\n"
 ).
--spec difference(set(FBU), set(FBU)) -> set(FBU).
+-spec difference(set(FBV), set(FBV)) -> set(FBV).
 difference(First, Second) ->
     drop(First, to_list(Second)).
 
@@ -276,7 +276,7 @@ difference(First, Second) ->
     " // -> False\n"
     " ```\n"
 ).
--spec is_subset(set(FBY), set(FBY)) -> boolean().
+-spec is_subset(set(FBZ), set(FBZ)) -> boolean().
 is_subset(First, Second) ->
     intersection(First, Second) =:= First.
 
@@ -296,7 +296,7 @@ is_subset(First, Second) ->
     " // -> False\n"
     " ```\n"
 ).
--spec is_disjoint(set(FCB), set(FCB)) -> boolean().
+-spec is_disjoint(set(FCC), set(FCC)) -> boolean().
 is_disjoint(First, Second) ->
     intersection(First, Second) =:= new().
 
@@ -316,7 +316,7 @@ is_disjoint(First, Second) ->
     " // -> 2\n"
     " ```\n"
 ).
--spec insert(set(FAB), FAB) -> set(FAB).
+-spec insert(set(FAC), FAC) -> set(FAC).
 insert(Set, Member) ->
     {set, gleam@dict:insert(erlang:element(2, Set), Member, [])}.
 
@@ -336,7 +336,7 @@ insert(Set, Member) ->
     " // -> [1, 2, 3, 4]\n"
     " ```\n"
 ).
--spec from_list(list(FAM)) -> set(FAM).
+-spec from_list(list(FAN)) -> set(FAN).
 from_list(Members) ->
     Dict = gleam@list:fold(
         Members,
@@ -357,7 +357,7 @@ from_list(Members) ->
     " // -> [2, 4, 6, 8]\n"
     " ```\n"
 ).
--spec map(set(FAV), fun((FAV) -> FAX)) -> set(FAX).
+-spec map(set(FAW), fun((FAW) -> FAY)) -> set(FAY).
 map(Set, Fun) ->
     fold(Set, new(), fun(Acc, Member) -> insert(Acc, Fun(Member)) end).
 
@@ -374,7 +374,7 @@ map(Set, Fun) ->
     " // -> [1, 2, 3]\n"
     " ```\n"
 ).
--spec union(set(FBM), set(FBM)) -> set(FBM).
+-spec union(set(FBN), set(FBN)) -> set(FBN).
 union(First, Second) ->
     {Larger, Smaller} = order(First, Second),
     fold(Smaller, Larger, fun insert/2).
@@ -389,6 +389,6 @@ union(First, Second) ->
     " // -> [1, 2, 4]\n"
     " ```\n"
 ).
--spec symmetric_difference(set(FCE), set(FCE)) -> set(FCE).
+-spec symmetric_difference(set(FCF), set(FCF)) -> set(FCF).
 symmetric_difference(First, Second) ->
     difference(union(First, Second), intersection(First, Second)).

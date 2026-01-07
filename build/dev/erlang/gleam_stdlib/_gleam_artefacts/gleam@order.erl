@@ -153,7 +153,7 @@ min(A, B) ->
     " // -> [5, 4, 1]\n"
     " ```\n"
 ).
--spec reverse(fun((R, R) -> order())) -> fun((R, R) -> order()).
+-spec reverse(fun((S, S) -> order())) -> fun((S, S) -> order()).
 reverse(Orderer) ->
     fun(A, B) -> Orderer(B, A) end.
 

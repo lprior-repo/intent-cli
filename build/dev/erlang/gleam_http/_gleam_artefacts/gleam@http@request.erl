@@ -12,10 +12,10 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--type request(HIO) :: {request,
+-type request(HIP) :: {request,
         gleam@http:method(),
         list({binary(), binary()}),
-        HIO,
+        HIP,
         gleam@http:scheme(),
         binary(),
         gleam@option:option(integer()),
@@ -89,7 +89,7 @@ get_header(Request, Key) ->
     " Header keys are always lowercase in `gleam_http`. To use any uppercase\n"
     " letter is invalid.\n"
 ).
--spec set_header(request(HIY), binary(), binary()) -> request(HIY).
+-spec set_header(request(HIZ), binary(), binary()) -> request(HIZ).
 set_header(Request, Key, Value) ->
     Headers = gleam@list:key_set(
         erlang:element(3, Request),
@@ -116,7 +116,7 @@ set_header(Request, Key, Value) ->
     " Header keys are always lowercase in `gleam_http`. To use any uppercase\n"
     " letter is invalid.\n"
 ).
--spec prepend_header(request(HJB), binary(), binary()) -> request(HJB).
+-spec prepend_header(request(HJC), binary(), binary()) -> request(HJC).
 prepend_header(Request, Key, Value) ->
     Headers = [{gleam@string:lowercase(Key), Value} |
         erlang:element(3, Request)],
@@ -132,14 +132,14 @@ prepend_header(Request, Key, Value) ->
 
 -file("src/gleam/http/request.gleam", 115).
 ?DOC(" Set the body of the request, overwriting any existing body.\n").
--spec set_body(request(any()), HJG) -> request(HJG).
+-spec set_body(request(any()), HJH) -> request(HJH).
 set_body(Req, Body) ->
     {request, Method, Headers, _, Scheme, Host, Port, Path, Query} = Req,
     {request, Method, Headers, Body, Scheme, Host, Port, Path, Query}.
 
 -file("src/gleam/http/request.gleam", 140).
 ?DOC(" Update the body of a request using a given function.\n").
--spec map(request(HJI), fun((HJI) -> HJK)) -> request(HJK).
+-spec map(request(HJJ), fun((HJJ) -> HJL)) -> request(HJL).
 map(Request, Transform) ->
     _pipe = erlang:element(4, Request),
     _pipe@1 = Transform(_pipe),
@@ -181,7 +181,7 @@ get_query(Request) ->
     " Set the query of the request.\n"
     " Query params will be percent encoded before being added to the Request.\n"
 ).
--spec set_query(request(HJU), list({binary(), binary()})) -> request(HJU).
+-spec set_query(request(HJV), list({binary(), binary()})) -> request(HJV).
 set_query(Req, Query) ->
     Pair = fun(T) ->
         <<<<(gleam@uri:percent_encode(erlang:element(1, T)))/binary, "="/utf8>>/binary,
@@ -206,7 +206,7 @@ set_query(Req, Query) ->
 
 -file("src/gleam/http/request.gleam", 194).
 ?DOC(" Set the method of the request.\n").
--spec set_method(request(HJY), gleam@http:method()) -> request(HJY).
+-spec set_method(request(HJZ), gleam@http:method()) -> request(HJZ).
 set_method(Req, Method) ->
     {request,
         Method,
@@ -245,7 +245,7 @@ to(Url) ->
 
 -file("src/gleam/http/request.gleam", 224).
 ?DOC(" Set the scheme (protocol) of the request.\n").
--spec set_scheme(request(HKF), gleam@http:scheme()) -> request(HKF).
+-spec set_scheme(request(HKG), gleam@http:scheme()) -> request(HKG).
 set_scheme(Req, Scheme) ->
     {request,
         erlang:element(2, Req),
@@ -259,7 +259,7 @@ set_scheme(Req, Scheme) ->
 
 -file("src/gleam/http/request.gleam", 230).
 ?DOC(" Set the host of the request.\n").
--spec set_host(request(HKI), binary()) -> request(HKI).
+-spec set_host(request(HKJ), binary()) -> request(HKJ).
 set_host(Req, Host) ->
     {request,
         erlang:element(2, Req),
@@ -273,7 +273,7 @@ set_host(Req, Host) ->
 
 -file("src/gleam/http/request.gleam", 236).
 ?DOC(" Set the port of the request.\n").
--spec set_port(request(HKL), integer()) -> request(HKL).
+-spec set_port(request(HKM), integer()) -> request(HKM).
 set_port(Req, Port) ->
     {request,
         erlang:element(2, Req),
@@ -287,7 +287,7 @@ set_port(Req, Port) ->
 
 -file("src/gleam/http/request.gleam", 242).
 ?DOC(" Set the path of the request.\n").
--spec set_path(request(HKO), binary()) -> request(HKO).
+-spec set_path(request(HKP), binary()) -> request(HKP).
 set_path(Req, Path) ->
     {request,
         erlang:element(2, Req),
@@ -305,7 +305,7 @@ set_path(Req, Path) ->
     "\n"
     " Multiple cookies are added to the same cookie header.\n"
 ).
--spec set_cookie(request(HKR), binary(), binary()) -> request(HKR).
+-spec set_cookie(request(HKS), binary(), binary()) -> request(HKS).
 set_cookie(Req, Name, Value) ->
     New_cookie_string = gleam@string:join([Name, Value], <<"="/utf8>>),
     {Cookies_string@2, Headers@1} = case gleam@list:key_pop(
@@ -365,7 +365,7 @@ get_cookies(Req) ->
     " Remove a cookie from the request. If no cookie is found return the request unchanged.\n"
     " This will not remove the cookie from the client.\n"
 ).
--spec remove_cookie(request(HKW), binary()) -> request(HKW).
+-spec remove_cookie(request(HKX), binary()) -> request(HKX).
 remove_cookie(Req, Name) ->
     case gleam@list:key_pop(erlang:element(3, Req), <<"cookie"/utf8>>) of
         {ok, {Cookies_string, Headers}} ->

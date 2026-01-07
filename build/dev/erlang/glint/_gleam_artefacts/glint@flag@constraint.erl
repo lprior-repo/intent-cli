@@ -16,7 +16,7 @@
     " one_of returns a Constraint that ensures the parsed flag value is\n"
     " one of the allowed values.\n"
 ).
--spec one_of(list(IIB)) -> fun((IIB) -> {ok, nil} | {error, snag:snag()}).
+-spec one_of(list(IKA)) -> fun((IKA) -> {ok, nil} | {error, snag:snag()}).
 one_of(Allowed) ->
     Allowed_set = gleam@set:from_list(Allowed),
     fun(Val) -> case gleam@set:contains(Allowed_set, Val) of
@@ -46,7 +46,7 @@ one_of(Allowed) ->
 
 -file("src/glint/flag/constraint.gleam", 38).
 ?DOC(" none_of returns a Constraint that ensures the parsed flag value is not one of the disallowed values.\n").
--spec none_of(list(IIE)) -> fun((IIE) -> {ok, nil} | {error, snag:snag()}).
+-spec none_of(list(IKD)) -> fun((IKD) -> {ok, nil} | {error, snag:snag()}).
 none_of(Disallowed) ->
     Disallowed_set = gleam@set:from_list(Disallowed),
     fun(Val) -> case gleam@set:contains(Disallowed_set, Val) of
@@ -84,7 +84,7 @@ none_of(Disallowed) ->
     " [1, 2, 3, 4] |> one_of |> each\n"
     " ```\n"
 ).
--spec each(fun((IIH) -> {ok, nil} | {error, snag:snag()})) -> fun((list(IIH)) -> {ok,
+-spec each(fun((IKG) -> {ok, nil} | {error, snag:snag()})) -> fun((list(IKG)) -> {ok,
         nil} |
     {error, snag:snag()}).
 each(Constraint) ->

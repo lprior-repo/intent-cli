@@ -1,1 +1,0 @@
--record(date, {year :: integer(), month :: integer(), day :: integer()}).

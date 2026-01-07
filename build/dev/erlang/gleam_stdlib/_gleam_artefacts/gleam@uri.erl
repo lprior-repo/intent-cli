@@ -92,7 +92,7 @@ extra_required(List, Remaining) ->
     end.
 
 -file("src/gleam/uri.gleam", 173).
--spec pad_list(list(gleam@option:option(FGF)), integer()) -> list(gleam@option:option(FGF)).
+-spec pad_list(list(gleam@option:option(FGG)), integer()) -> list(gleam@option:option(FGG)).
 pad_list(List, Size) ->
     _pipe = List,
     lists:append(_pipe, gleam@list:repeat(none, extra_required(List, Size))).
@@ -399,7 +399,7 @@ origin(Uri) ->
     end.
 
 -file("src/gleam/uri.gleam", 381).
--spec drop_last(list(FHF)) -> list(FHF).
+-spec drop_last(list(FHG)) -> list(FHG).
 drop_last(Elements) ->
     gleam@list:take(Elements, erlang:length(Elements) - 1).
 

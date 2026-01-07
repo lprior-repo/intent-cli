@@ -12,21 +12,21 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--type action(BWS) :: stop | {continue, BWS, fun(() -> action(BWS))}.
+-type action(BWT) :: stop | {continue, BWT, fun(() -> action(BWT))}.
 
--opaque iterator(BWT) :: {iterator, fun(() -> action(BWT))}.
+-opaque iterator(BWU) :: {iterator, fun(() -> action(BWU))}.
 
--type step(BWU, BWV) :: {next, BWU, BWV} | done.
+-type step(BWV, BWW) :: {next, BWV, BWW} | done.
 
--type chunk(BWW, BWX) :: {another_by,
-        list(BWW),
+-type chunk(BWX, BWY) :: {another_by,
+        list(BWX),
+        BWY,
         BWX,
-        BWW,
-        fun(() -> action(BWW))} |
-    {last_by, list(BWW)}.
+        fun(() -> action(BWX))} |
+    {last_by, list(BWX)}.
 
--type sized_chunk(BWY) :: {another, list(BWY), fun(() -> action(BWY))} |
-    {last, list(BWY)} |
+-type sized_chunk(BWZ) :: {another, list(BWZ), fun(() -> action(BWZ))} |
+    {last, list(BWZ)} |
     no_more.
 
 -file("src/gleam/iterator.gleam", 38).
@@ -35,7 +35,7 @@ stop() ->
     stop.
 
 -file("src/gleam/iterator.gleam", 43).
--spec do_unfold(BXB, fun((BXB) -> step(BXC, BXB))) -> fun(() -> action(BXC)).
+-spec do_unfold(BXC, fun((BXC) -> step(BXD, BXC))) -> fun(() -> action(BXD)).
 do_unfold(Initial, F) ->
     fun() -> case F(Initial) of
             {next, X, Acc} ->
@@ -68,7 +68,7 @@ do_unfold(Initial, F) ->
     " // -> [5, 4, 3, 2, 1]\n"
     " ```\n"
 ).
--spec unfold(BXG, fun((BXG) -> step(BXH, BXG))) -> iterator(BXH).
+-spec unfold(BXH, fun((BXH) -> step(BXI, BXH))) -> iterator(BXI).
 unfold(Initial, F) ->
     _pipe = Initial,
     _pipe@1 = do_unfold(_pipe, F),
@@ -79,7 +79,7 @@ unfold(Initial, F) ->
     " Creates an iterator that yields values created by calling a given function\n"
     " repeatedly.\n"
 ).
--spec repeatedly(fun(() -> BXL)) -> iterator(BXL).
+-spec repeatedly(fun(() -> BXM)) -> iterator(BXM).
 repeatedly(F) ->
     unfold(nil, fun(_) -> {next, F(), nil} end).
 
@@ -96,7 +96,7 @@ repeatedly(F) ->
     " // -> [10, 10, 10, 10]\n"
     " ```\n"
 ).
--spec repeat(BXN) -> iterator(BXN).
+-spec repeat(BXO) -> iterator(BXO).
 repeat(X) ->
     repeatedly(fun() -> X end).
 
@@ -112,7 +112,7 @@ repeat(X) ->
     " // -> [1, 2, 3, 4]\n"
     " ```\n"
 ).
--spec from_list(list(BXP)) -> iterator(BXP).
+-spec from_list(list(BXQ)) -> iterator(BXQ).
 from_list(List) ->
     Yield = fun(Acc) -> case Acc of
             [] ->
@@ -125,10 +125,10 @@ from_list(List) ->
 
 -file("src/gleam/iterator.gleam", 129).
 -spec do_transform(
-    fun(() -> action(BXS)),
-    BXU,
-    fun((BXU, BXS) -> step(BXV, BXU))
-) -> fun(() -> action(BXV)).
+    fun(() -> action(BXT)),
+    BXV,
+    fun((BXV, BXT) -> step(BXW, BXV))
+) -> fun(() -> action(BXW)).
 do_transform(Continuation, State, F) ->
     fun() -> case Continuation() of
             stop ->
@@ -163,13 +163,13 @@ do_transform(Continuation, State, F) ->
     " // -> [#(0, \"a\"), #(1, \"b\"), #(2, \"c\")]\n"
     " ```\n"
 ).
--spec transform(iterator(BXZ), BYB, fun((BYB, BXZ) -> step(BYC, BYB))) -> iterator(BYC).
+-spec transform(iterator(BYA), BYC, fun((BYC, BYA) -> step(BYD, BYC))) -> iterator(BYD).
 transform(Iterator, Initial, F) ->
     _pipe = do_transform(erlang:element(2, Iterator), Initial, F),
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 173).
--spec do_fold(fun(() -> action(BYG)), fun((BYI, BYG) -> BYI), BYI) -> BYI.
+-spec do_fold(fun(() -> action(BYH)), fun((BYJ, BYH) -> BYJ), BYJ) -> BYJ.
 do_fold(Continuation, F, Accumulator) ->
     case Continuation() of
         {continue, Elem, Next} ->
@@ -198,7 +198,7 @@ do_fold(Continuation, F, Accumulator) ->
     " // -> 10\n"
     " ```\n"
 ).
--spec fold(iterator(BYJ), BYL, fun((BYL, BYJ) -> BYL)) -> BYL.
+-spec fold(iterator(BYK), BYM, fun((BYM, BYK) -> BYM)) -> BYM.
 fold(Iterator, Initial, F) ->
     _pipe = erlang:element(2, Iterator),
     do_fold(_pipe, F, Initial).
@@ -229,7 +229,7 @@ run(Iterator) ->
     " // -> [2, 4, 6]\n"
     " ```\n"
 ).
--spec to_list(iterator(BYO)) -> list(BYO).
+-spec to_list(iterator(BYP)) -> list(BYP).
 to_list(Iterator) ->
     _pipe = Iterator,
     _pipe@1 = fold(_pipe, [], fun(Acc, E) -> [E | Acc] end),
@@ -259,7 +259,7 @@ to_list(Iterator) ->
     " // -> Done\n"
     " ```\n"
 ).
--spec step(iterator(BYR)) -> step(BYR, iterator(BYR)).
+-spec step(iterator(BYS)) -> step(BYS, iterator(BYS)).
 step(Iterator) ->
     case (erlang:element(2, Iterator))() of
         stop ->
@@ -270,7 +270,7 @@ step(Iterator) ->
     end.
 
 -file("src/gleam/iterator.gleam", 268).
--spec do_take(fun(() -> action(BYW)), integer()) -> fun(() -> action(BYW)).
+-spec do_take(fun(() -> action(BYX)), integer()) -> fun(() -> action(BYX)).
 do_take(Continuation, Desired) ->
     fun() -> case Desired > 0 of
             false ->
@@ -308,14 +308,14 @@ do_take(Continuation, Desired) ->
     " // -> [1, 2]\n"
     " ```\n"
 ).
--spec take(iterator(BYZ), integer()) -> iterator(BYZ).
+-spec take(iterator(BZA), integer()) -> iterator(BZA).
 take(Iterator, Desired) ->
     _pipe = erlang:element(2, Iterator),
     _pipe@1 = do_take(_pipe, Desired),
     {iterator, _pipe@1}.
 
 -file("src/gleam/iterator.gleam", 307).
--spec do_drop(fun(() -> action(BZC)), integer()) -> action(BZC).
+-spec do_drop(fun(() -> action(BZD)), integer()) -> action(BZD).
 do_drop(Continuation, Desired) ->
     case Continuation() of
         stop ->
@@ -358,13 +358,13 @@ do_drop(Continuation, Desired) ->
     " // -> []\n"
     " ```\n"
 ).
--spec drop(iterator(BZF), integer()) -> iterator(BZF).
+-spec drop(iterator(BZG), integer()) -> iterator(BZG).
 drop(Iterator, Desired) ->
     _pipe = fun() -> do_drop(erlang:element(2, Iterator), Desired) end,
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 348).
--spec do_map(fun(() -> action(BZI)), fun((BZI) -> BZK)) -> fun(() -> action(BZK)).
+-spec do_map(fun(() -> action(BZJ)), fun((BZJ) -> BZL)) -> fun(() -> action(BZL)).
 do_map(Continuation, F) ->
     fun() -> case Continuation() of
             stop ->
@@ -393,7 +393,7 @@ do_map(Continuation, F) ->
     " // -> [2, 4, 6]\n"
     " ```\n"
 ).
--spec map(iterator(BZM), fun((BZM) -> BZO)) -> iterator(BZO).
+-spec map(iterator(BZN), fun((BZN) -> BZP)) -> iterator(BZP).
 map(Iterator, F) ->
     _pipe = erlang:element(2, Iterator),
     _pipe@1 = do_map(_pipe, F),
@@ -401,10 +401,10 @@ map(Iterator, F) ->
 
 -file("src/gleam/iterator.gleam", 380).
 -spec do_map2(
-    fun(() -> action(BZQ)),
-    fun(() -> action(BZS)),
-    fun((BZQ, BZS) -> BZU)
-) -> fun(() -> action(BZU)).
+    fun(() -> action(BZR)),
+    fun(() -> action(BZT)),
+    fun((BZR, BZT) -> BZV)
+) -> fun(() -> action(BZV)).
 do_map2(Continuation1, Continuation2, Fun) ->
     fun() -> case Continuation1() of
             stop ->
@@ -445,7 +445,7 @@ do_map2(Continuation1, Continuation2, Fun) ->
     " // -> [#(1, \"a\"), #(2, \"b\")]\n"
     " ```\n"
 ).
--spec map2(iterator(BZW), iterator(BZY), fun((BZW, BZY) -> CAA)) -> iterator(CAA).
+-spec map2(iterator(BZX), iterator(BZZ), fun((BZX, BZZ) -> CAB)) -> iterator(CAB).
 map2(Iterator1, Iterator2, Fun) ->
     _pipe = do_map2(
         erlang:element(2, Iterator1),
@@ -455,7 +455,7 @@ map2(Iterator1, Iterator2, Fun) ->
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 430).
--spec do_append(fun(() -> action(CAC)), fun(() -> action(CAC))) -> action(CAC).
+-spec do_append(fun(() -> action(CAD)), fun(() -> action(CAD))) -> action(CAD).
 do_append(First, Second) ->
     case First() of
         {continue, E, First@1} ->
@@ -481,7 +481,7 @@ do_append(First, Second) ->
     " // -> [1, 2, 3, 4]\n"
     " ```\n"
 ).
--spec append(iterator(CAG), iterator(CAG)) -> iterator(CAG).
+-spec append(iterator(CAH), iterator(CAH)) -> iterator(CAH).
 append(First, Second) ->
     _pipe = fun() ->
         do_append(erlang:element(2, First), erlang:element(2, Second))
@@ -489,7 +489,7 @@ append(First, Second) ->
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 456).
--spec do_flatten(fun(() -> action(iterator(CAK)))) -> action(CAK).
+-spec do_flatten(fun(() -> action(iterator(CAL)))) -> action(CAL).
 do_flatten(Flattened) ->
     case Flattened() of
         stop ->
@@ -519,7 +519,7 @@ do_flatten(Flattened) ->
     " // -> [1, 2, 3, 4]\n"
     " ```\n"
 ).
--spec flatten(iterator(iterator(CAO))) -> iterator(CAO).
+-spec flatten(iterator(iterator(CAP))) -> iterator(CAP).
 flatten(Iterator) ->
     _pipe = fun() -> do_flatten(erlang:element(2, Iterator)) end,
     {iterator, _pipe}.
@@ -541,7 +541,7 @@ flatten(Iterator) ->
     " // -> [1, 2, 3, 4]\n"
     " ```\n"
 ).
--spec concat(list(iterator(CAS))) -> iterator(CAS).
+-spec concat(list(iterator(CAT))) -> iterator(CAT).
 concat(Iterators) ->
     flatten(from_list(Iterators)).
 
@@ -565,14 +565,14 @@ concat(Iterators) ->
     " // -> [1, 2, 2, 3]\n"
     " ```\n"
 ).
--spec flat_map(iterator(CAW), fun((CAW) -> iterator(CAY))) -> iterator(CAY).
+-spec flat_map(iterator(CAX), fun((CAX) -> iterator(CAZ))) -> iterator(CAZ).
 flat_map(Iterator, F) ->
     _pipe = Iterator,
     _pipe@1 = map(_pipe, F),
     flatten(_pipe@1).
 
 -file("src/gleam/iterator.gleam", 530).
--spec do_filter(fun(() -> action(CBB)), fun((CBB) -> boolean())) -> action(CBB).
+-spec do_filter(fun(() -> action(CBC)), fun((CBC) -> boolean())) -> action(CBC).
 do_filter(Continuation, Predicate) ->
     case Continuation() of
         stop ->
@@ -609,16 +609,16 @@ do_filter(Continuation, Predicate) ->
     " // -> [2, 4]\n"
     " ```\n"
 ).
--spec filter(iterator(CBE), fun((CBE) -> boolean())) -> iterator(CBE).
+-spec filter(iterator(CBF), fun((CBF) -> boolean())) -> iterator(CBF).
 filter(Iterator, Predicate) ->
     _pipe = fun() -> do_filter(erlang:element(2, Iterator), Predicate) end,
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 571).
 -spec do_filter_map(
-    fun(() -> action(CBH)),
-    fun((CBH) -> {ok, CBJ} | {error, any()})
-) -> action(CBJ).
+    fun(() -> action(CBI)),
+    fun((CBI) -> {ok, CBK} | {error, any()})
+) -> action(CBK).
 do_filter_map(Continuation, F) ->
     case Continuation() of
         stop ->
@@ -658,7 +658,7 @@ do_filter_map(Continuation, F) ->
     " // -> [1, 2, 3, 4, 5]\n"
     " ```\n"
 ).
--spec filter_map(iterator(CBO), fun((CBO) -> {ok, CBQ} | {error, any()})) -> iterator(CBQ).
+-spec filter_map(iterator(CBP), fun((CBP) -> {ok, CBR} | {error, any()})) -> iterator(CBR).
 filter_map(Iterator, F) ->
     _pipe = fun() -> do_filter_map(erlang:element(2, Iterator), F) end,
     {iterator, _pipe}.
@@ -677,13 +677,13 @@ filter_map(Iterator, F) ->
     " // -> [1, 2, 1, 2, 1, 2]\n"
     " ```\n"
 ).
--spec cycle(iterator(CBV)) -> iterator(CBV).
+-spec cycle(iterator(CBW)) -> iterator(CBW).
 cycle(Iterator) ->
     _pipe = repeat(Iterator),
     flatten(_pipe).
 
 -file("src/gleam/iterator.gleam", 673).
--spec do_find(fun(() -> action(CBZ)), fun((CBZ) -> boolean())) -> {ok, CBZ} |
+-spec do_find(fun(() -> action(CCA)), fun((CCA) -> boolean())) -> {ok, CCA} |
     {error, nil}.
 do_find(Continuation, F) ->
     case Continuation() of
@@ -725,16 +725,16 @@ do_find(Continuation, F) ->
     " // -> Error(Nil)\n"
     " ```\n"
 ).
--spec find(iterator(CCD), fun((CCD) -> boolean())) -> {ok, CCD} | {error, nil}.
+-spec find(iterator(CCE), fun((CCE) -> boolean())) -> {ok, CCE} | {error, nil}.
 find(Haystack, Is_desired) ->
     _pipe = erlang:element(2, Haystack),
     do_find(_pipe, Is_desired).
 
 -file("src/gleam/iterator.gleam", 715).
 -spec do_find_map(
-    fun(() -> action(CCH)),
-    fun((CCH) -> {ok, CCJ} | {error, any()})
-) -> {ok, CCJ} | {error, nil}.
+    fun(() -> action(CCI)),
+    fun((CCI) -> {ok, CCK} | {error, any()})
+) -> {ok, CCK} | {error, nil}.
 do_find_map(Continuation, F) ->
     case Continuation() of
         stop ->
@@ -775,15 +775,15 @@ do_find_map(Continuation, F) ->
     " // -> Error(Nil)\n"
     " ```\n"
 ).
--spec find_map(iterator(CCP), fun((CCP) -> {ok, CCR} | {error, any()})) -> {ok,
-        CCR} |
+-spec find_map(iterator(CCQ), fun((CCQ) -> {ok, CCS} | {error, any()})) -> {ok,
+        CCS} |
     {error, nil}.
 find_map(Haystack, Is_desired) ->
     _pipe = erlang:element(2, Haystack),
     do_find_map(_pipe, Is_desired).
 
 -file("src/gleam/iterator.gleam", 760).
--spec do_index(fun(() -> action(CCX)), integer()) -> fun(() -> action({CCX,
+-spec do_index(fun(() -> action(CCY)), integer()) -> fun(() -> action({CCY,
     integer()})).
 do_index(Continuation, Next) ->
     fun() -> case Continuation() of
@@ -805,7 +805,7 @@ do_index(Continuation, Next) ->
     " // -> [#(\"a\", 0), #(\"b\", 1), #(\"c\", 2)]\n"
     " ```\n"
 ).
--spec index(iterator(CDA)) -> iterator({CDA, integer()}).
+-spec index(iterator(CDB)) -> iterator({CDB, integer()}).
 index(Iterator) ->
     _pipe = erlang:element(2, Iterator),
     _pipe@1 = do_index(_pipe, 0),
@@ -822,12 +822,12 @@ index(Iterator) ->
     " // -> [1, 3, 9, 27, 81]\n"
     " ```\n"
 ).
--spec iterate(CDD, fun((CDD) -> CDD)) -> iterator(CDD).
+-spec iterate(CDE, fun((CDE) -> CDE)) -> iterator(CDE).
 iterate(Initial, F) ->
     unfold(Initial, fun(Element) -> {next, Element, F(Element)} end).
 
 -file("src/gleam/iterator.gleam", 804).
--spec do_take_while(fun(() -> action(CDF)), fun((CDF) -> boolean())) -> fun(() -> action(CDF)).
+-spec do_take_while(fun(() -> action(CDG)), fun((CDG) -> boolean())) -> fun(() -> action(CDG)).
 do_take_while(Continuation, Predicate) ->
     fun() -> case Continuation() of
             stop ->
@@ -856,14 +856,14 @@ do_take_while(Continuation, Predicate) ->
     " // -> [1, 2]\n"
     " ```\n"
 ).
--spec take_while(iterator(CDI), fun((CDI) -> boolean())) -> iterator(CDI).
+-spec take_while(iterator(CDJ), fun((CDJ) -> boolean())) -> iterator(CDJ).
 take_while(Iterator, Predicate) ->
     _pipe = erlang:element(2, Iterator),
     _pipe@1 = do_take_while(_pipe, Predicate),
     {iterator, _pipe@1}.
 
 -file("src/gleam/iterator.gleam", 840).
--spec do_drop_while(fun(() -> action(CDL)), fun((CDL) -> boolean())) -> action(CDL).
+-spec do_drop_while(fun(() -> action(CDM)), fun((CDM) -> boolean())) -> action(CDM).
 do_drop_while(Continuation, Predicate) ->
     case Continuation() of
         stop ->
@@ -893,13 +893,13 @@ do_drop_while(Continuation, Predicate) ->
     " // -> [4, 2, 5]\n"
     " ```\n"
 ).
--spec drop_while(iterator(CDO), fun((CDO) -> boolean())) -> iterator(CDO).
+-spec drop_while(iterator(CDP), fun((CDP) -> boolean())) -> iterator(CDP).
 drop_while(Iterator, Predicate) ->
     _pipe = fun() -> do_drop_while(erlang:element(2, Iterator), Predicate) end,
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 874).
--spec do_scan(fun(() -> action(CDR)), fun((CDT, CDR) -> CDT), CDT) -> fun(() -> action(CDT)).
+-spec do_scan(fun(() -> action(CDS)), fun((CDU, CDS) -> CDU), CDU) -> fun(() -> action(CDU)).
 do_scan(Continuation, F, Accumulator) ->
     fun() -> case Continuation() of
             stop ->
@@ -926,15 +926,15 @@ do_scan(Continuation, F, Accumulator) ->
     " // -> [1, 3, 6, 10, 15]\n"
     " ```\n"
 ).
--spec scan(iterator(CDV), CDX, fun((CDX, CDV) -> CDX)) -> iterator(CDX).
+-spec scan(iterator(CDW), CDY, fun((CDY, CDW) -> CDY)) -> iterator(CDY).
 scan(Iterator, Initial, F) ->
     _pipe = erlang:element(2, Iterator),
     _pipe@1 = do_scan(_pipe, F, Initial),
     {iterator, _pipe@1}.
 
 -file("src/gleam/iterator.gleam", 914).
--spec do_zip(fun(() -> action(CDZ)), fun(() -> action(CEB))) -> fun(() -> action({CDZ,
-    CEB})).
+-spec do_zip(fun(() -> action(CEA)), fun(() -> action(CEC))) -> fun(() -> action({CEA,
+    CEC})).
 do_zip(Left, Right) ->
     fun() -> case Left() of
             stop ->
@@ -966,13 +966,13 @@ do_zip(Left, Right) ->
     " // -> [#(\"a\", 20), #(\"b\", 21), #(\"c\", 22)]\n"
     " ```\n"
 ).
--spec zip(iterator(CEE), iterator(CEG)) -> iterator({CEE, CEG}).
+-spec zip(iterator(CEF), iterator(CEH)) -> iterator({CEF, CEH}).
 zip(Left, Right) ->
     _pipe = do_zip(erlang:element(2, Left), erlang:element(2, Right)),
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 954).
--spec next_chunk(fun(() -> action(CEJ)), fun((CEJ) -> CEL), CEL, list(CEJ)) -> chunk(CEJ, CEL).
+-spec next_chunk(fun(() -> action(CEK)), fun((CEK) -> CEM), CEM, list(CEK)) -> chunk(CEK, CEM).
 next_chunk(Continuation, F, Previous_key, Current_chunk) ->
     case Continuation() of
         stop ->
@@ -990,7 +990,7 @@ next_chunk(Continuation, F, Previous_key, Current_chunk) ->
     end.
 
 -file("src/gleam/iterator.gleam", 972).
--spec do_chunk(fun(() -> action(CEP)), fun((CEP) -> CER), CER, CEP) -> action(list(CEP)).
+-spec do_chunk(fun(() -> action(CEQ)), fun((CEQ) -> CES), CES, CEQ) -> action(list(CEQ)).
 do_chunk(Continuation, F, Previous_key, Previous_element) ->
     case next_chunk(Continuation, F, Previous_key, [Previous_element]) of
         {last_by, Chunk} ->
@@ -1014,7 +1014,7 @@ do_chunk(Continuation, F, Previous_key, Previous_element) ->
     " // -> [[1], [2, 2], [3], [4, 4, 6], [7, 7]]\n"
     " ```\n"
 ).
--spec chunk(iterator(CEU), fun((CEU) -> any())) -> iterator(list(CEU)).
+-spec chunk(iterator(CEV), fun((CEV) -> any())) -> iterator(list(CEV)).
 chunk(Iterator, F) ->
     _pipe = fun() -> case (erlang:element(2, Iterator))() of
             stop ->
@@ -1026,7 +1026,7 @@ chunk(Iterator, F) ->
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 1017).
--spec next_sized_chunk(fun(() -> action(CEZ)), integer(), list(CEZ)) -> sized_chunk(CEZ).
+-spec next_sized_chunk(fun(() -> action(CFA)), integer(), list(CFA)) -> sized_chunk(CFA).
 next_sized_chunk(Continuation, Left, Current_chunk) ->
     case Continuation() of
         stop ->
@@ -1050,7 +1050,7 @@ next_sized_chunk(Continuation, Left, Current_chunk) ->
     end.
 
 -file("src/gleam/iterator.gleam", 1038).
--spec do_sized_chunk(fun(() -> action(CFD)), integer()) -> fun(() -> action(list(CFD))).
+-spec do_sized_chunk(fun(() -> action(CFE)), integer()) -> fun(() -> action(list(CFE))).
 do_sized_chunk(Continuation, Count) ->
     fun() -> case next_sized_chunk(Continuation, Count, []) of
             no_more ->
@@ -1088,14 +1088,14 @@ do_sized_chunk(Continuation, Count) ->
     " // -> [[1, 2, 3], [4, 5, 6], [7, 8]]\n"
     " ```\n"
 ).
--spec sized_chunk(iterator(CFH), integer()) -> iterator(list(CFH)).
+-spec sized_chunk(iterator(CFI), integer()) -> iterator(list(CFI)).
 sized_chunk(Iterator, Count) ->
     _pipe = erlang:element(2, Iterator),
     _pipe@1 = do_sized_chunk(_pipe, Count),
     {iterator, _pipe@1}.
 
 -file("src/gleam/iterator.gleam", 1084).
--spec do_intersperse(fun(() -> action(CFL)), CFL) -> action(CFL).
+-spec do_intersperse(fun(() -> action(CFM)), CFM) -> action(CFM).
 do_intersperse(Continuation, Separator) ->
     case Continuation() of
         stop ->
@@ -1134,7 +1134,7 @@ do_intersperse(Continuation, Separator) ->
     " // -> [1, 0, 2, 0, 3, 0, 4, 0, 5]\n"
     " ```\n"
 ).
--spec intersperse(iterator(CFO), CFO) -> iterator(CFO).
+-spec intersperse(iterator(CFP), CFP) -> iterator(CFP).
 intersperse(Iterator, Elem) ->
     _pipe = fun() -> case (erlang:element(2, Iterator))() of
             stop ->
@@ -1146,7 +1146,7 @@ intersperse(Iterator, Elem) ->
     {iterator, _pipe}.
 
 -file("src/gleam/iterator.gleam", 1136).
--spec do_any(fun(() -> action(CFR)), fun((CFR) -> boolean())) -> boolean().
+-spec do_any(fun(() -> action(CFS)), fun((CFS) -> boolean())) -> boolean().
 do_any(Continuation, Predicate) ->
     case Continuation() of
         stop ->
@@ -1191,13 +1191,13 @@ do_any(Continuation, Predicate) ->
     " // -> False\n"
     " ```\n"
 ).
--spec any(iterator(CFT), fun((CFT) -> boolean())) -> boolean().
+-spec any(iterator(CFU), fun((CFU) -> boolean())) -> boolean().
 any(Iterator, Predicate) ->
     _pipe = erlang:element(2, Iterator),
     do_any(_pipe, Predicate).
 
 -file("src/gleam/iterator.gleam", 1185).
--spec do_all(fun(() -> action(CFV)), fun((CFV) -> boolean())) -> boolean().
+-spec do_all(fun(() -> action(CFW)), fun((CFW) -> boolean())) -> boolean().
 do_all(Continuation, Predicate) ->
     case Continuation() of
         stop ->
@@ -1242,13 +1242,13 @@ do_all(Continuation, Predicate) ->
     " // -> False\n"
     " ```\n"
 ).
--spec all(iterator(CFX), fun((CFX) -> boolean())) -> boolean().
+-spec all(iterator(CFY), fun((CFY) -> boolean())) -> boolean().
 all(Iterator, Predicate) ->
     _pipe = erlang:element(2, Iterator),
     do_all(_pipe, Predicate).
 
 -file("src/gleam/iterator.gleam", 1234).
--spec update_group_with(CFZ) -> fun((gleam@option:option(list(CFZ))) -> list(CFZ)).
+-spec update_group_with(CGA) -> fun((gleam@option:option(list(CGA))) -> list(CGA)).
 update_group_with(El) ->
     fun(Maybe_group) -> case Maybe_group of
             {some, Group} ->
@@ -1259,7 +1259,7 @@ update_group_with(El) ->
         end end.
 
 -file("src/gleam/iterator.gleam", 1243).
--spec group_updater(fun((CGD) -> CGE)) -> fun((gleam@dict:dict(CGE, list(CGD)), CGD) -> gleam@dict:dict(CGE, list(CGD))).
+-spec group_updater(fun((CGE) -> CGF)) -> fun((gleam@dict:dict(CGF, list(CGE)), CGE) -> gleam@dict:dict(CGF, list(CGE))).
 group_updater(F) ->
     fun(Groups, Elem) -> _pipe = Groups,
         gleam@dict:upsert(_pipe, F(Elem), update_group_with(Elem)) end.
@@ -1279,7 +1279,7 @@ group_updater(F) ->
     " // -> dict.from_list([#(0, [3, 6]), #(1, [1, 4]), #(2, [2, 5])])\n"
     " ```\n"
 ).
--spec group(iterator(CGL), fun((CGL) -> CGN)) -> gleam@dict:dict(CGN, list(CGL)).
+-spec group(iterator(CGM), fun((CGM) -> CGO)) -> gleam@dict:dict(CGO, list(CGM)).
 group(Iterator, Key) ->
     _pipe = Iterator,
     _pipe@1 = fold(_pipe, gleam@dict:new(), group_updater(Key)),
@@ -1308,7 +1308,7 @@ group(Iterator, Key) ->
     " // -> Ok(15)\n"
     " ```\n"
 ).
--spec reduce(iterator(CGR), fun((CGR, CGR) -> CGR)) -> {ok, CGR} | {error, nil}.
+-spec reduce(iterator(CGS), fun((CGS, CGS) -> CGS)) -> {ok, CGS} | {error, nil}.
 reduce(Iterator, F) ->
     case (erlang:element(2, Iterator))() of
         stop ->
@@ -1339,7 +1339,7 @@ reduce(Iterator, F) ->
     " // -> Ok(10)\n"
     " ```\n"
 ).
--spec last(iterator(CGV)) -> {ok, CGV} | {error, nil}.
+-spec last(iterator(CGW)) -> {ok, CGW} | {error, nil}.
 last(Iterator) ->
     _pipe = Iterator,
     reduce(_pipe, fun(_, Elem) -> Elem end).
@@ -1370,7 +1370,7 @@ empty() ->
     " // -> [1]\n"
     " ```\n"
 ).
--spec once(fun(() -> CHB)) -> iterator(CHB).
+-spec once(fun(() -> CHC)) -> iterator(CHC).
 once(F) ->
     _pipe = fun() -> {continue, F(), fun stop/0} end,
     {iterator, _pipe}.
@@ -1433,12 +1433,12 @@ range(Start, Stop) ->
     " // -> [1]\n"
     " ```\n"
 ).
--spec single(CHD) -> iterator(CHD).
+-spec single(CHE) -> iterator(CHE).
 single(Elem) ->
     once(fun() -> Elem end).
 
 -file("src/gleam/iterator.gleam", 1370).
--spec do_interleave(fun(() -> action(CHF)), fun(() -> action(CHF))) -> action(CHF).
+-spec do_interleave(fun(() -> action(CHG)), fun(() -> action(CHG))) -> action(CHG).
 do_interleave(Current, Next) ->
     case Current() of
         stop ->
@@ -1469,7 +1469,7 @@ do_interleave(Current, Next) ->
     " // -> [1, 100, 2, 3, 4]\n"
     " ```\n"
 ).
--spec interleave(iterator(CHJ), iterator(CHJ)) -> iterator(CHJ).
+-spec interleave(iterator(CHK), iterator(CHK)) -> iterator(CHK).
 interleave(Left, Right) ->
     _pipe = fun() ->
         do_interleave(erlang:element(2, Left), erlang:element(2, Right))
@@ -1478,10 +1478,10 @@ interleave(Left, Right) ->
 
 -file("src/gleam/iterator.gleam", 1408).
 -spec do_fold_until(
-    fun(() -> action(CHN)),
-    fun((CHP, CHN) -> gleam@list:continue_or_stop(CHP)),
-    CHP
-) -> CHP.
+    fun(() -> action(CHO)),
+    fun((CHQ, CHO) -> gleam@list:continue_or_stop(CHQ)),
+    CHQ
+) -> CHQ.
 do_fold_until(Continuation, F, Accumulator) ->
     case Continuation() of
         stop ->
@@ -1524,20 +1524,20 @@ do_fold_until(Continuation, F, Accumulator) ->
     " ```\n"
 ).
 -spec fold_until(
-    iterator(CHR),
-    CHT,
-    fun((CHT, CHR) -> gleam@list:continue_or_stop(CHT))
-) -> CHT.
+    iterator(CHS),
+    CHU,
+    fun((CHU, CHS) -> gleam@list:continue_or_stop(CHU))
+) -> CHU.
 fold_until(Iterator, Initial, F) ->
     _pipe = erlang:element(2, Iterator),
     do_fold_until(_pipe, F, Initial).
 
 -file("src/gleam/iterator.gleam", 1456).
 -spec do_try_fold(
-    fun(() -> action(CHV)),
-    fun((CHX, CHV) -> {ok, CHX} | {error, CHY}),
-    CHX
-) -> {ok, CHX} | {error, CHY}.
+    fun(() -> action(CHW)),
+    fun((CHY, CHW) -> {ok, CHY} | {error, CHZ}),
+    CHY
+) -> {ok, CHY} | {error, CHZ}.
 do_try_fold(Continuation, F, Accumulator) ->
     case Continuation() of
         stop ->
@@ -1571,9 +1571,9 @@ do_try_fold(Continuation, F, Accumulator) ->
     " // -> Error(Nil)\n"
     " ```\n"
 ).
--spec try_fold(iterator(CID), CIF, fun((CIF, CID) -> {ok, CIF} | {error, CIG})) -> {ok,
-        CIF} |
-    {error, CIG}.
+-spec try_fold(iterator(CIE), CIG, fun((CIG, CIE) -> {ok, CIG} | {error, CIH})) -> {ok,
+        CIG} |
+    {error, CIH}.
 try_fold(Iterator, Initial, F) ->
     _pipe = erlang:element(2, Iterator),
     do_try_fold(_pipe, F, Initial).
@@ -1595,7 +1595,7 @@ try_fold(Iterator, Initial, F) ->
     " // -> Error(Nil)\n"
     " ```\n"
 ).
--spec first(iterator(CIL)) -> {ok, CIL} | {error, nil}.
+-spec first(iterator(CIM)) -> {ok, CIM} | {error, nil}.
 first(Iterator) ->
     case (erlang:element(2, Iterator))() of
         stop ->
@@ -1630,7 +1630,7 @@ first(Iterator) ->
     " // -> Error(Nil)\n"
     " ```\n"
 ).
--spec at(iterator(CIP), integer()) -> {ok, CIP} | {error, nil}.
+-spec at(iterator(CIQ), integer()) -> {ok, CIQ} | {error, nil}.
 at(Iterator, Index) ->
     _pipe = Iterator,
     _pipe@1 = drop(_pipe, Index),
@@ -1690,7 +1690,7 @@ length(Iterator) ->
     " // Louis\n"
     " ```\n"
 ).
--spec each(iterator(CIX), fun((CIX) -> any())) -> nil.
+-spec each(iterator(CIY), fun((CIY) -> any())) -> nil.
 each(Iterator, F) ->
     _pipe = Iterator,
     _pipe@1 = map(_pipe, F),
@@ -1717,7 +1717,7 @@ each(Iterator, F) ->
     " // -> [1, 2, 3]\n"
     " ```\n"
 ).
--spec yield(CJA, fun(() -> iterator(CJA))) -> iterator(CJA).
+-spec yield(CJB, fun(() -> iterator(CJB))) -> iterator(CJB).
 yield(Element, Next) ->
     {iterator,
         fun() ->

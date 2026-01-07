@@ -12,7 +12,7 @@
 -endif.
 
 -file("src/gleam/function.gleam", 2).
--spec compose(fun((ERS) -> ERT), fun((ERT) -> ERU)) -> fun((ERS) -> ERU).
+-spec compose(fun((ERT) -> ERU), fun((ERU) -> ERV)) -> fun((ERT) -> ERV).
 compose(Fun1, Fun2) ->
     fun(A) -> Fun2(Fun1(A)) end.
 
@@ -52,7 +52,7 @@ compose(Fun1, Fun2) ->
     " // -> [2, 4, 6]\n"
     " ```\n"
 ).
--spec curry2(fun((ERV, ERW) -> ERX)) -> fun((ERV) -> fun((ERW) -> ERX)).
+-spec curry2(fun((ERW, ERX) -> ERY)) -> fun((ERW) -> fun((ERX) -> ERY)).
 curry2(Fun) ->
     fun(A) -> fun(B) -> Fun(A, B) end end.
 
@@ -65,7 +65,7 @@ curry2(Fun) ->
     "\n"
     " See [`curry2`](#curry2) for a detailed explanation.\n"
 ).
--spec curry3(fun((ERZ, ESA, ESB) -> ESC)) -> fun((ERZ) -> fun((ESA) -> fun((ESB) -> ESC))).
+-spec curry3(fun((ESA, ESB, ESC) -> ESD)) -> fun((ESA) -> fun((ESB) -> fun((ESC) -> ESD))).
 curry3(Fun) ->
     fun(A) -> fun(B) -> fun(C) -> Fun(A, B, C) end end end.
 
@@ -78,7 +78,7 @@ curry3(Fun) ->
     "\n"
     " See [`curry2`](#curry2) for a detailed explanation.\n"
 ).
--spec curry4(fun((ESE, ESF, ESG, ESH) -> ESI)) -> fun((ESE) -> fun((ESF) -> fun((ESG) -> fun((ESH) -> ESI)))).
+-spec curry4(fun((ESF, ESG, ESH, ESI) -> ESJ)) -> fun((ESF) -> fun((ESG) -> fun((ESH) -> fun((ESI) -> ESJ)))).
 curry4(Fun) ->
     fun(A) -> fun(B) -> fun(C) -> fun(D) -> Fun(A, B, C, D) end end end end.
 
@@ -92,7 +92,7 @@ curry4(Fun) ->
     "\n"
     " See [`curry2`](#curry2) for a detailed explanation.\n"
 ).
--spec curry5(fun((ESK, ESL, ESM, ESN, ESO) -> ESP)) -> fun((ESK) -> fun((ESL) -> fun((ESM) -> fun((ESN) -> fun((ESO) -> ESP))))).
+-spec curry5(fun((ESL, ESM, ESN, ESO, ESP) -> ESQ)) -> fun((ESL) -> fun((ESM) -> fun((ESN) -> fun((ESO) -> fun((ESP) -> ESQ))))).
 curry5(Fun) ->
     fun(A) ->
         fun(B) ->
@@ -110,7 +110,7 @@ curry5(Fun) ->
     "\n"
     " See [`curry2`](#curry2) for a detailed explanation.\n"
 ).
--spec curry6(fun((ESR, ESS, EST, ESU, ESV, ESW) -> ESX)) -> fun((ESR) -> fun((ESS) -> fun((EST) -> fun((ESU) -> fun((ESV) -> fun((ESW) -> ESX)))))).
+-spec curry6(fun((ESS, EST, ESU, ESV, ESW, ESX) -> ESY)) -> fun((ESS) -> fun((EST) -> fun((ESU) -> fun((ESV) -> fun((ESW) -> fun((ESX) -> ESY)))))).
 curry6(Fun) ->
     fun(A) ->
         fun(B) ->
@@ -125,18 +125,18 @@ curry6(Fun) ->
     " Takes a function that takes two arguments and returns a new function that\n"
     " takes the same two arguments, but in reverse order.\n"
 ).
--spec flip(fun((ESZ, ETA) -> ETB)) -> fun((ETA, ESZ) -> ETB).
+-spec flip(fun((ETA, ETB) -> ETC)) -> fun((ETB, ETA) -> ETC).
 flip(Fun) ->
     fun(B, A) -> Fun(A, B) end.
 
 -file("src/gleam/function.gleam", 101).
 ?DOC(" Takes a single argument and always returns its input value.\n").
--spec identity(ETC) -> ETC.
+-spec identity(ETD) -> ETD.
 identity(X) ->
     X.
 
 -file("src/gleam/function.gleam", 106).
--spec constant(ETD) -> fun((any()) -> ETD).
+-spec constant(ETE) -> fun((any()) -> ETE).
 constant(Value) ->
     fun(_) -> Value end.
 
@@ -147,7 +147,7 @@ constant(Value) ->
     " and returns that argument instead of the function return value.\n"
     " Useful for running synchronous side effects in a pipeline.\n"
 ).
--spec tap(ETF, fun((ETF) -> any())) -> ETF.
+-spec tap(ETG, fun((ETG) -> any())) -> ETG.
 tap(Arg, Effect) ->
     Effect(Arg),
     Arg.
@@ -170,7 +170,7 @@ tap(Arg, Effect) ->
     " // -> 4\n"
     " ```\n"
 ).
--spec apply1(fun((ETH) -> ETI), ETH) -> ETI.
+-spec apply1(fun((ETI) -> ETJ), ETI) -> ETJ.
 apply1(Fun, Arg1) ->
     Fun(Arg1).
 
@@ -182,7 +182,7 @@ apply1(Fun, Arg1) ->
     "\n"
     " See [`apply1`](#apply1) for more details.\n"
 ).
--spec apply2(fun((ETJ, ETK) -> ETL), ETJ, ETK) -> ETL.
+-spec apply2(fun((ETK, ETL) -> ETM), ETK, ETL) -> ETM.
 apply2(Fun, Arg1, Arg2) ->
     Fun(Arg1, Arg2).
 
@@ -194,6 +194,6 @@ apply2(Fun, Arg1, Arg2) ->
     "\n"
     " See [`apply1`](#apply1) for more details.\n"
 ).
--spec apply3(fun((ETM, ETN, ETO) -> ETP), ETM, ETN, ETO) -> ETP.
+-spec apply3(fun((ETN, ETO, ETP) -> ETQ), ETN, ETO, ETP) -> ETQ.
 apply3(Fun, Arg1, Arg2, Arg3) ->
     Fun(Arg1, Arg2, Arg3).

@@ -305,7 +305,7 @@ do_read(Filepath) ->
     end.
 
 -file("src/simplifile.gleam", 861).
--spec cast_error({ok, KEA} | {error, file_error()}) -> {ok, KEA} |
+-spec cast_error({ok, KGF} | {error, file_error()}) -> {ok, KGF} |
     {error, file_error()}.
 cast_error(Input) ->
     Input.

@@ -110,7 +110,7 @@ println_error(String) ->
     " // [2, 3]\n"
     " ```\n"
 ).
--spec debug(EUP) -> EUP.
+-spec debug(EUQ) -> EUQ.
 debug(Term) ->
     _pipe = Term,
     _pipe@1 = gleam@string:inspect(_pipe),

@@ -1,1 +1,0 @@
--record(time, {hour :: integer(), minute :: integer(), second :: integer()}).

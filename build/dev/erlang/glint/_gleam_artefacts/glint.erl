@@ -22,12 +22,12 @@
         gleam_community@colour:colour(),
         gleam_community@colour:colour()}.
 
--opaque glint(IXB) :: {glint, config(), command_node(IXB)}.
+-opaque glint(IZA) :: {glint, config(), command_node(IZA)}.
 
 -type args_count() :: {eq_args, integer()} | {min_args, integer()}.
 
--opaque command(IXC) :: {command,
-        fun((command_input()) -> IXC),
+-opaque command(IZB) :: {command,
+        fun((command_input()) -> IZB),
         gleam@dict:dict(binary(), glint@flag:flag()),
         binary(),
         gleam@option:option(args_count()),
@@ -38,12 +38,12 @@
         gleam@dict:dict(binary(), glint@flag:flag()),
         gleam@dict:dict(binary(), binary())}.
 
--type command_node(IXD) :: {command_node,
-        gleam@option:option(command(IXD)),
-        gleam@dict:dict(binary(), command_node(IXD)),
+-type command_node(IZC) :: {command_node,
+        gleam@option:option(command(IZC)),
+        gleam@dict:dict(binary(), command_node(IZC)),
         gleam@dict:dict(binary(), glint@flag:flag())}.
 
--type out(IXE) :: {out, IXE} | {help, binary()}.
+-type out(IZD) :: {out, IZD} | {help, binary()}.
 
 -type metadata() :: {metadata, binary(), binary()}.
 
@@ -58,7 +58,7 @@
 
 -file("src/glint.gleam", 50).
 ?DOC(" Add the provided config to the existing command tree\n").
--spec with_config(glint(IXK), config()) -> glint(IXK).
+-spec with_config(glint(IZJ), config()) -> glint(IZJ).
 with_config(Glint, Config) ->
     {glint, Config, erlang:element(3, Glint)}.
 
@@ -67,7 +67,7 @@ with_config(Glint, Config) ->
     " Enable custom colours for help text headers\n"
     " For a pre-made colouring use `default_pretty_help()`\n"
 ).
--spec with_pretty_help(glint(IXN), pretty_help()) -> glint(IXN).
+-spec with_pretty_help(glint(IZM), pretty_help()) -> glint(IZM).
 with_pretty_help(Glint, Pretty) ->
     _pipe = begin
         _record = erlang:element(2, Glint),
@@ -80,7 +80,7 @@ with_pretty_help(Glint, Pretty) ->
 
 -file("src/glint.gleam", 64).
 ?DOC(" Disable custom colours for help text headers\n").
--spec without_pretty_help(glint(IXQ)) -> glint(IXQ).
+-spec without_pretty_help(glint(IZP)) -> glint(IZP).
 without_pretty_help(Glint) ->
     _pipe = begin
         _record = erlang:element(2, Glint),
@@ -90,7 +90,7 @@ without_pretty_help(Glint) ->
 
 -file("src/glint.gleam", 71).
 ?DOC(" Give the current glint application a name\n").
--spec with_name(glint(IXT), binary()) -> glint(IXT).
+-spec with_name(glint(IZS), binary()) -> glint(IZS).
 with_name(Glint, Name) ->
     _pipe = begin
         _record = erlang:element(2, Glint),
@@ -106,7 +106,7 @@ with_name(Glint, Name) ->
     " Adjust the generated help text to reflect that the current glint app should be run as a gleam module.\n"
     " Use in conjunction with `glint.with_name` to get usage text output like `gleam run -m <name>`\n"
 ).
--spec as_gleam_module(glint(IXW)) -> glint(IXW).
+-spec as_gleam_module(glint(IZV)) -> glint(IZV).
 as_gleam_module(Glint) ->
     _pipe = begin
         _record = erlang:element(2, Glint),
@@ -122,7 +122,7 @@ empty_command() ->
 
 -file("src/glint.gleam", 192).
 ?DOC(" Recursive traversal of the command tree to find where to puth the provided command\n").
--spec do_add(command_node(IYG), list(binary()), command(IYG)) -> command_node(IYG).
+-spec do_add(command_node(JAF), list(binary()), command(JAF)) -> command_node(JAF).
 do_add(Root, Path, Contents) ->
     case Path of
         [] ->
@@ -151,13 +151,13 @@ do_add(Root, Path, Contents) ->
 
 -file("src/glint.gleam", 230).
 ?DOC(" Create a Command(a) from a Runner(a)\n").
--spec command(fun((command_input()) -> IYP)) -> command(IYP).
+-spec command(fun((command_input()) -> JAO)) -> command(JAO).
 command(Runner) ->
     {command, Runner, gleam@dict:new(), <<""/utf8>>, none, []}.
 
 -file("src/glint.gleam", 242).
 ?DOC(" Attach a description to a Command(a)\n").
--spec description(command(IYS), binary()) -> command(IYS).
+-spec description(command(JAR), binary()) -> command(JAR).
 description(Cmd, Description) ->
     {command,
         erlang:element(2, Cmd),
@@ -168,7 +168,7 @@ description(Cmd, Description) ->
 
 -file("src/glint.gleam", 248).
 ?DOC(" Specify a specific number of unnamed args that a given command expects\n").
--spec unnamed_args(command(IYV), args_count()) -> command(IYV).
+-spec unnamed_args(command(JAU), args_count()) -> command(JAU).
 unnamed_args(Cmd, Count) ->
     {command,
         erlang:element(2, Cmd),
@@ -185,7 +185,7 @@ unnamed_args(Cmd, Count) ->
     " This works in combination with CommandInput.named_args which will contain the matched args in a Dict(String,String)\n"
     " IMPORTANT: Matched named arguments will not be present in CommandInput.args\n"
 ).
--spec named_args(command(IYY), list(binary())) -> command(IYY).
+-spec named_args(command(JAX), list(binary())) -> command(JAX).
 named_args(Cmd, Args) ->
     {command,
         erlang:element(2, Cmd),
@@ -196,7 +196,7 @@ named_args(Cmd, Args) ->
 
 -file("src/glint.gleam", 264).
 ?DOC(" Add a `flag.Flag` to a `Command`\n").
--spec flag(command(IZC), binary(), glint@flag:flag_builder(any())) -> command(IZC).
+-spec flag(command(JBB), binary(), glint@flag:flag_builder(any())) -> command(JBB).
 flag(Cmd, Key, Flag) ->
     {command,
         erlang:element(2, Cmd),
@@ -211,7 +211,7 @@ flag(Cmd, Key, Flag) ->
     "\n"
     " This is merely a convenience function and calls `glint.flag` under the hood.\n"
 ).
--spec flag_tuple(command(IZH), {binary(), glint@flag:flag_builder(any())}) -> command(IZH).
+-spec flag_tuple(command(JBG), {binary(), glint@flag:flag_builder(any())}) -> command(JBG).
 flag_tuple(Cmd, Tup) ->
     flag(Cmd, erlang:element(1, Tup), erlang:element(2, Tup)).
 
@@ -222,7 +222,7 @@ flag_tuple(Cmd, Tup) ->
     "\n"
     " It is recommended to call `glint.flag` instead.\n"
 ).
--spec flags(command(IZM), list({binary(), glint@flag:flag()})) -> command(IZM).
+-spec flags(command(JBL), list({binary(), glint@flag:flag()})) -> command(JBL).
 flags(Cmd, Flags) ->
     gleam@list:fold(
         Flags,
@@ -244,11 +244,11 @@ flags(Cmd, Flags) ->
     " descend recursively down the command tree to find the node that the flag should be inserted at\n"
 ).
 -spec do_group_flag(
-    command_node(JAV),
+    command_node(JCU),
     list(binary()),
     binary(),
     glint@flag:flag()
-) -> command_node(JAV).
+) -> command_node(JCU).
 do_group_flag(Node, Path, Name, Flag) ->
     case Path of
         [] ->
@@ -285,10 +285,10 @@ do_group_flag(Node, Path, Name, Flag) ->
     " Note: use of this function requires calling `flag.build` yourself on any `flag.FlagBuilder`s you wish to convert to `flag.Flag`s\n"
 ).
 -spec group_flags(
-    glint(JAE),
+    glint(JCD),
     list(binary()),
     list({binary(), glint@flag:flag()})
-) -> glint(JAE).
+) -> glint(JCD).
 group_flags(Glint, Path, Flags) ->
     gleam@list:fold(
         Flags,
@@ -315,7 +315,7 @@ group_flags(Glint, Path, Flags) ->
     " Note: use of this function requires calling `flag.build` yourself on any `flag.FlagBuilder`s you wish to convert to `flag.Flag`s\n"
     " It is recommended to use `glint.global_flag` instead.\n"
 ).
--spec global_flags(glint(JAA), list({binary(), glint@flag:flag()})) -> glint(JAA).
+-spec global_flags(glint(JBZ), list({binary(), glint@flag:flag()})) -> glint(JBZ).
 global_flags(Glint, Flags) ->
     group_flags(Glint, [], Flags).
 
@@ -325,11 +325,11 @@ global_flags(Glint, Flags) ->
     " The provided flags will be available to all commands at or beyond the provided path\n"
 ).
 -spec group_flag(
-    glint(JAJ),
+    glint(JCI),
     list(binary()),
     binary(),
     glint@flag:flag_builder(any())
-) -> glint(JAJ).
+) -> glint(JCI).
 group_flag(Glint, Path, Name, Flag) ->
     {glint,
         erlang:element(2, Glint),
@@ -345,7 +345,7 @@ group_flag(Glint, Path, Name, Flag) ->
     " Add global flags to the existing command tree\n"
     " This is the equivalent to calling `glint.group_flag` with a path parameter of `[]`.\n"
 ).
--spec global_flag(glint(IZQ), binary(), glint@flag:flag_builder(any())) -> glint(IZQ).
+-spec global_flag(glint(JBP), binary(), glint@flag:flag_builder(any())) -> glint(JBP).
 global_flag(Glint, Key, Flag) ->
     group_flag(Glint, [], Key, Flag).
 
@@ -354,7 +354,7 @@ global_flag(Glint, Key, Flag) ->
     " Add global flags to the existing command tree.\n"
     " This is the equivalent to calling `glint.group_flag_tuple` with a path parameter of `[]`.\n"
 ).
--spec global_flag_tuple(glint(IZV), {binary(), glint@flag:flag_builder(any())}) -> glint(IZV).
+-spec global_flag_tuple(glint(JBU), {binary(), glint@flag:flag_builder(any())}) -> glint(JBU).
 global_flag_tuple(Glint, Tup) ->
     group_flag(Glint, [], erlang:element(1, Tup), erlang:element(2, Tup)).
 
@@ -366,10 +366,10 @@ global_flag_tuple(Glint, Tup) ->
     " This is a convenience function and calls `glint.group_flag` under the hood.\n"
 ).
 -spec group_flag_tuple(
-    glint(JAP),
+    glint(JCO),
     list(binary()),
     {binary(), glint@flag:flag_builder(any())}
-) -> glint(JAP).
+) -> glint(JCO).
 group_flag_tuple(Glint, Path, Flag) ->
     group_flag(Glint, Path, erlang:element(1, Flag), erlang:element(2, Flag)).
 
@@ -484,7 +484,7 @@ sanitize_path(Path) ->
     "\n"
     " Note: all command paths are sanitized by stripping whitespace and removing any empty string elements.\n"
 ).
--spec add(glint(IYB), list(binary()), command(IYB)) -> glint(IYB).
+-spec add(glint(JAA), list(binary()), command(JAA)) -> glint(JAA).
 add(Glint, Path, Contents) ->
     {glint,
         erlang:element(2, Glint),
@@ -871,10 +871,10 @@ cmd_help(Path, Cmd, Config) ->
 -spec execute_root(
     list(binary()),
     config(),
-    command_node(JBL),
+    command_node(JDK),
     list(binary()),
     list(binary())
-) -> {ok, out(JBL)} | {error, binary()}.
+) -> {ok, out(JDK)} | {error, binary()}.
 execute_root(Path, Config, Cmd, Args, Flag_inputs) ->
     Res = begin
         _pipe@7 = begin
@@ -995,13 +995,13 @@ execute_root(Path, Config, Cmd, Args, Flag_inputs) ->
 -file("src/glint.gleam", 437).
 ?DOC(" Find which command to execute and run it with computed flags and args\n").
 -spec do_execute(
-    command_node(JBD),
+    command_node(JDC),
     config(),
     list(binary()),
     list(binary()),
     boolean(),
     list(binary())
-) -> {ok, out(JBD)} | {error, binary()}.
+) -> {ok, out(JDC)} | {error, binary()}.
 do_execute(Cmd, Config, Args, Flags, Help, Command_path) ->
     case Args of
         [] when Help ->
@@ -1054,7 +1054,7 @@ do_execute(Cmd, Config, Args, Flags, Help, Command_path) ->
     " This function does not print its output and is mainly intended for use within `glint` itself.\n"
     " If you would like to print or handle the output of a command please see the `run_and_handle` function.\n"
 ).
--spec execute(glint(JAZ), list(binary())) -> {ok, out(JAZ)} | {error, binary()}.
+-spec execute(glint(JCY), list(binary())) -> {ok, out(JCY)} | {error, binary()}.
 execute(Glint, Args) ->
     Help_flag = help_flag(),
     {Help, Args@2} = case gleam@list:pop(Args, fun(S) -> S =:= Help_flag end) of
@@ -1082,7 +1082,7 @@ execute(Glint, Args) ->
     " A wrapper for `execute` that prints any errors enountered or the help text if requested.\n"
     " This function calls the provided handler with the value returned by the command that was run.\n"
 ).
--spec run_and_handle(glint(JBT), list(binary()), fun((JBT) -> any())) -> nil.
+-spec run_and_handle(glint(JDS), list(binary()), fun((JDS) -> any())) -> nil.
 run_and_handle(Glint, Args, Handle) ->
     case execute(Glint, Args) of
         {error, S} ->

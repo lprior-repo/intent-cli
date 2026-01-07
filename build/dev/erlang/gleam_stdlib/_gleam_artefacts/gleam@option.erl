@@ -12,10 +12,10 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--type option(FF) :: {some, FF} | none.
+-type option(FG) :: {some, FG} | none.
 
 -file("src/gleam/option.gleam", 24).
--spec do_all(list(option(FG)), list(FG)) -> option(list(FG)).
+-spec do_all(list(option(FH)), list(FH)) -> option(list(FH)).
 do_all(List, Acc) ->
     case List of
         [] ->
@@ -50,7 +50,7 @@ do_all(List, Acc) ->
     " // -> None\n"
     " ```\n"
 ).
--spec all(list(option(FM))) -> option(list(FM)).
+-spec all(list(option(FN))) -> option(list(FN)).
 all(List) ->
     do_all(List, []).
 
@@ -110,7 +110,7 @@ is_none(Option) ->
     " // -> Error(\"some_error\")\n"
     " ```\n"
 ).
--spec to_result(option(FV), FY) -> {ok, FV} | {error, FY}.
+-spec to_result(option(FW), FZ) -> {ok, FW} | {error, FZ}.
 to_result(Option, E) ->
     case Option of
         {some, A} ->
@@ -136,7 +136,7 @@ to_result(Option, E) ->
     " // -> None\n"
     " ```\n"
 ).
--spec from_result({ok, GB} | {error, any()}) -> option(GB).
+-spec from_result({ok, GC} | {error, any()}) -> option(GC).
 from_result(Result) ->
     case Result of
         {ok, A} ->
@@ -162,7 +162,7 @@ from_result(Result) ->
     " // -> 0\n"
     " ```\n"
 ).
--spec unwrap(option(GG), GG) -> GG.
+-spec unwrap(option(GH), GH) -> GH.
 unwrap(Option, Default) ->
     case Option of
         {some, X} ->
@@ -188,7 +188,7 @@ unwrap(Option, Default) ->
     " // -> 0\n"
     " ```\n"
 ).
--spec lazy_unwrap(option(GI), fun(() -> GI)) -> GI.
+-spec lazy_unwrap(option(GJ), fun(() -> GJ)) -> GJ.
 lazy_unwrap(Option, Default) ->
     case Option of
         {some, X} ->
@@ -218,7 +218,7 @@ lazy_unwrap(Option, Default) ->
     " // -> None\n"
     " ```\n"
 ).
--spec map(option(GK), fun((GK) -> GM)) -> option(GM).
+-spec map(option(GL), fun((GL) -> GN)) -> option(GN).
 map(Option, Fun) ->
     case Option of
         {some, X} ->
@@ -249,7 +249,7 @@ map(Option, Fun) ->
     " // -> None\n"
     " ```\n"
 ).
--spec flatten(option(option(GO))) -> option(GO).
+-spec flatten(option(option(GP))) -> option(GP).
 flatten(Option) ->
     case Option of
         {some, X} ->
@@ -293,7 +293,7 @@ flatten(Option) ->
     " // -> None\n"
     " ```\n"
 ).
--spec then(option(GS), fun((GS) -> option(GU))) -> option(GU).
+-spec then(option(GT), fun((GT) -> option(GV))) -> option(GV).
 then(Option, Fun) ->
     case Option of
         {some, X} ->
@@ -329,7 +329,7 @@ then(Option, Fun) ->
     " // -> None\n"
     " ```\n"
 ).
--spec 'or'(option(GX), option(GX)) -> option(GX).
+-spec 'or'(option(GY), option(GY)) -> option(GY).
 'or'(First, Second) ->
     case First of
         {some, _} ->
@@ -365,7 +365,7 @@ then(Option, Fun) ->
     " // -> None\n"
     " ```\n"
 ).
--spec lazy_or(option(HB), fun(() -> option(HB))) -> option(HB).
+-spec lazy_or(option(HC), fun(() -> option(HC))) -> option(HC).
 lazy_or(First, Second) ->
     case First of
         {some, _} ->
@@ -376,7 +376,7 @@ lazy_or(First, Second) ->
     end.
 
 -file("src/gleam/option.gleam", 331).
--spec do_values(list(option(HF)), list(HF)) -> list(HF).
+-spec do_values(list(option(HG)), list(HG)) -> list(HG).
 do_values(List, Acc) ->
     case List of
         [] ->
@@ -405,6 +405,6 @@ do_values(List, Acc) ->
     " // -> [1, 3]\n"
     " ```\n"
 ).
--spec values(list(option(HK))) -> list(HK).
+-spec values(list(option(HL))) -> list(HL).
 values(Options) ->
     do_values(Options, []).

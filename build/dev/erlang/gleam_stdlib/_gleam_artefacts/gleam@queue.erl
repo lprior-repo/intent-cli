@@ -12,7 +12,7 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--opaque queue(EUU) :: {queue, list(EUU), list(EUU)}.
+-opaque queue(EUV) :: {queue, list(EUV), list(EUV)}.
 
 -file("src/gleam/queue.gleam", 22).
 ?DOC(" Creates a fresh queue that contains no values.\n").
@@ -34,7 +34,7 @@ new() ->
     " // -> 3\n"
     " ```\n"
 ).
--spec from_list(list(EUX)) -> queue(EUX).
+-spec from_list(list(EUY)) -> queue(EUY).
 from_list(List) ->
     {queue, [], List}.
 
@@ -52,7 +52,7 @@ from_list(List) ->
     " // -> [1, 2]\n"
     " ```\n"
 ).
--spec to_list(queue(EVA)) -> list(EVA).
+-spec to_list(queue(EVB)) -> list(EVB).
 to_list(Queue) ->
     _pipe = erlang:element(3, Queue),
     lists:append(_pipe, lists:reverse(erlang:element(2, Queue))).
@@ -125,7 +125,7 @@ length(Queue) ->
     " // -> [1, 2, 3]\n"
     " ```\n"
 ).
--spec push_back(queue(EVH), EVH) -> queue(EVH).
+-spec push_back(queue(EVI), EVI) -> queue(EVI).
 push_back(Queue, Item) ->
     {queue, [Item | erlang:element(2, Queue)], erlang:element(3, Queue)}.
 
@@ -140,7 +140,7 @@ push_back(Queue, Item) ->
     " // -> [1, 0, 0]\n"
     " ```\n"
 ).
--spec push_front(queue(EVK), EVK) -> queue(EVK).
+-spec push_front(queue(EVL), EVL) -> queue(EVL).
 push_front(Queue, Item) ->
     {queue, erlang:element(2, Queue), [Item | erlang:element(3, Queue)]}.
 
@@ -174,7 +174,7 @@ push_front(Queue, Item) ->
     " // -> Error(Nil)\n"
     " ```\n"
 ).
--spec pop_back(queue(EVN)) -> {ok, {EVN, queue(EVN)}} | {error, nil}.
+-spec pop_back(queue(EVO)) -> {ok, {EVO, queue(EVO)}} | {error, nil}.
 pop_back(Queue) ->
     case Queue of
         {queue, [], []} ->
@@ -218,7 +218,7 @@ pop_back(Queue) ->
     " // -> Error(Nil)\n"
     " ```\n"
 ).
--spec pop_front(queue(EVS)) -> {ok, {EVS, queue(EVS)}} | {error, nil}.
+-spec pop_front(queue(EVT)) -> {ok, {EVT, queue(EVT)}} | {error, nil}.
 pop_front(Queue) ->
     case Queue of
         {queue, [], []} ->
@@ -256,17 +256,17 @@ pop_front(Queue) ->
     " // -> [2, 1]\n"
     " ```\n"
 ).
--spec reverse(queue(EVX)) -> queue(EVX).
+-spec reverse(queue(EVY)) -> queue(EVY).
 reverse(Queue) ->
     {queue, erlang:element(3, Queue), erlang:element(2, Queue)}.
 
 -file("src/gleam/queue.gleam", 240).
 -spec check_equal(
-    list(EWA),
-    list(EWA),
-    list(EWA),
-    list(EWA),
-    fun((EWA, EWA) -> boolean())
+    list(EWB),
+    list(EWB),
+    list(EWB),
+    list(EWB),
+    fun((EWB, EWB) -> boolean())
 ) -> boolean().
 check_equal(Xs, X_tail, Ys, Y_tail, Eq) ->
     case {Xs, X_tail, Ys, Y_tail} of
@@ -305,7 +305,7 @@ check_equal(Xs, X_tail, Ys, Y_tail, Eq) ->
     " This function runs in linear time multiplied by the time taken by the\n"
     " element equality checking function.\n"
 ).
--spec is_logically_equal(queue(EWF), queue(EWF), fun((EWF, EWF) -> boolean())) -> boolean().
+-spec is_logically_equal(queue(EWG), queue(EWG), fun((EWG, EWG) -> boolean())) -> boolean().
 is_logically_equal(A, B, Element_is_equal) ->
     check_equal(
         erlang:element(3, A),
@@ -326,7 +326,7 @@ is_logically_equal(A, B, Element_is_equal) ->
     "\n"
     " This function runs in linear time.\n"
 ).
--spec is_equal(queue(EWI), queue(EWI)) -> boolean().
+-spec is_equal(queue(EWJ), queue(EWJ)) -> boolean().
 is_equal(A, B) ->
     check_equal(
         erlang:element(3, A),
