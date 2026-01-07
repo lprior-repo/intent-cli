@@ -11,7 +11,7 @@ import intent/interview_questions
 import intent/interview_storage
 import intent/question_loader
 import intent/question_types.{
-  type Question, Business, Critical, Developer, HappyPath, Important, Ops, Question,
+  type Question, Business, Critical, Developer, HappyPath, Ops, Question,
   Security, User,
 }
 import intent/resolver
