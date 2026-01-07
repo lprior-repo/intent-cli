@@ -1408,11 +1408,19 @@ EOF
 # AI Session Runners
 #---------------------------------------------------------------------------
 
+# Track auditor status to distinguish between mudroom failure and requirements complete
+AUDITOR_REQUIREMENTS_COMPLETE=false
+AUDITOR_MUDROOM_FAILED=false
+
 run_auditor() {
     local iteration="$1"
     local last_result="$2"
     local prompt
     local todo_context
+
+    # Reset flags
+    AUDITOR_REQUIREMENTS_COMPLETE=false
+    AUDITOR_MUDROOM_FAILED=false
 
     show_tdd_cycle "red"
     log_auditor "Writing failing test (Iteration $iteration)"
@@ -1447,6 +1455,7 @@ run_auditor() {
 
         # Keep tests unlocked so auditor can fix them on next iteration
         # DO NOT lock_tests here - let auditor fix issues first
+        AUDITOR_MUDROOM_FAILED=true
 
         return 1  # Signal failure to main loop, will retry with auditor
     fi
@@ -1455,6 +1464,7 @@ run_auditor() {
 
     if echo "$auditor_output" | grep -q "REQUIREMENTS_COMPLETE"; then
         log_success "Auditor reports all requirements are complete!"
+        AUDITOR_REQUIREMENTS_COMPLETE=true
         return 1
     fi
 
@@ -1884,65 +1894,74 @@ process_single_bead() {
 
         # Phase 1: Auditor writes test (RED)
         if ! run_auditor "$iteration" "$last_impl_result"; then
-            echo ""
-            echo -e "${GREEN}"
-            echo '  ╔═══════════════════════════════════════════════════════════════╗'
-            echo '  ║                                                               ║'
-            echo '  ║   ███████╗██╗   ██╗ ██████╗ ██████╗███████╗███████╗███████╗  ║'
-            echo '  ║   ██╔════╝██║   ██║██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝  ║'
-            echo '  ║   ███████╗██║   ██║██║     ██║     █████╗  ███████╗███████╗  ║'
-            echo '  ║   ╚════██║██║   ██║██║     ██║     ██╔══╝  ╚════██║╚════██║  ║'
-            echo '  ║   ███████║╚██████╔╝╚██████╗╚██████╗███████╗███████║███████║  ║'
-            echo '  ║   ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝╚══════╝╚══════╝╚══════╝  ║'
-            echo '  ║                                                               ║'
-            echo '  ║         ALL REQUIREMENTS IMPLEMENTED AND TESTED               ║'
-            echo '  ║                                                               ║'
-            echo '  ╚═══════════════════════════════════════════════════════════════╝'
-            echo -e "${NC}"
-            echo ""
+            # Check if this was a mudroom failure or requirements complete
+            if [ "$AUDITOR_MUDROOM_FAILED" = true ]; then
+                # Mudroom check failed - auditor needs to fix compilation errors
+                log_warning "Auditor test has compilation errors - retrying auditor in next iteration"
+                iteration=$((iteration + 1))
+                continue  # Retry auditor on next iteration
+            elif [ "$AUDITOR_REQUIREMENTS_COMPLETE" = true ]; then
+                # All requirements are complete - proceed to final review
+                echo ""
+                echo -e "${GREEN}"
+                echo '  ╔═══════════════════════════════════════════════════════════════╗'
+                echo '  ║                                                               ║'
+                echo '  ║   ███████╗██╗   ██╗ ██████╗ ██████╗███████╗███████╗███████╗  ║'
+                echo '  ║   ██╔════╝██║   ██║██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝  ║'
+                echo '  ║   ███████╗██║   ██║██║     ██║     █████╗  ███████╗███████╗  ║'
+                echo '  ║   ╚════██║██║   ██║██║     ██║     ██╔══╝  ╚════██║╚════██║  ║'
+                echo '  ║   ███████║╚██████╔╝╚██████╗╚██████╗███████╗███████║███████║  ║'
+                echo '  ║   ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝╚══════╝╚══════╝╚══════╝  ║'
+                echo '  ║                                                               ║'
+                echo '  ║         ALL REQUIREMENTS IMPLEMENTED AND TESTED               ║'
+                echo '  ║                                                               ║'
+                echo '  ╚═══════════════════════════════════════════════════════════════╝'
+                echo -e "${NC}"
+                echo ""
 
-            # Final stats box
-            echo -e "${DIM}$(draw_line '─')${NC}"
-            echo -e "  ${BOLD}📊 FINAL STATISTICS${NC}"
-            echo -e "${DIM}$(draw_line '─')${NC}"
-            echo -e "  ${GREEN}✓${NC} TCR Commits:         ${GREEN}${BOLD}$TCR_COMMITS${NC}"
-            echo -e "  ${RED}✗${NC} TCR Reverts:         ${RED}${BOLD}$TCR_REVERTS${NC}"
-            echo -e "  ${WHITE}🏛️${NC} Architect Refactors: ${WHITE}${BOLD}$REFACTOR_COUNT${NC}"
-            echo -e "  ${YELLOW}🔧${NC} Beads Created:       ${YELLOW}${BOLD}$BEADS_CREATED_BY_ARCHITECT${NC}"
-            echo -e "  ${CYAN}📝${NC} Total Iterations:    ${CYAN}${BOLD}$iteration${NC}"
-            echo -e "${DIM}$(draw_line '─')${NC}"
-            echo ""
+                # Final stats box
+                echo -e "${DIM}$(draw_line '─')${NC}"
+                echo -e "  ${BOLD}📊 FINAL STATISTICS${NC}"
+                echo -e "${DIM}$(draw_line '─')${NC}"
+                echo -e "  ${GREEN}✓${NC} TCR Commits:         ${GREEN}${BOLD}$TCR_COMMITS${NC}"
+                echo -e "  ${RED}✗${NC} TCR Reverts:         ${RED}${BOLD}$TCR_REVERTS${NC}"
+                echo -e "  ${WHITE}🏛️${NC} Architect Refactors: ${WHITE}${BOLD}$REFACTOR_COUNT${NC}"
+                echo -e "  ${YELLOW}🔧${NC} Beads Created:       ${YELLOW}${BOLD}$BEADS_CREATED_BY_ARCHITECT${NC}"
+                echo -e "  ${CYAN}📝${NC} Total Iterations:    ${CYAN}${BOLD}$iteration${NC}"
+                echo -e "${DIM}$(draw_line '─')${NC}"
+                echo ""
 
-            # Final architect pass before review
-            if [ $impls_since_refactor -gt 0 ]; then
-                run_architect "$iteration"
-            fi
-
-            # Final review
-            run_reviewer
-
-            # Mark bead based on reviewer verdict
-            if [ "$BEAD_MODE" = true ]; then
-                if [ "$REVIEWER_VERDICT" = "passed" ]; then
-                    log_success "Marking bead '$CURRENT_BEAD_ID' as closed (acceptance criteria verified)!"
-                    local close_msg="Completed via TDD-TCR-REFACTOR loop. Acceptance criteria verified by reviewer. Commits: $TCR_COMMITS, Reverts: $TCR_REVERTS, Refactors: $REFACTOR_COUNT"
-                    update_bead_status "$CURRENT_BEAD_ID" "closed" "$close_msg"
-                    COMPLETED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
-                elif [ "$REVIEWER_VERDICT" = "failed" ]; then
-                    log_error "Marking bead '$CURRENT_BEAD_ID' as failed (acceptance criteria NOT met)"
-                    update_bead_status "$CURRENT_BEAD_ID" "failed" "Reviewer determined acceptance criteria were NOT met. Commits: $TCR_COMMITS"
-                    FAILED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
-                else
-                    # Unknown verdict - be conservative, mark as needing review
-                    log_warning "Marking bead '$CURRENT_BEAD_ID' as needs_review (verdict unclear)"
-                    local close_msg="Completed via TDD-TCR-REFACTOR loop but acceptance criteria verdict unclear. Manual review needed. Commits: $TCR_COMMITS"
-                    update_bead_status "$CURRENT_BEAD_ID" "needs_review" "$close_msg"
-                    COMPLETED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE (needs_review)")
+                # Final architect pass before review
+                if [ $impls_since_refactor -gt 0 ]; then
+                    run_architect "$iteration"
                 fi
-            fi
 
-            unlock_all
-            return 0  # Success
+                # Final review
+                run_reviewer
+
+                # Mark bead based on reviewer verdict
+                if [ "$BEAD_MODE" = true ]; then
+                    if [ "$REVIEWER_VERDICT" = "passed" ]; then
+                        log_success "Marking bead '$CURRENT_BEAD_ID' as closed (acceptance criteria verified)!"
+                        local close_msg="Completed via TDD-TCR-REFACTOR loop. Acceptance criteria verified by reviewer. Commits: $TCR_COMMITS, Reverts: $TCR_REVERTS, Refactors: $REFACTOR_COUNT"
+                        update_bead_status "$CURRENT_BEAD_ID" "closed" "$close_msg"
+                        COMPLETED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
+                    elif [ "$REVIEWER_VERDICT" = "failed" ]; then
+                        log_error "Marking bead '$CURRENT_BEAD_ID' as failed (acceptance criteria NOT met)"
+                        update_bead_status "$CURRENT_BEAD_ID" "failed" "Reviewer determined acceptance criteria were NOT met. Commits: $TCR_COMMITS"
+                        FAILED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
+                    else
+                        # Unknown verdict - be conservative, mark as needing review
+                        log_warning "Marking bead '$CURRENT_BEAD_ID' as needs_review (verdict unclear)"
+                        local close_msg="Completed via TDD-TCR-REFACTOR loop but acceptance criteria verdict unclear. Manual review needed. Commits: $TCR_COMMITS"
+                        update_bead_status "$CURRENT_BEAD_ID" "needs_review" "$close_msg"
+                        COMPLETED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE (needs_review)")
+                    fi
+                fi
+
+                unlock_all
+                return 0  # Success
+            fi
         fi
 
         git add -A
