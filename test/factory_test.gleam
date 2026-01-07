@@ -47,49 +47,57 @@ pub fn spec_with_many_behaviors_composes_functionally_test() {
   |> should.equal(50)
 }
 
-/// CUPID-DRIVEN: Batch checker MUST be pure for parallel map
+/// CUPID-DRIVEN: Regex cache MUST avoid recompilation via ETS
 ///
-/// DESIGN PRESSURE: Can check_response run 1000 times in parallel via list.map?
+/// DESIGN PRESSURE: Checking 1000 emails with SAME pattern must compile ONCE
 ///
 /// Forces:
-/// - C: Composability - check_many composes check_response via list.map
-/// - U: Single purpose - check_response is PURE: (expected, actual, ctx) -> result
-/// - P: Purity - No side effects = safe for parallel list.map
-/// - I: Idiomatic - behaviors |> list.map(check_one) creates results list
-/// - D: Domain - "batch checking" speaks to performance requirements
+/// - P: Purity - get_or_compile_regex("^[a-z]+@") returns SAME Regexp instance
+/// - I: Idiomatic - Cache via ETS (Erlang FFI), not Gleam dict mutation
+/// - C: Composability - Works with list.map checking 1000 values in parallel
+/// - D: Domain - "Cache compiled patterns to avoid recompilation" is LITERAL
 ///
-/// 30-LINE RULE: Implementer needs ~15 lines in src/intent/spec_builder.gleam:
-///   pub fn check_many(behaviors, results, ctx) {
-///     list.map2(behaviors, results, fn(b, r) { checker.check_response(...) })
-///   }
+/// 30-LINE RULE: Implementer needs ~25 lines in src/intent/checker/rules.gleam:
+///   External FFI: check if pattern in ETS, else compile + insert + return
 ///
-/// DISCOMFORT: "Is check_response pure enough for parallel execution?"
-/// Forces auditing checker.gleam for hidden side effects (IO, mutation, etc)
+/// DISCOMFORT: "How do I cache WITHOUT mutation in pure Gleam?"
+/// Answer: You CAN'T. Forces learning ETS + FFI for stateful cache.
 ///
-/// PERFORMANCE GATE: This test must complete fast (< 100ms for 1000 checks)
-/// If it's slow, check_response has O(n²) bugs or isn't parallelizable
-pub fn check_response_is_pure_enough_for_batch_checking_test() {
-  // Build 1000 dummy behaviors and execution results
+/// PERFORMANCE GATE: 1000 regex checks with same pattern should be ~10x faster
+/// than 1000 compilations. If not, cache isn't working.
+pub fn regex_cache_avoids_recompilation_with_ets_test() {
+  // Build 1000 responses with SAME email validation rule
+  let email_pattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
   let behaviors =
     list.range(1, 1000)
     |> list.map(fn(i) {
+      let email = "user" <> int.to_string(i) <> "@example.com"
       types.Behavior(
-        name: "behavior_" <> int.to_string(i),
-        intent: "test",
+        name: "check_email_" <> int.to_string(i),
+        intent: "validate email format",
         notes: "",
         requires: [],
         tags: [],
         request: types.Request(
           method: types.Get,
-          path: "/test",
+          path: "/user/" <> int.to_string(i),
           headers: dict.new(),
           query: dict.new(),
           body: json.null(),
         ),
         response: types.Response(
           status: 200,
-          example: json.null(),
-          checks: dict.new(),
+          example: json.object([#("email", json.string(email))]),
+          checks: dict.from_list([
+            #(
+              "email",
+              types.Check(
+                rule: "string_matching " <> email_pattern,
+                why: "email must be valid",
+              ),
+            ),
+          ]),
           headers: dict.new(),
         ),
         captures: dict.new(),
@@ -98,30 +106,34 @@ pub fn check_response_is_pure_enough_for_batch_checking_test() {
 
   let results =
     list.range(1, 1000)
-    |> list.map(fn(_) {
+    |> list.map(fn(i) {
+      let email = "user" <> int.to_string(i) <> "@example.com"
       http_client.ExecutionResult(
         status: 200,
-        body: json.null(),
+        body: json.object([#("email", json.string(email))]),
         headers: dict.new(),
-        raw_body: "null",
+        raw_body: "{\"email\":\"" <> email <> "\"}",
         elapsed_ms: 10,
         request_method: types.Get,
-        request_path: "/test",
+        request_path: "/user/" <> int.to_string(i),
       )
     })
 
   let ctx = interpolate.new_context()
 
-  // FORCE: Must use spec_builder.check_many which uses list.map internally
-  // This proves check_response is composable via pure list operations
+  // FORCE: All 1000 checks use SAME regex pattern
+  // Cache should compile ONCE, reuse 999 times
   let check_results = spec_builder.check_many(behaviors, results, ctx)
 
-  // Verify all 1000 checks completed
+  // Verify all 1000 checks passed (all emails match pattern)
   list.length(check_results)
   |> should.equal(1000)
 
-  // Verify all passed (status 200 = 200, no checks = no failures)
   check_results
-  |> list.all(fn(r) { r.status_ok })
+  |> list.all(fn(r) { r.status_ok && list.is_empty(r.failed) })
   |> should.be_true
+
+  // CRITICAL: If this test is SLOW (>500ms), cache isn't working
+  // Compiling 1000 regexes takes ~2-3 seconds
+  // Compiling 1 regex + 999 lookups should take ~200ms
 }
