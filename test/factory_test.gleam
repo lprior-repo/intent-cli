@@ -2,6 +2,7 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleeunit/should
+import intent/types
 
 /// CUPID-DRIVEN TEST: Forces spec construction to use pure functional composition
 ///
@@ -127,50 +128,56 @@ fn build_ai_hints_json() -> json.Json {
   ])
 }
 
-/// CUPID-DRIVEN TEST: Forces list transformation of behaviors to be pure
+/// CUPID-DRIVEN TEST: Forces pure behavior factory function composition
 ///
 /// This test enforces:
-/// - C: Composability - Behavior lists must compose with list.map/filter/fold
-/// - P: Purity - Transforming behaviors is pure (no side effects)
-/// - I: Idiomatic - Uses pipelines and functional transformations
-/// - D: Domain - Behaviors can be processed independently
+/// - C: Composability - Behavior factory composes with list.range |> list.map
+/// - U: Unix philosophy - ONE function that generates a behavior from index
+/// - P: Purity - Same index always produces identical behavior
+/// - I: Idiomatic - Uses pipelines, not loops or mutation
+/// - D: Domain - Speaks "behavior factory" not "loop counter"
 ///
-/// DESIGN PRESSURE: Can behavior transformations be parallelized?
-/// If behaviors have interdependencies or shared mutable state, this fails.
-/// Forces thinking: "Is each behavior independently processable?"
+/// DESIGN PRESSURE: Can you write a pure function `fn(Int) -> Behavior`?
+/// This is the MINIMAL requirement for scaling to 1000+ behaviors.
+/// If implementer can't write this cleanly, parallel execution is impossible.
+///
+/// PASSING REQUIRES <30 LINES: One pure factory function, deterministic.
 
-pub fn behavior_list_composes_with_functional_ops_test() {
-  // Build 100 behaviors
+pub fn behavior_factory_is_pure_function_test() {
+  // The factory MUST be a pure function: Int -> Behavior
+  let behavior = generate_behavior(42)
+
+  // Purity: calling twice with same input gives same result
+  let behavior_2 = generate_behavior(42)
+
+  behavior.name
+  |> should.equal(behavior_2.name)
+
+  behavior.name
+  |> should.equal("behavior_42")
+
+  behavior.intent
+  |> should.equal("Test behavior 42")
+
+  // Verify it composes with list operations (required for scaling)
   let behaviors =
     list.range(1, 100)
-    |> list.map(build_behavior_json)
+    |> list.map(generate_behavior)
 
-  // CRITICAL: Each behavior must be independently transformable
-  // This composition pattern is required for parallel execution
-  let behavior_names =
-    behaviors
-    |> list.map(extract_name_from_behavior_json)
-
-  // Verify composition worked
-  list.length(behavior_names)
+  list.length(behaviors)
   |> should.equal(100)
 
-  // Verify independence: same transformation twice gives same result
-  let behavior_names_2 =
-    behaviors
-    |> list.map(extract_name_from_behavior_json)
+  // Verify each behavior is independently generated (no shared state)
+  let first = generate_behavior(1)
+  let last = generate_behavior(100)
 
-  behavior_names
-  |> should.equal(behavior_names_2)
-
-  // Verify each is unique (no accidental aliasing)
-  let unique_names = list.unique(behavior_names)
-  list.length(unique_names)
-  |> should.equal(100)
+  first.name
+  |> should.not_equal(last.name)
 }
 
-/// Helper: Extract name from behavior JSON
-/// FORCES: Pure extraction without mutation
-fn extract_name_from_behavior_json(behavior: json.Json) -> String {
-  panic as "JSON extraction not implemented"
+/// Pure behavior factory: Int -> Behavior
+/// DESIGN PRESSURE: Must be deterministic, composable, no side effects
+/// This is the foundation for efficient large-spec handling
+fn generate_behavior(index: Int) -> types.Behavior {
+  panic as "Pure behavior factory not implemented"
 }
