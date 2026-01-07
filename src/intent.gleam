@@ -31,6 +31,7 @@ import intent/kirk/inversion_checker
 import intent/kirk/coverage_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/compact_format
+import intent/kirk/ears_parser
 import simplifile
 
 /// Exit codes
@@ -67,6 +68,7 @@ pub fn main() {
   |> glint.add(at: ["gaps"], do: kirk_gaps_command())
   |> glint.add(at: ["compact"], do: kirk_compact_command())
   |> glint.add(at: ["prototext"], do: kirk_prototext_command())
+  |> glint.add(at: ["ears"], do: kirk_ears_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -1403,6 +1405,103 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Export to Protobuf text format")
+}
+
+/// The `ears` command - KIRK EARS requirements parser
+fn kirk_ears_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let output_format =
+      flag.get_string(input.flags, "output")
+      |> result.unwrap("text")
+
+    let output_file =
+      flag.get_string(input.flags, "out")
+      |> result.unwrap("")
+
+    case input.args {
+      [requirements_path, ..] -> {
+        case simplifile.read(requirements_path) {
+          Ok(content) -> {
+            let result = ears_parser.parse(content)
+
+            let output = case output_format {
+              "cue" -> {
+                let spec_name = case flag.get_string(input.flags, "name") {
+                  Ok(n) -> n
+                  Error(_) -> "GeneratedSpec"
+                }
+                ears_parser.to_cue(result, spec_name)
+              }
+              "json" -> {
+                let behaviors = ears_parser.to_behaviors(result)
+                let json_obj = json.object([
+                  #("requirements", json.array(result.requirements, fn(r) {
+                    json.object([
+                      #("id", json.string(r.id)),
+                      #("pattern", json.string(ears_parser.pattern_to_string(r.pattern))),
+                      #("system_shall", json.string(r.system_shall)),
+                      #("raw_text", json.string(r.raw_text)),
+                    ])
+                  })),
+                  #("behaviors", json.array(behaviors, fn(b) {
+                    json.object([
+                      #("name", json.string(b.name)),
+                      #("intent", json.string(b.intent)),
+                      #("method", json.string(b.method)),
+                      #("path", json.string(b.path)),
+                      #("status", json.int(b.status)),
+                    ])
+                  })),
+                  #("errors", json.array(result.errors, fn(e) {
+                    json.object([
+                      #("line", json.int(e.line)),
+                      #("message", json.string(e.message)),
+                      #("suggestion", json.string(e.suggestion)),
+                    ])
+                  })),
+                  #("warnings", json.array(result.warnings, json.string)),
+                ])
+                json.to_string(json_obj)
+              }
+              _ -> ears_parser.format_result(result)
+            }
+
+            case output_file {
+              "" -> io.println(output)
+              path -> {
+                case simplifile.write(path, output) {
+                  Ok(_) -> io.println("Written to: " <> path)
+                  Error(_) -> cli_ui.print_error("Failed to write to: " <> path)
+                }
+              }
+            }
+
+            halt(exit_pass)
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read: " <> requirements_path)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("requirements file path required")
+        io.println("Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]")
+        io.println("")
+        io.println("EARS Patterns:")
+        io.println("  THE SYSTEM SHALL [behavior]                    - Ubiquitous")
+        io.println("  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven")
+        io.println("  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven")
+        io.println("  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional")
+        io.println("  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
+  |> glint.flag("output", flag.string() |> flag.default("text") |> flag.description("Output format: text, cue, json"))
+  |> glint.flag("out", flag.string() |> flag.default("") |> flag.description("Output file path"))
+  |> glint.flag("name", flag.string() |> flag.default("GeneratedSpec") |> flag.description("Spec name for CUE output"))
 }
 
 import gleam/float
