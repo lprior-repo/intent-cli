@@ -6,6 +6,7 @@
                     gleam_http,
                     gleam_httpc,
                     gleam_json,
+                    gleam_otp,
                     gleam_regexp,
                     gleam_stdlib,
                     gleeunit,

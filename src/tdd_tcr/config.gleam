@@ -1,7 +1,7 @@
 /// Configuration for TDD-TCR loop
 /// Centralized settings matching Bash script parameters
 
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, None}
 
 pub type Config {
   Config(

@@ -1,6 +1,7 @@
 /// TDD-TCR Silent Protocol: Type-safe contracts between actors
 /// Prevents context amnesia and enforces AI discipline through types
 
+import gleam/int
 import gleam/option.{type Option}
 
 // ============================================================================

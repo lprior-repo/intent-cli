@@ -17,8 +17,8 @@ const test_lock_file = ".factory/.test.locked"
 /// Creates a sentinel file. Check returns Ok(Nil) on success.
 pub fn lock_src() -> Result(Nil, String) {
   simplifile.write(src_lock_file, "locked")
-  |> result.map_error(fn(err) {
-    "Failed to lock src/: " <> simplifile.error_to_string(err)
+  |> result.map_error(fn(_err) {
+    "Failed to lock src/"
   })
 }
 
@@ -27,8 +27,8 @@ pub fn lock_src() -> Result(Nil, String) {
 /// Removes the sentinel file.
 pub fn unlock_src() -> Result(Nil, String) {
   simplifile.delete(src_lock_file)
-  |> result.map_error(fn(err) {
-    "Failed to unlock src/: " <> simplifile.error_to_string(err)
+  |> result.map_error(fn(_err) {
+    "Failed to unlock src/"
   })
 }
 
@@ -37,8 +37,8 @@ pub fn unlock_src() -> Result(Nil, String) {
 /// Creates a sentinel file.
 pub fn lock_tests() -> Result(Nil, String) {
   simplifile.write(test_lock_file, "locked")
-  |> result.map_error(fn(err) {
-    "Failed to lock test/: " <> simplifile.error_to_string(err)
+  |> result.map_error(fn(_err) {
+    "Failed to lock test/"
   })
 }
 
@@ -47,8 +47,8 @@ pub fn lock_tests() -> Result(Nil, String) {
 /// Removes the sentinel file.
 pub fn unlock_tests() -> Result(Nil, String) {
   simplifile.delete(test_lock_file)
-  |> result.map_error(fn(err) {
-    "Failed to unlock test/: " <> simplifile.error_to_string(err)
+  |> result.map_error(fn(_err) {
+    "Failed to unlock test/"
   })
 }
 
@@ -64,8 +64,8 @@ pub fn unlock_all() -> Result(Nil, String) {
 ///
 /// Returns True if locked, False otherwise.
 pub fn is_locked(lock_file: String) -> Bool {
-  case simplifile.is_file(lock_file) {
-    Ok(exists) -> exists
+  case simplifile.verify_is_file(lock_file) {
+    Ok(_) -> True
     Error(_) -> False
   }
 }

@@ -13,8 +13,8 @@ import shellout
 /// Returns stdout on success, error message on failure.
 pub fn git_command(args: List(String)) -> Result(String, String) {
   shellout.command("git", args, ".", [])
-  |> result.map_error(fn(err) {
-    "Git command failed: " <> shellout.exit_code_to_string(err)
+  |> result.map_error(fn(_err) {
+    "Git command failed"
   })
 }
 

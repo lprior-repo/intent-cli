@@ -13,8 +13,8 @@ import shellout
 /// Returns Error(stderr) on failure (exit code != 0).
 pub fn run_command(cmd: String, args: List(String)) -> Result(String, String) {
   shellout.command(cmd, args, ".", [])
-  |> result.map_error(fn(err) {
-    shellout.exit_code_to_string(err)
+  |> result.map_error(fn(_err) {
+    "Command failed: " <> cmd
   })
 }
 
