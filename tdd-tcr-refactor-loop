@@ -1435,12 +1435,30 @@ run_auditor() {
 
     log_info "Invoking auditor AI (new session, sonnet-4.5)..."
     AUDITOR_SESSION_ID=$(generate_uuid)
-    auditor_output=$(claude -p \
+
+    # Invoke with 2-minute timeout to prevent hanging
+    auditor_output=$(timeout 120 claude -p \
         --model sonnet \
         --session-id "$AUDITOR_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
+        --output-format text \
+        --max-turns 5 \
         --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
         "/gleam-code-generator $prompt" 2>&1 </dev/null)
+
+    local auditor_exit_code=$?
+
+    # Check for timeout
+    if [ $auditor_exit_code -eq 124 ]; then
+        log_error "AUDITOR TIMEOUT: Claude Code invocation exceeded 120 seconds"
+        return 1
+    fi
+
+    # Check for empty output
+    if [ -z "$auditor_output" ]; then
+        log_error "AUDITOR ERROR: Empty response from Claude Code"
+        return 1
+    fi
 
     echo "$auditor_output"
 
@@ -1507,12 +1525,30 @@ run_implementer() {
 
         log_info "Invoking implementer AI (new session, $model)..."
         IMPLEMENTER_SESSION_ID=$(generate_uuid)
-        impl_output=$(claude -p \
+
+        # Invoke with 3-minute timeout to prevent hanging
+        impl_output=$(timeout 180 claude -p \
             --model "$model" \
             --session-id "$IMPLEMENTER_SESSION_ID" \
             --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
+            --output-format text \
+            --max-turns 5 \
             --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
             "/gleam-code-generator $prompt" 2>&1 </dev/null)
+
+        local impl_exit_code=$?
+
+        # Check for timeout
+        if [ $impl_exit_code -eq 124 ]; then
+            log_error "IMPLEMENTER TIMEOUT: Claude Code invocation exceeded 180 seconds"
+            return 1
+        fi
+
+        # Check for empty output
+        if [ -z "$impl_output" ]; then
+            log_error "IMPLEMENTER ERROR: Empty response from Claude Code"
+            return 1
+        fi
 
         echo "$impl_output"
 
@@ -1581,12 +1617,30 @@ run_architect() {
 
     log_info "Invoking architect AI (new session, sonnet for deeper analysis)..."
     ARCHITECT_SESSION_ID=$(generate_uuid)
-    architect_output=$(claude -p \
+
+    # Invoke with 3-minute timeout to prevent hanging
+    architect_output=$(timeout 180 claude -p \
         --model sonnet \
         --session-id "$ARCHITECT_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
+        --output-format text \
+        --max-turns 5 \
         --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place. SCAN for code smells and CREATE_BEAD for issues you find. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
         "/gleam-code-generator $prompt" 2>&1 </dev/null)
+
+    local arch_exit_code=$?
+
+    # Check for timeout
+    if [ $arch_exit_code -eq 124 ]; then
+        log_error "ARCHITECT TIMEOUT: Claude Code invocation exceeded 180 seconds"
+        return 1
+    fi
+
+    # Check for empty output
+    if [ -z "$architect_output" ]; then
+        log_error "ARCHITECT ERROR: Empty response from Claude Code"
+        return 1
+    fi
 
     echo "$architect_output"
 
