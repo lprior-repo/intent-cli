@@ -48,11 +48,8 @@ pub fn stash() -> Result(String, String) {
     // Get the stash ID (usually stash@{0} for latest)
     git_command(["stash", "list", "--format=%H"])
     |> result.map(fn(output) {
-      output
-      |> string.trim
-      |> string.split("\n")
-      |> case {
-        [first, ..] -> first
+      case string.trim(output) |> string.split("\n") {
+        [first, .._] -> first
         [] -> "stash@{0}"
       }
     })
