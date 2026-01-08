@@ -2,12 +2,10 @@
 // Easy Approach to Requirements Syntax
 // Converts structured English requirements to Intent behaviors
 
-import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regex
-import gleam/result
 import gleam/string
 
 // =============================================================================
