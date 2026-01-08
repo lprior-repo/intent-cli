@@ -4,15 +4,25 @@
 
 import gleam/option
 import intent/question_loader
-import intent/question_types.{type Question, HappyPath, Critical, Question, User}
+import intent/question_types.{type Question, Critical, HappyPath, Question, User}
 
 /// Get all questions for a specific profile and round
-/// Loads from CUE file, falls back to minimal questions if loading fails
+/// Loads questions from CUE file on each call - for repeated calls,
+/// use get_questions_for_round_with_db with a cached database
 pub fn get_questions_for_round(profile: String, round: Int) -> List(Question) {
   case question_loader.load_default_questions() {
     Ok(db) -> question_loader.get_questions(db, profile, round)
     Error(_) -> fallback_questions(profile, round)
   }
+}
+
+/// Get questions with explicit database (for testing or to avoid reloading)
+pub fn get_questions_for_round_with_db(
+  profile: String,
+  round: Int,
+  db: question_loader.QuestionsDatabase,
+) -> List(Question) {
+  question_loader.get_questions(db, profile, round)
 }
 
 /// Get the next unasked question in the current round
@@ -56,7 +66,6 @@ fn list_contains(list: List(String), item: String) -> Bool {
 }
 
 /// Fallback questions if CUE loading fails
-/// Returns a minimal set to allow the interview to function
 fn fallback_questions(profile: String, round: Int) -> List(Question) {
   case round {
     1 -> [
