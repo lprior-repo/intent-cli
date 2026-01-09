@@ -2,6 +2,7 @@
 /// Dual persistence: SQLite for querying, JSONL for git-friendly version control
 /// Mirrors Beads approach: git-native JSONL + local SQLite for performance
 /// Includes answer history tracking and diff comparison
+
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json
@@ -9,6 +10,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import simplifile
 import intent/interview.{
   type Answer, type Conflict, type ConflictResolution, type Gap,
   type InterviewSession, type InterviewStage, type Profile,
@@ -16,7 +18,6 @@ import intent/interview.{
 import intent/question_types.{
   type Perspective, Business, Developer, Ops, Security, User,
 }
-import simplifile
 
 /// Session record for storage
 pub type SessionRecord {
@@ -68,8 +69,7 @@ pub type SessionSnapshot {
     snapshot_id: String,
     timestamp: String,
     description: String,
-    answers: Dict(String, String),
-    // question_id -> response
+    answers: Dict(String, String),  // question_id -> response
     gaps_count: Int,
     conflicts_count: Int,
     stage: String,
@@ -137,14 +137,12 @@ pub fn create_snapshot(
   session: InterviewSession,
   description: String,
 ) -> SessionSnapshot {
-  let answers_dict =
-    list.fold(session.answers, dict.new(), fn(acc, answer) {
-      dict.insert(acc, answer.question_id, answer.response)
-    })
+  let answers_dict = list.fold(session.answers, dict.new(), fn(acc, answer) {
+    dict.insert(acc, answer.question_id, answer.response)
+  })
 
   let unresolved_gaps = list.filter(session.gaps, fn(g) { !g.resolved })
-  let unresolved_conflicts =
-    list.filter(session.conflicts, fn(c) { c.chosen < 0 })
+  let unresolved_conflicts = list.filter(session.conflicts, fn(c) { c.chosen < 0 })
 
   SessionSnapshot(
     session_id: session.id,
@@ -164,93 +162,70 @@ pub fn diff_sessions(
   to_session: InterviewSession,
 ) -> SessionDiff {
   // Build lookup maps for answers
-  let from_answers =
-    list.fold(from_session.answers, dict.new(), fn(acc, a) {
-      dict.insert(acc, a.question_id, a)
-    })
-  let to_answers =
-    list.fold(to_session.answers, dict.new(), fn(acc, a) {
-      dict.insert(acc, a.question_id, a)
-    })
+  let from_answers = list.fold(from_session.answers, dict.new(), fn(acc, a) {
+    dict.insert(acc, a.question_id, a)
+  })
+  let to_answers = list.fold(to_session.answers, dict.new(), fn(acc, a) {
+    dict.insert(acc, a.question_id, a)
+  })
 
   // Find added answers (in to but not in from)
-  let added =
-    list.filter_map(to_session.answers, fn(answer) {
-      case dict.get(from_answers, answer.question_id) {
-        Ok(_) -> Error(Nil)
-        Error(_) ->
-          Ok(AnswerDiff(
-            question_id: answer.question_id,
-            question_text: answer.question_text,
-            old_response: None,
-            new_response: answer.response,
-            change_type: Added,
-          ))
-      }
-    })
+  let added = list.filter_map(to_session.answers, fn(answer) {
+    case dict.get(from_answers, answer.question_id) {
+      Ok(_) -> Error(Nil)
+      Error(_) -> Ok(AnswerDiff(
+        question_id: answer.question_id,
+        question_text: answer.question_text,
+        old_response: None,
+        new_response: answer.response,
+        change_type: Added,
+      ))
+    }
+  })
 
   // Find modified answers (in both but different)
-  let modified =
-    list.filter_map(to_session.answers, fn(answer) {
-      case dict.get(from_answers, answer.question_id) {
-        Ok(old_answer) -> {
-          case old_answer.response == answer.response {
-            True -> Error(Nil)
-            False ->
-              Ok(AnswerDiff(
-                question_id: answer.question_id,
-                question_text: answer.question_text,
-                old_response: Some(old_answer.response),
-                new_response: answer.response,
-                change_type: Modified,
-              ))
-          }
+  let modified = list.filter_map(to_session.answers, fn(answer) {
+    case dict.get(from_answers, answer.question_id) {
+      Ok(old_answer) -> {
+        case old_answer.response == answer.response {
+          True -> Error(Nil)
+          False -> Ok(AnswerDiff(
+            question_id: answer.question_id,
+            question_text: answer.question_text,
+            old_response: Some(old_answer.response),
+            new_response: answer.response,
+            change_type: Modified,
+          ))
         }
-        Error(_) -> Error(Nil)
       }
-    })
+      Error(_) -> Error(Nil)
+    }
+  })
 
   // Find removed answers (in from but not in to)
-  let removed =
-    list.filter_map(from_session.answers, fn(answer) {
-      case dict.get(to_answers, answer.question_id) {
-        Ok(_) -> Error(Nil)
-        Error(_) -> Ok(answer.question_id)
-      }
-    })
+  let removed = list.filter_map(from_session.answers, fn(answer) {
+    case dict.get(to_answers, answer.question_id) {
+      Ok(_) -> Error(Nil)
+      Error(_) -> Ok(answer.question_id)
+    }
+  })
 
   // Count gap changes
-  let from_unresolved_gaps =
-    list.filter(from_session.gaps, fn(g) { !g.resolved })
+  let from_unresolved_gaps = list.filter(from_session.gaps, fn(g) { !g.resolved })
   let to_unresolved_gaps = list.filter(to_session.gaps, fn(g) { !g.resolved })
-  let gaps_added =
-    list.length(to_unresolved_gaps) - list.length(from_unresolved_gaps)
-  let gaps_resolved = case gaps_added < 0 {
-    True -> -gaps_added
-    False -> 0
-  }
+  let gaps_added = list.length(to_unresolved_gaps) - list.length(from_unresolved_gaps)
+  let gaps_resolved = case gaps_added < 0 { True -> -gaps_added False -> 0 }
 
   // Count conflict changes
-  let from_unresolved_conflicts =
-    list.filter(from_session.conflicts, fn(c) { c.chosen < 0 })
-  let to_unresolved_conflicts =
-    list.filter(to_session.conflicts, fn(c) { c.chosen < 0 })
-  let conflicts_added =
-    list.length(to_unresolved_conflicts)
-    - list.length(from_unresolved_conflicts)
-  let conflicts_resolved = case conflicts_added < 0 {
-    True -> -conflicts_added
-    False -> 0
-  }
+  let from_unresolved_conflicts = list.filter(from_session.conflicts, fn(c) { c.chosen < 0 })
+  let to_unresolved_conflicts = list.filter(to_session.conflicts, fn(c) { c.chosen < 0 })
+  let conflicts_added = list.length(to_unresolved_conflicts) - list.length(from_unresolved_conflicts)
+  let conflicts_resolved = case conflicts_added < 0 { True -> -conflicts_added False -> 0 }
 
   // Check stage change
   let stage_changed = case from_session.stage == to_session.stage {
     True -> None
-    False ->
-      Some(#(
-        stage_to_string(from_session.stage),
-        stage_to_string(to_session.stage),
-      ))
+    False -> Some(#(stage_to_string(from_session.stage), stage_to_string(to_session.stage)))
   }
 
   SessionDiff(
@@ -261,15 +236,9 @@ pub fn diff_sessions(
     answers_added: added,
     answers_modified: modified,
     answers_removed: removed,
-    gaps_added: case gaps_added > 0 {
-      True -> gaps_added
-      False -> 0
-    },
+    gaps_added: case gaps_added > 0 { True -> gaps_added False -> 0 },
     gaps_resolved: gaps_resolved,
-    conflicts_added: case conflicts_added > 0 {
-      True -> conflicts_added
-      False -> 0
-    },
+    conflicts_added: case conflicts_added > 0 { True -> conflicts_added False -> 0 },
     conflicts_resolved: conflicts_resolved,
     stage_changed: stage_changed,
   )
@@ -280,17 +249,15 @@ pub fn format_diff(diff: SessionDiff) -> String {
   let lines = []
 
   // Header
-  let lines =
-    list.append(lines, [
-      "Session Diff: " <> diff.from_id <> " → " <> diff.to_id,
-      "Time: " <> diff.from_timestamp <> " → " <> diff.to_timestamp,
-      "",
-    ])
+  let lines = list.append(lines, [
+    "Session Diff: " <> diff.from_id <> " → " <> diff.to_id,
+    "Time: " <> diff.from_timestamp <> " → " <> diff.to_timestamp,
+    "",
+  ])
 
   // Stage change
   let lines = case diff.stage_changed {
-    Some(#(from, to)) ->
-      list.append(lines, ["Stage: " <> from <> " → " <> to, ""])
+    Some(#(from, to)) -> list.append(lines, ["Stage: " <> from <> " → " <> to, ""])
     None -> lines
   }
 
@@ -299,10 +266,9 @@ pub fn format_diff(diff: SessionDiff) -> String {
     0 -> lines
     n -> {
       let header = ["Answers Added (" <> string.inspect(n) <> "):"]
-      let answer_lines =
-        list.map(diff.answers_added, fn(a) {
-          "  + [" <> a.question_id <> "] " <> truncate(a.new_response, 50)
-        })
+      let answer_lines = list.map(diff.answers_added, fn(a) {
+        "  + [" <> a.question_id <> "] " <> truncate(a.new_response, 50)
+      })
       list.append(lines, list.append(header, list.append(answer_lines, [""])))
     }
   }
@@ -312,18 +278,17 @@ pub fn format_diff(diff: SessionDiff) -> String {
     0 -> lines
     n -> {
       let header = ["Answers Modified (" <> string.inspect(n) <> "):"]
-      let answer_lines =
-        list.flat_map(diff.answers_modified, fn(a) {
-          let old = case a.old_response {
-            Some(r) -> truncate(r, 40)
-            None -> "(none)"
-          }
-          [
-            "  ~ [" <> a.question_id <> "]",
-            "    - " <> old,
-            "    + " <> truncate(a.new_response, 40),
-          ]
-        })
+      let answer_lines = list.flat_map(diff.answers_modified, fn(a) {
+        let old = case a.old_response {
+          Some(r) -> truncate(r, 40)
+          None -> "(none)"
+        }
+        [
+          "  ~ [" <> a.question_id <> "]",
+          "    - " <> old,
+          "    + " <> truncate(a.new_response, 40),
+        ]
+      })
       list.append(lines, list.append(header, list.append(answer_lines, [""])))
     }
   }
@@ -333,34 +298,25 @@ pub fn format_diff(diff: SessionDiff) -> String {
     0 -> lines
     n -> {
       let header = ["Answers Removed (" <> string.inspect(n) <> "):"]
-      let answer_lines =
-        list.map(diff.answers_removed, fn(id) { "  - [" <> id <> "]" })
+      let answer_lines = list.map(diff.answers_removed, fn(id) {
+        "  - [" <> id <> "]"
+      })
       list.append(lines, list.append(header, list.append(answer_lines, [""])))
     }
   }
 
   // Gaps and conflicts summary
   let lines = case diff.gaps_added > 0 || diff.gaps_resolved > 0 {
-    True ->
-      list.append(lines, [
-        "Gaps: +"
-        <> string.inspect(diff.gaps_added)
-        <> " added, -"
-        <> string.inspect(diff.gaps_resolved)
-        <> " resolved",
-      ])
+    True -> list.append(lines, [
+      "Gaps: +" <> string.inspect(diff.gaps_added) <> " added, -" <> string.inspect(diff.gaps_resolved) <> " resolved",
+    ])
     False -> lines
   }
 
   let lines = case diff.conflicts_added > 0 || diff.conflicts_resolved > 0 {
-    True ->
-      list.append(lines, [
-        "Conflicts: +"
-        <> string.inspect(diff.conflicts_added)
-        <> " added, -"
-        <> string.inspect(diff.conflicts_resolved)
-        <> " resolved",
-      ])
+    True -> list.append(lines, [
+      "Conflicts: +" <> string.inspect(diff.conflicts_added) <> " added, -" <> string.inspect(diff.conflicts_resolved) <> " resolved",
+    ])
     False -> lines
   }
 
@@ -393,7 +349,7 @@ pub fn append_to_history(
   use existing <- result.try(
     simplifile.read(history_path)
     |> result.unwrap("")
-    |> Ok,
+    |> Ok
   )
 
   let content = case string.length(string.trim(existing)) {
@@ -402,9 +358,7 @@ pub fn append_to_history(
   }
 
   simplifile.write(history_path, content)
-  |> result.map_error(fn(err) {
-    "Failed to write history: " <> string.inspect(err)
-  })
+  |> result.map_error(fn(err) { "Failed to write history: " <> string.inspect(err) })
 }
 
 fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
@@ -413,13 +367,10 @@ fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
     #("snapshot_id", json.string(snapshot.snapshot_id)),
     #("timestamp", json.string(snapshot.timestamp)),
     #("description", json.string(snapshot.description)),
-    #(
-      "answers",
-      json.object(
-        dict.to_list(snapshot.answers)
-        |> list.map(fn(pair) { #(pair.0, json.string(pair.1)) }),
-      ),
-    ),
+    #("answers", json.object(
+      dict.to_list(snapshot.answers)
+      |> list.map(fn(pair) { #(pair.0, json.string(pair.1)) })
+    )),
     #("gaps_count", json.int(snapshot.gaps_count)),
     #("conflicts_count", json.int(snapshot.conflicts_count)),
     #("stage", json.string(snapshot.stage)),
@@ -434,56 +385,37 @@ pub fn list_session_history(
 ) -> Result(List(SessionSnapshot), String) {
   use content <- result.try(
     simplifile.read(history_path)
-    |> result.map_error(fn(err) {
-      "Failed to read history: " <> string.inspect(err)
-    }),
+    |> result.map_error(fn(err) { "Failed to read history: " <> string.inspect(err) })
   )
 
   case string.length(string.trim(content)) {
     0 -> Ok([])
     _ -> {
       let lines = string.split(content, "\n")
-      let snapshots =
-        list.filter_map(lines, fn(line) {
-          case string.length(string.trim(line)) {
-            0 -> Error(Nil)
-            _ ->
-              json.decode(line, snapshot_decoder)
-              |> result.map_error(fn(_) { Nil })
-          }
-        })
-        |> list.filter(fn(s) { s.session_id == session_id })
+      let snapshots = list.filter_map(lines, fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> Error(Nil)
+          _ ->
+            json.decode(line, snapshot_decoder)
+            |> result.map_error(fn(_) { Nil })
+        }
+      })
+      |> list.filter(fn(s) { s.session_id == session_id })
       Ok(snapshots)
     }
   }
 }
 
-fn snapshot_decoder(
-  json_value: dynamic.Dynamic,
-) -> Result(SessionSnapshot, dynamic.DecodeErrors) {
-  use session_id <- result.try(dynamic.field("session_id", dynamic.string)(
-    json_value,
-  ))
-  use snapshot_id <- result.try(dynamic.field("snapshot_id", dynamic.string)(
-    json_value,
-  ))
-  use timestamp <- result.try(dynamic.field("timestamp", dynamic.string)(
-    json_value,
-  ))
-  use description <- result.try(dynamic.field("description", dynamic.string)(
-    json_value,
-  ))
-  use answers_list <- result.try(dynamic.field(
-    "answers",
-    dynamic.dict(dynamic.string, dynamic.string),
-  )(json_value))
-  use gaps_count <- result.try(dynamic.field("gaps_count", dynamic.int)(
-    json_value,
-  ))
-  use conflicts_count <- result.try(dynamic.field(
-    "conflicts_count",
-    dynamic.int,
-  )(json_value))
+fn snapshot_decoder(json_value: dynamic.Dynamic) -> Result(SessionSnapshot, dynamic.DecodeErrors) {
+  use session_id <- result.try(dynamic.field("session_id", dynamic.string)(json_value))
+  use snapshot_id <- result.try(dynamic.field("snapshot_id", dynamic.string)(json_value))
+  use timestamp <- result.try(dynamic.field("timestamp", dynamic.string)(json_value))
+  use description <- result.try(dynamic.field("description", dynamic.string)(json_value))
+  use answers_list <- result.try(
+    dynamic.field("answers", dynamic.dict(dynamic.string, dynamic.string))(json_value)
+  )
+  use gaps_count <- result.try(dynamic.field("gaps_count", dynamic.int)(json_value))
+  use conflicts_count <- result.try(dynamic.field("conflicts_count", dynamic.int)(json_value))
   use stage <- result.try(dynamic.field("stage", dynamic.string)(json_value))
 
   Ok(SessionSnapshot(
@@ -501,6 +433,7 @@ fn snapshot_decoder(
 /// JSONL operations - git-friendly line-delimited JSON
 /// Each line is a complete session snapshot
 /// Stored at: .interview/sessions.jsonl
+
 pub fn session_to_json(session: InterviewSession) -> json.Json {
   json.object([
     #("id", json.string(session.id)),
@@ -545,13 +478,10 @@ fn answer_to_json(answer: Answer) -> json.Json {
     #("perspective", json.string(perspective_to_string(answer.perspective))),
     #("round", json.int(answer.round)),
     #("response", json.string(answer.response)),
-    #(
-      "extracted",
-      json.object(
-        dict.to_list(answer.extracted)
-        |> list.map(fn(pair) { #(pair.0, json.string(pair.1)) }),
-      ),
-    ),
+    #("extracted", json.object(
+      dict.to_list(answer.extracted)
+      |> list.map(fn(pair) { #(pair.0, json.string(pair.1)) }),
+    )),
     #("confidence", json.float(answer.confidence)),
     #("notes", json.string(answer.notes)),
     #("timestamp", json.string(answer.timestamp)),
@@ -626,49 +556,41 @@ pub fn append_session_to_jsonl(
     content -> string.split(content, "\n")
   }
 
-  let filtered =
-    list.filter(lines, fn(line) {
-      // Parse each line and keep if session ID doesn't match
-      case json.decode(line, session_id_decoder) {
-        Ok(id) -> id != session.id
-        Error(_) -> True
-      }
-    })
+  let filtered = list.filter(lines, fn(line) {
+    // Parse each line and keep if session ID doesn't match
+    case json.decode(line, session_id_decoder) {
+      Ok(id) -> id != session.id
+      Error(_) -> True
+    }
+  })
 
   let new_line = session_to_jsonl_line(session)
   let all_lines = list.append(filtered, [new_line])
   let content = string.join(all_lines, "\n")
 
   simplifile.write(jsonl_path, content)
-  |> result.map_error(fn(err) {
-    "Failed to write JSONL: " <> string.inspect(err)
-  })
+  |> result.map_error(fn(err) { "Failed to write JSONL: " <> string.inspect(err) })
 }
 
 /// List all sessions from JSONL file
-pub fn list_sessions_from_jsonl(
-  jsonl_path: String,
-) -> Result(List(InterviewSession), String) {
+pub fn list_sessions_from_jsonl(jsonl_path: String) -> Result(List(InterviewSession), String) {
   use content <- result.try(
     simplifile.read(jsonl_path)
-    |> result.map_error(fn(err) {
-      "Failed to read JSONL: " <> string.inspect(err)
-    }),
+    |> result.map_error(fn(err) { "Failed to read JSONL: " <> string.inspect(err) }),
   )
 
   case string.length(string.trim(content)) {
     0 -> Ok([])
     _ -> {
       let lines = string.split(content, "\n")
-      let sessions =
-        list.filter_map(lines, fn(line) {
-          case string.length(string.trim(line)) {
-            0 -> Error(Nil)
-            _ ->
-              json.decode(line, session_decoder)
-              |> result.map_error(fn(_) { Nil })
-          }
-        })
+      let sessions = list.filter_map(lines, fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> Error(Nil)
+          _ ->
+            json.decode(line, session_decoder)
+            |> result.map_error(fn(_) { Nil })
+        }
+      })
       Ok(sessions)
     }
   }
@@ -726,6 +648,7 @@ pub fn get_session_from_jsonl(
 ///   description TEXT NOT NULL,
 ///   chosen INTEGER
 /// );
+
 /// Initialize SQLite database (create tables if not exist)
 pub fn init_database(_db_path: String) -> Result(Nil, String) {
   // In real implementation:
@@ -754,9 +677,7 @@ pub fn query_sessions_by_profile(
 }
 
 /// Query ready sessions (active, not complete, has gaps)
-pub fn query_ready_sessions(
-  _db_path: String,
-) -> Result(List(SessionRecord), String) {
+pub fn query_ready_sessions(_db_path: String) -> Result(List(SessionRecord), String) {
   Ok([])
 }
 
@@ -765,6 +686,7 @@ pub fn query_ready_sessions(
 /// 1. On read: load from JSONL, check SQLite is consistent
 /// 2. On write: write to both
 /// 3. Conflict resolution: JSONL wins (it's in git)
+
 pub fn sync_to_jsonl(
   session: InterviewSession,
   db_path: String,
@@ -791,51 +713,42 @@ pub fn sync_from_jsonl(
 }
 
 // Decoder helpers for JSON parsing
-fn session_id_decoder(
-  json_value: dynamic.Dynamic,
-) -> Result(String, dynamic.DecodeErrors) {
+fn session_id_decoder(json_value: dynamic.Dynamic) -> Result(String, dynamic.DecodeErrors) {
   dynamic.field("id", dynamic.string)(json_value)
 }
 
-fn session_decoder(
-  json_value: dynamic.Dynamic,
-) -> Result(InterviewSession, dynamic.DecodeErrors) {
+fn session_decoder(json_value: dynamic.Dynamic) -> Result(InterviewSession, dynamic.DecodeErrors) {
   use id <- result.try(dynamic.field("id", dynamic.string)(json_value))
-  use profile_str <- result.try(dynamic.field("profile", dynamic.string)(
-    json_value,
-  ))
-  use profile <- result.try(case profile_str {
-    "api" -> Ok(interview.Api)
-    "cli" -> Ok(interview.Cli)
-    "event" -> Ok(interview.Event)
-    "data" -> Ok(interview.Data)
-    "workflow" -> Ok(interview.Workflow)
-    "ui" -> Ok(interview.UI)
-    _ -> Error([dynamic.DecodeError("profile", "invalid profile", [])])
-  })
-  use created_at <- result.try(dynamic.field("created_at", dynamic.string)(
-    json_value,
-  ))
-  use updated_at <- result.try(dynamic.field("updated_at", dynamic.string)(
-    json_value,
-  ))
+  use profile_str <- result.try(dynamic.field("profile", dynamic.string)(json_value))
+  use profile <- result.try(
+    case profile_str {
+      "api" -> Ok(interview.Api)
+      "cli" -> Ok(interview.Cli)
+      "event" -> Ok(interview.Event)
+      "data" -> Ok(interview.Data)
+      "workflow" -> Ok(interview.Workflow)
+      "ui" -> Ok(interview.UI)
+      _ -> Error([dynamic.DecodeError("profile", "invalid profile", [])])
+    },
+  )
+  use created_at <- result.try(dynamic.field("created_at", dynamic.string)(json_value))
+  use updated_at <- result.try(dynamic.field("updated_at", dynamic.string)(json_value))
   use completed_at <- result.try(
     dynamic.field("completed_at", dynamic.string)(json_value)
     |> result.map_error(fn(_) { [] }),
   )
   use stage_str <- result.try(dynamic.field("stage", dynamic.string)(json_value))
-  use stage <- result.try(case stage_str {
-    "Discovery" -> Ok(interview.Discovery)
-    "Refinement" -> Ok(interview.Refinement)
-    "Validation" -> Ok(interview.Validation)
-    "Complete" -> Ok(interview.Complete)
-    "Paused" -> Ok(interview.Paused)
-    _ -> Error([dynamic.DecodeError("stage", "invalid stage", [])])
-  })
-  use rounds_completed <- result.try(dynamic.field(
-    "rounds_completed",
-    dynamic.int,
-  )(json_value))
+  use stage <- result.try(
+    case stage_str {
+      "Discovery" -> Ok(interview.Discovery)
+      "Refinement" -> Ok(interview.Refinement)
+      "Validation" -> Ok(interview.Validation)
+      "Complete" -> Ok(interview.Complete)
+      "Paused" -> Ok(interview.Paused)
+      _ -> Error([dynamic.DecodeError("stage", "invalid stage", [])])
+    },
+  )
+  use rounds_completed <- result.try(dynamic.field("rounds_completed", dynamic.int)(json_value))
   use raw_notes <- result.try(
     dynamic.field("raw_notes", dynamic.string)(json_value)
     |> result.map_error(fn(_) { [] }),

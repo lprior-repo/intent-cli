@@ -127,8 +127,7 @@ pub fn parse_unwanted_requirement_test() {
 }
 
 pub fn parse_complex_requirement_test() {
-  let input =
-    "WHILE user is logged in WHEN session expires THE SYSTEM SHALL redirect to login"
+  let input = "WHILE user is logged in WHEN session expires THE SYSTEM SHALL redirect to login"
   let result = ears_parser.parse(input)
 
   result.requirements

@@ -1,14 +1,15 @@
 /// Interview Engine
 /// Structured interrogation system for discovering and refining specifications
 /// Supports 5 rounds × multiple perspectives = comprehensive requirement capture
+
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option
 import gleam/string
 import intent/interview_questions
 import intent/question_types.{
-  type Perspective, type Question, Critical, Developer, Important, NiceTohave,
-  Ops,
+  type Perspective, type Question,
+  Critical, Developer, Important, NiceTohave, Ops,
 }
 
 /// Profile types - determines which questions to ask
@@ -164,22 +165,18 @@ fn extract_auth_method(text: String) -> Result(String, String) {
 fn extract_entities(text: String) -> Result(String, String) {
   // Look for capitalized words (likely entity names)
   let words = string.split(text, " ")
-  let entities =
-    list.filter_map(words, fn(word) {
-      // Remove trailing punctuation
-      let clean_word = case string.ends_with(word, ",") {
-        True -> string.slice(word, 0, string.length(word) - 1)
-        False -> word
-      }
-      let first_char = string.slice(clean_word, 0, 1)
-      case
-        string.uppercase(first_char) == first_char
-        && string.length(clean_word) > 2
-      {
-        True -> Ok(clean_word)
-        False -> Error(Nil)
-      }
-    })
+  let entities = list.filter_map(words, fn(word) {
+    // Remove trailing punctuation
+    let clean_word = case string.ends_with(word, ",") {
+      True -> string.slice(word, 0, string.length(word) - 1)
+      False -> word
+    }
+    let first_char = string.slice(clean_word, 0, 1)
+    case string.uppercase(first_char) == first_char && string.length(clean_word) > 2 {
+      True -> Ok(clean_word)
+      False -> Error(Nil)
+    }
+  })
   case entities {
     [] -> Error("No entities found")
     _ -> Ok(string.join(entities, ", "))
@@ -211,11 +208,15 @@ fn extract_audience(text: String) -> Result(String, String) {
 }
 
 /// Detect gaps from collected answers
-pub fn detect_gaps(profile: Profile, answers: List(Answer)) -> List(Gap) {
+pub fn detect_gaps(
+  profile: Profile,
+  answers: List(Answer),
+) -> List(Gap) {
   // Check critical fields for the profile
   let required_fields = case profile {
     Api -> [
-      "base_url", "auth_method", "happy_path", "error_cases", "response_format",
+      "base_url", "auth_method", "happy_path", "error_cases",
+      "response_format",
     ]
     Cli -> ["command_name", "happy_path", "help_text", "exit_codes"]
     Event -> ["event_type", "payload_schema", "trigger"]
@@ -224,12 +225,11 @@ pub fn detect_gaps(profile: Profile, answers: List(Answer)) -> List(Gap) {
     UI -> ["user_flows", "happy_path", "states"]
   }
 
-  let answered_fields =
-    list.fold(answers, dict.new(), fn(acc, answer) {
-      list.fold(dict.to_list(answer.extracted), acc, fn(inner_acc, pair) {
-        dict.insert(inner_acc, pair.0, pair.1)
-      })
+  let answered_fields = list.fold(answers, dict.new(), fn(acc, answer) {
+    list.fold(dict.to_list(answer.extracted), acc, fn(inner_acc, pair) {
+      dict.insert(inner_acc, pair.0, pair.1)
     })
+  })
 
   list.filter_map(required_fields, fn(field) {
     case dict.get(answered_fields, field) {
@@ -257,23 +257,19 @@ pub fn detect_conflicts(answers: List(Answer)) -> List(Conflict) {
   // "anonymous" + "audit_trail" = traceability
   // "simple" + 20_requirements = scope creep
 
-  let lower_responses =
-    list.map(answers, fn(ans) {
-      #(ans.question_id, string.lowercase(ans.response))
-    })
+  let lower_responses = list.map(answers, fn(ans) {
+    #(ans.question_id, string.lowercase(ans.response))
+  })
 
   let conflicts = []
 
   // Check for CAP theorem conflict
-  let has_fast =
-    list.any(lower_responses, fn(pair) {
-      string.contains(pair.1, "fast") || string.contains(pair.1, "latency")
-    })
-  let has_consistent =
-    list.any(lower_responses, fn(pair) {
-      string.contains(pair.1, "consistent")
-      || string.contains(pair.1, "accurate")
-    })
+  let has_fast = list.any(lower_responses, fn(pair) {
+    string.contains(pair.1, "fast") || string.contains(pair.1, "latency")
+  })
+  let has_consistent = list.any(lower_responses, fn(pair) {
+    string.contains(pair.1, "consistent") || string.contains(pair.1, "accurate")
+  })
 
   let conflicts = case has_fast && has_consistent {
     True ->
@@ -304,12 +300,12 @@ pub fn detect_conflicts(answers: List(Answer)) -> List(Conflict) {
   }
 
   // Check for anonymous + audit
-  let has_anonymous =
-    list.any(lower_responses, fn(pair) { string.contains(pair.1, "anonymous") })
-  let has_audit =
-    list.any(lower_responses, fn(pair) {
-      string.contains(pair.1, "audit") || string.contains(pair.1, "log")
-    })
+  let has_anonymous = list.any(lower_responses, fn(pair) {
+    string.contains(pair.1, "anonymous")
+  })
+  let has_audit = list.any(lower_responses, fn(pair) {
+    string.contains(pair.1, "audit") || string.contains(pair.1, "log")
+  })
 
   case has_anonymous && has_audit {
     True ->
@@ -374,15 +370,15 @@ pub fn format_question(question: Question) -> String {
     False -> ""
   }
 
-  priority_str <> " " <> question.question <> context_str <> example_str
+  priority_str
+    <> " "
+    <> question.question
+    <> context_str
+    <> example_str
 }
 
 /// Create a new session
-pub fn create_session(
-  id: String,
-  profile: Profile,
-  timestamp: String,
-) -> InterviewSession {
+pub fn create_session(id: String, profile: Profile, timestamp: String) -> InterviewSession {
   InterviewSession(
     id: id,
     profile: profile,
@@ -399,7 +395,10 @@ pub fn create_session(
 }
 
 /// Add answer to session
-pub fn add_answer(session: InterviewSession, answer: Answer) -> InterviewSession {
+pub fn add_answer(
+  session: InterviewSession,
+  answer: Answer,
+) -> InterviewSession {
   let new_answers = list.append(session.answers, [answer])
   InterviewSession(
     ..session,
@@ -418,8 +417,7 @@ pub fn get_first_question_for_round(
   round: Int,
 ) -> Result(Question, String) {
   let profile_str = profile_to_string(session.profile)
-  let questions =
-    interview_questions.get_questions_for_round(profile_str, round)
+  let questions = interview_questions.get_questions_for_round(profile_str, round)
 
   case questions {
     [] -> Error("No questions found for round " <> string.inspect(round))
@@ -437,8 +435,7 @@ pub fn get_next_question_in_round(
 
   case interview_questions.get_next_question(profile_str, round, answered_ids) {
     option.Some(question) -> Ok(question)
-    option.None ->
-      Error("No more unanswered questions in round " <> string.inspect(round))
+    option.None -> Error("No more unanswered questions in round " <> string.inspect(round))
   }
 }
 
@@ -454,8 +451,10 @@ pub fn check_for_gaps(
   answer: Answer,
 ) -> #(InterviewSession, List(Gap)) {
   let blocking_gaps = detect_blocking_gaps(question, answer)
-  let updated_session =
-    InterviewSession(..session, gaps: list.append(session.gaps, blocking_gaps))
+  let updated_session = InterviewSession(
+    ..session,
+    gaps: list.append(session.gaps, blocking_gaps),
+  )
   #(updated_session, blocking_gaps)
 }
 
@@ -488,11 +487,10 @@ pub fn check_for_conflicts(
   new_answer: Answer,
 ) -> #(InterviewSession, List(Conflict)) {
   let conflicts = detect_conflicts_in_session(session, new_answer)
-  let updated_session =
-    InterviewSession(
-      ..session,
-      conflicts: list.append(session.conflicts, conflicts),
-    )
+  let updated_session = InterviewSession(
+    ..session,
+    conflicts: list.append(session.conflicts, conflicts),
+  )
   #(updated_session, conflicts)
 }
 
@@ -501,34 +499,26 @@ fn detect_conflicts_in_session(
   session: InterviewSession,
   new_answer: Answer,
 ) -> List(Conflict) {
-  let conflicts_found =
-    list.fold(session.answers, [], fn(acc, existing) {
-      let new_conflicts = detect_answer_pair_conflicts(existing, new_answer)
-      list.append(acc, new_conflicts)
-    })
+  let conflicts_found = list.fold(session.answers, [], fn(acc, existing) {
+    let new_conflicts = detect_answer_pair_conflicts(existing, new_answer)
+    list.append(acc, new_conflicts)
+  })
   conflicts_found
 }
 
 /// Detect conflicts between two answers
-fn detect_answer_pair_conflicts(
-  answer1: Answer,
-  answer2: Answer,
-) -> List(Conflict) {
+fn detect_answer_pair_conflicts(answer1: Answer, answer2: Answer) -> List(Conflict) {
   // Check for CAP theorem conflicts
   case answer1.perspective, answer2.perspective {
     Developer, Ops -> {
       let ans1_lower = string.lowercase(answer1.response)
       let ans2_lower = string.lowercase(answer2.response)
-      case
-        string.contains(ans1_lower, "consistency")
+      case string.contains(ans1_lower, "consistency")
         && string.contains(ans2_lower, "high latency")
       {
         True -> [
           Conflict(
-            id: "cap_conflict_"
-              <> answer1.question_id
-              <> "_"
-              <> answer2.question_id,
+            id: "cap_conflict_" <> answer1.question_id <> "_" <> answer2.question_id,
             between: #(answer1.question_id, answer2.question_id),
             description: "Consistency vs. Availability tension (CAP theorem)",
             impact: "Requires architectural decision on data replication strategy",
@@ -579,21 +569,22 @@ pub fn get_current_round(session: InterviewSession) -> Int {
   case session.answers {
     [] -> 1
     answers -> {
-      let max_round =
-        list.fold(answers, 0, fn(acc, answer) {
-          case answer.round > acc {
-            True -> answer.round
-            False -> acc
-          }
-        })
+      let max_round = list.fold(answers, 0, fn(acc, answer) {
+        case answer.round > acc {
+          True -> answer.round
+          False -> acc
+        }
+      })
       // If we've answered all questions in current round, move to next
-      let current_round_count =
-        list.length(list.filter(answers, fn(a) { a.round == max_round }))
-      let questions_in_round =
-        list.length(interview_questions.get_questions_for_round(
+      let current_round_count = list.length(
+        list.filter(answers, fn(a) { a.round == max_round }),
+      )
+      let questions_in_round = list.length(
+        interview_questions.get_questions_for_round(
           profile_to_string(session.profile),
           max_round,
-        ))
+        ),
+      )
 
       case current_round_count >= questions_in_round {
         True -> max_round + 1
@@ -609,15 +600,21 @@ pub fn resolve_conflict(
   conflict_id: String,
   chosen_option: Int,
 ) -> Result(InterviewSession, String) {
-  let updated_conflicts =
-    list.map(session.conflicts, fn(conflict) {
-      case conflict.id == conflict_id {
-        True -> Conflict(..conflict, chosen: chosen_option)
-        False -> conflict
-      }
-    })
+  let updated_conflicts = list.map(session.conflicts, fn(conflict) {
+    case conflict.id == conflict_id {
+      True ->
+        Conflict(
+          ..conflict,
+          chosen: chosen_option,
+        )
+      False -> conflict
+    }
+  })
 
-  Ok(InterviewSession(..session, conflicts: updated_conflicts))
+  Ok(InterviewSession(
+    ..session,
+    conflicts: updated_conflicts,
+  ))
 }
 
 /// Mark a gap as resolved
@@ -626,25 +623,36 @@ pub fn resolve_gap(
   gap_id: String,
   resolution: String,
 ) -> InterviewSession {
-  let updated_gaps =
-    list.map(session.gaps, fn(gap) {
-      case gap.id == gap_id {
-        True -> Gap(..gap, resolved: True, resolution: resolution)
-        False -> gap
-      }
-    })
+  let updated_gaps = list.map(session.gaps, fn(gap) {
+    case gap.id == gap_id {
+      True ->
+        Gap(
+          ..gap,
+          resolved: True,
+          resolution: resolution,
+        )
+      False -> gap
+    }
+  })
 
-  InterviewSession(..session, gaps: updated_gaps)
+  InterviewSession(
+    ..session,
+    gaps: updated_gaps,
+  )
 }
 
 /// Get all unresolved blocking gaps
 pub fn get_blocking_gaps(session: InterviewSession) -> List(Gap) {
-  list.filter(session.gaps, fn(gap) { gap.blocking && !gap.resolved })
+  list.filter(session.gaps, fn(gap) {
+    gap.blocking && !gap.resolved
+  })
 }
 
 /// Get all unresolved conflicts
 pub fn get_unresolved_conflicts(session: InterviewSession) -> List(Conflict) {
-  list.filter(session.conflicts, fn(conflict) { conflict.chosen == -1 })
+  list.filter(session.conflicts, fn(conflict) {
+    conflict.chosen == -1
+  })
 }
 
 /// Check if interview can proceed (no blocking gaps)
@@ -711,93 +719,3 @@ pub fn string_to_profile(s: String) -> Result(Profile, String) {
   }
 }
 
-// =============================================================================
-// ANSWER LOADING: Support for Non-Interactive Mode
-// =============================================================================
-
-/// Ask a single question with optional pre-filled answers dictionary.
-///
-/// If answers_dict is provided and contains the question_id, uses that answer.
-/// If answers_dict is provided but answer is missing:
-///   - If strict=False: falls back to prompting user (interactive)
-///   - If strict=True: returns an error
-/// If answers_dict is None: always prompts user (original behavior)
-///
-/// All answers are validated before returning.
-pub fn ask_single_question(
-  question: Question,
-  answers_dict: option.Option(Dict(String, String)),
-  strict_mode: Bool,
-) -> Result(Answer, String) {
-  // Try to get answer from dictionary first
-  let maybe_answer = case answers_dict {
-    option.None -> option.None
-    option.Some(dict) -> {
-      case dict.get(dict, question.id) {
-        Ok(value) -> option.Some(string.trim(value))
-        Error(_) -> option.None
-      }
-    }
-  }
-
-  case maybe_answer {
-    // Answer found in dictionary
-    option.Some(answer_text) -> {
-      // Validate answer
-      case validate_answer(answer_text, question) {
-        Ok(validated) -> {
-          Ok(Answer(
-            question_id: question.id,
-            question_text: question.question,
-            perspective: question.perspective,
-            round: 0,
-            response: validated,
-            extracted: extract_from_answer(question.id, validated, []),
-            confidence: 0.95,
-            notes: "Loaded from answers file",
-            timestamp: "",
-          ))
-        }
-        Error(msg) ->
-          Error("Validation failed for " <> question.id <> ": " <> msg)
-      }
-    }
-
-    // Answer not in dictionary
-    option.None -> {
-      case strict_mode {
-        // Strict mode: error if not in dictionary
-        True -> {
-          Error(
-            "Answer required for question "
-            <> question.id
-            <> " but not found in answers dictionary",
-          )
-        }
-        // Non-strict: fall back to prompting (would require I/O - skip for now)
-        False -> {
-          Error(
-            "Answer lookup failed for "
-            <> question.id
-            <> " and interactive mode not yet implemented",
-          )
-        }
-      }
-    }
-  }
-}
-
-/// Validate answer text against question requirements.
-fn validate_answer(text: String, _question: Question) -> Result(String, String) {
-  let trimmed = string.trim(text)
-  case string.is_empty(trimmed) {
-    True -> Error("Answer cannot be empty")
-    False -> {
-      // Check length (reasonable bound)
-      case string.length(trimmed) > 10_000 {
-        True -> Error("Answer is too long (max 10000 characters)")
-        False -> Ok(trimmed)
-      }
-    }
-  }
-}

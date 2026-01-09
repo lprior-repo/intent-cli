@@ -1,5 +1,6 @@
 /// Module for reading user input from standard input
 /// Provides functions for interactive command-line prompts
+
 @external(erlang, "intent_ffi_stdin", "read_line")
 pub fn read_line() -> Result(String, String)
 
@@ -47,7 +48,8 @@ fn read_until_blank_helper(
           }
         }
         // Continue collecting
-        False -> read_until_blank_helper([line, ..lines], line_count + 1)
+        False ->
+          read_until_blank_helper([line, ..lines], line_count + 1)
       }
     }
   }
@@ -76,6 +78,6 @@ pub fn prompt_yes_no(prompt_text: String) -> Result(Bool, String) {
 }
 
 // Required imports
-import gleam/io
-import gleam/list
 import gleam/string
+import gleam/list
+import gleam/io

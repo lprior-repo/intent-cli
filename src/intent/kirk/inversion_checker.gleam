@@ -2,10 +2,12 @@
 // "Invert, always invert" - Charlie Munger/Jacobi
 // Analyzes specs for missing failure cases
 
+import gleam/dict
 import gleam/int
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
-import intent/types.{type Behavior, type Method, type Spec, Get, Post}
+import intent/types.{type Spec, type Behavior, type Method, Get, Post, Put, Patch, Delete}
 
 // =============================================================================
 // TYPES
@@ -100,26 +102,20 @@ pub fn analyze_inversions(spec: Spec) -> InversionReport {
   let integration_gaps = check_integration_inversions(behaviors, paths)
 
   // Generate suggested behaviors
-  let suggested =
-    generate_suggestions(security_gaps, usability_gaps, integration_gaps, paths)
+  let suggested = generate_suggestions(security_gaps, usability_gaps, integration_gaps, paths)
 
   // Calculate score (percentage of inversions covered)
-  let total_expected =
-    list.length(security_inversions)
+  let total_expected = list.length(security_inversions)
     + list.length(usability_inversions)
     + list.length(integration_inversions)
 
-  let total_gaps =
-    list.length(security_gaps)
+  let total_gaps = list.length(security_gaps)
     + list.length(usability_gaps)
     + list.length(integration_gaps)
 
   let score = case total_expected {
     0 -> 100.0
-    _ ->
-      int.to_float(total_expected - total_gaps)
-      /. int.to_float(total_expected)
-      *. 100.0
+    _ -> int.to_float(total_expected - total_gaps) /. int.to_float(total_expected) *. 100.0
   }
 
   InversionReport(
@@ -146,11 +142,7 @@ fn get_all_paths(behaviors: List(Behavior)) -> List(String) {
 // SECURITY INVERSION CHECKS
 // =============================================================================
 
-fn check_security_inversions(
-  behaviors: List(Behavior),
-  _paths: List(String),
-  spec: Spec,
-) -> List(InversionGap) {
+fn check_security_inversions(behaviors: List(Behavior), _paths: List(String), spec: Spec) -> List(InversionGap) {
   let behavior_names =
     behaviors
     |> list.map(fn(b) { string.lowercase(b.name) })
@@ -167,27 +159,15 @@ fn check_security_inversions(
   security_inversions
   |> list.filter_map(fn(inv) {
     let #(name, desc, expected_status) = inv
-    let is_tested =
-      is_inversion_covered(
-        name,
-        expected_status,
-        behavior_names,
-        behavior_intents,
-        behavior_statuses,
-        spec,
-      )
+    let is_tested = is_inversion_covered(name, expected_status, behavior_names, behavior_intents, behavior_statuses, spec)
     case is_tested {
-      True -> Error(Nil)
-      False ->
-        Ok(InversionGap(
-          category: "security",
-          description: desc,
-          severity: security_severity(name),
-          what_could_fail: "Without testing "
-            <> name
-            <> ", attackers could exploit: "
-            <> desc,
-        ))
+      True -> None
+      False -> Some(InversionGap(
+        category: "security",
+        description: desc,
+        severity: security_severity(name),
+        what_could_fail: "Without testing " <> name <> ", attackers could exploit: " <> desc,
+      ))
     }
   })
 }
@@ -210,10 +190,7 @@ fn security_severity(name: String) -> GapSeverity {
 // USABILITY INVERSION CHECKS
 // =============================================================================
 
-fn check_usability_inversions(
-  behaviors: List(Behavior),
-  _paths: List(String),
-) -> List(InversionGap) {
+fn check_usability_inversions(behaviors: List(Behavior), _paths: List(String)) -> List(InversionGap) {
   let behavior_names =
     behaviors
     |> list.map(fn(b) { string.lowercase(b.name) })
@@ -240,14 +217,13 @@ fn check_usability_inversions(
       || list.contains(behavior_statuses, expected_status)
 
     case is_tested {
-      True -> Error(Nil)
-      False ->
-        Ok(InversionGap(
-          category: "usability",
-          description: desc,
-          severity: usability_severity(name),
-          what_could_fail: "Users may experience poor UX when: " <> desc,
-        ))
+      True -> None
+      False -> Some(InversionGap(
+        category: "usability",
+        description: desc,
+        severity: usability_severity(name),
+        what_could_fail: "Users may experience poor UX when: " <> desc,
+      ))
     }
   })
 }
@@ -266,10 +242,7 @@ fn usability_severity(name: String) -> GapSeverity {
 // INTEGRATION INVERSION CHECKS
 // =============================================================================
 
-fn check_integration_inversions(
-  behaviors: List(Behavior),
-  _paths: List(String),
-) -> List(InversionGap) {
+fn check_integration_inversions(behaviors: List(Behavior), _paths: List(String)) -> List(InversionGap) {
   let behavior_names =
     behaviors
     |> list.map(fn(b) { string.lowercase(b.name) })
@@ -296,14 +269,13 @@ fn check_integration_inversions(
       || list.contains(behavior_statuses, expected_status)
 
     case is_tested {
-      True -> Error(Nil)
-      False ->
-        Ok(InversionGap(
-          category: "integration",
-          description: desc,
-          severity: integration_severity(name),
-          what_could_fail: "Integrations may break when: " <> desc,
-        ))
+      True -> None
+      False -> Some(InversionGap(
+        category: "integration",
+        description: desc,
+        severity: integration_severity(name),
+        what_could_fail: "Integrations may break when: " <> desc,
+      ))
     }
   })
 }
@@ -332,15 +304,13 @@ fn is_inversion_covered(
   let name_parts = string.split(name, "-")
 
   // Check if any behavior tests this
-  let name_match =
-    list.any(behavior_names, fn(bn) {
-      list.any(name_parts, fn(part) { string.contains(bn, part) })
-    })
+  let name_match = list.any(behavior_names, fn(bn) {
+    list.any(name_parts, fn(part) { string.contains(bn, part) })
+  })
 
-  let intent_match =
-    list.any(behavior_intents, fn(bi) {
-      list.any(name_parts, fn(part) { string.contains(bi, part) })
-    })
+  let intent_match = list.any(behavior_intents, fn(bi) {
+    list.any(name_parts, fn(part) { string.contains(bi, part) })
+  })
 
   let status_match = list.contains(behavior_statuses, expected_status)
 
@@ -380,8 +350,7 @@ fn generate_suggestions(
 
   let security_suggestions =
     security_gaps
-    |> list.take(5)
-    // Limit suggestions
+    |> list.take(5)  // Limit suggestions
     |> list.map(fn(gap) {
       let #(method, status) = gap_to_method_status(gap.description)
       SuggestedBehavior(
@@ -424,11 +393,7 @@ fn generate_suggestions(
       )
     })
 
-  list.concat([
-    security_suggestions,
-    usability_suggestions,
-    integration_suggestions,
-  ])
+  list.concat([security_suggestions, usability_suggestions, integration_suggestions])
 }
 
 fn gap_to_name(gap: InversionGap) -> String {
@@ -441,33 +406,20 @@ fn gap_to_name(gap: InversionGap) -> String {
 
 fn gap_to_method_status(description: String) -> #(Method, Int) {
   let desc = string.lowercase(description)
-  let has_auth = string.contains(desc, "authentication")
-  let has_token = string.contains(desc, "token")
-  let has_access = string.contains(desc, "access")
-  let has_admin = string.contains(desc, "admin")
-  let has_injection = string.contains(desc, "injection")
-  let has_xss = string.contains(desc, "xss")
-  let has_not_found = string.contains(desc, "not-found")
-  let has_non_existent = string.contains(desc, "non-existent")
-  let has_malformed = string.contains(desc, "malformed")
-  let has_required = string.contains(desc, "required")
-  let has_duplicate = string.contains(desc, "duplicate")
-  let has_rate = string.contains(desc, "rate")
-  let has_timeout = string.contains(desc, "timeout")
   case True {
-    _ if has_auth -> #(Get, 401)
-    _ if has_token -> #(Get, 401)
-    _ if has_access -> #(Get, 403)
-    _ if has_admin -> #(Post, 403)
-    _ if has_injection -> #(Post, 400)
-    _ if has_xss -> #(Post, 400)
-    _ if has_not_found -> #(Get, 404)
-    _ if has_non_existent -> #(Get, 404)
-    _ if has_malformed -> #(Post, 400)
-    _ if has_required -> #(Post, 400)
-    _ if has_duplicate -> #(Post, 409)
-    _ if has_rate -> #(Get, 429)
-    _ if has_timeout -> #(Get, 504)
+    _ if string.contains(desc, "authentication") -> #(Get, 401)
+    _ if string.contains(desc, "token") -> #(Get, 401)
+    _ if string.contains(desc, "access") -> #(Get, 403)
+    _ if string.contains(desc, "admin") -> #(Post, 403)
+    _ if string.contains(desc, "injection") -> #(Post, 400)
+    _ if string.contains(desc, "xss") -> #(Post, 400)
+    _ if string.contains(desc, "not-found") -> #(Get, 404)
+    _ if string.contains(desc, "non-existent") -> #(Get, 404)
+    _ if string.contains(desc, "malformed") -> #(Post, 400)
+    _ if string.contains(desc, "required") -> #(Post, 400)
+    _ if string.contains(desc, "duplicate") -> #(Post, 409)
+    _ if string.contains(desc, "rate") -> #(Get, 429)
+    _ if string.contains(desc, "timeout") -> #(Get, 504)
     _ -> #(Get, 400)
   }
 }
@@ -477,47 +429,30 @@ fn gap_to_method_status(description: String) -> #(Method, Int) {
 // =============================================================================
 
 pub fn format_report(report: InversionReport) -> String {
-  let header =
-    "╔══════════════════════════════════════╗\n"
+  let header = "╔══════════════════════════════════════╗\n"
     <> "║      KIRK Inversion Analysis         ║\n"
     <> "║   \"What would make this fail?\"       ║\n"
     <> "╚══════════════════════════════════════╝\n\n"
 
-  let score_line =
-    "📊 Inversion Coverage: "
-    <> int.to_string(float.round(report.score))
-    <> "%\n\n"
+  let score_line = "📊 Inversion Coverage: " <> int.to_string(float.round(report.score)) <> "%\n\n"
 
-  let security_section =
-    format_gap_section("🔒 Security Gaps", report.security_gaps)
-  let usability_section =
-    format_gap_section("👤 Usability Gaps", report.usability_gaps)
-  let integration_section =
-    format_gap_section("🔌 Integration Gaps", report.integration_gaps)
+  let security_section = format_gap_section("🔒 Security Gaps", report.security_gaps)
+  let usability_section = format_gap_section("👤 Usability Gaps", report.usability_gaps)
+  let integration_section = format_gap_section("🔌 Integration Gaps", report.integration_gaps)
 
   let suggestions_section = case list.is_empty(report.suggested_behaviors) {
     True -> ""
-    False ->
-      "\n💡 Suggested Behaviors to Add:\n"
-      <> format_suggestions(report.suggested_behaviors)
+    False -> "\n💡 Suggested Behaviors to Add:\n" <> format_suggestions(report.suggested_behaviors)
   }
 
-  header
-  <> score_line
-  <> security_section
-  <> usability_section
-  <> integration_section
-  <> suggestions_section
+  header <> score_line <> security_section <> usability_section <> integration_section <> suggestions_section
 }
 
 fn format_gap_section(title: String, gaps: List(InversionGap)) -> String {
   case list.is_empty(gaps) {
     True -> title <> ": ✅ All covered!\n\n"
     False ->
-      title
-      <> " ("
-      <> int.to_string(list.length(gaps))
-      <> " missing):\n"
+      title <> " (" <> int.to_string(list.length(gaps)) <> " missing):\n"
       <> list.map(gaps, format_gap) |> string.join("\n")
       <> "\n\n"
   }
@@ -536,15 +471,8 @@ fn format_gap(gap: InversionGap) -> String {
 fn format_suggestions(suggestions: List(SuggestedBehavior)) -> String {
   suggestions
   |> list.map(fn(s) {
-    "  • "
-    <> s.name
-    <> " ["
-    <> types.method_to_string(s.method)
-    <> " "
-    <> int.to_string(s.expected_status)
-    <> "]"
-    <> "\n    "
-    <> s.intent
+    "  • " <> s.name <> " [" <> types.method_to_string(s.method) <> " " <> int.to_string(s.expected_status) <> "]"
+    <> "\n    " <> s.intent
   })
   |> string.join("\n")
 }

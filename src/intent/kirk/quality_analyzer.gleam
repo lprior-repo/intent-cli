@@ -2,13 +2,13 @@
 // Calculates quality scores across multiple dimensions
 // Based on empirical research from requirements engineering studies
 
-import gleam/dict
+import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
-import gleam/json
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
-import intent/types.{type Behavior, type Check, type Spec}
+import intent/types.{type Spec, type Feature, type Behavior, type Check, type Rule, type AntiPattern}
 
 // =============================================================================
 // TYPES
@@ -28,13 +28,17 @@ pub type QualityReport {
 }
 
 pub type QualityIssue {
-  QualityIssue(field: String, issue: String, severity: Severity)
+  QualityIssue(
+    field: String,
+    issue: String,
+    severity: Severity,
+  )
 }
 
 pub type Severity {
   Info
   Warning
-  SevError
+  Error
   Critical
 }
 
@@ -95,8 +99,7 @@ fn count_total_fields(spec: Spec) -> Int {
     spec.features
     |> list.flat_map(fn(f) { f.behaviors })
     |> list.length()
-    |> fn(n) { n * 8 }
-  // 8 fields per behavior
+    |> fn(n) { n * 8 }  // 8 fields per behavior
 
   // Count check fields (each check should have rule + why)
   let check_fields =
@@ -207,8 +210,8 @@ fn find_path_conflicts(behaviors: List(Behavior)) -> List(String) {
       |> list.map(fn(b) { b.response.status })
       |> list.unique()
     case list.length(statuses) > 1 {
-      True -> Ok("Multiple status expectations for " <> key)
-      False -> Error(Nil)
+      True -> Some("Multiple status expectations for " <> key)
+      False -> None
     }
   })
 }
@@ -266,9 +269,7 @@ fn assess_clarity(spec: Spec) -> Float {
   let intent_score = case total_behaviors {
     0 -> 100.0
     _ ->
-      int.to_float(intents_descriptive)
-      /. int.to_float(total_behaviors)
-      *. 100.0
+      int.to_float(intents_descriptive) /. int.to_float(total_behaviors) *. 100.0
   }
 
   { why_score +. intent_score } /. 2.0
@@ -299,9 +300,9 @@ fn evaluate_security_coverage(spec: Spec) -> Float {
     |> list.flat_map(fn(f) { f.behaviors })
 
   let security_keywords = [
-    "auth", "login", "password", "token", "jwt", "unauthorized", "forbidden",
-    "permission", "role", "secret", "encrypt", "hash", "xss", "injection",
-    "csrf", "rate", "limit", "brute",
+    "auth", "login", "password", "token", "jwt", "unauthorized",
+    "forbidden", "permission", "role", "secret", "encrypt", "hash",
+    "xss", "injection", "csrf", "rate", "limit", "brute",
   ]
 
   // Count behaviors testing security scenarios
@@ -311,7 +312,8 @@ fn evaluate_security_coverage(spec: Spec) -> Float {
       let name_lower = string.lowercase(b.name)
       let intent_lower = string.lowercase(b.intent)
       list.any(security_keywords, fn(kw) {
-        string.contains(name_lower, kw) || string.contains(intent_lower, kw)
+        string.contains(name_lower, kw)
+        || string.contains(intent_lower, kw)
       })
     })
     |> list.length()
@@ -321,7 +323,9 @@ fn evaluate_security_coverage(spec: Spec) -> Float {
     spec.anti_patterns
     |> list.filter(fn(ap) {
       let name_lower = string.lowercase(ap.name)
-      list.any(security_keywords, fn(kw) { string.contains(name_lower, kw) })
+      list.any(security_keywords, fn(kw) {
+        string.contains(name_lower, kw)
+      })
     })
     |> list.length()
 
@@ -329,8 +333,14 @@ fn evaluate_security_coverage(spec: Spec) -> Float {
   let security_rules =
     spec.rules
     |> list.filter(fn(r) {
-      let body_not_contain = r.check.body_must_not_contain != []
-      let fields_not_exist = r.check.fields_must_not_exist != []
+      let body_not_contain = case r.check.body_must_not_contain {
+        Some(items) -> list.length(items) > 0
+        None -> False
+      }
+      let fields_not_exist = case r.check.fields_must_not_exist {
+        Some(items) -> list.length(items) > 0
+        None -> False
+      }
       body_not_contain || fields_not_exist
     })
     |> list.length()
@@ -346,7 +356,8 @@ fn evaluate_security_coverage(spec: Spec) -> Float {
   let behavior_score = float.min(1.0, behavior_ratio /. 0.2) *. 40.0
   let anti_pattern_score =
     float.min(1.0, int.to_float(security_anti_patterns) /. 3.0) *. 30.0
-  let rule_score = float.min(1.0, int.to_float(security_rules) /. 2.0) *. 30.0
+  let rule_score =
+    float.min(1.0, int.to_float(security_rules) /. 2.0) *. 30.0
 
   behavior_score +. anti_pattern_score +. rule_score
 }
@@ -380,12 +391,12 @@ fn find_missing_why_issues(spec: Spec) -> List(QualityIssue) {
         let #(field, check) = pair
         case string.is_empty(check.why) {
           True ->
-            Ok(QualityIssue(
+            Some(QualityIssue(
               field: b.name <> ".checks." <> field <> ".why",
               issue: "Missing explanation (why field)",
               severity: Warning,
             ))
-          False -> Error(Nil)
+          False -> None
         }
       })
     })
@@ -398,12 +409,12 @@ fn find_short_intent_issues(spec: Spec) -> List(QualityIssue) {
   |> list.filter_map(fn(b) {
     case string.length(b.intent) < 10 {
       True ->
-        Ok(QualityIssue(
+        Some(QualityIssue(
           field: b.name <> ".intent",
           issue: "Intent too short (< 10 chars)",
           severity: Warning,
         ))
-      False -> Error(Nil)
+      False -> None
     }
   })
 }
@@ -412,15 +423,14 @@ fn find_missing_example_issues(spec: Spec) -> List(QualityIssue) {
   spec.features
   |> list.flat_map(fn(f) { f.behaviors })
   |> list.filter_map(fn(b) {
-    // response.example is Json type - check if it's null
-    case json.to_string(b.response.example) {
-      "null" ->
-        Ok(QualityIssue(
+    case b.response.example {
+      None ->
+        Some(QualityIssue(
           field: b.name <> ".response.example",
           issue: "Missing response example",
           severity: Info,
         ))
-      _ -> Error(Nil)
+      Some(_) -> None
     }
   })
 }
@@ -431,12 +441,12 @@ fn find_empty_checks_issues(spec: Spec) -> List(QualityIssue) {
   |> list.filter_map(fn(b) {
     case dict.is_empty(b.response.checks) {
       True ->
-        Ok(QualityIssue(
+        Some(QualityIssue(
           field: b.name <> ".response.checks",
           issue: "No response checks defined",
-          severity: SevError,
+          severity: Error,
         ))
-      False -> Error(Nil)
+      False -> None
     }
   })
 }
@@ -540,46 +550,32 @@ fn bool_to_int(b: Bool) -> Int {
 // =============================================================================
 
 pub fn format_report(report: QualityReport) -> String {
-  let header =
-    "╔══════════════════════════════════════╗\n"
+  let header = "╔══════════════════════════════════════╗\n"
     <> "║       KIRK Quality Report            ║\n"
     <> "╚══════════════════════════════════════╝\n\n"
 
-  let scores =
-    "📊 Quality Scores:\n"
-    <> "  Completeness:  "
-    <> format_score(report.completeness)
-    <> "\n"
-    <> "  Consistency:   "
-    <> format_score(report.consistency)
-    <> "\n"
-    <> "  Testability:   "
-    <> format_score(report.testability)
-    <> "\n"
-    <> "  Clarity:       "
-    <> format_score(report.clarity)
-    <> "\n"
-    <> "  Security:      "
-    <> format_score(report.security)
-    <> "\n"
+  let scores = "📊 Quality Scores:\n"
+    <> "  Completeness:  " <> format_score(report.completeness) <> "\n"
+    <> "  Consistency:   " <> format_score(report.consistency) <> "\n"
+    <> "  Testability:   " <> format_score(report.testability) <> "\n"
+    <> "  Clarity:       " <> format_score(report.clarity) <> "\n"
+    <> "  Security:      " <> format_score(report.security) <> "\n"
     <> "  ─────────────────────────\n"
-    <> "  Overall:       "
-    <> format_score(report.overall)
-    <> "\n\n"
+    <> "  Overall:       " <> format_score(report.overall) <> "\n\n"
 
   let issues_section = case list.is_empty(report.issues) {
     True -> "✅ No issues found!\n\n"
     False ->
-      "⚠️  Issues ("
-      <> int.to_string(list.length(report.issues))
-      <> "):\n"
+      "⚠️  Issues (" <> int.to_string(list.length(report.issues)) <> "):\n"
       <> format_issues(report.issues)
       <> "\n"
   }
 
   let suggestions_section = case list.is_empty(report.suggestions) {
     True -> ""
-    False -> "💡 Suggestions:\n" <> format_suggestions(report.suggestions)
+    False ->
+      "💡 Suggestions:\n"
+      <> format_suggestions(report.suggestions)
   }
 
   header <> scores <> issues_section <> suggestions_section
@@ -603,7 +599,7 @@ fn format_issues(issues: List(QualityIssue)) -> String {
     let icon = case i.severity {
       Info -> "ℹ️ "
       Warning -> "⚠️ "
-      SevError -> "❌"
+      Error -> "❌"
       Critical -> "🚨"
     }
     "  " <> icon <> " " <> i.field <> ": " <> i.issue
@@ -613,7 +609,9 @@ fn format_issues(issues: List(QualityIssue)) -> String {
 
 fn format_suggestions(suggestions: List(String)) -> String {
   suggestions
-  |> list.index_map(fn(s, i) { "  " <> int.to_string(i + 1) <> ". " <> s })
+  |> list.index_map(fn(s, i) {
+    "  " <> int.to_string(i + 1) <> ". " <> s
+  })
   |> string.join("\n")
 }
 
@@ -621,7 +619,7 @@ pub fn severity_to_string(s: Severity) -> String {
   case s {
     Info -> "info"
     Warning -> "warning"
-    SevError -> "error"
+    Error -> "error"
     Critical -> "critical"
   }
 }

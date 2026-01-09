@@ -1,0 +1,1 @@
+-record(validation_invalid, {issues :: list(intent@validator:validation_issue())}).
