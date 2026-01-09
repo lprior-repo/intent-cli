@@ -80,7 +80,7 @@ layer(Snag, Issue) ->
     " Error(\"error: Unable to make purchase <- Not enough credit\")\n"
     " ```\n"
 ).
--spec context({ok, IIQ} | {error, snag()}, binary()) -> {ok, IIQ} |
+-spec context({ok, KBU} | {error, snag()}, binary()) -> {ok, KBU} |
     {error, snag()}.
 context(Result, Issue) ->
     case Result of

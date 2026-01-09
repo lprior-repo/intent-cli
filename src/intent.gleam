@@ -33,8 +33,10 @@ import intent/kirk/inversion_checker
 import intent/kirk/coverage_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/compact_format
+import intent/context_scanner
 import intent/kirk/ears_parser
 import intent/plan_mode
+import intent/ai_cue_protocol
 import simplifile
 
 /// Exit codes
@@ -77,6 +79,8 @@ pub fn main() {
   |> glint.add(at: ["plan"], do: plan_command())
   |> glint.add(at: ["plan-approve"], do: plan_approve_command())
   |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
+  // Context scanning
+  |> glint.add(at: ["context-scan"], do: context_scan_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -333,15 +337,35 @@ fn print_spec_summary(spec: types.Spec) -> Nil {
   Nil
 }
 
-/// The `export` command - export spec to JSON
+/// The `export` command - export spec to various formats
+/// Supports: json (default), yaml, md (markdown), prompt (AI-ready)
 fn export_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let format =
+      flag.get_string(input.flags, "format")
+      |> result.unwrap("json")
+
     case input.args {
       [spec_path, ..] -> {
-        case loader.export_spec_json(spec_path) {
-          Ok(json_str) -> {
-            io.println(json_str)
-            halt(exit_pass)
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let output = case format {
+              "json" -> export_as_json(spec_path)
+              "yaml" -> export_as_yaml(spec)
+              "md" | "markdown" -> export_as_markdown(spec)
+              "prompt" -> export_as_prompt(spec)
+              _ -> Error("Unknown format: " <> format <> ". Valid: json, yaml, md, prompt")
+            }
+            case output {
+              Ok(str) -> {
+                io.println(str)
+                halt(exit_pass)
+              }
+              Error(e) -> {
+                io.println_error("Error: " <> e)
+                halt(exit_error)
+              }
+            }
           }
           Error(e) -> {
             io.println_error("Error: " <> loader.format_error(e))
@@ -351,12 +375,108 @@ fn export_command() -> glint.Command(Nil) {
       }
       [] -> {
         io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent export <spec.cue>")
+        io.println_error("Usage: intent export <spec.cue> [--format json|yaml|md|prompt]")
         halt(exit_error)
       }
     }
   })
-  |> glint.description("Export spec to JSON format")
+  |> glint.description("Export spec to JSON, YAML, Markdown, or AI prompt format")
+  |> glint.flag("format", flag.string() |> flag.default("json") |> flag.description("Output format: json, yaml, md, prompt"))
+}
+
+/// Export spec as JSON (original behavior)
+fn export_as_json(spec_path: String) -> Result(String, String) {
+  case loader.export_spec_json(spec_path) {
+    Ok(json_str) -> Ok(json_str)
+    Error(e) -> Error(loader.format_error(e))
+  }
+}
+
+/// Export spec as YAML-like format
+fn export_as_yaml(spec: types.Spec) -> Result(String, String) {
+  let features = spec.features
+    |> list.map(fn(f) {
+      "  - name: " <> f.name <> "\n" <>
+      "    description: " <> f.description <> "\n" <>
+      "    behaviors:\n" <>
+      { f.behaviors |> list.map(fn(b) {
+        "      - name: " <> b.name <> "\n" <>
+        "        intent: " <> b.intent <> "\n" <>
+        "        method: " <> method_to_string(b.request.method) <> "\n" <>
+        "        path: " <> b.request.path <> "\n" <>
+        "        status: " <> string.inspect(b.response.status) <> "\n"
+      }) |> string.concat() }
+    })
+    |> string.concat()
+
+  Ok(
+    "# " <> spec.name <> "\n" <>
+    "name: " <> spec.name <> "\n" <>
+    "description: " <> spec.description <> "\n" <>
+    "version: " <> spec.version <> "\n" <>
+    "audience: " <> spec.audience <> "\n\n" <>
+    "features:\n" <> features
+  )
+}
+
+/// Export spec as readable Markdown
+fn export_as_markdown(spec: types.Spec) -> Result(String, String) {
+  let features_md = spec.features
+    |> list.map(fn(f) {
+      "## " <> f.name <> "\n\n" <>
+      f.description <> "\n\n" <>
+      "### Behaviors\n\n" <>
+      { f.behaviors |> list.map(fn(b) {
+        "#### " <> b.name <> "\n\n" <>
+        "**Intent:** " <> b.intent <> "\n\n" <>
+        "- **Method:** `" <> method_to_string(b.request.method) <> "`\n" <>
+        "- **Path:** `" <> b.request.path <> "`\n" <>
+        "- **Expected Status:** " <> string.inspect(b.response.status) <> "\n\n" <>
+        case b.notes {
+          "" -> ""
+          notes -> "**Notes:** " <> notes <> "\n\n"
+        }
+      }) |> string.concat() }
+    })
+    |> string.concat()
+
+  Ok(
+    "# " <> spec.name <> "\n\n" <>
+    "> " <> spec.description <> "\n\n" <>
+    "**Version:** " <> spec.version <> "  \n" <>
+    "**Audience:** " <> spec.audience <> "\n\n" <>
+    "---\n\n" <>
+    features_md
+  )
+}
+
+/// Export spec as AI-ready prompt
+fn export_as_prompt(spec: types.Spec) -> Result(String, String) {
+  let behaviors_text = spec.features
+    |> list.flat_map(fn(f) { f.behaviors })
+    |> list.map(fn(b) {
+      "- " <> b.name <> ": " <> b.intent <> " (" <>
+      method_to_string(b.request.method) <> " " <> b.request.path <>
+      " -> " <> string.inspect(b.response.status) <> ")"
+    })
+    |> string.join("\n")
+
+  let success_criteria = spec.success_criteria
+    |> list.map(fn(c) { "- " <> c })
+    |> string.join("\n")
+
+  Ok(
+    "You are implementing: " <> spec.name <> "\n\n" <>
+    "## Description\n" <> spec.description <> "\n\n" <>
+    "## Target Audience\n" <> spec.audience <> "\n\n" <>
+    "## Success Criteria\n" <> success_criteria <> "\n\n" <>
+    "## Behaviors to Implement\n" <> behaviors_text <> "\n\n" <>
+    "## Implementation Requirements\n" <>
+    "1. Each behavior must return the specified HTTP status\n" <>
+    "2. Follow the request/response contract exactly\n" <>
+    "3. Handle edge cases gracefully\n" <>
+    "4. All behaviors must pass automated validation\n"
+  )
 }
 
 /// The `lint` command - check for specification anti-patterns
@@ -479,29 +599,73 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "strict")
       |> result.unwrap(False)
 
-    case resume_id {
-      // Resume an existing session
-      "" ->
-        case string.lowercase(profile_str) {
-          "api" -> run_interview(interview.Api, answers_file, strict_mode, export_to)
-          "cli" -> run_interview(interview.Cli, answers_file, strict_mode, export_to)
-          "event" -> run_interview(interview.Event, answers_file, strict_mode, export_to)
-          "data" -> run_interview(interview.Data, answers_file, strict_mode, export_to)
-          "workflow" -> run_interview(interview.Workflow, answers_file, strict_mode, export_to)
-          "ui" -> run_interview(interview.UI, answers_file, strict_mode, export_to)
-          _ -> {
-            io.println_error(
-              "Error: unknown profile '" <> profile_str <> "'",
-            )
-            io.println_error(
-              "Valid profiles: api, cli, event, data, workflow, ui",
-            )
-            halt(exit_error)
-          }
-        }
+    // AI-CUE Protocol flags
+    let cue_mode =
+      flag.get_bool(input.flags, "cue")
+      |> result.unwrap(False)
 
-      // Resume an existing session
-      id -> run_resume_interview(id, export_to)
+    let session_id_flag =
+      flag.get_string(input.flags, "session")
+      |> result.unwrap("")
+
+    let answer_text =
+      flag.get_string(input.flags, "answer")
+      |> result.unwrap("")
+
+    // Light mode flag
+    let light_mode =
+      flag.get_bool(input.flags, "light")
+      |> result.unwrap(False)
+
+    // Context scanning flag
+    let with_context =
+      flag.get_bool(input.flags, "with-context")
+      |> result.unwrap(False)
+
+    // Analysis mode flag (KIRK inversion/pre-mortem questions)
+    let with_analysis =
+      flag.get_bool(input.flags, "with-analysis")
+      |> result.unwrap(False)
+
+    // Validate mutually exclusive flags
+    case light_mode && with_analysis {
+      True -> {
+        io.println_error("Error: --light and --with-analysis are mutually exclusive")
+        io.println_error("Use --light for quick 5-question interview, or --with-analysis for deep analysis")
+        halt(exit_error)
+      }
+      False -> Nil
+    }
+
+    // AI-CUE Protocol: --cue flag outputs directive for AI
+    case cue_mode {
+      True -> run_cue_interview(profile_str, session_id_flag, answer_text, light_mode)
+      False -> {
+        case resume_id {
+          // Resume an existing session
+          "" ->
+            case string.lowercase(profile_str) {
+              "api" -> run_interview(interview.Api, answers_file, strict_mode, export_to, light_mode, with_context, with_analysis)
+              "cli" -> run_interview(interview.Cli, answers_file, strict_mode, export_to, light_mode, with_context, with_analysis)
+              "event" -> run_interview(interview.Event, answers_file, strict_mode, export_to, light_mode, with_context, with_analysis)
+              "data" -> run_interview(interview.Data, answers_file, strict_mode, export_to, light_mode, with_context, with_analysis)
+              "workflow" -> run_interview(interview.Workflow, answers_file, strict_mode, export_to, light_mode, with_context, with_analysis)
+              "ui" -> run_interview(interview.UI, answers_file, strict_mode, export_to, light_mode, with_context, with_analysis)
+              _ -> {
+                io.println_error(
+                  "Error: unknown profile '" <> profile_str <> "'",
+                )
+                io.println_error(
+                  "Valid profiles: api, cli, event, data, workflow, ui",
+                )
+                halt(exit_error)
+              }
+            }
+
+          // Resume an existing session
+          id -> run_resume_interview(id, export_to)
+        }
+      }
     }
   })
   |> glint.description("Guided specification discovery through structured interview")
@@ -537,6 +701,46 @@ fn interview_command() -> glint.Command(Nil) {
     |> flag.default("")
     |> flag.description("Export completed interview to spec file"),
   )
+  // AI-CUE Protocol flags
+  |> glint.flag(
+    "cue",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Output #AIDirective CUE for AI-driven interview"),
+  )
+  |> glint.flag(
+    "session",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Session ID for AI-CUE protocol (use with --answer)"),
+  )
+  |> glint.flag(
+    "answer",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Submit answer text for AI-CUE protocol (use with --session)"),
+  )
+  // Light mode flag
+  |> glint.flag(
+    "light",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Light mode: ask only Round 1 questions (5 instead of 25)"),
+  )
+  // Context scanning flag
+  |> glint.flag(
+    "with-context",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Scan codebase for language/framework and include context in spec"),
+  )
+  // Analysis mode flag (KIRK inversion/pre-mortem)
+  |> glint.flag(
+    "with-analysis",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Deep analysis: ask inversion/pre-mortem questions, include KIRK fields in spec (mutually exclusive with --light)"),
+  )
 }
 
 fn run_interview(
@@ -544,12 +748,39 @@ fn run_interview(
   answers_file: String,
   strict_mode: Bool,
   export_to: String,
+  light_mode: Bool,
+  with_context: Bool,
+  with_analysis: Bool,
 ) -> Nil {
   // Initialize session
   let session_id = "interview-" <> generate_uuid()
   let timestamp = current_timestamp()
 
   let session = interview.create_session(session_id, profile, timestamp)
+
+  // Detect codebase context if --with-context is enabled
+  let detected_context = case with_context {
+    True -> {
+      io.println("")
+      io.println("Scanning codebase for context...")
+      case context_scanner.detect_from_directory(".") {
+        Ok(ctx) -> {
+          io.println("✓ Detected: " <> context_scanner.language_to_string(ctx.language))
+          case ctx.framework {
+            context_scanner.NoFramework -> Nil
+            framework -> io.println("  Framework: " <> context_scanner.framework_to_string(framework))
+          }
+          io.println("  Manifest: " <> ctx.manifest_file)
+          option.Some(ctx)
+        }
+        Error(err) -> {
+          io.println("⚠ Could not detect codebase context: " <> err)
+          option.None
+        }
+      }
+    }
+    False -> option.None
+  }
 
   // Load answers from file if provided
   let answers_dict = case string.is_empty(answers_file) {
@@ -587,6 +818,12 @@ fn run_interview(
   io.println("")
   io.println("Profile: " <> profile_to_display_string(profile))
   io.println("Session: " <> session_id)
+  case detected_context {
+    option.None -> Nil
+    option.Some(ctx) -> {
+      io.println("Context: " <> context_scanner.language_to_string(ctx.language) <> " (" <> ctx.manifest_file <> ")")
+    }
+  }
   case answers_dict {
     option.None -> Nil
     option.Some(_) -> io.println("Mode: Non-interactive (answers from file)")
@@ -595,13 +832,34 @@ fn run_interview(
   io.println("This guided interview will help us discover and refine your")
   io.println("specification through structured questioning.")
   io.println("")
-  io.println("We'll ask questions across 5 rounds × multiple perspectives:")
-  io.println("  • Round 1: Core Intent (what are you building?)")
-  io.println("  • Round 2: Scope & Boundaries (what's in/out?)")
-  io.println("  • Round 3: Error Cases (what can go wrong?)")
-  io.println("  • Round 4: Security & Compliance (how do we keep it safe?)")
-  io.println("  • Round 5: Operations (how does it run in production?)")
-  io.println("")
+  case light_mode, with_analysis {
+    True, _ -> {
+      io.println("LIGHT MODE: Quick 5-question interview")
+      io.println("  • Core Intent (what are you building?)")
+      io.println("")
+    }
+    False, True -> {
+      io.println("ANALYSIS MODE: Deep dive with inversion/pre-mortem questions")
+      io.println("We'll ask questions across 5 rounds × multiple perspectives:")
+      io.println("  • Round 1: Core Intent (what are you building?)")
+      io.println("  • Round 2: Scope & Boundaries (what's in/out?)")
+      io.println("  • Round 3: Error Cases + Inversions (what can go wrong?)")
+      io.println("  • Round 4: Security + Pre-mortem (how do we keep it safe?)")
+      io.println("  • Round 5: Operations + Second-order effects (production?)")
+      io.println("")
+      io.println("Output will include KIRK analysis fields (inversions, pre_mortem)")
+      io.println("")
+    }
+    False, False -> {
+      io.println("We'll ask questions across 5 rounds × multiple perspectives:")
+      io.println("  • Round 1: Core Intent (what are you building?)")
+      io.println("  • Round 2: Scope & Boundaries (what's in/out?)")
+      io.println("  • Round 3: Error Cases (what can go wrong?)")
+      io.println("  • Round 4: Security & Compliance (how do we keep it safe?)")
+      io.println("  • Round 5: Operations (how does it run in production?)")
+      io.println("")
+    }
+  }
   io.println("Press Ctrl+C to save and exit at any time.")
   io.println("Session will be saved to: .interview/sessions.jsonl")
   io.println("")
@@ -609,7 +867,12 @@ fn run_interview(
   io.println("")
 
   // Run the interview loop
-  let final_session = interview_loop(session, 1)
+  // In light mode, only run round 1
+  let max_round = case light_mode {
+    True -> 1
+    False -> 5
+  }
+  let final_session = interview_loop_with_max_round(session, 1, max_round)
 
   // Save session to JSONL
   let save_result = interview_storage.append_session_to_jsonl(
@@ -631,10 +894,20 @@ fn run_interview(
   case export_to {
     "" -> Nil
     path -> {
-      let spec_cue = spec_builder.build_spec_from_session(final_session)
+      // Use appropriate spec builder based on mode
+      let spec_cue = case light_mode, with_analysis {
+        True, _ -> spec_builder.build_light_spec_from_session(final_session)
+        False, True -> spec_builder.build_spec_from_session_with_analysis(final_session)
+        False, False -> spec_builder.build_spec_from_session(final_session)
+      }
       case simplifile.write(path, spec_cue) {
         Ok(Nil) -> {
           io.println("✓ Spec exported to: " <> path)
+          case light_mode, with_analysis {
+            True, _ -> io.println("  (LightSpec format - minimal)")
+            False, True -> io.println("  (includes KIRK analysis fields)")
+            False, False -> Nil
+          }
         }
         Error(err) -> {
           io.println_error("✗ Failed to export spec: " <> string.inspect(err))
@@ -644,6 +917,133 @@ fn run_interview(
   }
 
   halt(exit_pass)
+}
+
+/// AI-CUE Protocol: Run interview with CUE output for AI
+fn run_cue_interview(
+  profile_str: String,
+  session_id: String,
+  answer_text: String,
+  light_mode: Bool,
+) -> Nil {
+  // Ensure .intent directory exists
+  case ai_cue_protocol.ensure_intent_directory() {
+    Error(err) -> {
+      io.println_error("Error: " <> err)
+      halt(exit_error)
+    }
+    Ok(_) -> Nil
+  }
+
+  case string.is_empty(answer_text) {
+    // No answer provided - start new session or get current directive
+    True -> {
+      case string.is_empty(session_id) {
+        // New session: create and output initial directive
+        True -> {
+          let new_session_id = "session-" <> generate_uuid()
+          let directive = ai_cue_protocol.create_initial_directive(
+            profile_str,
+            new_session_id,
+          )
+
+          // Save session file
+          let session_path = ".intent/" <> new_session_id <> ".cue"
+          let session_cue = build_session_cue(new_session_id, profile_str, light_mode)
+          case simplifile.write(session_path, session_cue) {
+            Ok(_) -> {
+              // Output directive to stdout
+              io.println(ai_cue_protocol.directive_to_cue(directive))
+              io.println("")
+              io.println("// Session: " <> new_session_id)
+              io.println("// Use: intent interview --cue --session " <> new_session_id <> " --answer 'your answer'")
+            }
+            Error(err) -> {
+              io.println_error("Error creating session file: " <> string.inspect(err))
+              halt(exit_error)
+            }
+          }
+        }
+        // Resume existing session
+        False -> {
+          let session_path = ".intent/" <> session_id <> ".cue"
+          case simplifile.read(session_path) {
+            Ok(_content) -> {
+              // TODO: Parse session and build directive from current state
+              // For now, just create a directive based on session
+              let directive = ai_cue_protocol.create_initial_directive(
+                profile_str,
+                session_id,
+              )
+              io.println(ai_cue_protocol.directive_to_cue(directive))
+            }
+            Error(err) -> {
+              io.println_error("Session not found: " <> session_id)
+              io.println_error("Error: " <> string.inspect(err))
+              halt(exit_error)
+            }
+          }
+        }
+      }
+    }
+
+    // Answer provided - process it and return next directive
+    False -> {
+      case string.is_empty(session_id) {
+        True -> {
+          io.println_error("Error: --answer requires --session")
+          halt(exit_error)
+        }
+        False -> {
+          // Parse answer submission
+          case ai_cue_protocol.parse_answer_submission(
+            "current-question",
+            answer_text,
+            "high",
+          ) {
+            Error(err) -> {
+              io.println_error("Invalid answer: " <> err)
+              halt(exit_error)
+            }
+            Ok(submission) -> {
+              // Get current directive and process answer
+              let current = ai_cue_protocol.create_initial_directive(
+                profile_str,
+                session_id,
+              )
+              let next = ai_cue_protocol.process_answer(current, submission)
+
+              // Output next directive
+              io.println(ai_cue_protocol.directive_to_cue(next))
+            }
+          }
+        }
+      }
+    }
+  }
+
+  halt(exit_pass)
+}
+
+/// Build initial session CUE content
+fn build_session_cue(session_id: String, profile: String, light_mode: Bool) -> String {
+  let light_str = case light_mode {
+    True -> "true"
+    False -> "false"
+  }
+
+  "// Intent Interview Session\n"
+  <> "// Generated by intent interview --cue\n\n"
+  <> "package intent\n\n"
+  <> "session: {\n"
+  <> "\tid: \"" <> session_id <> "\"\n"
+  <> "\tprofile: \"" <> profile <> "\"\n"
+  <> "\tlight_mode: " <> light_str <> "\n"
+  <> "\tcreated_at: \"" <> current_timestamp() <> "\"\n"
+  <> "\tanswers: []\n"
+  <> "\tgaps: []\n"
+  <> "\tconflicts: []\n"
+  <> "}\n"
 }
 
 /// Resume an existing interview session
@@ -724,12 +1124,16 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
 
 /// Main interview loop - asks questions round by round
 fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.InterviewSession {
-  case round > 5 {
+  interview_loop_with_max_round(session, round, 5)
+}
+
+fn interview_loop_with_max_round(session: interview.InterviewSession, round: Int, max_round: Int) -> interview.InterviewSession {
+  case round > max_round {
     True -> session
     False -> {
       io.println("")
       io.println("═══════════════════════════════════════════════════════════════════")
-      io.println("ROUND " <> string.inspect(round) <> "/5")
+      io.println("ROUND " <> string.inspect(round) <> "/" <> string.inspect(max_round))
       io.println("═══════════════════════════════════════════════════════════════════")
       io.println("")
 
@@ -737,16 +1141,24 @@ fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.
       case interview.get_first_question_for_round(session, round) {
         Error(_) -> {
           io.println("(No questions for this round)")
-          interview_loop(session, round + 1)
+          interview_loop_with_max_round(session, round + 1, max_round)
         }
         Ok(first_question) -> {
           // Ask all questions in this round
           let updated_session = ask_questions_in_round(session, round, first_question)
 
+          // Show progressive bead preview after each round
+          let beads = bead_templates.generate_beads_from_session(updated_session)
+          let preview = bead_templates.format_progressive_preview(beads, round)
+          case string.length(preview) > 0 {
+            True -> io.println(preview)
+            False -> Nil
+          }
+
           // Check for blocking gaps before proceeding
           let blocking_gaps = interview.get_blocking_gaps(updated_session)
           case blocking_gaps {
-            [] -> interview_loop(updated_session, round + 1)
+            [] -> interview_loop_with_max_round(updated_session, round + 1, max_round)
             gaps -> {
               io.println("")
               io.println("⚠️ BLOCKING GAPS DETECTED:")
@@ -755,7 +1167,7 @@ fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.
                 io.println("    " <> gap.why_needed)
               })
               io.println("")
-              interview_loop(updated_session, round + 1)
+              interview_loop_with_max_round(updated_session, round + 1, max_round)
             }
           }
         }
@@ -879,65 +1291,144 @@ fn profile_to_display_string(profile: interview.Profile) -> String {
   }
 }
 
-/// The `beads` command - generate work items from interview session
+/// The `beads` command - generate work items from interview session or spec file
+/// Supports two modes:
+/// 1. intent beads <session_id> - from interview session
+/// 2. intent beads <spec.cue> - directly from spec file (DIRECT-SPEC)
 fn beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     case input.args {
-      [session_id, ..] -> {
-        // Load session from JSONL
-        case interview_storage.get_session_from_jsonl(
-          ".interview/sessions.jsonl",
-          session_id,
-        ) {
-          Error(err) -> {
-            io.println_error("Error: " <> err)
-            halt(exit_error)
-          }
-          Ok(session) -> {
-            // Generate beads from session
-            let beads = bead_templates.generate_beads_from_session(session)
-            let bead_count = list.length(beads)
-
-            io.println("")
-            io.println("═══════════════════════════════════════════════════════════════════")
-            io.println("                    BEAD GENERATION")
-            io.println("═══════════════════════════════════════════════════════════════════")
-            io.println("")
-            io.println("Generated " <> string.inspect(bead_count) <> " work items from session: " <> session_id)
-            io.println("")
-
-            // Export to .beads/issues.jsonl
-            let jsonl_output = bead_templates.beads_to_jsonl(beads)
-
-            case simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n") {
-              Ok(Nil) -> {
-                io.println("✓ Beads exported to: .beads/issues.jsonl")
-                io.println("")
-
-                // Show stats
-                let stats = bead_templates.bead_stats(beads)
-                io.println("Summary:")
-                io.println("  Total beads: " <> string.inspect(stats.total))
-
-                halt(exit_pass)
-              }
-              Error(err) -> {
-                io.println_error("✗ Failed to write beads: " <> string.inspect(err))
-                halt(exit_error)
-              }
-            }
-          }
+      [source, ..] -> {
+        // Check if source is a .cue file (direct spec mode) or session ID
+        case string.ends_with(source, ".cue") {
+          True -> generate_beads_from_spec(source)
+          False -> generate_beads_from_session(source)
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads <session_id>")
+        io.println_error("Usage: intent beads <session_id|spec.cue>")
         io.println_error("")
-        io.println_error("Example: intent beads interview-abc123def456")
+        io.println_error("Generate beads from interview session:")
+        io.println_error("  intent beads interview-abc123def456")
+        io.println_error("")
+        io.println_error("Generate beads directly from spec file (no interview needed):")
+        io.println_error("  intent beads my-api-spec.cue")
         halt(exit_error)
       }
     }
   })
-  |> glint.description("Generate work items (beads) from an interview session")
+  |> glint.description("Generate work items (beads) from session or spec file")
+}
+
+/// Generate beads from an interview session
+fn generate_beads_from_session(session_id: String) -> Nil {
+  // Load session from JSONL
+  case interview_storage.get_session_from_jsonl(
+    ".interview/sessions.jsonl",
+    session_id,
+  ) {
+    Error(err) -> {
+      io.println_error("Error: " <> err)
+      halt(exit_error)
+    }
+    Ok(session) -> {
+      // Generate beads from session
+      let beads = bead_templates.generate_beads_from_session(session)
+      output_beads(beads, "session: " <> session_id)
+    }
+  }
+}
+
+/// Generate beads directly from a spec file (DIRECT-SPEC feature)
+/// Allows experienced devs to skip interview and write specs directly
+fn generate_beads_from_spec(spec_path: String) -> Nil {
+  case loader.load_spec(spec_path) {
+    Error(err) -> {
+      io.println_error("Error loading spec: " <> loader.format_error(err))
+      halt(exit_error)
+    }
+    Ok(spec) -> {
+      // Convert spec features/behaviors to beads
+      let beads = spec_to_beads(spec)
+      output_beads(beads, "spec: " <> spec_path)
+    }
+  }
+}
+
+/// Convert a Spec to BeadRecords
+fn spec_to_beads(spec: types.Spec) -> List(bead_templates.BeadRecord) {
+  spec.features
+  |> list.flat_map(fn(feature) {
+    feature.behaviors
+    |> list.map(fn(behavior) {
+      bead_templates.BeadRecord(
+        title: behavior.name,
+        description: behavior.intent,
+        profile_type: "api",
+        priority: 3,
+        issue_type: "behavior",
+        labels: behavior.tags,
+        ai_hints: behavior.notes,
+        acceptance_criteria: [
+          "Status " <> string.inspect(behavior.response.status) <> " returned",
+          "Response matches expected schema",
+        ],
+        dependencies: behavior.requires,
+        input_example: method_to_string(behavior.request.method) <> " " <> behavior.request.path,
+        output_example: "HTTP " <> string.inspect(behavior.response.status),
+        must_return: ["Correct status code", "Valid response body"],
+        must_not: ["Return 500 for client errors", "Expose internal errors"],
+        edge_cases: behavior.requires
+          |> list.map(fn(r) { "Depends on: " <> r }),
+      )
+    })
+  })
+}
+
+fn method_to_string(method: types.Method) -> String {
+  case method {
+    types.Get -> "GET"
+    types.Post -> "POST"
+    types.Put -> "PUT"
+    types.Delete -> "DELETE"
+    types.Patch -> "PATCH"
+    types.Head -> "HEAD"
+    types.Options -> "OPTIONS"
+  }
+}
+
+/// Output beads to .beads/issues.jsonl
+fn output_beads(beads: List(bead_templates.BeadRecord), source: String) -> Nil {
+  let bead_count = list.length(beads)
+
+  io.println("")
+  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println("                    BEAD GENERATION")
+  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println("")
+  io.println("Generated " <> string.inspect(bead_count) <> " work items from " <> source)
+  io.println("")
+
+  // Export to .beads/issues.jsonl
+  let jsonl_output = bead_templates.beads_to_jsonl(beads)
+
+  case simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n") {
+    Ok(Nil) -> {
+      io.println("✓ Beads exported to: .beads/issues.jsonl")
+      io.println("")
+
+      // Show stats
+      let stats = bead_templates.bead_stats(beads)
+      io.println("Summary:")
+      io.println("  Total beads: " <> string.inspect(stats.total))
+
+      halt(exit_pass)
+    }
+    Error(err) -> {
+      io.println_error("✗ Failed to write beads: " <> string.inspect(err))
+      halt(exit_error)
+    }
+  }
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
@@ -1674,7 +2165,7 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
+  |> glint.description("(Optional analysis) KIRK: Analyze spec quality across multiple dimensions")
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1725,7 +2216,7 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Inversion analysis - what failure cases are missing?")
+  |> glint.description("(Optional analysis) KIRK: Inversion analysis - what failure cases are missing?")
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1786,7 +2277,7 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
+  |> glint.description("(Optional analysis) KIRK: Coverage analysis including OWASP Top 10")
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1837,7 +2328,7 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Detect gaps using mental models")
+  |> glint.description("(Optional analysis) KIRK: Detect gaps using analysis tools")
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1894,7 +2385,7 @@ fn kirk_compact_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Convert to Compact Intent Notation (token-efficient)")
+  |> glint.description("(Optional analysis) KIRK: Convert to Compact Intent Notation (token-efficient)")
   |> glint.flag("tokens", flag.bool() |> flag.default(False) |> flag.description("Show token comparison"))
 }
 
@@ -1922,7 +2413,7 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Export to Protobuf text format")
+  |> glint.description("(Optional analysis) KIRK: Export to Protobuf text format")
 }
 
 /// The `ears` command - KIRK EARS requirements parser
@@ -2016,13 +2507,78 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
+  |> glint.description("(Optional analysis) KIRK: Parse EARS requirements to Intent behaviors")
   |> glint.flag("output", flag.string() |> flag.default("text") |> flag.description("Output format: text, cue, json"))
   |> glint.flag("out", flag.string() |> flag.default("") |> flag.description("Output file path"))
   |> glint.flag("name", flag.string() |> flag.default("GeneratedSpec") |> flag.description("Spec name for CUE output"))
 }
 
 import gleam/float
+
+// =============================================================================
+// CONTEXT SCAN COMMAND
+// =============================================================================
+
+/// The `context-scan` command - detect language and framework
+/// Bead: [CTX-8] Add context-scan command to CLI
+fn context_scan_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let is_cue =
+      flag.get_bool(input.flags, "cue")
+      |> result.unwrap(False)
+
+    // Get directory to scan (default to current directory)
+    let scan_path = case input.args {
+      [path, ..] -> path
+      [] -> "."
+    }
+
+    // Detect context from directory
+    case context_scanner.detect_from_directory(scan_path) {
+      Ok(context) -> {
+        case is_json {
+          True -> {
+            io.println(context_scanner.context_to_json(context))
+          }
+          False ->
+            case is_cue {
+              True -> {
+                io.println(context_scanner.context_to_cue(context))
+              }
+              False -> {
+                case context_scanner.format_context(context) {
+                  Ok(text) -> io.println(text)
+                  Error(err) -> io.println_error("Error: " <> err)
+                }
+              }
+            }
+        }
+        halt(exit_pass)
+      }
+      Error(err) -> {
+        cli_ui.print_error(err)
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Scan codebase to detect language and framework")
+  |> glint.flag(
+    "json",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Output as JSON"),
+  )
+  |> glint.flag(
+    "cue",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Output as CUE (for schema compatibility)"),
+  )
+}
 
 // =============================================================================
 // ANSWER LOADER ERROR FORMATTING

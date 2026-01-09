@@ -1,7 +1,7 @@
 -module(intent@interview).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "src/intent/interview.gleam").
--export([extract_from_answer/3, detect_gaps/2, detect_conflicts/1, calculate_confidence/3, format_question/1, create_session/3, add_answer/2, check_for_gaps/3, check_for_conflicts/2, complete_round/1, resolve_conflict/3, resolve_gap/3, get_blocking_gaps/1, get_unresolved_conflicts/1, can_proceed/1, profile_to_string/1, get_first_question_for_round/2, get_next_question_in_round/2, get_current_round/1, format_progress/1, string_to_profile/1]).
+-export([extract_from_answer/3, detect_gaps/2, detect_conflicts/1, calculate_confidence/3, format_question/1, create_session/3, add_answer/2, check_for_gaps/3, check_for_conflicts/2, complete_round/1, resolve_conflict/3, resolve_gap/3, get_blocking_gaps/1, get_unresolved_conflicts/1, can_proceed/1, profile_to_string/1, get_first_question_for_round/2, get_next_question_in_round/2, get_current_round/1, format_progress/1, string_to_profile/1, ask_single_question/3]).
 -export_type([profile/0, interview_stage/0, answer/0, gap/0, conflict/0, conflict_resolution/0, interview_session/0]).
 
 -if(?OTP_RELEASE >= 27).
@@ -956,4 +956,101 @@ string_to_profile(S) ->
 
         _ ->
             {error, <<"Unknown profile: "/utf8, S/binary>>}
+    end.
+
+-file("src/intent/interview.gleam", 790).
+?DOC(" Validate answer text against question requirements.\n").
+-spec validate_answer(binary(), intent@question_types:question()) -> {ok,
+        binary()} |
+    {error, binary()}.
+validate_answer(Text, _) ->
+    Trimmed = gleam@string:trim(Text),
+    case gleam@string:is_empty(Trimmed) of
+        true ->
+            {error, <<"Answer cannot be empty"/utf8>>};
+
+        false ->
+            case gleam@string:length(Trimmed) > 10000 of
+                true ->
+                    {error,
+                        <<"Answer is too long (max 10000 characters)"/utf8>>};
+
+                false ->
+                    {ok, Trimmed}
+            end
+    end.
+
+-file("src/intent/interview.gleam", 735).
+?DOC(
+    " Ask a single question with optional pre-filled answers dictionary.\n"
+    "\n"
+    " If answers_dict is provided and contains the question_id, uses that answer.\n"
+    " If answers_dict is provided but answer is missing:\n"
+    "   - If strict=False: falls back to prompting user (interactive)\n"
+    "   - If strict=True: returns an error\n"
+    " If answers_dict is None: always prompts user (original behavior)\n"
+    "\n"
+    " All answers are validated before returning.\n"
+).
+-spec ask_single_question(
+    intent@question_types:question(),
+    gleam@option:option(gleam@dict:dict(binary(), binary())),
+    boolean()
+) -> {ok, answer()} | {error, binary()}.
+ask_single_question(Question, Answers_dict, Strict_mode) ->
+    Maybe_answer = case Answers_dict of
+        none ->
+            none;
+
+        {some, Dict} ->
+            case gleam@dict:get(Dict, erlang:element(2, Question)) of
+                {ok, Value} ->
+                    {some, gleam@string:trim(Value)};
+
+                {error, _} ->
+                    none
+            end
+    end,
+    case Maybe_answer of
+        {some, Answer_text} ->
+            case validate_answer(Answer_text, Question) of
+                {ok, Validated} ->
+                    {ok,
+                        {answer,
+                            erlang:element(2, Question),
+                            erlang:element(7, Question),
+                            erlang:element(4, Question),
+                            0,
+                            Validated,
+                            extract_from_answer(
+                                erlang:element(2, Question),
+                                Validated,
+                                []
+                            ),
+                            0.95,
+                            <<"Loaded from answers file"/utf8>>,
+                            <<""/utf8>>}};
+
+                {error, Msg} ->
+                    {error,
+                        <<<<<<"Validation failed for "/utf8,
+                                    (erlang:element(2, Question))/binary>>/binary,
+                                ": "/utf8>>/binary,
+                            Msg/binary>>}
+            end;
+
+        none ->
+            case Strict_mode of
+                true ->
+                    {error,
+                        <<<<"Answer required for question "/utf8,
+                                (erlang:element(2, Question))/binary>>/binary,
+                            " but not found in answers dictionary"/utf8>>};
+
+                false ->
+                    {error,
+                        <<<<"Answer lookup failed for "/utf8,
+                                (erlang:element(2, Question))/binary>>/binary,
+                            " and interactive mode not yet implemented"/utf8>>}
+            end
     end.

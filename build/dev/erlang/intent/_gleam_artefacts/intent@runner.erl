@@ -1,8 +1,8 @@
 -module(intent@runner).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "src/intent/runner.gleam").
--export([default_options/0, run_spec/3]).
--export_type([run_options/0, behavior_result/0]).
+-export([default_executor/0, default_options/0, is_verbose/1, is_quiet/1, run_spec_with_executor/4, run_spec/3]).
+-export_type([behavior_executor/0, output_level/0, run_options/0, behavior_result/0]).
 
 -if(?OTP_RELEASE >= 27).
 -define(MODULEDOC(Str), -moduledoc(Str)).
@@ -12,10 +12,17 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
+-type behavior_executor() :: {behavior_executor,
+        fun((intent@types:config(), intent@types:request(), intent@interpolate:context()) -> {ok,
+                intent@http_client:execution_result()} |
+            {error, intent@http_client:execution_error()})}.
+
+-type output_level() :: quiet | normal | verbose.
+
 -type run_options() :: {run_options,
         gleam@option:option(binary()),
         gleam@option:option(binary()),
-        boolean()}.
+        output_level()}.
 
 -type behavior_result() :: {behavior_passed,
         intent@http_client:execution_result()} |
@@ -25,13 +32,43 @@
     {behavior_blocked, binary(), binary()} |
     {behavior_error, binary(), intent@http_client:execution_error()}.
 
--file("src/intent/runner.gleam", 29).
-?DOC(" Default run options\n").
+-file("src/intent/runner.gleam", 28).
+?DOC(" Default executor that uses http_client for real HTTP requests\n").
+-spec default_executor() -> behavior_executor().
+default_executor() ->
+    {behavior_executor, fun intent@http_client:execute_request/3}.
+
+-file("src/intent/runner.gleam", 52).
+?DOC(" Default run options with Normal output level\n").
 -spec default_options() -> run_options().
 default_options() ->
-    {run_options, none, none, false}.
+    {run_options, none, none, normal}.
 
--file("src/intent/runner.gleam", 163).
+-file("src/intent/runner.gleam", 57).
+?DOC(" Check if output level is verbose\n").
+-spec is_verbose(run_options()) -> boolean().
+is_verbose(Options) ->
+    case erlang:element(4, Options) of
+        verbose ->
+            true;
+
+        _ ->
+            false
+    end.
+
+-file("src/intent/runner.gleam", 65).
+?DOC(" Check if output level is quiet\n").
+-spec is_quiet(run_options()) -> boolean().
+is_quiet(Options) ->
+    case erlang:element(4, Options) of
+        quiet ->
+            true;
+
+        _ ->
+            false
+    end.
+
+-file("src/intent/runner.gleam", 222).
 -spec apply_filters(list(intent@resolver:resolved_behavior()), run_options()) -> list(intent@resolver:resolved_behavior()).
 apply_filters(Behaviors, Options) ->
     _pipe = Behaviors,
@@ -56,7 +93,7 @@ apply_filters(Behaviors, Options) ->
         end
     ).
 
--file("src/intent/runner.gleam", 271).
+-file("src/intent/runner.gleam", 332).
 -spec apply_captures(
     intent@interpolate:context(),
     intent@types:behavior(),
@@ -77,15 +114,16 @@ apply_captures(Ctx, Behavior, _) ->
         end
     ).
 
--file("src/intent/runner.gleam", 206).
+-file("src/intent/runner.gleam", 266).
 -spec execute_single_behavior(
     intent@resolver:resolved_behavior(),
     intent@types:config(),
     intent@types:spec(),
     intent@interpolate:context(),
-    gleam@set:set(binary())
+    gleam@set:set(binary()),
+    behavior_executor()
 ) -> {behavior_result(), intent@interpolate:context(), gleam@set:set(binary())}.
-execute_single_behavior(Rb, Config, _, Ctx, Failed_set) ->
+execute_single_behavior(Rb, Config, _, Ctx, Failed_set, Executor) ->
     Blocked_by = gleam@list:find(
         erlang:element(5, erlang:element(3, Rb)),
         fun(Dep) -> gleam@set:contains(Failed_set, Dep) end
@@ -103,7 +141,7 @@ execute_single_behavior(Rb, Config, _, Ctx, Failed_set) ->
                 )};
 
         {error, _} ->
-            case intent@http_client:execute_request(
+            case (erlang:element(2, Executor))(
                 Config,
                 erlang:element(7, erlang:element(3, Rb)),
                 Ctx
@@ -168,17 +206,25 @@ execute_single_behavior(Rb, Config, _, Ctx, Failed_set) ->
             end
     end.
 
--file("src/intent/runner.gleam", 181).
+-file("src/intent/runner.gleam", 240).
 -spec execute_behaviors_with_spinner(
     list(intent@resolver:resolved_behavior()),
     intent@types:config(),
     intent@types:spec(),
     gleam@set:set(binary()),
-    spinner:spinner()
+    spinner:spinner(),
+    behavior_executor()
 ) -> {list(behavior_result()),
     intent@interpolate:context(),
     gleam@set:set(binary())}.
-execute_behaviors_with_spinner(Behaviors, Config, Spec, Failed_set, Sp) ->
+execute_behaviors_with_spinner(
+    Behaviors,
+    Config,
+    Spec,
+    Failed_set,
+    Sp,
+    Executor
+) ->
     _pipe = gleam@list:fold(
         Behaviors,
         {[], intent@interpolate:new_context(), Failed_set},
@@ -194,7 +240,8 @@ execute_behaviors_with_spinner(Behaviors, Config, Spec, Failed_set, Sp) ->
                 Config,
                 Spec,
                 Ctx,
-                Failed
+                Failed,
+                Executor
             ),
             {[Result | Results], New_ctx, New_failed}
         end
@@ -204,7 +251,7 @@ execute_behaviors_with_spinner(Behaviors, Config, Spec, Failed_set, Sp) ->
         {lists:reverse(Results@1), Ctx@1, Failed@1}
     end)(_pipe).
 
--file("src/intent/runner.gleam", 301).
+-file("src/intent/runner.gleam", 362).
 -spec check_rules_for_execution(
     intent@http_client:execution_result(),
     list(intent@types:rule()),
@@ -239,7 +286,7 @@ check_rules_for_execution(Execution, Rules, Behavior_name) ->
         end
     ).
 
--file("src/intent/runner.gleam", 327).
+-file("src/intent/runner.gleam", 388).
 -spec group_violations_by_rule(
     list({binary(), binary(), intent@output:behavior_violation()})
 ) -> list(intent@output:rule_violation_group()).
@@ -266,7 +313,7 @@ group_violations_by_rule(Violations) ->
         end
     ).
 
--file("src/intent/runner.gleam", 284).
+-file("src/intent/runner.gleam", 345).
 -spec collect_rule_violations(
     list(behavior_result()),
     list(intent@types:rule())
@@ -289,7 +336,7 @@ collect_rule_violations(Results, Rules) ->
             end end),
     group_violations_by_rule(_pipe@1).
 
--file("src/intent/runner.gleam", 348).
+-file("src/intent/runner.gleam", 409).
 -spec collect_anti_patterns(
     list(behavior_result()),
     list(intent@types:anti_pattern())
@@ -315,10 +362,18 @@ collect_anti_patterns(Results, Patterns) ->
                     []
             end end).
 
--file("src/intent/runner.gleam", 34).
-?DOC(" Run a spec and return the results\n").
--spec run_spec(intent@types:spec(), binary(), run_options()) -> intent@output:spec_result().
-run_spec(Spec, Target_url, Options) ->
+-file("src/intent/runner.gleam", 83).
+?DOC(
+    " Run a spec with a custom executor - enables dependency injection for testing\n"
+    " This allows tests to mock HTTP responses without making real network requests\n"
+).
+-spec run_spec_with_executor(
+    intent@types:spec(),
+    binary(),
+    run_options(),
+    behavior_executor()
+) -> intent@output:spec_result().
+run_spec_with_executor(Spec, Target_url, Options, Executor) ->
     Config = case gleam@string:is_empty(Target_url) of
         true ->
             erlang:element(7, Spec);
@@ -364,7 +419,8 @@ run_spec(Spec, Target_url, Options) ->
                 Config,
                 Spec,
                 gleam@set:new(),
-                Sp
+                Sp,
+                Executor
             ),
             spinner:stop(Sp),
             Passed = gleam@list:count(Results, fun(R) -> case R of
@@ -376,6 +432,9 @@ run_spec(Spec, Target_url, Options) ->
                     end end),
             Failed = gleam@list:count(Results, fun(R@1) -> case R@1 of
                         {behavior_failed, _, _} ->
+                            true;
+
+                        {behavior_error, _, _} ->
                             true;
 
                         _ ->
@@ -439,3 +498,9 @@ run_spec(Spec, Target_url, Options) ->
                 Rule_violations,
                 Anti_patterns}
     end.
+
+-file("src/intent/runner.gleam", 73).
+?DOC(" Run a spec and return the results (uses default HTTP executor)\n").
+-spec run_spec(intent@types:spec(), binary(), run_options()) -> intent@output:spec_result().
+run_spec(Spec, Target_url, Options) ->
+    run_spec_with_executor(Spec, Target_url, Options, default_executor()).

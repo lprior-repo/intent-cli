@@ -7,5 +7,10 @@
     labels :: list(binary()),
     ai_hints :: binary(),
     acceptance_criteria :: list(binary()),
-    dependencies :: list(binary())
+    dependencies :: list(binary()),
+    input_example :: binary(),
+    output_example :: binary(),
+    must_return :: list(binary()),
+    must_not :: list(binary()),
+    edge_cases :: list(binary())
 }).

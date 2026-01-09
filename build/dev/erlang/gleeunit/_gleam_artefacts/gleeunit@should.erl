@@ -20,27 +20,27 @@
 ).
 
 -file("src/gleeunit/should.gleam", 11).
--spec equal(IGH, IGH) -> nil.
+-spec equal(JZL, JZL) -> nil.
 equal(A, B) ->
     gleeunit_ffi:should_equal(A, B).
 
 -file("src/gleeunit/should.gleam", 25).
--spec not_equal(IGI, IGI) -> nil.
+-spec not_equal(JZM, JZM) -> nil.
 not_equal(A, B) ->
     gleeunit_ffi:should_not_equal(A, B).
 
 -file("src/gleeunit/should.gleam", 39).
--spec be_ok({ok, IGJ} | {error, any()}) -> IGJ.
+-spec be_ok({ok, JZN} | {error, any()}) -> JZN.
 be_ok(A) ->
     gleeunit_ffi:should_be_ok(A).
 
 -file("src/gleeunit/should.gleam", 47).
--spec be_error({ok, any()} | {error, IGO}) -> IGO.
+-spec be_error({ok, any()} | {error, JZS}) -> JZS.
 be_error(A) ->
     gleeunit_ffi:should_be_error(A).
 
 -file("src/gleeunit/should.gleam", 54).
--spec be_some(gleam@option:option(IGR)) -> IGR.
+-spec be_some(gleam@option:option(JZV)) -> JZV.
 be_some(A) ->
     case A of
         {some, Value} ->

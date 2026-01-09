@@ -2,12 +2,10 @@
 // "Invert, always invert" - Charlie Munger/Jacobi
 // Analyzes specs for missing failure cases
 
-import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
-import intent/types.{type Spec, type Behavior, type Method, Get, Post, Put, Patch, Delete}
+import intent/types.{type Spec, type Behavior, type Method, Get, Post}
 
 // =============================================================================
 // TYPES
@@ -161,8 +159,8 @@ fn check_security_inversions(behaviors: List(Behavior), _paths: List(String), sp
     let #(name, desc, expected_status) = inv
     let is_tested = is_inversion_covered(name, expected_status, behavior_names, behavior_intents, behavior_statuses, spec)
     case is_tested {
-      True -> None
-      False -> Some(InversionGap(
+      True -> Error(Nil)
+      False -> Ok(InversionGap(
         category: "security",
         description: desc,
         severity: security_severity(name),
@@ -217,8 +215,8 @@ fn check_usability_inversions(behaviors: List(Behavior), _paths: List(String)) -
       || list.contains(behavior_statuses, expected_status)
 
     case is_tested {
-      True -> None
-      False -> Some(InversionGap(
+      True -> Error(Nil)
+      False -> Ok(InversionGap(
         category: "usability",
         description: desc,
         severity: usability_severity(name),
@@ -269,8 +267,8 @@ fn check_integration_inversions(behaviors: List(Behavior), _paths: List(String))
       || list.contains(behavior_statuses, expected_status)
 
     case is_tested {
-      True -> None
-      False -> Some(InversionGap(
+      True -> Error(Nil)
+      False -> Ok(InversionGap(
         category: "integration",
         description: desc,
         severity: integration_severity(name),
@@ -406,20 +404,33 @@ fn gap_to_name(gap: InversionGap) -> String {
 
 fn gap_to_method_status(description: String) -> #(Method, Int) {
   let desc = string.lowercase(description)
+  let has_auth = string.contains(desc, "authentication")
+  let has_token = string.contains(desc, "token")
+  let has_access = string.contains(desc, "access")
+  let has_admin = string.contains(desc, "admin")
+  let has_injection = string.contains(desc, "injection")
+  let has_xss = string.contains(desc, "xss")
+  let has_not_found = string.contains(desc, "not-found")
+  let has_non_existent = string.contains(desc, "non-existent")
+  let has_malformed = string.contains(desc, "malformed")
+  let has_required = string.contains(desc, "required")
+  let has_duplicate = string.contains(desc, "duplicate")
+  let has_rate = string.contains(desc, "rate")
+  let has_timeout = string.contains(desc, "timeout")
   case True {
-    _ if string.contains(desc, "authentication") -> #(Get, 401)
-    _ if string.contains(desc, "token") -> #(Get, 401)
-    _ if string.contains(desc, "access") -> #(Get, 403)
-    _ if string.contains(desc, "admin") -> #(Post, 403)
-    _ if string.contains(desc, "injection") -> #(Post, 400)
-    _ if string.contains(desc, "xss") -> #(Post, 400)
-    _ if string.contains(desc, "not-found") -> #(Get, 404)
-    _ if string.contains(desc, "non-existent") -> #(Get, 404)
-    _ if string.contains(desc, "malformed") -> #(Post, 400)
-    _ if string.contains(desc, "required") -> #(Post, 400)
-    _ if string.contains(desc, "duplicate") -> #(Post, 409)
-    _ if string.contains(desc, "rate") -> #(Get, 429)
-    _ if string.contains(desc, "timeout") -> #(Get, 504)
+    _ if has_auth -> #(Get, 401)
+    _ if has_token -> #(Get, 401)
+    _ if has_access -> #(Get, 403)
+    _ if has_admin -> #(Post, 403)
+    _ if has_injection -> #(Post, 400)
+    _ if has_xss -> #(Post, 400)
+    _ if has_not_found -> #(Get, 404)
+    _ if has_non_existent -> #(Get, 404)
+    _ if has_malformed -> #(Post, 400)
+    _ if has_required -> #(Post, 400)
+    _ if has_duplicate -> #(Post, 409)
+    _ if has_rate -> #(Get, 429)
+    _ if has_timeout -> #(Get, 504)
     _ -> #(Get, 400)
   }
 }

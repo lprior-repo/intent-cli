@@ -12,14 +12,14 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--type repeater(JVC) :: any() | {gleam_phantom, JVC}.
+-type repeater(LOG) :: any() | {gleam_phantom, LOG}.
 
 -file("src/repeatedly.gleam", 8).
 ?DOC(
     " Call a function every specified number of milliseconds, waiting the number\n"
     " of milliseconds before the first call.\n"
 ).
--spec call(integer(), JVD, fun((JVD, integer()) -> JVD)) -> repeater(JVD).
+-spec call(integer(), LOH, fun((LOH, integer()) -> LOH)) -> repeater(LOH).
 call(Delay_ms, State, Function) ->
     repeatedly_ffi:call(Delay_ms, State, Function).
 
@@ -47,7 +47,7 @@ stop(Repeater) ->
     " On JavaScript there is no message queue so it will stop immediately, though\n"
     " not interrupt the function callback if currently being executed.\n"
 ).
--spec set_function(repeater(JVH), fun((JVH, integer()) -> JVH)) -> nil.
+-spec set_function(repeater(LOL), fun((LOL, integer()) -> LOL)) -> nil.
 set_function(Repeater, Function) ->
     repeatedly_ffi:replace(Repeater, Function).
 
@@ -61,7 +61,7 @@ set_function(Repeater, Function) ->
     " On JavaScript there is no message queue so it will stop immediately, though\n"
     " not interrupt the function callback if currently being executed.\n"
 ).
--spec update_state(repeater(JVL), fun((JVL) -> JVL)) -> nil.
+-spec update_state(repeater(LOP), fun((LOP) -> LOP)) -> nil.
 update_state(Repeater, Function) ->
     repeatedly_ffi:update_state(Repeater, Function).
 
@@ -75,6 +75,6 @@ update_state(Repeater, Function) ->
     " On JavaScript there is no message queue so it will stop immediately, though\n"
     " not interrupt the function callback if currently being executed.\n"
 ).
--spec set_state(repeater(JVJ), JVJ) -> nil.
+-spec set_state(repeater(LON), LON) -> nil.
 set_state(Repeater, State) ->
     repeatedly_ffi:update_state(Repeater, fun(_) -> State end).

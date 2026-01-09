@@ -12,7 +12,7 @@
 -define(DOC(Str), -compile([])).
 -endif.
 
--type array(ICR) :: any() | {gleam_phantom, ICR}.
+-type array(JVV) :: any() | {gleam_phantom, JVV}.
 
 -file("src/glearray.gleam", 32).
 ?DOC(
@@ -31,13 +31,13 @@ new() ->
 
 -file("src/glearray.gleam", 38).
 ?DOC(" Converts a list to an array.\n").
--spec from_list(list(ICU)) -> array(ICU).
+-spec from_list(list(JVY)) -> array(JVY).
 from_list(List) ->
     erlang:list_to_tuple(List).
 
 -file("src/glearray.gleam", 44).
 ?DOC(" Converts an array to a list.\n").
--spec to_list(array(ICX)) -> list(ICX).
+-spec to_list(array(JWB)) -> list(JWB).
 to_list(Array) ->
     erlang:tuple_to_list(Array).
 
@@ -93,7 +93,7 @@ is_valid_index(Array, Index) ->
     " Error(Nil)\n"
     " ```\n"
 ).
--spec get(array(IDC), integer()) -> {ok, IDC} | {error, nil}.
+-spec get(array(JWG), integer()) -> {ok, JWG} | {error, nil}.
 get(Array, Index) ->
     glearray_ffi:get(Array, Index).
 
@@ -120,7 +120,7 @@ get(Array, Index) ->
     " -1\n"
     " ```\n"
 ).
--spec get_or_default(array(IDG), integer(), IDG) -> IDG.
+-spec get_or_default(array(JWK), integer(), JWK) -> JWK.
 get_or_default(Array, Index, Default) ->
     glearray_ffi:get_or_default(Array, Index, Default).
 
@@ -149,7 +149,7 @@ get_or_default(Array, Index, Default) ->
     " Error(Nil)\n"
     " ```\n"
 ).
--spec copy_set(array(IDK), integer(), IDK) -> {ok, array(IDK)} | {error, nil}.
+-spec copy_set(array(JWO), integer(), JWO) -> {ok, array(JWO)} | {error, nil}.
 copy_set(Array, Index, Value) ->
     glearray_ffi:set(Array, Index, Value).
 
@@ -169,7 +169,7 @@ copy_set(Array, Index, Value) ->
     " [1, 2]\n"
     " ```\n"
 ).
--spec copy_push(array(IDU), IDU) -> array(IDU).
+-spec copy_push(array(JWY), JWY) -> array(JWY).
 copy_push(Array, Value) ->
     erlang:append_element(Array, Value).
 
@@ -212,6 +212,6 @@ copy_push(Array, Value) ->
     " Error(Nil)\n"
     " ```\n"
 ).
--spec copy_insert(array(IDX), integer(), IDX) -> {ok, array(IDX)} | {error, nil}.
+-spec copy_insert(array(JXB), integer(), JXB) -> {ok, array(JXB)} | {error, nil}.
 copy_insert(Array, Index, Value) ->
     glearray_ffi:insert(Array, Index, Value).

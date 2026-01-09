@@ -94,9 +94,9 @@ Design by Contract for APIs:
 - **Postconditions**: What must be true after
 - **Invariants**: What must always be true
 
-### Mental Lattices
+### Analysis Tools
 
-Five thinking tools catch what humans miss:
+Five analysis techniques catch what humans miss:
 1. **Inversion**: "What would make this fail?"
 2. **Second-Order**: "What happens after that?"
 3. **Pre-Mortem**: "Why did this fail?"
@@ -115,11 +115,11 @@ intent interview --profile api --cue      # Start interview, output CUE
 intent interview --session X --answer Y   # Submit answer, get next directive
 intent beads <session> --cue              # Generate beads as CUE
 
-# KIRK Analysis
+# KIRK Analysis (optional deep-dive tools)
 intent quality <spec.cue>     # Quality scores (5 dimensions)
 intent invert <spec.cue>      # What failure cases are missing?
 intent coverage <spec.cue>    # HTTP method/status coverage
-intent gaps <spec.cue>        # Gap detection via mental models
+intent gaps <spec.cue>        # Gap detection via analysis tools
 
 # EARS
 intent ears <requirements.md> --output cue   # Parse EARS to CUE
@@ -155,8 +155,8 @@ schema/
 └── intent.cue            # Core spec schema
 
 docs/
-├── MENTAL_LATTICE_FRAMEWORK.md   # Theory
-├── EARS_KIRK_WORKFLOW.md         # Workflow
+├── MENTAL_LATTICE_FRAMEWORK.md   # Analysis framework theory
+├── EARS_KIRK_WORKFLOW.md         # EARS/KIRK workflow
 └── INTERACTIVE_QUESTIONING.md    # Question system
 ```
 
@@ -173,6 +173,18 @@ docs/
 - KIRK Analysis: Working
 - EARS Parser: Working
 - AI-CUE Protocol: In Progress (see beads)
+
+## Limitations
+
+Intent is designed to help with specification clarity, not implementation infrastructure. It does **not** help with:
+
+- **Unclear project structure** - Intent assumes your project layout is known
+- **Missing dependencies** - Package installation is outside scope
+- **Conflicting existing code** - Intent doesn't resolve merge conflicts
+- **Build system issues** - Webpack, bundler, or compiler problems need separate tools
+- **Runtime environment problems** - Docker, CI/CD, or deployment configuration
+
+Intent focuses on capturing *what* should be built clearly. *How* to build it remains your responsibility.
 
 ## License
 

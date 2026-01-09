@@ -106,21 +106,29 @@ fn parse_line(line: String, line_num: Int) -> Result(EarsRequirement, EarsError)
   let upper = string.uppercase(line)
   let id = "REQ-" <> int.to_string(line_num)
 
+  let has_while = string.contains(upper, "WHILE")
+  let has_when = string.contains(upper, "WHEN")
+  let has_if = string.contains(upper, "IF")
+  let has_shall_not = string.contains(upper, "SHALL NOT")
+  let has_shall = string.contains(upper, "SHALL")
+  let has_where = string.contains(upper, "WHERE")
+  let has_system_shall = string.contains(upper, "THE SYSTEM SHALL")
+
   // Try patterns in order of specificity
   case True {
-    _ if string.contains(upper, "WHILE") && string.contains(upper, "WHEN") ->
+    _ if has_while && has_when ->
       parse_complex(line, id)
-    _ if string.contains(upper, "IF") && string.contains(upper, "SHALL NOT") ->
+    _ if has_if && has_shall_not ->
       parse_unwanted(line, id)
-    _ if string.contains(upper, "WHEN") && string.contains(upper, "SHALL") ->
+    _ if has_when && has_shall ->
       parse_event_driven(line, id)
-    _ if string.contains(upper, "WHILE") && string.contains(upper, "SHALL") ->
+    _ if has_while && has_shall ->
       parse_state_driven(line, id)
-    _ if string.contains(upper, "WHERE") && string.contains(upper, "SHALL") ->
+    _ if has_where && has_shall ->
       parse_optional(line, id)
-    _ if string.contains(upper, "THE SYSTEM SHALL") ->
+    _ if has_system_shall ->
       parse_ubiquitous(line, id)
-    _ if string.contains(upper, "SHALL") ->
+    _ if has_shall ->
       parse_ubiquitous(line, id)
     _ ->
       Error(EarsError(
@@ -356,15 +364,24 @@ fn generate_behavior_name(req: EarsRequirement) -> String {
   let behavior = string.lowercase(req.system_shall)
 
   // Extract key verbs and nouns
+  let has_create = string.contains(behavior, "create")
+  let has_validate = string.contains(behavior, "validate")
+  let has_return = string.contains(behavior, "return")
+  let has_reject = string.contains(behavior, "reject")
+  let has_authenticate = string.contains(behavior, "authenticate")
+  let has_authorize = string.contains(behavior, "authorize")
+  let has_delete = string.contains(behavior, "delete")
+  let has_update = string.contains(behavior, "update")
+
   let name = case True {
-    _ if string.contains(behavior, "create") -> "create"
-    _ if string.contains(behavior, "validate") -> "validate"
-    _ if string.contains(behavior, "return") -> "return"
-    _ if string.contains(behavior, "reject") -> "reject"
-    _ if string.contains(behavior, "authenticate") -> "authenticate"
-    _ if string.contains(behavior, "authorize") -> "authorize"
-    _ if string.contains(behavior, "delete") -> "delete"
-    _ if string.contains(behavior, "update") -> "update"
+    _ if has_create -> "create"
+    _ if has_validate -> "validate"
+    _ if has_return -> "return"
+    _ if has_reject -> "reject"
+    _ if has_authenticate -> "authenticate"
+    _ if has_authorize -> "authorize"
+    _ if has_delete -> "delete"
+    _ if has_update -> "update"
     _ -> "handle"
   }
 
@@ -407,18 +424,30 @@ fn slugify(text: String) -> String {
 fn infer_http_details(req: EarsRequirement) -> #(String, String, Int) {
   let behavior = string.lowercase(req.system_shall)
 
+  let has_create = string.contains(behavior, "create")
+  let has_delete = string.contains(behavior, "delete")
+  let has_update = string.contains(behavior, "update")
+  let has_return = string.contains(behavior, "return")
+  let has_list = string.contains(behavior, "list")
+  let has_reject = string.contains(behavior, "reject")
+  let has_authenticate = string.contains(behavior, "authenticate")
+  let has_authorize = string.contains(behavior, "authorize")
+  let has_401 = string.contains(behavior, "401")
+  let has_403 = string.contains(behavior, "403")
+  let has_404 = string.contains(behavior, "404")
+
   case True {
-    _ if string.contains(behavior, "create") -> #("POST", "/resource", 201)
-    _ if string.contains(behavior, "delete") -> #("DELETE", "/resource/{id}", 204)
-    _ if string.contains(behavior, "update") -> #("PUT", "/resource/{id}", 200)
-    _ if string.contains(behavior, "return") && string.contains(behavior, "list") -> #("GET", "/resources", 200)
-    _ if string.contains(behavior, "return") -> #("GET", "/resource/{id}", 200)
-    _ if string.contains(behavior, "reject") -> #("POST", "/resource", 400)
-    _ if string.contains(behavior, "authenticate") -> #("POST", "/auth/login", 200)
-    _ if string.contains(behavior, "authorize") -> #("GET", "/protected", 403)
-    _ if string.contains(behavior, "401") -> #("GET", "/protected", 401)
-    _ if string.contains(behavior, "403") -> #("GET", "/protected", 403)
-    _ if string.contains(behavior, "404") -> #("GET", "/resource/{id}", 404)
+    _ if has_create -> #("POST", "/resource", 201)
+    _ if has_delete -> #("DELETE", "/resource/{id}", 204)
+    _ if has_update -> #("PUT", "/resource/{id}", 200)
+    _ if has_return && has_list -> #("GET", "/resources", 200)
+    _ if has_return -> #("GET", "/resource/{id}", 200)
+    _ if has_reject -> #("POST", "/resource", 400)
+    _ if has_authenticate -> #("POST", "/auth/login", 200)
+    _ if has_authorize -> #("GET", "/protected", 403)
+    _ if has_401 -> #("GET", "/protected", 401)
+    _ if has_403 -> #("GET", "/protected", 403)
+    _ if has_404 -> #("GET", "/resource/{id}", 404)
     _ -> #("GET", "/endpoint", 200)
   }
 }
@@ -434,11 +463,18 @@ fn extract_preconditions(req: EarsRequirement) -> List(String) {
 
   // Trigger context becomes precondition
   let preconditions = case req.trigger {
-    Some(t) if string.contains(string.lowercase(t), "authenticated") ->
-      ["user is authenticated", ..preconditions]
-    Some(t) if string.contains(string.lowercase(t), "valid") ->
-      ["input is valid", ..preconditions]
-    _ -> preconditions
+    Some(t) -> {
+      let lower_t = string.lowercase(t)
+      let has_authenticated = string.contains(lower_t, "authenticated")
+      let has_valid = string.contains(lower_t, "valid")
+
+      case True {
+        _ if has_authenticated -> ["user is authenticated", ..preconditions]
+        _ if has_valid -> ["input is valid", ..preconditions]
+        _ -> preconditions
+      }
+    }
+    None -> preconditions
   }
 
   preconditions

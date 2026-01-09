@@ -6,9 +6,8 @@ import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
-import intent/types.{type Spec, type Behavior, type Method, Get, Post, Put, Patch, Delete, Head, Options}
+import intent/types.{type Spec, type Behavior, type Method}
 
 // =============================================================================
 // TYPES
@@ -210,8 +209,8 @@ fn analyze_edge_cases(behaviors: List(Behavior)) -> EdgeCaseCoverage {
         string.contains(all_text, kw)
       })
       case is_tested {
-        True -> Some(name)
-        False -> None
+        True -> Ok(name)
+        False -> Error(Nil)
       }
     })
 
@@ -224,8 +223,8 @@ fn analyze_edge_cases(behaviors: List(Behavior)) -> EdgeCaseCoverage {
         string.contains(all_text, kw)
       })
       case is_tested {
-        True -> None
-        False -> Some(name)
+        True -> Error(Nil)
+        False -> Ok(name)
       }
     })
 
@@ -291,8 +290,8 @@ fn analyze_owasp_coverage(spec: Spec) -> OWASPCoverage {
         string.contains(all_text, kw)
       })
       case is_covered {
-        True -> None
-        False -> Some(code <> ": " <> name)
+        True -> Error(Nil)
+        False -> Ok(code <> ": " <> name)
       }
     })
 

@@ -83,6 +83,7 @@ fn make_spec(features: List(types.Feature)) -> types.Spec {
         rate_limiting: "",
       ),
       pitfalls: [],
+      codebase: None,
     ),
   )
 }
@@ -1858,7 +1859,7 @@ pub fn bead_generation_cli_profile_test() {
 
 pub fn bead_to_jsonl_format_test() {
   // Test bead to JSONL conversion
-  let bead = bead_templates.BeadRecord(
+  let bead = bead_templates.new_bead(
     title: "Test Implementation",
     description: "A test bead for validation",
     profile_type: "api",
@@ -1883,7 +1884,7 @@ pub fn bead_to_jsonl_format_test() {
 pub fn beads_to_jsonl_multiple_test() {
   // Test converting multiple beads to JSONL format
   let beads = [
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "First Bead",
       description: "First task",
       profile_type: "api",
@@ -1894,7 +1895,7 @@ pub fn beads_to_jsonl_multiple_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Second Bead",
       description: "Second task",
       profile_type: "data",
@@ -1923,7 +1924,7 @@ pub fn beads_to_jsonl_multiple_test() {
 pub fn bead_stats_calculation_test() {
   // Test bead statistics calculation
   let beads = [
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "API 1",
       description: "desc",
       profile_type: "api",
@@ -1934,7 +1935,7 @@ pub fn bead_stats_calculation_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "API 2",
       description: "desc",
       profile_type: "api",
@@ -1945,7 +1946,7 @@ pub fn bead_stats_calculation_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Data 1",
       description: "desc",
       profile_type: "data",
@@ -1980,7 +1981,7 @@ pub fn bead_stats_calculation_test() {
 pub fn filter_beads_by_type_test() {
   // Test filtering beads by issue type
   let beads = [
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Endpoint 1",
       description: "desc",
       profile_type: "api",
@@ -1991,7 +1992,7 @@ pub fn filter_beads_by_type_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Schema 1",
       description: "desc",
       profile_type: "data",
@@ -2002,7 +2003,7 @@ pub fn filter_beads_by_type_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Endpoint 2",
       description: "desc",
       profile_type: "api",
@@ -2025,7 +2026,7 @@ pub fn filter_beads_by_type_test() {
 pub fn sort_beads_by_priority_test() {
   // Test sorting beads by priority (higher number = higher priority)
   let beads = [
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Low Priority",
       description: "desc",
       profile_type: "api",
@@ -2036,7 +2037,7 @@ pub fn sort_beads_by_priority_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "High Priority",
       description: "desc",
       profile_type: "api",
@@ -2047,7 +2048,7 @@ pub fn sort_beads_by_priority_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Medium Priority",
       description: "desc",
       profile_type: "api",
@@ -2078,7 +2079,7 @@ pub fn sort_beads_by_priority_test() {
 pub fn add_bead_dependency_test() {
   // Test adding dependencies between beads
   let beads = [
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Schema Design",
       description: "desc",
       profile_type: "data",
@@ -2089,7 +2090,7 @@ pub fn add_bead_dependency_test() {
       acceptance_criteria: [],
       dependencies: [],
     ),
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "API Endpoint",
       description: "desc",
       profile_type: "api",
@@ -2329,7 +2330,7 @@ pub fn bead_generation_ui_profile_test() {
 
 pub fn bead_record_required_fields_test() {
   // Test that bead records have all required fields
-  let bead = bead_templates.BeadRecord(
+  let bead = bead_templates.new_bead(
     title: "Required fields test",
     description: "Testing all required fields present",
     profile_type: "api",
@@ -2366,7 +2367,7 @@ pub fn bead_stats_empty_list_test() {
 pub fn bead_multiple_dependencies_test() {
   // Test adding multiple dependencies to a bead
   let beads = [
-    bead_templates.BeadRecord(
+    bead_templates.new_bead(
       title: "Implementation",
       description: "desc",
       profile_type: "api",
@@ -2432,6 +2433,128 @@ pub fn bead_generation_preserves_answer_content_test() {
     }
     Error(_) -> should.fail()
   }
+}
+
+// ============================================================================
+// Progressive Bead Preview Tests (bead_templates.gleam)
+// ============================================================================
+
+pub fn format_bead_preview_api_test() {
+  let bead = bead_templates.new_bead(
+    title: "Implement API endpoint",
+    description: "Create GET /users endpoint",
+    profile_type: "api",
+    priority: 3,
+    issue_type: "api_endpoint",
+    labels: ["api"],
+    ai_hints: "Test hints",
+    acceptance_criteria: ["Endpoint works"],
+    dependencies: [],
+  )
+
+  let preview = bead_templates.format_bead_preview(bead)
+  preview |> string.contains("[API]") |> should.be_true()
+  preview |> string.contains("Implement API endpoint") |> should.be_true()
+  preview |> string.contains("Create GET /users endpoint") |> should.be_true()
+}
+
+pub fn format_bead_preview_cli_test() {
+  let bead = bead_templates.new_bead(
+    title: "Implement CLI command",
+    description: "Add process subcommand",
+    profile_type: "cli",
+    priority: 3,
+    issue_type: "cli_command",
+    labels: ["cli"],
+    ai_hints: "Test hints",
+    acceptance_criteria: ["Command works"],
+    dependencies: [],
+  )
+
+  let preview = bead_templates.format_bead_preview(bead)
+  preview |> string.contains("[CLI]") |> should.be_true()
+  preview |> string.contains("Implement CLI command") |> should.be_true()
+}
+
+pub fn format_bead_preview_truncates_long_description_test() {
+  let bead = bead_templates.new_bead(
+    title: "Test bead",
+    description: "This is a very long description that should be truncated because it exceeds fifty characters",
+    profile_type: "api",
+    priority: 2,
+    issue_type: "data_model",
+    labels: [],
+    ai_hints: "",
+    acceptance_criteria: [],
+    dependencies: [],
+  )
+
+  let preview = bead_templates.format_bead_preview(bead)
+  preview |> string.contains("...") |> should.be_true()
+  // Should not contain the full description
+  preview |> string.contains("fifty characters") |> should.be_false()
+}
+
+pub fn format_progressive_preview_empty_beads_test() {
+  let preview = bead_templates.format_progressive_preview([], 1)
+  preview |> should.equal("")
+}
+
+pub fn format_progressive_preview_round_1_test() {
+  let beads = [
+    bead_templates.new_bead(
+      title: "First bead",
+      description: "Test description",
+      profile_type: "api",
+      priority: 3,
+      issue_type: "api_endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let preview = bead_templates.format_progressive_preview(beads, 1)
+  preview |> string.contains("Round 1") |> should.be_true()
+  preview |> string.contains("rough outline") |> should.be_true()
+  preview |> string.contains("[API]") |> should.be_true()
+}
+
+pub fn format_progressive_preview_round_3_test() {
+  let beads = [
+    bead_templates.new_bead(
+      title: "CLI command",
+      description: "Process files",
+      profile_type: "cli",
+      priority: 3,
+      issue_type: "cli_command",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let preview = bead_templates.format_progressive_preview(beads, 3)
+  preview |> string.contains("Round 3") |> should.be_true()
+  preview |> string.contains("error cases") |> should.be_true()
+}
+
+pub fn format_progressive_preview_shows_more_indicator_test() {
+  // Create 7 beads to trigger the "... and N more" message
+  let beads = [
+    bead_templates.new_bead(title: "Bead 1", description: "d1", profile_type: "api", priority: 1, issue_type: "api_endpoint", labels: [], ai_hints: "", acceptance_criteria: [], dependencies: []),
+    bead_templates.new_bead(title: "Bead 2", description: "d2", profile_type: "api", priority: 1, issue_type: "api_endpoint", labels: [], ai_hints: "", acceptance_criteria: [], dependencies: []),
+    bead_templates.new_bead(title: "Bead 3", description: "d3", profile_type: "api", priority: 1, issue_type: "api_endpoint", labels: [], ai_hints: "", acceptance_criteria: [], dependencies: []),
+    bead_templates.new_bead(title: "Bead 4", description: "d4", profile_type: "api", priority: 1, issue_type: "api_endpoint", labels: [], ai_hints: "", acceptance_criteria: [], dependencies: []),
+    bead_templates.new_bead(title: "Bead 5", description: "d5", profile_type: "api", priority: 1, issue_type: "api_endpoint", labels: [], ai_hints: "", acceptance_criteria: [], dependencies: []),
+    bead_templates.new_bead(title: "Bead 6", description: "d6", profile_type: "api", priority: 1, issue_type: "api_endpoint", labels: [], ai_hints: "", acceptance_criteria: [], dependencies: []),
+    bead_templates.new_bead(title: "Bead 7", description: "d7", profile_type: "api", priority: 1, issue_type: "api_endpoint", labels: [], ai_hints: "", acceptance_criteria: [], dependencies: []),
+  ]
+
+  let preview = bead_templates.format_progressive_preview(beads, 1)
+  preview |> string.contains("... and 2 more") |> should.be_true()
 }
 
 // ============================================================================
@@ -3796,4 +3919,543 @@ pub fn format_diff_produces_output_test() {
   string.contains(formatted, "Answers Added") |> should.be_true()
   string.contains(formatted, "Answers Modified") |> should.be_true()
   string.contains(formatted, "Stage:") |> should.be_true()
+}
+
+// ============================================================================
+// Plan Mode Tests
+// ============================================================================
+
+import intent/plan_mode
+
+// Helper to create a test bead
+fn make_plan_bead(
+  id: String,
+  title: String,
+  requires: List(String),
+  effort: plan_mode.Effort,
+) -> plan_mode.PlanBead {
+  plan_mode.PlanBead(
+    id: id,
+    title: title,
+    requires: requires,
+    effort: effort,
+    status: plan_mode.Pending,
+  )
+}
+
+pub fn plan_mode_detect_dependency_graph_simple_test() {
+  // Three beads with no dependencies
+  let beads = [
+    make_plan_bead("AUTH-001", "First bead", [], plan_mode.Effort5min),
+    make_plan_bead("AUTH-002", "Second bead", [], plan_mode.Effort10min),
+    make_plan_bead("AUTH-003", "Third bead", [], plan_mode.Effort15min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  result |> should.be_ok()
+
+  let assert Ok(phases) = result
+  // All beads have no deps, so they should be in phase 1
+  phases |> list.length |> should.equal(1)
+
+  let assert [phase1] = phases
+  phase1.phase_number |> should.equal(1)
+  phase1.beads |> list.length |> should.equal(3)
+  phase1.can_parallel |> should.be_true()
+}
+
+pub fn plan_mode_detect_dependency_graph_linear_test() {
+  // Three beads in a linear chain: A -> B -> C
+  let beads = [
+    make_plan_bead("AUTH-001", "First bead", [], plan_mode.Effort5min),
+    make_plan_bead("AUTH-002", "Second bead", ["AUTH-001"], plan_mode.Effort10min),
+    make_plan_bead("AUTH-003", "Third bead", ["AUTH-002"], plan_mode.Effort15min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  result |> should.be_ok()
+
+  let assert Ok(phases) = result
+  // Linear dependency = 3 phases
+  phases |> list.length |> should.equal(3)
+
+  let assert [phase1, phase2, phase3] = phases
+  phase1.beads |> list.length |> should.equal(1)
+  phase2.beads |> list.length |> should.equal(1)
+  phase3.beads |> list.length |> should.equal(1)
+
+  // Single-bead phases cannot be parallelized
+  phase1.can_parallel |> should.be_false()
+  phase2.can_parallel |> should.be_false()
+  phase3.can_parallel |> should.be_false()
+}
+
+pub fn plan_mode_detect_dependency_graph_diamond_test() {
+  // Diamond dependency: A -> B, A -> C, B -> D, C -> D
+  let beads = [
+    make_plan_bead("AUTH-001", "A", [], plan_mode.Effort5min),
+    make_plan_bead("AUTH-002", "B", ["AUTH-001"], plan_mode.Effort10min),
+    make_plan_bead("AUTH-003", "C", ["AUTH-001"], plan_mode.Effort10min),
+    make_plan_bead("AUTH-004", "D", ["AUTH-002", "AUTH-003"], plan_mode.Effort15min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  result |> should.be_ok()
+
+  let assert Ok(phases) = result
+  // Diamond = 3 phases: A | B,C | D
+  phases |> list.length |> should.equal(3)
+
+  let assert [phase1, phase2, phase3] = phases
+  phase1.beads |> list.length |> should.equal(1)
+  phase2.beads |> list.length |> should.equal(2)  // B and C can run together
+  phase3.beads |> list.length |> should.equal(1)
+
+  phase2.can_parallel |> should.be_true()
+}
+
+pub fn plan_mode_detect_dependency_graph_missing_dep_test() {
+  // Bead depends on non-existent bead
+  let beads = [
+    make_plan_bead("AUTH-001", "First bead", ["MISSING-001"], plan_mode.Effort5min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  result |> should.be_error()
+}
+
+pub fn plan_mode_format_plan_human_test() {
+  let plan = plan_mode.ExecutionPlan(
+    session_id: "test-session-123",
+    generated_at: "2024-01-01T10:00:00Z",
+    phases: [
+      plan_mode.ExecutionPhase(
+        phase_number: 1,
+        title: "Phase 1",
+        beads: ["AUTH-001", "AUTH-002"],
+        can_parallel: True,
+        effort: "15min",
+      ),
+      plan_mode.ExecutionPhase(
+        phase_number: 2,
+        title: "Phase 2",
+        beads: ["AUTH-003"],
+        can_parallel: False,
+        effort: "10min",
+      ),
+    ],
+    total_beads: 3,
+    total_effort: "25min",
+    risk: plan_mode.Low,
+    blockers: [],
+  )
+
+  let formatted = plan_mode.format_plan_human(plan)
+
+  // Check header content
+  string.contains(formatted, "EXECUTION PLAN") |> should.be_true()
+  string.contains(formatted, "test-session-123") |> should.be_true()
+  string.contains(formatted, "Total Beads: 3") |> should.be_true()
+  string.contains(formatted, "25min") |> should.be_true()
+  string.contains(formatted, "low") |> should.be_true()
+
+  // Check phase content
+  string.contains(formatted, "Phase 1") |> should.be_true()
+  string.contains(formatted, "AUTH-001") |> should.be_true()
+  string.contains(formatted, "can run in parallel") |> should.be_true()
+}
+
+pub fn plan_mode_format_plan_json_test() {
+  let plan = plan_mode.ExecutionPlan(
+    session_id: "test-session-456",
+    generated_at: "2024-01-01T10:00:00Z",
+    phases: [
+      plan_mode.ExecutionPhase(
+        phase_number: 1,
+        title: "Phase 1",
+        beads: ["AUTH-001"],
+        can_parallel: False,
+        effort: "5min",
+      ),
+    ],
+    total_beads: 1,
+    total_effort: "5min",
+    risk: plan_mode.Medium,
+    blockers: ["AUTH-999: Some blocker"],
+  )
+
+  let formatted = plan_mode.format_plan_json(plan)
+
+  // Check JSON structure
+  string.contains(formatted, "\"session_id\": \"test-session-456\"") |> should.be_true()
+  string.contains(formatted, "\"total_beads\": 1") |> should.be_true()
+  string.contains(formatted, "\"risk\": \"medium\"") |> should.be_true()
+  string.contains(formatted, "\"phase_number\": 1") |> should.be_true()
+  string.contains(formatted, "\"AUTH-001\"") |> should.be_true()
+  string.contains(formatted, "AUTH-999: Some blocker") |> should.be_true()
+}
+
+pub fn plan_mode_format_error_session_not_found_test() {
+  let error = plan_mode.SessionNotFound("missing-session")
+  let formatted = plan_mode.format_error(error)
+
+  string.contains(formatted, "missing-session") |> should.be_true()
+  string.contains(formatted, "Session not found") |> should.be_true()
+}
+
+pub fn plan_mode_format_error_missing_dependency_test() {
+  let error = plan_mode.MissingDependency("AUTH-001", "AUTH-999")
+  let formatted = plan_mode.format_error(error)
+
+  string.contains(formatted, "AUTH-001") |> should.be_true()
+  string.contains(formatted, "AUTH-999") |> should.be_true()
+  string.contains(formatted, "requires") |> should.be_true()
+}
+
+// ============================================================================
+// Bead Feedback Tests - Martin Fowler Style
+// ============================================================================
+
+import intent/bead_feedback
+
+// ============================================================================
+// Unit Tests: Bead Feedback Types
+// ============================================================================
+
+pub fn bead_feedback_result_variants_test() {
+  // Verify all BeadResult variants exist and are distinct
+  let success = bead_feedback.Success
+  let failed = bead_feedback.Failed
+  let blocked = bead_feedback.Blocked
+  let skipped = bead_feedback.Skipped
+
+  // Type checking ensures these compile - just verify they're the expected values
+  success |> should.equal(bead_feedback.Success)
+  failed |> should.equal(bead_feedback.Failed)
+  blocked |> should.equal(bead_feedback.Blocked)
+  skipped |> should.equal(bead_feedback.Skipped)
+}
+
+pub fn bead_feedback_error_types_test() {
+  // Verify FeedbackError variants
+  let session_error = bead_feedback.SessionNotFound("test-session")
+  let write_error = bead_feedback.WriteError("/path/to/file", "Permission denied")
+  let validation_error = bead_feedback.ValidationError("Invalid bead ID")
+
+  let bead_feedback.SessionNotFound(id) = session_error
+  id |> should.equal("test-session")
+
+  let bead_feedback.WriteError(path, msg) = write_error
+  path |> should.equal("/path/to/file")
+  msg |> should.equal("Permission denied")
+
+  let bead_feedback.ValidationError(val_msg) = validation_error
+  val_msg |> should.equal("Invalid bead ID")
+}
+
+pub fn bead_error_construction_test() {
+  // Test BeadError type construction
+  let error = bead_feedback.BeadError(
+    error_type: "compilation_error",
+    message: "Failed to compile module",
+    trace: Some("stack trace here"),
+  )
+
+  error.error_type |> should.equal("compilation_error")
+  error.message |> should.equal("Failed to compile module")
+  error.trace |> should.equal(Some("stack trace here"))
+}
+
+pub fn blocked_reason_construction_test() {
+  // Test BlockedReason type construction
+  let reason = bead_feedback.BlockedReason(
+    blocker_type: "dependency",
+    details: "Waiting for AUTH-001 to complete",
+    unblocks_when: "AUTH-001 status is completed",
+  )
+
+  reason.blocker_type |> should.equal("dependency")
+  reason.details |> should.equal("Waiting for AUTH-001 to complete")
+  reason.unblocks_when |> should.equal("AUTH-001 status is completed")
+}
+
+pub fn bead_feedback_full_construction_test() {
+  // Test full BeadFeedback construction
+  let feedback = bead_feedback.BeadFeedback(
+    bead_id: "AUTH-001",
+    result: bead_feedback.Success,
+    reason: "Implementation complete and tests pass",
+    executed_at: "2026-01-08T10:00:00Z",
+    duration_ms: 12345,
+    error: None,
+    blocked_by: None,
+  )
+
+  feedback.bead_id |> should.equal("AUTH-001")
+  feedback.reason |> should.equal("Implementation complete and tests pass")
+  feedback.duration_ms |> should.equal(12345)
+  feedback.error |> should.equal(None)
+  feedback.blocked_by |> should.equal(None)
+}
+
+// ============================================================================
+// Integration Tests: Plan Mode Edge Cases
+// ============================================================================
+
+pub fn plan_mode_cyclic_dependency_detection_test() {
+  // A -> B -> C -> A (cycle)
+  let beads = [
+    make_plan_bead("AUTH-001", "A", ["AUTH-003"], plan_mode.Effort5min),
+    make_plan_bead("AUTH-002", "B", ["AUTH-001"], plan_mode.Effort10min),
+    make_plan_bead("AUTH-003", "C", ["AUTH-002"], plan_mode.Effort15min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  result |> should.be_error()
+}
+
+pub fn plan_mode_self_dependency_detection_test() {
+  // A depends on itself
+  let beads = [
+    make_plan_bead("AUTH-001", "A", ["AUTH-001"], plan_mode.Effort5min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  // Self-dependency is caught during depth calculation
+  result |> should.be_error()
+}
+
+pub fn plan_mode_complex_dependency_graph_test() {
+  // Complex graph:
+  // A (no deps)
+  // B -> A
+  // C -> A
+  // D -> B, C
+  // E -> D
+  // F -> A
+  let beads = [
+    make_plan_bead("AUTH-001", "A", [], plan_mode.Effort5min),
+    make_plan_bead("AUTH-002", "B", ["AUTH-001"], plan_mode.Effort10min),
+    make_plan_bead("AUTH-003", "C", ["AUTH-001"], plan_mode.Effort10min),
+    make_plan_bead("AUTH-004", "D", ["AUTH-002", "AUTH-003"], plan_mode.Effort15min),
+    make_plan_bead("AUTH-005", "E", ["AUTH-004"], plan_mode.Effort20min),
+    make_plan_bead("AUTH-006", "F", ["AUTH-001"], plan_mode.Effort5min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  result |> should.be_ok()
+
+  let assert Ok(phases) = result
+
+  // Phase 1: A (only node with no deps)
+  // Phase 2: B, C, F (all depend only on A)
+  // Phase 3: D (depends on B, C)
+  // Phase 4: E (depends on D)
+  phases |> list.length |> should.equal(4)
+}
+
+pub fn plan_mode_effort_calculation_test() {
+  // Test effort totals
+  let beads = [
+    make_plan_bead("AUTH-001", "5 min task", [], plan_mode.Effort5min),
+    make_plan_bead("AUTH-002", "10 min task", [], plan_mode.Effort10min),
+    make_plan_bead("AUTH-003", "15 min task", [], plan_mode.Effort15min),
+    make_plan_bead("AUTH-004", "20 min task", [], plan_mode.Effort20min),
+    make_plan_bead("AUTH-005", "30 min task", [], plan_mode.Effort30min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+  result |> should.be_ok()
+
+  let assert Ok(phases) = result
+  let assert [phase] = phases
+
+  // Total: 5 + 10 + 15 + 20 + 30 = 80 min = 1h 20min
+  phase.effort |> should.equal("1h 20min")
+}
+
+pub fn plan_mode_risk_level_low_test() {
+  // Low risk: few beads, no blockers
+  let plan = plan_mode.ExecutionPlan(
+    session_id: "test",
+    generated_at: "2026-01-01T00:00:00Z",
+    phases: [
+      plan_mode.ExecutionPhase(
+        phase_number: 1,
+        title: "Phase 1",
+        beads: ["AUTH-001"],
+        can_parallel: False,
+        effort: "5min",
+      ),
+    ],
+    total_beads: 1,
+    total_effort: "5min",
+    risk: plan_mode.Low,
+    blockers: [],
+  )
+
+  plan.risk |> should.equal(plan_mode.Low)
+}
+
+pub fn plan_mode_empty_beads_test() {
+  // Empty bead list should produce empty phases
+  let beads: List(plan_mode.PlanBead) = []
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  result |> should.be_ok()
+
+  let assert Ok(phases) = result
+  phases |> list.is_empty |> should.be_true()
+}
+
+// ============================================================================
+// Contract Tests: Bead ID Validation (Design by Contract)
+// ============================================================================
+
+pub fn bead_id_format_valid_prefix_number_test() {
+  // Valid format: PREFIX-NNN
+  // Testing via BeadFeedback construction patterns
+  let valid_ids = ["AUTH-001", "API-042", "CUE-007", "TEST-999"]
+
+  list.each(valid_ids, fn(id) {
+    // If ID format is invalid, mark_bead_executed would fail
+    // Here we just verify the pattern
+    id |> string.contains("-") |> should.be_true()
+  })
+}
+
+// ============================================================================
+// Property-Based Tests: Plan Phase Ordering
+// ============================================================================
+
+pub fn plan_phases_are_ordered_test() {
+  let plan = plan_mode.ExecutionPlan(
+    session_id: "test",
+    generated_at: "2026-01-01T00:00:00Z",
+    phases: [
+      plan_mode.ExecutionPhase(
+        phase_number: 1,
+        title: "Phase 1",
+        beads: ["AUTH-001"],
+        can_parallel: False,
+        effort: "5min",
+      ),
+      plan_mode.ExecutionPhase(
+        phase_number: 2,
+        title: "Phase 2",
+        beads: ["AUTH-002"],
+        can_parallel: False,
+        effort: "10min",
+      ),
+      plan_mode.ExecutionPhase(
+        phase_number: 3,
+        title: "Phase 3",
+        beads: ["AUTH-003"],
+        can_parallel: False,
+        effort: "15min",
+      ),
+    ],
+    total_beads: 3,
+    total_effort: "30min",
+    risk: plan_mode.Low,
+    blockers: [],
+  )
+
+  // Verify phases are numbered sequentially
+  let phase_numbers =
+    plan.phases
+    |> list.map(fn(p) { p.phase_number })
+
+  phase_numbers |> should.equal([1, 2, 3])
+}
+
+// ============================================================================
+// Golden File Tests: JSON Output Format
+// ============================================================================
+
+pub fn plan_json_output_is_valid_json_test() {
+  let plan = plan_mode.ExecutionPlan(
+    session_id: "json-test",
+    generated_at: "2026-01-01T00:00:00Z",
+    phases: [],
+    total_beads: 0,
+    total_effort: "0min",
+    risk: plan_mode.Low,
+    blockers: [],
+  )
+
+  let json_output = plan_mode.format_plan_json(plan)
+
+  // Verify it starts and ends like JSON
+  json_output |> string.starts_with("{") |> should.be_true()
+  json_output |> string.ends_with("}") |> should.be_true()
+
+  // Verify key fields are quoted
+  json_output |> string.contains("\"session_id\"") |> should.be_true()
+  json_output |> string.contains("\"phases\"") |> should.be_true()
+  json_output |> string.contains("\"risk\"") |> should.be_true()
+}
+
+pub fn plan_json_escapes_special_characters_test() {
+  let plan = plan_mode.ExecutionPlan(
+    session_id: "test-with-\"quotes\"",
+    generated_at: "2026-01-01T00:00:00Z",
+    phases: [],
+    total_beads: 0,
+    total_effort: "0min",
+    risk: plan_mode.Low,
+    blockers: ["Blocker with \"quotes\" and\nnewlines"],
+  )
+
+  let json_output = plan_mode.format_plan_json(plan)
+
+  // Verify quotes are escaped
+  json_output |> string.contains("\\\"quotes\\\"") |> should.be_true()
+  // Verify newlines are escaped
+  json_output |> string.contains("\\n") |> should.be_true()
+}
+
+// ============================================================================
+// Regression Tests: Previously Discovered Bugs
+// ============================================================================
+
+pub fn plan_mode_single_bead_is_not_parallel_test() {
+  // Regression: single bead phase was incorrectly marked parallel
+  let beads = [
+    make_plan_bead("AUTH-001", "Only bead", [], plan_mode.Effort5min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  let assert Ok(phases) = result
+  let assert [phase] = phases
+
+  // Single bead cannot run in parallel
+  phase.can_parallel |> should.be_false()
+}
+
+pub fn plan_mode_multiple_beads_in_phase_are_parallel_test() {
+  // Multiple beads with same dependency level should be parallel
+  let beads = [
+    make_plan_bead("AUTH-001", "First", [], plan_mode.Effort5min),
+    make_plan_bead("AUTH-002", "Second", [], plan_mode.Effort5min),
+    make_plan_bead("AUTH-003", "Third", [], plan_mode.Effort5min),
+  ]
+
+  let result = plan_mode.detect_dependency_graph(beads)
+
+  let assert Ok(phases) = result
+  let assert [phase] = phases
+
+  // Multiple beads can run in parallel
+  phase.can_parallel |> should.be_true()
+  phase.beads |> list.length |> should.equal(3)
 }

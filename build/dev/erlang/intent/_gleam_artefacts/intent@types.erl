@@ -2,7 +2,7 @@
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
 -define(FILEPATH, "src/intent/types.gleam").
 -export([method_to_string/1, method_from_string/1]).
--export_type([spec/0, config/0, feature/0, behavior/0, method/0, request/0, response/0, check/0, rule/0, 'when'/0, rule_check/0, anti_pattern/0, a_i_hints/0, implementation_hints/0, entity_hint/0, security_hints/0]).
+-export_type([spec/0, config/0, feature/0, behavior/0, method/0, request/0, response/0, check/0, rule/0, 'when'/0, rule_check/0, anti_pattern/0, a_i_hints/0, implementation_hints/0, entity_hint/0, security_hints/0, codebase_context/0, codebase_patterns/0, codebase_stack/0, entry_point/0, boundary/0, light_behavior/0, light_request/0, light_response/0, light_spec/0]).
 
 -if(?OTP_RELEASE >= 27).
 -define(MODULEDOC(Str), -moduledoc(Str)).
@@ -86,7 +86,8 @@
         implementation_hints(),
         gleam@dict:dict(binary(), entity_hint()),
         security_hints(),
-        list(binary())}.
+        list(binary()),
+        gleam@option:option(codebase_context())}.
 
 -type implementation_hints() :: {implementation_hints, list(binary())}.
 
@@ -98,7 +99,49 @@
         binary(),
         binary()}.
 
--file("src/intent/types.gleam", 59).
+-type codebase_context() :: {codebase_context,
+        gleam@option:option(codebase_patterns()),
+        gleam@option:option(codebase_stack()),
+        list(entry_point()),
+        list(boundary())}.
+
+-type codebase_patterns() :: {codebase_patterns,
+        binary(),
+        binary(),
+        binary(),
+        binary()}.
+
+-type codebase_stack() :: {codebase_stack,
+        binary(),
+        binary(),
+        binary(),
+        binary(),
+        binary()}.
+
+-type entry_point() :: {entry_point, binary(), binary(), binary()}.
+
+-type boundary() :: {boundary, binary(), binary(), list(binary())}.
+
+-type light_behavior() :: {light_behavior,
+        binary(),
+        binary(),
+        light_request(),
+        light_response()}.
+
+-type light_request() :: {light_request, method(), binary(), gleam@json:json()}.
+
+-type light_response() :: {light_response,
+        integer(),
+        gleam@dict:dict(binary(), check())}.
+
+-type light_spec() :: {light_spec,
+        binary(),
+        binary(),
+        list(light_behavior()),
+        list(anti_pattern()),
+        gleam@option:option(a_i_hints())}.
+
+-file("src/intent/types.gleam", 60).
 ?DOC(" Convert method to string\n").
 -spec method_to_string(method()) -> binary().
 method_to_string(Method) ->
@@ -125,7 +168,7 @@ method_to_string(Method) ->
             <<"OPTIONS"/utf8>>
     end.
 
--file("src/intent/types.gleam", 72).
+-file("src/intent/types.gleam", 73).
 ?DOC(" Parse method from string\n").
 -spec method_from_string(binary()) -> {ok, method()} | {error, binary()}.
 method_from_string(S) ->
