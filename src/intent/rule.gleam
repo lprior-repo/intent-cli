@@ -10,6 +10,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/regexp
 import gleam/string
 import intent/formats.{validate_email, validate_uuid}
+import intent/parser
 
 /// Parsed rule expression
 pub type RuleExpr {

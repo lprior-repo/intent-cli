@@ -4,6 +4,7 @@
 //// All operations return Result types - no exceptions.
 //// Works with git for state management (stash/reset for TCR).
 
+import gleam/int
 import gleam/result
 import gleam/string
 import shellout
@@ -14,7 +15,8 @@ import shellout
 pub fn git_command(args: List(String)) -> Result(String, String) {
   shellout.command("git", args, ".", [])
   |> result.map_error(fn(err) {
-    "Git command failed: " <> shellout.exit_code_to_string(err)
+    let #(status, msg) = err
+    "Git command failed (exit " <> int.to_string(status) <> "): " <> msg
   })
 }
 
@@ -50,7 +52,7 @@ pub fn stash() -> Result(String, String) {
     |> result.map(fn(output) {
       let lines = string.split(string.trim(output), "\n")
       case lines {
-        [first, ..rest] -> first
+        [first, ..] -> first
         [] -> "stash@{0}"
       }
     })

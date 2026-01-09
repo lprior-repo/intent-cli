@@ -2,12 +2,9 @@ import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
-import gleam/option.{None, Some}
-import gleam/string
 import gleeunit/should
 import intent/http_client
 import intent/interpolate
-import intent/rule
 import intent/spec_builder
 import intent/types
 
