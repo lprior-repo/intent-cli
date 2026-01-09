@@ -1,1 +1,0 @@
--record(invalid_path, {behavior :: binary(), path :: binary(), error :: binary()}).

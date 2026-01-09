@@ -1,1 +1,0 @@
--record(body_contains, {forbidden :: binary(), found_in :: binary()}).

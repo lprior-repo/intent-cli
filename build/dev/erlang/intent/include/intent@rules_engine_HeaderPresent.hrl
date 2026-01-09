@@ -1,1 +1,0 @@
--record(header_present, {header :: binary()}).

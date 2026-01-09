@@ -1,5 +1,4 @@
 /// HTTP client for executing behavior requests
-
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/http
@@ -77,7 +76,10 @@ pub fn execute_request(
   execute_with_timing(http_req, req.method, path)
 }
 
-fn interpolate_path(path: String, ctx: Context) -> Result(String, ExecutionError) {
+fn interpolate_path(
+  path: String,
+  ctx: Context,
+) -> Result(String, ExecutionError) {
   interpolate.interpolate_string(ctx, path)
   |> result.map_error(InterpolationError)
 }
@@ -90,17 +92,15 @@ fn interpolate_headers(
   |> result.map_error(InterpolationError)
 }
 
-fn interpolate_body(
-  body: Json,
-  ctx: Context,
-) -> Result(Json, ExecutionError) {
+fn interpolate_body(body: Json, ctx: Context) -> Result(Json, ExecutionError) {
   // Convert to string, interpolate, then parse back to JSON
   let body_str = json.to_string(body)
   case interpolate.interpolate_string(ctx, body_str) {
     Ok(interpolated_str) ->
       case json.decode(interpolated_str, dynamic.dynamic) {
         Ok(data) -> Ok(parser.dynamic_to_json(data))
-        Error(_) -> Error(InterpolationError("Failed to parse interpolated body as JSON"))
+        Error(_) ->
+          Error(InterpolationError("Failed to parse interpolated body as JSON"))
       }
     Error(e) -> Error(InterpolationError(e))
   }
@@ -234,65 +234,66 @@ fn format_httpc_error(error: dynamic.Dynamic) -> String {
   }
 
   // Determine the error message
-  let message =
-    case check_patterns(["timeout"]) {
-      True -> {
-        "Connection timeout: The request took too long to complete.\n"
-        <> "  • Check if the target API is responding slowly\n"
-        <> "  • Try increasing the timeout_ms in your config\n"
-        <> "  • Verify the base_url is correct and accessible"
-      }
-      False ->
-        case check_patterns(["econnrefused", "connection_refused"]) {
-          True -> {
-            "Connection refused: Cannot connect to the target server.\n"
-            <> "  • Check if the base_url is correct\n"
-            <> "  • Verify the server is running and listening on the specified port\n"
-            <> "  • Ensure your network firewall allows connections to this server"
-          }
-          False ->
-            case check_patterns(["nxdomain", "enotfound"]) {
-              True -> {
-                "DNS resolution failed: Cannot find the hostname.\n"
-                <> "  • Check if the base_url hostname is spelled correctly\n"
-                <> "  • Verify your network connection\n"
-                <> "  • Try pinging the hostname to test DNS resolution"
-              }
-              False ->
-                case check_patterns(["ssl", "certificate"]) {
-                  True -> {
-                    "SSL/TLS certificate error: Cannot verify the server's certificate.\n"
-                    <> "  • The server may have an invalid or expired certificate\n"
-                    <> "  • Check if your system's certificate store is up to date\n"
-                    <> "  • For development, ensure you're using the correct base_url scheme (http vs https)"
-                  }
-                  False ->
-                    case check_patterns(["eacces"]) {
-                      True -> {
-                        "Permission denied: No access to the specified resource.\n"
-                        <> "  • Check if you have permission to access the target URL\n"
-                        <> "  • Verify the base_url and path are correct"
-                      }
-                      False ->
-                        case check_patterns(["ehostunreach", "enetunreach"]) {
-                          True -> {
-                            "Network unreachable: Cannot reach the target host.\n"
-                            <> "  • Check your network connection\n"
-                            <> "  • Verify the host is accessible from your location\n"
-                            <> "  • Check for firewall or VPN restrictions"
-                          }
-                          False -> {
-                            "HTTP request failed: " <> string.inspect(error) <> "\n"
-                            <> "  • Check the base_url and ensure the target server is reachable\n"
-                            <> "  • Verify the request path and headers are correct\n"
-                            <> "  • Try running with a simpler request to isolate the issue"
-                          }
-                        }
-                    }
-                }
-            }
-        }
+  let message = case check_patterns(["timeout"]) {
+    True -> {
+      "Connection timeout: The request took too long to complete.\n"
+      <> "  • Check if the target API is responding slowly\n"
+      <> "  • Try increasing the timeout_ms in your config\n"
+      <> "  • Verify the base_url is correct and accessible"
     }
+    False ->
+      case check_patterns(["econnrefused", "connection_refused"]) {
+        True -> {
+          "Connection refused: Cannot connect to the target server.\n"
+          <> "  • Check if the base_url is correct\n"
+          <> "  • Verify the server is running and listening on the specified port\n"
+          <> "  • Ensure your network firewall allows connections to this server"
+        }
+        False ->
+          case check_patterns(["nxdomain", "enotfound"]) {
+            True -> {
+              "DNS resolution failed: Cannot find the hostname.\n"
+              <> "  • Check if the base_url hostname is spelled correctly\n"
+              <> "  • Verify your network connection\n"
+              <> "  • Try pinging the hostname to test DNS resolution"
+            }
+            False ->
+              case check_patterns(["ssl", "certificate"]) {
+                True -> {
+                  "SSL/TLS certificate error: Cannot verify the server's certificate.\n"
+                  <> "  • The server may have an invalid or expired certificate\n"
+                  <> "  • Check if your system's certificate store is up to date\n"
+                  <> "  • For development, ensure you're using the correct base_url scheme (http vs https)"
+                }
+                False ->
+                  case check_patterns(["eacces"]) {
+                    True -> {
+                      "Permission denied: No access to the specified resource.\n"
+                      <> "  • Check if you have permission to access the target URL\n"
+                      <> "  • Verify the base_url and path are correct"
+                    }
+                    False ->
+                      case check_patterns(["ehostunreach", "enetunreach"]) {
+                        True -> {
+                          "Network unreachable: Cannot reach the target host.\n"
+                          <> "  • Check your network connection\n"
+                          <> "  • Verify the host is accessible from your location\n"
+                          <> "  • Check for firewall or VPN restrictions"
+                        }
+                        False -> {
+                          "HTTP request failed: "
+                          <> string.inspect(error)
+                          <> "\n"
+                          <> "  • Check the base_url and ensure the target server is reachable\n"
+                          <> "  • Verify the request path and headers are correct\n"
+                          <> "  • Try running with a simpler request to isolate the issue"
+                        }
+                      }
+                  }
+              }
+          }
+      }
+  }
 
   message
 }

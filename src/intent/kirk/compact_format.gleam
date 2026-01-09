@@ -6,13 +6,12 @@ import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option
 import gleam/string
-import gleam/string_tree
 import intent/types.{
-  type Spec, type Feature, type Behavior, type Request, type Response, type Check,
-  type Rule, type AntiPattern, type Method,
-  Get, Post, Put, Patch, Delete, Head, Options,
+  type AntiPattern, type Behavior, type Check, type Feature, type Method,
+  type Request, type Response, type Rule, type Spec, Delete, Get, Head, Options,
+  Patch, Post, Put,
 }
 
 // =============================================================================
@@ -56,10 +55,7 @@ pub type CompactSpec {
 }
 
 pub type CompactFeature {
-  CompactFeature(
-    name: String,
-    behaviors: List(CompactBehavior),
-  )
+  CompactFeature(name: String, behaviors: List(CompactBehavior))
 }
 
 pub type CompactBehavior {
@@ -75,11 +71,7 @@ pub type CompactBehavior {
 }
 
 pub type CompactCheck {
-  CompactCheck(
-    field: String,
-    rule: String,
-    why: String,
-  )
+  CompactCheck(field: String, rule: String, why: String)
 }
 
 pub type CompactRule {
@@ -94,11 +86,7 @@ pub type CompactRule {
 }
 
 pub type CompactAntiPattern {
-  CompactAntiPattern(
-    name: String,
-    bad_example: String,
-    good_example: String,
-  )
+  CompactAntiPattern(name: String, bad_example: String, good_example: String)
 }
 
 // =============================================================================
@@ -131,7 +119,8 @@ fn feature_to_compact(feature: Feature) -> CompactFeature {
 }
 
 fn behavior_to_compact(b: Behavior) -> CompactBehavior {
-  let request_line = method_to_string(b.request.method)
+  let request_line =
+    method_to_string(b.request.method)
     <> " "
     <> b.request.path
     <> body_to_compact(b.request.body)
@@ -163,42 +152,52 @@ fn behavior_to_compact(b: Behavior) -> CompactBehavior {
   )
 }
 
-fn body_to_compact(body: option.Option(json.Json)) -> String {
-  case body {
-    None -> ""
-    Some(j) -> " " <> json.to_string(j)
+fn body_to_compact(body: json.Json) -> String {
+  let str = json.to_string(body)
+  case str {
+    "null" -> ""
+    _ -> " " <> str
   }
 }
 
 fn rule_to_compact(r: Rule) -> CompactRule {
-  let when_str = case r.when {
-    None -> "*"
-    Some(w) -> {
-      let status_part = case w.status {
-        Some(s) -> "status" <> s
-        None -> ""
+  // Build when string from When type fields (intent-cli-5zd: now optional)
+  let status_part = case r.when.status {
+    option.None -> ""
+    option.Some(s) ->
+      case string.is_empty(s) {
+        True -> ""
+        False -> "status" <> s
       }
-      let method_part = case w.method {
-        Some(m) -> types.method_to_string(m)
-        None -> ""
+  }
+  let method_part = case r.when.method {
+    option.None -> ""
+    option.Some(m) -> types.method_to_string(m)
+  }
+  let path_part = case r.when.path {
+    option.None -> ""
+    option.Some(p) ->
+      case string.is_empty(p) {
+        True -> ""
+        False -> "path:" <> p
       }
-      let path_part = case w.path {
-        Some(p) -> "path:" <> p
-        None -> ""
-      }
-      [status_part, method_part, path_part]
-      |> list.filter(fn(s) { !string.is_empty(s) })
-      |> string.join(",")
-    }
+  }
+  let when_str =
+    [status_part, method_part, path_part]
+    |> list.filter(fn(s) { !string.is_empty(s) })
+    |> string.join(",")
+  let when_str = case string.is_empty(when_str) {
+    True -> "*"
+    False -> when_str
   }
 
   CompactRule(
     name: r.name,
     when: when_str,
-    must_not_contain: option.unwrap(r.check.body_must_not_contain, []),
-    must_contain: option.unwrap(r.check.body_must_contain, []),
-    fields_must_exist: option.unwrap(r.check.fields_must_exist, []),
-    fields_must_not_exist: option.unwrap(r.check.fields_must_not_exist, []),
+    must_not_contain: r.check.body_must_not_contain,
+    must_contain: r.check.body_must_contain,
+    fields_must_exist: r.check.fields_must_exist,
+    fields_must_not_exist: r.check.fields_must_not_exist,
   )
 }
 
@@ -215,8 +214,14 @@ fn anti_pattern_to_compact(ap: AntiPattern) -> CompactAntiPattern {
 // =============================================================================
 
 pub fn format_compact(compact: CompactSpec) -> String {
-  let header = "SPEC \"" <> compact.name <> "\" " <> compact.version <> "\n"
-    <> compact.description <> "\n\n"
+  let header =
+    "SPEC \""
+    <> compact.name
+    <> "\" "
+    <> compact.version
+    <> "\n"
+    <> compact.description
+    <> "\n\n"
 
   let features =
     compact.features
@@ -234,7 +239,11 @@ pub fn format_compact(compact: CompactSpec) -> String {
     True -> ""
     False ->
       "\n# Anti-patterns\n"
-      <> { compact.anti_patterns |> list.map(format_anti_pattern) |> string.join("\n") }
+      <> {
+        compact.anti_patterns
+        |> list.map(format_anti_pattern)
+        |> string.join("\n")
+      }
   }
 
   header <> features <> rules <> anti_patterns
@@ -313,16 +322,24 @@ fn format_rule(r: CompactRule) -> String {
     |> string.join("\n")
 
   header
-  <> { [must_not, must, fields_exist, fields_not_exist]
-       |> list.filter(fn(s) { !string.is_empty(s) })
-       |> string.join("\n") }
+  <> {
+    [must_not, must, fields_exist, fields_not_exist]
+    |> list.filter(fn(s) { !string.is_empty(s) })
+    |> string.join("\n")
+  }
   <> "\n"
 }
 
 fn format_anti_pattern(ap: CompactAntiPattern) -> String {
-  "A \"" <> ap.name <> "\"\n"
-  <> "  BAD: " <> ap.bad_example <> "\n"
-  <> "  GOOD: " <> ap.good_example <> "\n"
+  "A \""
+  <> ap.name
+  <> "\"\n"
+  <> "  BAD: "
+  <> ap.bad_example
+  <> "\n"
+  <> "  GOOD: "
+  <> ap.good_example
+  <> "\n"
 }
 
 // =============================================================================
@@ -365,7 +382,9 @@ pub fn compare_token_usage(spec: Spec) -> #(Int, Int, Float) {
   let savings = case full_tokens {
     0 -> 0.0
     _ ->
-      { int.to_float(full_tokens - compact_tokens) /. int.to_float(full_tokens) }
+      {
+        int.to_float(full_tokens - compact_tokens) /. int.to_float(full_tokens)
+      }
       *. 100.0
   }
 
@@ -378,24 +397,36 @@ fn spec_to_json(spec: Spec) -> json.Json {
     #("name", json.string(spec.name)),
     #("description", json.string(spec.description)),
     #("version", json.string(spec.version)),
-    #("features", json.array(spec.features, fn(f) {
-      json.object([
-        #("name", json.string(f.name)),
-        #("behaviors", json.array(f.behaviors, fn(b) {
-          json.object([
-            #("name", json.string(b.name)),
-            #("intent", json.string(b.intent)),
-            #("request", json.object([
-              #("method", json.string(method_to_string(b.request.method))),
-              #("path", json.string(b.request.path)),
-            ])),
-            #("response", json.object([
-              #("status", json.int(b.response.status)),
-            ])),
-          ])
-        })),
-      ])
-    })),
+    #(
+      "features",
+      json.array(spec.features, fn(f) {
+        json.object([
+          #("name", json.string(f.name)),
+          #(
+            "behaviors",
+            json.array(f.behaviors, fn(b) {
+              json.object([
+                #("name", json.string(b.name)),
+                #("intent", json.string(b.intent)),
+                #(
+                  "request",
+                  json.object([
+                    #("method", json.string(method_to_string(b.request.method))),
+                    #("path", json.string(b.request.path)),
+                  ]),
+                ),
+                #(
+                  "response",
+                  json.object([
+                    #("status", json.int(b.response.status)),
+                  ]),
+                ),
+              ])
+            }),
+          ),
+        ])
+      }),
+    ),
   ])
 }
 
@@ -404,14 +435,24 @@ fn spec_to_json(spec: Spec) -> json.Json {
 // =============================================================================
 
 pub fn spec_to_prototext(spec: Spec) -> String {
-  let header = "# KIRK Spec - Protobuf Text Format\n"
+  let header =
+    "# KIRK Spec - Protobuf Text Format\n"
     <> "# Generated from CUE source of truth\n\n"
 
-  let spec_block = "spec {\n"
-    <> "  name: \"" <> escape_string(spec.name) <> "\"\n"
-    <> "  description: \"" <> escape_string(spec.description) <> "\"\n"
-    <> "  version: \"" <> escape_string(spec.version) <> "\"\n"
-    <> "  audience: \"" <> escape_string(spec.audience) <> "\"\n"
+  let spec_block =
+    "spec {\n"
+    <> "  name: \""
+    <> escape_string(spec.name)
+    <> "\"\n"
+    <> "  description: \""
+    <> escape_string(spec.description)
+    <> "\"\n"
+    <> "  version: \""
+    <> escape_string(spec.version)
+    <> "\"\n"
+    <> "  audience: \""
+    <> escape_string(spec.audience)
+    <> "\"\n"
     <> format_success_criteria(spec.success_criteria)
     <> format_config_proto(spec.config)
     <> format_features_proto(spec.features)
@@ -437,21 +478,36 @@ fn format_success_criteria(criteria: List(String)) -> String {
 
 fn format_config_proto(config: types.Config) -> String {
   "  config {\n"
-  <> "    base_url: \"" <> escape_string(config.base_url) <> "\"\n"
-  <> "    timeout_ms: " <> int.to_string(config.timeout_ms) <> "\n"
+  <> "    base_url: \""
+  <> escape_string(config.base_url)
+  <> "\"\n"
+  <> "    timeout_ms: "
+  <> int.to_string(config.timeout_ms)
+  <> "\n"
   <> format_headers_proto(config.headers, "    ")
   <> "  }\n"
 }
 
-fn format_headers_proto(headers: dict.Dict(String, String), indent: String) -> String {
+fn format_headers_proto(
+  headers: dict.Dict(String, String),
+  indent: String,
+) -> String {
   headers
   |> dict.to_list()
   |> list.map(fn(pair) {
     let #(k, v) = pair
-    indent <> "headers {\n"
-    <> indent <> "  key: \"" <> escape_string(k) <> "\"\n"
-    <> indent <> "  value: \"" <> escape_string(v) <> "\"\n"
-    <> indent <> "}\n"
+    indent
+    <> "headers {\n"
+    <> indent
+    <> "  key: \""
+    <> escape_string(k)
+    <> "\"\n"
+    <> indent
+    <> "  value: \""
+    <> escape_string(v)
+    <> "\"\n"
+    <> indent
+    <> "}\n"
   })
   |> string.join("")
 }
@@ -460,8 +516,12 @@ fn format_features_proto(features: List(Feature)) -> String {
   features
   |> list.map(fn(f) {
     "  features {\n"
-    <> "    name: \"" <> escape_string(f.name) <> "\"\n"
-    <> "    description: \"" <> escape_string(f.description) <> "\"\n"
+    <> "    name: \""
+    <> escape_string(f.name)
+    <> "\"\n"
+    <> "    description: \""
+    <> escape_string(f.description)
+    <> "\"\n"
     <> format_behaviors_proto(f.behaviors)
     <> "  }\n"
   })
@@ -472,8 +532,12 @@ fn format_behaviors_proto(behaviors: List(Behavior)) -> String {
   behaviors
   |> list.map(fn(b) {
     "    behaviors {\n"
-    <> "      name: \"" <> escape_string(b.name) <> "\"\n"
-    <> "      intent: \"" <> escape_string(b.intent) <> "\"\n"
+    <> "      name: \""
+    <> escape_string(b.name)
+    <> "\"\n"
+    <> "      intent: \""
+    <> escape_string(b.intent)
+    <> "\"\n"
     <> format_requires_proto(b.requires)
     <> format_request_proto(b.request)
     <> format_response_proto(b.response)
@@ -491,8 +555,12 @@ fn format_requires_proto(requires: List(String)) -> String {
 
 fn format_request_proto(req: Request) -> String {
   "      request {\n"
-  <> "        method: " <> method_to_proto_enum(req.method) <> "\n"
-  <> "        path: \"" <> escape_string(req.path) <> "\"\n"
+  <> "        method: "
+  <> method_to_proto_enum(req.method)
+  <> "\n"
+  <> "        path: \""
+  <> escape_string(req.path)
+  <> "\"\n"
   <> format_headers_proto(req.headers, "        ")
   <> format_body_proto(req.body)
   <> "      }\n"
@@ -510,16 +578,19 @@ fn method_to_proto_enum(m: Method) -> String {
   }
 }
 
-fn format_body_proto(body: option.Option(json.Json)) -> String {
-  case body {
-    None -> ""
-    Some(j) -> "        body: \"" <> escape_string(json.to_string(j)) <> "\"\n"
+fn format_body_proto(body: json.Json) -> String {
+  let str = json.to_string(body)
+  case str {
+    "null" -> ""
+    _ -> "        body: \"" <> escape_string(str) <> "\"\n"
   }
 }
 
 fn format_response_proto(resp: Response) -> String {
   "      response {\n"
-  <> "        status: " <> int.to_string(resp.status) <> "\n"
+  <> "        status: "
+  <> int.to_string(resp.status)
+  <> "\n"
   <> format_checks_proto(resp.checks)
   <> "      }\n"
 }
@@ -530,10 +601,16 @@ fn format_checks_proto(checks: dict.Dict(String, Check)) -> String {
   |> list.map(fn(pair) {
     let #(field, check) = pair
     "        checks {\n"
-    <> "          key: \"" <> escape_string(field) <> "\"\n"
+    <> "          key: \""
+    <> escape_string(field)
+    <> "\"\n"
     <> "          value {\n"
-    <> "            rule: \"" <> escape_string(check.rule) <> "\"\n"
-    <> "            why: \"" <> escape_string(check.why) <> "\"\n"
+    <> "            rule: \""
+    <> escape_string(check.rule)
+    <> "\"\n"
+    <> "            why: \""
+    <> escape_string(check.why)
+    <> "\"\n"
     <> "          }\n"
     <> "        }\n"
   })
@@ -546,8 +623,12 @@ fn format_captures_proto(captures: dict.Dict(String, String)) -> String {
   |> list.map(fn(pair) {
     let #(k, v) = pair
     "      captures {\n"
-    <> "        key: \"" <> escape_string(k) <> "\"\n"
-    <> "        value: \"" <> escape_string(v) <> "\"\n"
+    <> "        key: \""
+    <> escape_string(k)
+    <> "\"\n"
+    <> "        value: \""
+    <> escape_string(v)
+    <> "\"\n"
     <> "      }\n"
   })
   |> string.join("")
@@ -557,8 +638,12 @@ fn format_rules_proto(rules: List(Rule)) -> String {
   rules
   |> list.map(fn(r) {
     "  rules {\n"
-    <> "    name: \"" <> escape_string(r.name) <> "\"\n"
-    <> "    description: \"" <> escape_string(r.description) <> "\"\n"
+    <> "    name: \""
+    <> escape_string(r.name)
+    <> "\"\n"
+    <> "    description: \""
+    <> escape_string(r.description)
+    <> "\"\n"
     <> "  }\n"
   })
   |> string.join("")
@@ -568,9 +653,15 @@ fn format_anti_patterns_proto(patterns: List(AntiPattern)) -> String {
   patterns
   |> list.map(fn(ap) {
     "  anti_patterns {\n"
-    <> "    name: \"" <> escape_string(ap.name) <> "\"\n"
-    <> "    description: \"" <> escape_string(ap.description) <> "\"\n"
-    <> "    why: \"" <> escape_string(ap.why) <> "\"\n"
+    <> "    name: \""
+    <> escape_string(ap.name)
+    <> "\"\n"
+    <> "    description: \""
+    <> escape_string(ap.description)
+    <> "\"\n"
+    <> "    why: \""
+    <> escape_string(ap.why)
+    <> "\"\n"
     <> "  }\n"
   })
   |> string.join("")

@@ -1,1 +1,0 @@
--record(header_missing, {header :: binary()}).

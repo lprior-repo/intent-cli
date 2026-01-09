@@ -166,6 +166,49 @@ package intent
 	}
 
 	pitfalls?: [...string]
+
+	// Codebase context for AI to understand existing patterns
+	codebase?: #CodebaseContext
+}
+
+// Codebase context schema for existing project patterns
+#CodebaseContext: {
+	// Common patterns in the codebase
+	patterns?: {
+		error_handling?: string
+		auth_middleware?: string
+		validation?: string
+		testing?: string
+	}
+
+	// Technology stack
+	stack?: {
+		language?: string
+		framework?: string
+		database?: string
+		orm?: string
+		testing?: string
+	}
+
+	// Entry points into the codebase
+	entry_points?: [...#EntryPoint]
+
+	// Architectural boundaries
+	boundaries?: [...#Boundary]
+}
+
+// Entry point definition
+#EntryPoint: {
+	name: string
+	path: string
+	description?: string
+}
+
+// Architectural boundary
+#Boundary: {
+	name: string
+	description?: string
+	modules?: [...string]
 }
 
 #EntityHint: {
@@ -178,4 +221,38 @@ package intent
 	validation?:  string
 	example?:     string
 	sensitive?:   bool | *false
+}
+
+// =============================================================================
+// Light Spec - Minimal spec schema for simple tasks
+// =============================================================================
+
+// Simplified behavior for light specs (HTTP/API focused)
+// No requires, tags, captures, or notes - just the essentials
+#LightBehavior: {
+	name:   #Identifier
+	intent: string // Plain English purpose (the "why")
+
+	request: {
+		method: #Method
+		path:   string
+		body?:  _
+	}
+
+	response: {
+		status:  int & >=100 & <=599
+		checks?: #Checks
+	}
+}
+
+// Minimal spec for simple tasks
+// No config block required, no rules required
+#LightSpec: {
+	name:        string
+	description: string
+	behaviors: [#LightBehavior, ...#LightBehavior] // At least one behavior required
+
+	// Optional fields
+	anti_patterns?: [...#AntiPattern]
+	ai_hints?:      #AIHints
 }

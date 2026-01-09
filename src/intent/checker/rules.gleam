@@ -1,5 +1,4 @@
 /// Rule evaluation - evaluates validation rules against JSON values
-
 import gleam/dict
 import gleam/dynamic
 import gleam/float
@@ -126,8 +125,7 @@ fn check_equals_json(value: Json, expected: Json) -> Result(Nil, String) {
   let expected_str = json.to_string(expected)
   case actual_str == expected_str {
     True -> Ok(Nil)
-    False ->
-      Error("Expected " <> expected_str <> " but got " <> actual_str)
+    False -> Error("Expected " <> expected_str <> " but got " <> actual_str)
   }
 }
 
@@ -228,7 +226,10 @@ fn check_is_array(value: Json) -> Result(Nil, String) {
 
 fn check_is_object(value: Json) -> Result(Nil, String) {
   case
-    json.decode(json.to_string(value), dynamic.dict(dynamic.string, dynamic.dynamic))
+    json.decode(
+      json.to_string(value),
+      dynamic.dict(dynamic.string, dynamic.dynamic),
+    )
   {
     Ok(_) -> Ok(Nil)
     Error(_) -> Error("Expected object but got " <> json.to_string(value))
@@ -261,7 +262,13 @@ fn check_string_matching(value: Json, pattern: String) -> Result(Nil, String) {
           case regexp.check(re, s) {
             True -> Ok(Nil)
             False ->
-              Error("String '" <> s <> "' does not match pattern /" <> pattern <> "/")
+              Error(
+                "String '"
+                <> s
+                <> "' does not match pattern /"
+                <> pattern
+                <> "/",
+              )
           }
         Error(_) -> Error("Invalid regex pattern: " <> pattern)
       }
@@ -357,9 +364,7 @@ fn check_valid_jwt(value: Json) -> Result(Nil, String) {
         }
         _ ->
           Error(
-            "'"
-            <> s
-            <> "' is not a valid JWT (expected 3 dot-separated parts)",
+            "'" <> s <> "' is not a valid JWT (expected 3 dot-separated parts)",
           )
       }
     }
@@ -473,7 +478,11 @@ fn check_integer_lt(value: Json, n: Int) -> Result(Nil, String) {
   }
 }
 
-fn check_integer_between(value: Json, low: Int, high: Int) -> Result(Nil, String) {
+fn check_integer_between(
+  value: Json,
+  low: Int,
+  high: Int,
+) -> Result(Nil, String) {
   case json.decode(json.to_string(value), dynamic.int) {
     Ok(actual) ->
       case actual >= low && actual <= high {
@@ -635,11 +644,7 @@ fn check_string_contains_json(
         True -> Ok(Nil)
         False ->
           Error(
-            "String '"
-            <> s
-            <> "' does not contain '"
-            <> expected_str
-            <> "'",
+            "String '" <> s <> "' does not contain '" <> expected_str <> "'",
           )
       }
     }
@@ -701,10 +706,7 @@ fn check_array_where_each(
         [] -> Ok(Nil)
         [#(idx, msg), ..] ->
           Error(
-            "Array item at index "
-            <> int.to_string(idx)
-            <> " failed: "
-            <> msg,
+            "Array item at index " <> int.to_string(idx) <> " failed: " <> msg,
           )
       }
     }
