@@ -1,1 +1,0 @@
--record(naming_convention, {behavior :: binary(), suggestion :: binary()}).

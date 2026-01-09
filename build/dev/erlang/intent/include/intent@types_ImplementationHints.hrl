@@ -1,1 +1,0 @@
--record(implementation_hints, {suggested_stack :: list(binary())}).

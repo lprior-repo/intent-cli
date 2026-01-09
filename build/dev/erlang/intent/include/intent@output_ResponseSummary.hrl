@@ -1,1 +1,0 @@
--record(response_summary, {status :: integer(), body :: gleam@json:json()}).

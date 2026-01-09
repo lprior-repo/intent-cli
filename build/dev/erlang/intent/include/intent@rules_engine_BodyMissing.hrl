@@ -1,1 +1,0 @@
--record(body_missing, {required :: binary()}).
