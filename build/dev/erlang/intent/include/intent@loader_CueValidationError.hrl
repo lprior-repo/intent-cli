@@ -1,0 +1,1 @@
+-record(cue_validation_error, {message :: binary()}).

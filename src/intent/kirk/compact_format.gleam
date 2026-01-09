@@ -6,8 +6,9 @@ import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
-// Option not needed - all fields are required
+import gleam/option.{None, Some}
 import gleam/string
+import gleam/string_tree
 import intent/types.{
   type Spec, type Feature, type Behavior, type Request, type Response, type Check,
   type Rule, type AntiPattern, type Method,
@@ -162,40 +163,42 @@ fn behavior_to_compact(b: Behavior) -> CompactBehavior {
   )
 }
 
-fn body_to_compact(body: json.Json) -> String {
-  let str = json.to_string(body)
-  case str {
-    "null" -> ""
-    _ -> " " <> str
+fn body_to_compact(body: option.Option(json.Json)) -> String {
+  case body {
+    None -> ""
+    Some(j) -> " " <> json.to_string(j)
   }
 }
 
 fn rule_to_compact(r: Rule) -> CompactRule {
-  // Build when string from When type fields (all required)
-  let status_part = case string.is_empty(r.when.status) {
-    True -> ""
-    False -> "status" <> r.when.status
-  }
-  let method_part = types.method_to_string(r.when.method)
-  let path_part = case string.is_empty(r.when.path) {
-    True -> ""
-    False -> "path:" <> r.when.path
-  }
-  let when_str = [status_part, method_part, path_part]
-    |> list.filter(fn(s) { !string.is_empty(s) })
-    |> string.join(",")
-  let when_str = case string.is_empty(when_str) {
-    True -> "*"
-    False -> when_str
+  let when_str = case r.when {
+    None -> "*"
+    Some(w) -> {
+      let status_part = case w.status {
+        Some(s) -> "status" <> s
+        None -> ""
+      }
+      let method_part = case w.method {
+        Some(m) -> types.method_to_string(m)
+        None -> ""
+      }
+      let path_part = case w.path {
+        Some(p) -> "path:" <> p
+        None -> ""
+      }
+      [status_part, method_part, path_part]
+      |> list.filter(fn(s) { !string.is_empty(s) })
+      |> string.join(",")
+    }
   }
 
   CompactRule(
     name: r.name,
     when: when_str,
-    must_not_contain: r.check.body_must_not_contain,
-    must_contain: r.check.body_must_contain,
-    fields_must_exist: r.check.fields_must_exist,
-    fields_must_not_exist: r.check.fields_must_not_exist,
+    must_not_contain: option.unwrap(r.check.body_must_not_contain, []),
+    must_contain: option.unwrap(r.check.body_must_contain, []),
+    fields_must_exist: option.unwrap(r.check.fields_must_exist, []),
+    fields_must_not_exist: option.unwrap(r.check.fields_must_not_exist, []),
   )
 }
 
@@ -507,11 +510,10 @@ fn method_to_proto_enum(m: Method) -> String {
   }
 }
 
-fn format_body_proto(body: json.Json) -> String {
-  let str = json.to_string(body)
-  case str {
-    "null" -> ""
-    _ -> "        body: \"" <> escape_string(str) <> "\"\n"
+fn format_body_proto(body: option.Option(json.Json)) -> String {
+  case body {
+    None -> ""
+    Some(j) -> "        body: \"" <> escape_string(json.to_string(j)) <> "\"\n"
   }
 }
 

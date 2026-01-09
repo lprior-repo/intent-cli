@@ -1,0 +1,1 @@
+-record(rule_passed, {rule_name :: binary()}).

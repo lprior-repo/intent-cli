@@ -11,7 +11,6 @@ import intent/case_insensitive.{contains_any_ignore_case}
 import intent/interview.{type InterviewSession, type Profile}
 
 /// A single work item (bead) record
-/// Extended with AI-friendly format: input_example, output_example, must_return, must_not, edge_cases
 pub type BeadRecord {
   BeadRecord(
     title: String,
@@ -23,43 +22,6 @@ pub type BeadRecord {
     ai_hints: String,
     acceptance_criteria: List(String),
     dependencies: List(String),
-    // Simplified AI-friendly format (BEAD-FORMAT)
-    input_example: String,
-    output_example: String,
-    must_return: List(String),
-    must_not: List(String),
-    edge_cases: List(String),
-  )
-}
-
-/// Create a basic BeadRecord with default empty AI-friendly fields
-/// Used for backward compatibility and tests
-pub fn new_bead(
-  title title: String,
-  description description: String,
-  profile_type profile_type: String,
-  priority priority: Int,
-  issue_type issue_type: String,
-  labels labels: List(String),
-  ai_hints ai_hints: String,
-  acceptance_criteria acceptance_criteria: List(String),
-  dependencies dependencies: List(String),
-) -> BeadRecord {
-  BeadRecord(
-    title: title,
-    description: description,
-    profile_type: profile_type,
-    priority: priority,
-    issue_type: issue_type,
-    labels: labels,
-    ai_hints: ai_hints,
-    acceptance_criteria: acceptance_criteria,
-    dependencies: dependencies,
-    input_example: "",
-    output_example: "",
-    must_return: [],
-    must_not: [],
-    edge_cases: [],
   )
 }
 
@@ -99,12 +61,6 @@ fn generate_api_beads(session: InterviewSession, profile: String) -> List(BeadRe
         "Documentation added",
       ],
       dependencies: [],
-      // AI-friendly format
-      input_example: "GET /resource/123 with Authorization: Bearer token",
-      output_example: "{\"id\": 123, \"name\": \"example\", \"status\": \"active\"}",
-      must_return: ["200 OK for valid requests", "JSON body with resource data"],
-      must_not: ["Return 500 for validation errors", "Expose internal error details"],
-      edge_cases: ["Invalid ID format", "Missing auth header", "Expired token", "Resource not found"],
     )
   })
 }
@@ -131,12 +87,6 @@ fn generate_cli_beads(session: InterviewSession, profile: String) -> List(BeadRe
         "Error messages are helpful",
       ],
       dependencies: [],
-      // AI-friendly format
-      input_example: "mycli process --input data.json --output result.txt",
-      output_example: "Processing complete. Wrote 42 records to result.txt",
-      must_return: ["Exit code 0 on success", "Clear success message"],
-      must_not: ["Exit 0 on failure", "Print stack traces in production"],
-      edge_cases: ["Missing required args", "Invalid file path", "Permission denied", "Empty input"],
     )
   })
 }
@@ -163,12 +113,6 @@ fn generate_event_beads(session: InterviewSession, profile: String) -> List(Bead
         "Event routing working",
       ],
       dependencies: [],
-      // AI-friendly format
-      input_example: "{\"user_id\": \"u123\", \"action\": \"created\", \"timestamp\": \"2026-01-09T12:00:00Z\"}",
-      output_example: "Event published to topic: user.created with correlation_id: abc-123",
-      must_return: ["Event with valid schema", "Unique correlation_id"],
-      must_not: ["Emit event without required fields", "Block on publish failure"],
-      edge_cases: ["Duplicate event detection", "Consumer offline", "Schema version mismatch"],
     )
   })
 }
@@ -195,12 +139,6 @@ fn generate_data_beads(session: InterviewSession, profile: String) -> List(BeadR
         "Tests cover all fields",
       ],
       dependencies: [],
-      // AI-friendly format
-      input_example: "{\"name\": \"John\", \"email\": \"john@example.com\", \"age\": 30}",
-      output_example: "User{id: 1, name: \"John\", email: \"john@example.com\", age: 30, created_at: ...}",
-      must_return: ["All required fields populated", "Auto-generated ID and timestamps"],
-      must_not: ["Allow null for required fields", "Store unvalidated data"],
-      edge_cases: ["Duplicate unique key", "Max field length exceeded", "Invalid foreign key"],
     )
   })
 }
@@ -227,12 +165,6 @@ fn generate_workflow_beads(session: InterviewSession, profile: String) -> List(B
         "Monitoring/logging implemented",
       ],
       dependencies: [],
-      // AI-friendly format
-      input_example: "{\"order_id\": \"ord-123\", \"action\": \"approve\", \"approver\": \"user-456\"}",
-      output_example: "{\"order_id\": \"ord-123\", \"status\": \"approved\", \"next_step\": \"ship\"}",
-      must_return: ["Updated workflow state", "Next step indication"],
-      must_not: ["Skip required approval steps", "Allow invalid state transitions"],
-      edge_cases: ["Timeout waiting for approval", "Concurrent modifications", "Rollback on failure"],
     )
   })
 }
@@ -259,12 +191,6 @@ fn generate_ui_beads(session: InterviewSession, profile: String) -> List(BeadRec
         "User testing completed",
       ],
       dependencies: [],
-      // AI-friendly format
-      input_example: "User clicks 'Add to Cart' button on product page",
-      output_example: "Cart counter increments, toast shows 'Added to cart', button state changes",
-      must_return: ["Visual feedback within 100ms", "Updated cart state"],
-      must_not: ["Block UI during API call", "Allow double-click duplicate adds"],
-      edge_cases: ["Slow network", "Item out of stock", "Session expired", "Mobile landscape"],
     )
   })
 }
@@ -290,12 +216,6 @@ pub fn bead_to_jsonl_line(bead: BeadRecord) -> String {
       "dependencies",
       json.array(bead.dependencies, json.string),
     ),
-    // AI-friendly format fields (BEAD-FORMAT)
-    #("input_example", json.string(bead.input_example)),
-    #("output_example", json.string(bead.output_example)),
-    #("must_return", json.array(bead.must_return, json.string)),
-    #("must_not", json.array(bead.must_not, json.string)),
-    #("edge_cases", json.array(bead.edge_cases, json.string)),
   ]
 
   json.object(json_list)
@@ -378,61 +298,4 @@ pub fn bead_stats(beads: List(BeadRecord)) -> BeadStats {
   })
 
   BeadStats(total: total, by_type: by_type, by_priority: by_priority)
-}
-
-/// Format a single bead for progressive preview display
-/// Shows a condensed single-line view of the bead
-pub fn format_bead_preview(bead: BeadRecord) -> String {
-  let type_badge = case bead.issue_type {
-    "api_endpoint" -> "[API]"
-    "cli_command" -> "[CLI]"
-    "event" -> "[EVT]"
-    "data_model" -> "[DAT]"
-    "workflow" -> "[WFL]"
-    "ui_screen" -> "[UI]"
-    _ -> "[???]"
-  }
-
-  // Truncate description to 50 chars
-  let desc = case string.length(bead.description) > 50 {
-    True -> string.slice(bead.description, 0, 47) <> "..."
-    False -> bead.description
-  }
-
-  type_badge <> " " <> bead.title <> ": " <> desc
-}
-
-/// Format beads for progressive preview during interview
-/// Shows what beads would be generated based on current answers
-pub fn format_progressive_preview(beads: List(BeadRecord), round: Int) -> String {
-  case beads {
-    [] -> ""
-    _ -> {
-      let count = list.length(beads)
-      let header = case round {
-        1 -> "BEAD PREVIEW (rough outline based on Round 1):"
-        2 -> "BEAD PREVIEW (refined with scope from Round 2):"
-        3 -> "BEAD PREVIEW (error cases added from Round 3):"
-        4 -> "BEAD PREVIEW (security hardened from Round 4):"
-        5 -> "BEAD PREVIEW (production-ready from Round 5):"
-        _ -> "BEAD PREVIEW:"
-      }
-
-      let bead_lines = beads
-        |> list.take(5)  // Only show first 5 in preview
-        |> list.map(fn(b) { "  • " <> format_bead_preview(b) })
-        |> string.join("\n")
-
-      let more_indicator = case count > 5 {
-        True -> "\n  ... and " <> int.to_string(count - 5) <> " more"
-        False -> ""
-      }
-
-      "\n┌─────────────────────────────────────────────────────────────────┐\n" <>
-      "│ " <> header <> "\n" <>
-      "├─────────────────────────────────────────────────────────────────┤\n" <>
-      bead_lines <> more_indicator <> "\n" <>
-      "└─────────────────────────────────────────────────────────────────┘\n"
-    }
-  }
 }

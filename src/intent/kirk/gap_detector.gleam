@@ -5,6 +5,7 @@
 import gleam/dict
 import gleam/int
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
 import intent/types.{type Spec, type Behavior}
 
@@ -158,8 +159,8 @@ fn find_inversion_gaps(behaviors: List(Behavior), spec: Spec) -> List(Gap) {
     _ -> int.to_float(error_behaviors) /. int.to_float(total_behaviors)
   }
 
-  let gaps = case ratio <. 0.2 {
-    True ->
+  let gaps = case ratio {
+    r if r < 0.2 ->
       [Gap(
         gap_type: InversionGap,
         description: "Only " <> int.to_string(error_behaviors) <> " of " <> int.to_string(total_behaviors) <> " behaviors test error cases",
@@ -167,7 +168,7 @@ fn find_inversion_gaps(behaviors: List(Behavior), spec: Spec) -> List(Gap) {
         suggestion: "Add more error case behaviors (aim for 30%+ coverage)",
         mental_model: "Inversion",
       )]
-    False -> []
+    _ -> []
   }
 
   // Check anti-patterns
@@ -209,6 +210,8 @@ fn find_second_order_gaps(behaviors: List(Behavior)) -> List(Gap) {
     })
 
   // Check if mutations have follow-up verification behaviors
+  let behavior_names = behaviors |> list.map(fn(b) { b.name })
+
   mutations
   |> list.filter_map(fn(m) {
     // Look for behaviors that depend on this mutation
@@ -217,11 +220,11 @@ fn find_second_order_gaps(behaviors: List(Behavior)) -> List(Gap) {
       |> list.any(fn(b) { list.contains(b.requires, m.name) })
 
     case has_dependent {
-      True -> Error(Nil)
+      True -> None
       False ->
         case m.request.method {
           types.Delete ->
-            Ok(Gap(
+            Some(Gap(
               gap_type: SecondOrderGap,
               description: "Delete '" <> m.name <> "' has no verification behavior",
               severity: Medium,
@@ -229,14 +232,14 @@ fn find_second_order_gaps(behaviors: List(Behavior)) -> List(Gap) {
               mental_model: "Second-Order Thinking",
             ))
           types.Post ->
-            Ok(Gap(
+            Some(Gap(
               gap_type: SecondOrderGap,
               description: "Create '" <> m.name <> "' has no follow-up behavior",
               severity: Low,
               suggestion: "Add behavior to verify created resource can be retrieved",
               mental_model: "Second-Order Thinking",
             ))
-          _ -> Error(Nil)
+          _ -> None
         }
     }
   })
@@ -267,8 +270,8 @@ fn find_checklist_gaps(behaviors: List(Behavior)) -> List(Gap) {
         string.contains(method_pattern, m)
       })
       case has_method {
-        True -> Error(Nil)
-        False -> Ok(Gap(
+        True -> None
+        False -> Some(Gap(
           gap_type: ChecklistGap,
           description: message,
           severity: Medium,
@@ -284,22 +287,21 @@ fn find_checklist_gaps(behaviors: List(Behavior)) -> List(Gap) {
     |> list.filter_map(fn(item) {
       let #(status, message) = item
       case list.contains(statuses, status) {
-        True -> Error(Nil)
-        False -> {
+        True -> None
+        False ->
           // Only flag important error codes as high severity
           let severity = case status {
             400 | 401 | 404 -> High
             403 | 409 -> Medium
             _ -> Low
           }
-          Ok(Gap(
+          Some(Gap(
             gap_type: ChecklistGap,
             description: message <> " (status " <> int.to_string(status) <> ")",
             severity: severity,
             suggestion: "Add behavior that expects " <> int.to_string(status) <> " status",
             mental_model: "Checklist",
           ))
-        }
       }
     })
 
@@ -378,21 +380,20 @@ fn find_security_gaps(spec: Spec) -> List(Gap) {
       string.contains(combined, kw)
     })
     case is_covered {
-      True -> Error(Nil)
-      False -> {
+      True -> None
+      False ->
         let severity = case category {
           "authentication" | "authorization" -> Critical
           "sensitive-data" -> High
           _ -> Medium
         }
-        Ok(Gap(
+        Some(Gap(
           gap_type: SecurityGap,
           description: "No testing for " <> category,
           severity: severity,
           suggestion: "Add behaviors or rules to test " <> category,
           mental_model: "Security Checklist",
         ))
-      }
     }
   })
 }

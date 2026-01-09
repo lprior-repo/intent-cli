@@ -5,17 +5,12 @@ import gleam/dynamic.{type DecodeError, type Dynamic}
 import gleam/json.{type Json}
 import gleam/list
 import gleam/result
-import gleam/option.{None, Some}
 import intent/types.{
-  type AIHints, type AntiPattern, type Behavior, type Boundary, type Check,
-  type CodebaseContext, type CodebasePatterns, type CodebaseStack, type Config,
-  type EntityHint, type EntryPoint, type Feature, type ImplementationHints,
-  type LightBehavior, type LightRequest, type LightResponse, type LightSpec,
-  type Method, type Request, type Response, type Rule, type RuleCheck,
-  type SecurityHints, type Spec, type When, AIHints, AntiPattern, Behavior,
-  Boundary, Check, CodebaseContext, CodebasePatterns, CodebaseStack, Config,
-  Delete, EntityHint, EntryPoint, Feature, Get, Head, ImplementationHints,
-  LightBehavior, LightRequest, LightResponse, LightSpec, Options, Patch, Post,
+  type AIHints, type AntiPattern, type Behavior, type Check, type Config,
+  type EntityHint, type Feature, type ImplementationHints, type Method,
+  type Request, type Response, type Rule, type RuleCheck, type SecurityHints,
+  type Spec, type When, AIHints, AntiPattern, Behavior, Check, Config, Delete,
+  EntityHint, Feature, Get, Head, ImplementationHints, Options, Patch, Post,
   Put, Request, Response, Rule, RuleCheck, SecurityHints, Spec, When,
 }
 
@@ -301,14 +296,7 @@ fn parse_ai_hints(data: Dynamic) -> Result(AIHints, List(DecodeError)) {
   use pitfalls <- result.try(
     dynamic.field("pitfalls", dynamic.list(dynamic.string))(data)
   )
-
-  // Codebase context is optional
-  let codebase = case dynamic.field("codebase", parse_codebase_context)(data) {
-    Ok(ctx) -> Some(ctx)
-    Error(_) -> None
-  }
-
-  Ok(AIHints(implementation, entities, security, pitfalls, codebase))
+  Ok(AIHints(implementation, entities, security, pitfalls))
 }
 
 fn parse_implementation_hints(
@@ -347,208 +335,4 @@ fn parse_security_hints(
     dynamic.field("rate_limiting", dynamic.string)(data)
   )
   Ok(SecurityHints(password_hashing, jwt_algorithm, jwt_expiry, rate_limiting))
-}
-
-// =============================================================================
-// Codebase Context Parsing
-// =============================================================================
-
-fn parse_codebase_context(
-  data: Dynamic,
-) -> Result(CodebaseContext, List(DecodeError)) {
-  // All fields in codebase context are optional
-  let patterns = case dynamic.field("patterns", parse_codebase_patterns)(data) {
-    Ok(p) -> Some(p)
-    Error(_) -> None
-  }
-
-  let stack = case dynamic.field("stack", parse_codebase_stack)(data) {
-    Ok(s) -> Some(s)
-    Error(_) -> None
-  }
-
-  let entry_points =
-    dynamic.field("entry_points", dynamic.list(parse_entry_point))(data)
-    |> result.unwrap([])
-
-  let boundaries =
-    dynamic.field("boundaries", dynamic.list(parse_boundary))(data)
-    |> result.unwrap([])
-
-  Ok(CodebaseContext(
-    patterns: patterns,
-    stack: stack,
-    entry_points: entry_points,
-    boundaries: boundaries,
-  ))
-}
-
-fn parse_codebase_patterns(
-  data: Dynamic,
-) -> Result(CodebasePatterns, List(DecodeError)) {
-  // All pattern fields default to empty string if not present
-  let error_handling =
-    dynamic.field("error_handling", dynamic.string)(data)
-    |> result.unwrap("")
-  let auth_middleware =
-    dynamic.field("auth_middleware", dynamic.string)(data)
-    |> result.unwrap("")
-  let validation =
-    dynamic.field("validation", dynamic.string)(data)
-    |> result.unwrap("")
-  let testing =
-    dynamic.field("testing", dynamic.string)(data)
-    |> result.unwrap("")
-
-  Ok(CodebasePatterns(
-    error_handling: error_handling,
-    auth_middleware: auth_middleware,
-    validation: validation,
-    testing: testing,
-  ))
-}
-
-fn parse_codebase_stack(
-  data: Dynamic,
-) -> Result(CodebaseStack, List(DecodeError)) {
-  // All stack fields default to empty string if not present
-  let language =
-    dynamic.field("language", dynamic.string)(data)
-    |> result.unwrap("")
-  let framework =
-    dynamic.field("framework", dynamic.string)(data)
-    |> result.unwrap("")
-  let database =
-    dynamic.field("database", dynamic.string)(data)
-    |> result.unwrap("")
-  let orm =
-    dynamic.field("orm", dynamic.string)(data)
-    |> result.unwrap("")
-  let testing =
-    dynamic.field("testing", dynamic.string)(data)
-    |> result.unwrap("")
-
-  Ok(CodebaseStack(
-    language: language,
-    framework: framework,
-    database: database,
-    orm: orm,
-    testing: testing,
-  ))
-}
-
-fn parse_entry_point(data: Dynamic) -> Result(EntryPoint, List(DecodeError)) {
-  use name <- result.try(dynamic.field("name", dynamic.string)(data))
-  use path <- result.try(dynamic.field("path", dynamic.string)(data))
-  let description =
-    dynamic.field("description", dynamic.string)(data)
-    |> result.unwrap("")
-
-  Ok(EntryPoint(name: name, path: path, description: description))
-}
-
-fn parse_boundary(data: Dynamic) -> Result(Boundary, List(DecodeError)) {
-  use name <- result.try(dynamic.field("name", dynamic.string)(data))
-  let description =
-    dynamic.field("description", dynamic.string)(data)
-    |> result.unwrap("")
-  let modules =
-    dynamic.field("modules", dynamic.list(dynamic.string))(data)
-    |> result.unwrap([])
-
-  Ok(Boundary(name: name, description: description, modules: modules))
-}
-
-// =============================================================================
-// Light Spec Parsing - Minimal spec for simple tasks
-// =============================================================================
-
-/// Parse a light spec from a JSON value
-/// Detect light spec by absence of config/rules/features blocks
-pub fn parse_light_spec(data: Dynamic) -> Result(LightSpec, List(DecodeError)) {
-  use name <- result.try(dynamic.field("name", dynamic.string)(data))
-  use description <- result.try(dynamic.field("description", dynamic.string)(
-    data,
-  ))
-  use behaviors <- result.try(
-    dynamic.field("behaviors", dynamic.list(parse_light_behavior))(data)
-  )
-
-  // Optional fields - use empty list / None if not present
-  let anti_patterns =
-    dynamic.field("anti_patterns", dynamic.list(parse_anti_pattern))(data)
-    |> result.unwrap([])
-
-  let ai_hints = case dynamic.field("ai_hints", parse_ai_hints)(data) {
-    Ok(hints) -> Some(hints)
-    Error(_) -> None
-  }
-
-  Ok(LightSpec(
-    name: name,
-    description: description,
-    behaviors: behaviors,
-    anti_patterns: anti_patterns,
-    ai_hints: ai_hints,
-  ))
-}
-
-/// Parse a light behavior from JSON
-fn parse_light_behavior(
-  data: Dynamic,
-) -> Result(LightBehavior, List(DecodeError)) {
-  use name <- result.try(dynamic.field("name", dynamic.string)(data))
-  use intent <- result.try(dynamic.field("intent", dynamic.string)(data))
-  use request <- result.try(dynamic.field("request", parse_light_request)(data))
-  use response <- result.try(
-    dynamic.field("response", parse_light_response)(data)
-  )
-
-  Ok(LightBehavior(name: name, intent: intent, request: request, response: response))
-}
-
-/// Parse a light request from JSON
-fn parse_light_request(data: Dynamic) -> Result(LightRequest, List(DecodeError)) {
-  use method <- result.try(dynamic.field("method", parse_method)(data))
-  use path <- result.try(dynamic.field("path", dynamic.string)(data))
-
-  // Body is optional for light requests
-  let body =
-    dynamic.field("body", parse_json_value)(data)
-    |> result.unwrap(json.null())
-
-  Ok(LightRequest(method: method, path: path, body: body))
-}
-
-/// Parse a light response from JSON
-fn parse_light_response(
-  data: Dynamic,
-) -> Result(LightResponse, List(DecodeError)) {
-  use status <- result.try(dynamic.field("status", dynamic.int)(data))
-
-  // Checks are optional for light responses
-  let checks =
-    dynamic.field("checks", parse_checks)(data)
-    |> result.unwrap(dict.new())
-
-  Ok(LightResponse(status: status, checks: checks))
-}
-
-/// Detect whether JSON data represents a light spec or full spec
-/// Light specs have behaviors directly at top level, no config/features/rules
-pub fn is_light_spec(data: Dynamic) -> Bool {
-  // Light spec: has "behaviors" at top level, no "config" or "features"
-  let has_behaviors =
-    dynamic.field("behaviors", dynamic.list(dynamic.dynamic))(data)
-    |> result.is_ok
-
-  let has_config =
-    dynamic.field("config", dynamic.dynamic)(data)
-    |> result.is_ok
-
-  let has_features =
-    dynamic.field("features", dynamic.list(dynamic.dynamic))(data)
-    |> result.is_ok
-
-  has_behaviors && !has_config && !has_features
 }

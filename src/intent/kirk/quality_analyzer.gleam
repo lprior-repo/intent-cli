@@ -2,13 +2,13 @@
 // Calculates quality scores across multiple dimensions
 // Based on empirical research from requirements engineering studies
 
-import gleam/dict
+import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
-import gleam/json
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
-import intent/types.{type Spec, type Behavior, type Check}
+import intent/types.{type Spec, type Feature, type Behavior, type Check, type Rule, type AntiPattern}
 
 // =============================================================================
 // TYPES
@@ -38,7 +38,7 @@ pub type QualityIssue {
 pub type Severity {
   Info
   Warning
-  SevError
+  Error
   Critical
 }
 
@@ -210,8 +210,8 @@ fn find_path_conflicts(behaviors: List(Behavior)) -> List(String) {
       |> list.map(fn(b) { b.response.status })
       |> list.unique()
     case list.length(statuses) > 1 {
-      True -> Ok("Multiple status expectations for " <> key)
-      False -> Error(Nil)
+      True -> Some("Multiple status expectations for " <> key)
+      False -> None
     }
   })
 }
@@ -333,8 +333,14 @@ fn evaluate_security_coverage(spec: Spec) -> Float {
   let security_rules =
     spec.rules
     |> list.filter(fn(r) {
-      let body_not_contain = r.check.body_must_not_contain != []
-      let fields_not_exist = r.check.fields_must_not_exist != []
+      let body_not_contain = case r.check.body_must_not_contain {
+        Some(items) -> list.length(items) > 0
+        None -> False
+      }
+      let fields_not_exist = case r.check.fields_must_not_exist {
+        Some(items) -> list.length(items) > 0
+        None -> False
+      }
       body_not_contain || fields_not_exist
     })
     |> list.length()
@@ -385,12 +391,12 @@ fn find_missing_why_issues(spec: Spec) -> List(QualityIssue) {
         let #(field, check) = pair
         case string.is_empty(check.why) {
           True ->
-            Ok(QualityIssue(
+            Some(QualityIssue(
               field: b.name <> ".checks." <> field <> ".why",
               issue: "Missing explanation (why field)",
               severity: Warning,
             ))
-          False -> Error(Nil)
+          False -> None
         }
       })
     })
@@ -403,12 +409,12 @@ fn find_short_intent_issues(spec: Spec) -> List(QualityIssue) {
   |> list.filter_map(fn(b) {
     case string.length(b.intent) < 10 {
       True ->
-        Ok(QualityIssue(
+        Some(QualityIssue(
           field: b.name <> ".intent",
           issue: "Intent too short (< 10 chars)",
           severity: Warning,
         ))
-      False -> Error(Nil)
+      False -> None
     }
   })
 }
@@ -417,15 +423,14 @@ fn find_missing_example_issues(spec: Spec) -> List(QualityIssue) {
   spec.features
   |> list.flat_map(fn(f) { f.behaviors })
   |> list.filter_map(fn(b) {
-    // response.example is Json type - check if it's null
-    case json.to_string(b.response.example) {
-      "null" ->
-        Ok(QualityIssue(
+    case b.response.example {
+      None ->
+        Some(QualityIssue(
           field: b.name <> ".response.example",
           issue: "Missing response example",
           severity: Info,
         ))
-      _ -> Error(Nil)
+      Some(_) -> None
     }
   })
 }
@@ -436,12 +441,12 @@ fn find_empty_checks_issues(spec: Spec) -> List(QualityIssue) {
   |> list.filter_map(fn(b) {
     case dict.is_empty(b.response.checks) {
       True ->
-        Ok(QualityIssue(
+        Some(QualityIssue(
           field: b.name <> ".response.checks",
           issue: "No response checks defined",
-          severity: SevError,
+          severity: Error,
         ))
-      False -> Error(Nil)
+      False -> None
     }
   })
 }
@@ -594,7 +599,7 @@ fn format_issues(issues: List(QualityIssue)) -> String {
     let icon = case i.severity {
       Info -> "ℹ️ "
       Warning -> "⚠️ "
-      SevError -> "❌"
+      Error -> "❌"
       Critical -> "🚨"
     }
     "  " <> icon <> " " <> i.field <> ": " <> i.issue
@@ -614,7 +619,7 @@ pub fn severity_to_string(s: Severity) -> String {
   case s {
     Info -> "info"
     Warning -> "warning"
-    SevError -> "error"
+    Error -> "error"
     Critical -> "critical"
   }
 }
