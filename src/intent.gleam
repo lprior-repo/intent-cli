@@ -48,7 +48,67 @@ const exit_invalid = 3
 
 const exit_error = 4
 
+/// Known boolean flags that should default to true when used without a value
+const boolean_flags = [
+  "--json", "--verbose", "--quiet", "--dry-run", "--force", "--skip-optional",
+]
+
+/// Normalize arguments to handle bare boolean flags (--json -> --json=true)
+/// and flags with space-separated values (--flag value -> --flag=value)
+fn normalize_args(args: List(String)) -> List(String) {
+  normalize_args_loop(args, [])
+}
+
+fn normalize_args_loop(args: List(String), acc: List(String)) -> List(String) {
+  case args {
+    [] -> list.reverse(acc)
+    [arg, ..rest] -> {
+      case string.starts_with(arg, "--") {
+        True -> {
+          // Check if it already has an = value
+          case string.contains(arg, "=") {
+            True -> normalize_args_loop(rest, [arg, ..acc])
+            False -> {
+              // Check if this is a known boolean flag
+              case list.contains(boolean_flags, arg) {
+                True -> normalize_args_loop(rest, [arg <> "=true", ..acc])
+                False -> {
+                  // Check if next arg is a value (not a flag or subcommand)
+                  case rest {
+                    [next, ..rest2] -> {
+                      case string.starts_with(next, "-") {
+                        True -> normalize_args_loop(rest, [arg, ..acc])
+                        False -> normalize_args_loop(rest2, [arg <> "=" <> next, ..acc])
+                      }
+                    }
+                    [] -> normalize_args_loop(rest, [arg, ..acc])
+                  }
+                }
+              }
+            }
+          }
+        }
+        False -> normalize_args_loop(rest, [arg, ..acc])
+      }
+    }
+  }
+}
+
+/// CLI version - update with each release
+const version = "0.1.0"
+
 pub fn main() {
+  let args = normalize_args(argv.load().arguments)
+
+  // Handle --version and -V before glint
+  case args {
+    ["--version", ..] | ["-V", ..] -> {
+      io.println("intent " <> version)
+      halt(exit_pass)
+    }
+    _ -> Nil
+  }
+
   glint.new()
   |> glint.with_name("intent")
   |> glint.with_pretty_help(glint.default_pretty_help())
@@ -77,7 +137,7 @@ pub fn main() {
   |> glint.add(at: ["plan"], do: plan_command())
   |> glint.add(at: ["plan-approve"], do: plan_approve_command())
   |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
-  |> glint.run(argv.load().arguments)
+  |> glint.run(args)
 }
 
 /// The `check` command - run spec against a target
@@ -126,6 +186,7 @@ fn check_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Run spec against a target URL and verify behaviors")
+  |> glint.named_args(["spec.cue"])
   |> glint.flag("target", flag.string() |> flag.default("") |> flag.description("Target base URL to test against"))
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output results as JSON"))
   |> glint.flag("feature", flag.string() |> flag.default("") |> flag.description("Filter to a specific feature"))
@@ -202,27 +263,65 @@ fn run_check(
 /// The `validate` command - validate CUE spec without running
 fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.validate_cue(spec_path) {
           Ok(_) -> {
-            cli_ui.print_success("Valid spec: " <> spec_path)
+            case is_json {
+              True -> {
+                let json_obj = json.object([
+                  #("valid", json.bool(True)),
+                  #("file", json.string(spec_path)),
+                  #("errors", json.array([], json.string)),
+                ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> cli_ui.print_success("Valid spec: " <> spec_path)
+            }
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error("Invalid spec: " <> loader.format_error(e))
+            case is_json {
+              True -> {
+                let json_obj = json.object([
+                  #("valid", json.bool(False)),
+                  #("file", json.string(spec_path)),
+                  #("errors", json.array([loader.format_error(e)], json.string)),
+                ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> cli_ui.print_error("Invalid spec: " <> loader.format_error(e))
+            }
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
-        io.println("Usage: intent validate <spec.cue>")
+        case is_json {
+          True -> {
+            let json_obj = json.object([
+              #("valid", json.bool(False)),
+              #("file", json.string("")),
+              #("errors", json.array(["spec file path required"], json.string)),
+            ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            cli_ui.print_error("spec file path required")
+            io.println("Usage: intent validate <spec.cue>")
+          }
+        }
         halt(exit_error)
       }
     }
   })
   |> glint.description("Validate a CUE spec file without running tests")
+  |> glint.named_args(["spec.cue"])
+  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -268,6 +367,7 @@ fn show_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Pretty print a parsed spec")
+  |> glint.named_args(["spec.cue"])
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -357,6 +457,7 @@ fn export_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Export spec to JSON format")
+  |> glint.named_args(["spec.cue"])
 }
 
 /// The `lint` command - check for specification anti-patterns
@@ -392,6 +493,7 @@ fn lint_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Check spec for anti-patterns and quality issues")
+  |> glint.named_args(["spec.cue"])
 }
 
 /// The `analyze` command - analyze spec quality
@@ -419,6 +521,7 @@ fn analyze_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Analyze spec quality and provide improvement suggestions")
+  |> glint.named_args(["spec.cue"])
 }
 
 /// The `improve` command - suggest improvements
@@ -454,6 +557,7 @@ fn improve_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Suggest improvements based on quality analysis and linting")
+  |> glint.named_args(["spec.cue"])
 }
 
 /// The `interview` command - guided specification discovery
@@ -938,6 +1042,7 @@ fn beads_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Generate work items (beads) from an interview session")
+  |> glint.named_args(["session_id"])
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
@@ -1067,6 +1172,7 @@ fn plan_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Display execution plan from session beads")
+  |> glint.named_args(["session_id"])
   |> glint.flag("format", flag.string() |> flag.default("human") |> flag.description("Output format: human or json"))
 }
 
@@ -1181,6 +1287,7 @@ fn plan_approve_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Approve execution plan for session")
+  |> glint.named_args(["session_id"])
   |> glint.flag("yes", flag.bool() |> flag.default(False) |> flag.description("Auto-approve for CI (non-interactive)"))
   |> glint.flag("notes", flag.string() |> flag.default("") |> flag.description("Approval notes"))
 }
@@ -1346,6 +1453,7 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Regenerate failed/blocked beads with adjusted approach")
+  |> glint.named_args(["session_id"])
   |> glint.flag("strategy", flag.string() |> flag.default("hybrid") |> flag.description("Regeneration strategy: hybrid, inversion, or premortem"))
 }
 
@@ -1452,6 +1560,7 @@ fn history_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("View snapshot history for an interview session")
+  |> glint.named_args(["session_id"])
 }
 
 /// The `diff` command - compare two sessions
@@ -1523,6 +1632,7 @@ fn diff_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Compare two interview sessions and show differences")
+  |> glint.named_args(["from_session", "to_session"])
 }
 
 /// The `sessions` command - list all interview sessions
@@ -1541,17 +1651,27 @@ fn sessions_command() -> glint.Command(Nil) {
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(_) -> {
         // File doesn't exist yet - treat as empty
-        cli_ui.print_warning("No interview sessions found")
-        io.println("")
-        io.println("Start a new interview with:")
-        io.println("  intent interview --profile api")
+        case is_json {
+          True -> io.println("[]")
+          False -> {
+            cli_ui.print_warning("No interview sessions found")
+            io.println("")
+            io.println("Start a new interview with:")
+            io.println("  intent interview --profile api")
+          }
+        }
         halt(exit_pass)
       }
       Ok([]) -> {
-        cli_ui.print_warning("No interview sessions found")
-        io.println("")
-        io.println("Start a new interview with:")
-        io.println("  intent interview --profile api")
+        case is_json {
+          True -> io.println("[]")
+          False -> {
+            cli_ui.print_warning("No interview sessions found")
+            io.println("")
+            io.println("Start a new interview with:")
+            io.println("  intent interview --profile api")
+          }
+        }
         halt(exit_pass)
       }
       Ok(sessions) -> {
@@ -1675,6 +1795,7 @@ fn kirk_quality_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
+  |> glint.named_args(["spec.cue"])
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1726,6 +1847,7 @@ fn kirk_invert_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Inversion analysis - what failure cases are missing?")
+  |> glint.named_args(["spec.cue"])
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1787,6 +1909,7 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
+  |> glint.named_args(["spec.cue"])
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1838,6 +1961,7 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Detect gaps using mental models")
+  |> glint.named_args(["spec.cue"])
   |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
 }
 
@@ -1895,6 +2019,7 @@ fn kirk_compact_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Convert to Compact Intent Notation (token-efficient)")
+  |> glint.named_args(["spec.cue"])
   |> glint.flag("tokens", flag.bool() |> flag.default(False) |> flag.description("Show token comparison"))
 }
 
@@ -1923,6 +2048,7 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Export to Protobuf text format")
+  |> glint.named_args(["spec.cue"])
 }
 
 /// The `ears` command - KIRK EARS requirements parser
@@ -1954,10 +2080,15 @@ fn kirk_ears_command() -> glint.Command(Nil) {
                 let behaviors = ears_parser.to_behaviors(result)
                 let json_obj = json.object([
                   #("requirements", json.array(result.requirements, fn(r) {
+                    // For Unwanted patterns, system_shall is empty and action is in system_shall_not
+                    let shall_value = case r.system_shall, r.system_shall_not {
+                      "", Some(not_behavior) -> "NOT " <> not_behavior
+                      s, _ -> s
+                    }
                     json.object([
                       #("id", json.string(r.id)),
                       #("pattern", json.string(ears_parser.pattern_to_string(r.pattern))),
-                      #("system_shall", json.string(r.system_shall)),
+                      #("system_shall", json.string(shall_value)),
                       #("raw_text", json.string(r.raw_text)),
                     ])
                   })),
@@ -2017,6 +2148,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
+  |> glint.named_args(["requirements.md"])
   |> glint.flag("output", flag.string() |> flag.default("text") |> flag.description("Output format: text, cue, json"))
   |> glint.flag("out", flag.string() |> flag.default("") |> flag.description("Output file path"))
   |> glint.flag("name", flag.string() |> flag.default("GeneratedSpec") |> flag.description("Spec name for CUE output"))
