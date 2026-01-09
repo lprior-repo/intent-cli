@@ -1,12 +1,17 @@
 /// CUE spec loader - loads and validates CUE files using the cue command
 
+import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
+import gleam/option.{None}
 import gleam/string
 import gleam_community/ansi
 import intent/parser
-import intent/types.{type Spec}
+import intent/types.{
+  type LightSpec, type Spec, AIHints, Behavior, Config, Feature,
+  ImplementationHints, Request, Response, SecurityHints, Spec,
+}
 import shellout
 import simplifile
 import spinner
@@ -18,18 +23,39 @@ pub type LoadError {
   CueExportError(message: String)
   JsonParseError(message: String)
   SpecParseError(message: String)
+  LightSpecParseError(message: String)
 }
 
-/// Load a spec from a CUE file
+/// Load a spec from a CUE file (with spinner UI)
 pub fn load_spec(path: String) -> Result(Spec, LoadError) {
   // First check the file exists
   case simplifile.verify_is_file(path) {
-    Ok(True) -> load_and_parse(path)
+    Ok(True) -> load_and_parse_with_spinner(path)
     _ -> Error(FileNotFound(path))
   }
 }
 
-fn load_and_parse(path: String) -> Result(Spec, LoadError) {
+/// Load a spec from a CUE file without spinner UI
+/// Use this for testing and automation where no UI output is desired
+pub fn load_spec_quiet(path: String) -> Result(Spec, LoadError) {
+  // First check the file exists
+  case simplifile.verify_is_file(path) {
+    Ok(True) -> load_and_parse_impl(path)
+    _ -> Error(FileNotFound(path))
+  }
+}
+
+/// Pure business logic - validates and parses without UI
+/// This is the testable core implementation
+fn load_and_parse_impl(path: String) -> Result(Spec, LoadError) {
+  case validate_cue(path) {
+    Ok(_) -> export_and_parse(path)
+    Error(e) -> Error(e)
+  }
+}
+
+/// Load and parse with spinner UI for interactive use
+fn load_and_parse_with_spinner(path: String) -> Result(Spec, LoadError) {
   // Start spinner for loading
   let sp =
     spinner.new("Validating CUE spec...")
@@ -60,10 +86,16 @@ pub fn validate_cue(path: String) -> Result(Nil, LoadError) {
 }
 
 fn export_and_parse(path: String) -> Result(Spec, LoadError) {
-  // Export CUE to JSON
+  // Try to export as full spec first
   case shellout.command("cue", ["export", path, "-e", "spec"], ".", []) {
     Ok(json_str) -> parse_json_spec(json_str)
-    Error(#(_, stderr)) -> Error(CueExportError(stderr))
+    Error(_) -> {
+      // Try as light_spec
+      case shellout.command("cue", ["export", path, "-e", "light_spec"], ".", []) {
+        Ok(json_str) -> parse_json_light_spec(json_str)
+        Error(#(_, stderr)) -> Error(CueExportError(stderr))
+      }
+    }
   }
 }
 
@@ -81,6 +113,90 @@ fn parse_json_spec(json_str: String) -> Result(Spec, LoadError) {
       }
     Error(e) -> Error(JsonParseError(format_json_error(e)))
   }
+}
+
+fn parse_json_light_spec(json_str: String) -> Result(Spec, LoadError) {
+  case json.decode(json_str, dynamic.dynamic) {
+    Ok(data) ->
+      case parser.parse_light_spec(data) {
+        Ok(light_spec) -> Ok(light_spec_to_spec(light_spec))
+        Error(errors) -> {
+          let msg =
+            errors
+            |> format_decode_errors
+          Error(LightSpecParseError(msg))
+        }
+      }
+    Error(e) -> Error(JsonParseError(format_json_error(e)))
+  }
+}
+
+/// Convert a LightSpec to a full Spec for unified handling
+fn light_spec_to_spec(light: LightSpec) -> Spec {
+  // Convert light behaviors to full behaviors
+  let behaviors =
+    list.map(light.behaviors, fn(lb) {
+      Behavior(
+        name: lb.name,
+        intent: lb.intent,
+        notes: "",
+        requires: [],
+        tags: [],
+        request: Request(
+          method: lb.request.method,
+          path: lb.request.path,
+          headers: dict.new(),
+          query: dict.new(),
+          body: lb.request.body,
+        ),
+        response: Response(
+          status: lb.response.status,
+          example: json.null(),
+          checks: lb.response.checks,
+          headers: dict.new(),
+        ),
+        captures: dict.new(),
+      )
+    })
+
+  // Wrap in a single feature
+  let feature =
+    Feature(
+      name: "default",
+      description: "Behaviors from light spec",
+      behaviors: behaviors,
+    )
+
+  // Build default AI hints
+  let default_ai_hints =
+    AIHints(
+      implementation: ImplementationHints(suggested_stack: []),
+      entities: dict.new(),
+      security: SecurityHints(
+        password_hashing: "",
+        jwt_algorithm: "",
+        jwt_expiry: "",
+        rate_limiting: "",
+      ),
+      pitfalls: [],
+      codebase: None,
+    )
+
+  Spec(
+    name: light.name,
+    description: light.description,
+    audience: "",
+    version: "1.0.0",
+    success_criteria: [],
+    config: Config(base_url: "", timeout_ms: 5000, headers: dict.new()),
+    features: [feature],
+    rules: [],
+    anti_patterns: light.anti_patterns,
+    ai_hints: case light.ai_hints {
+      None -> default_ai_hints
+      option.Some(hints) -> hints
+    },
+  )
 }
 
 fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
@@ -149,5 +265,6 @@ pub fn format_error(error: LoadError) -> String {
     CueExportError(msg) -> "CUE export failed:\n" <> msg
     JsonParseError(msg) -> "JSON parse error: " <> msg
     SpecParseError(msg) -> "Spec parse error: " <> msg
+    LightSpecParseError(msg) -> "Light spec parse error: " <> msg
   }
 }

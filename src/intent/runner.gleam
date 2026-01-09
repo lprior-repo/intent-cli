@@ -13,28 +13,78 @@ import intent/interpolate.{type Context}
 import intent/output.{type SpecResult}
 import intent/resolver.{type ResolvedBehavior}
 import intent/rules_engine
-import intent/types.{type Behavior, type Config, type Spec}
+import intent/types.{type Behavior, type Config, type Request, type Spec}
 import spinner
+
+/// Abstraction for behavior execution - enables dependency injection for testing
+/// This allows tests to mock HTTP responses without making real network requests
+pub type BehaviorExecutor {
+  BehaviorExecutor(
+    execute: fn(Config, Request, Context) -> Result(ExecutionResult, ExecutionError),
+  )
+}
+
+/// Default executor that uses http_client for real HTTP requests
+pub fn default_executor() -> BehaviorExecutor {
+  BehaviorExecutor(execute: http_client.execute_request)
+}
+
+/// Output verbosity level for spec execution
+/// - Quiet: Minimal output, errors only
+/// - Normal: Standard output with pass/fail summary
+/// - Verbose: Detailed output including request/response details
+pub type OutputLevel {
+  Quiet
+  Normal
+  Verbose
+}
 
 /// Options for running the spec
 pub type RunOptions {
   RunOptions(
     feature_filter: Option(String),
     behavior_filter: Option(String),
-    verbose: Bool,
+    output_level: OutputLevel,
   )
 }
 
-/// Default run options
+/// Default run options with Normal output level
 pub fn default_options() -> RunOptions {
-  RunOptions(feature_filter: None, behavior_filter: None, verbose: False)
+  RunOptions(feature_filter: None, behavior_filter: None, output_level: Normal)
 }
 
-/// Run a spec and return the results
+/// Check if output level is verbose
+pub fn is_verbose(options: RunOptions) -> Bool {
+  case options.output_level {
+    Verbose -> True
+    _ -> False
+  }
+}
+
+/// Check if output level is quiet
+pub fn is_quiet(options: RunOptions) -> Bool {
+  case options.output_level {
+    Quiet -> True
+    _ -> False
+  }
+}
+
+/// Run a spec and return the results (uses default HTTP executor)
 pub fn run_spec(
   spec: Spec,
   target_url: String,
   options: RunOptions,
+) -> SpecResult {
+  run_spec_with_executor(spec, target_url, options, default_executor())
+}
+
+/// Run a spec with a custom executor - enables dependency injection for testing
+/// This allows tests to mock HTTP responses without making real network requests
+pub fn run_spec_with_executor(
+  spec: Spec,
+  target_url: String,
+  options: RunOptions,
+  executor: BehaviorExecutor,
 ) -> SpecResult {
   // Override base_url with target if provided
   let config = case string.is_empty(target_url) {
@@ -69,9 +119,9 @@ pub fn run_spec(
         |> spinner.with_colour(ansi.cyan)
         |> spinner.start
 
-      // Execute behaviors in order
+      // Execute behaviors in order with the provided executor
       let #(results, _ctx, _failed_set) =
-        execute_behaviors_with_spinner(filtered, config, spec, set.new(), sp)
+        execute_behaviors_with_spinner(filtered, config, spec, set.new(), sp, executor)
 
       // Stop spinner
       spinner.stop(sp)
@@ -84,13 +134,19 @@ pub fn run_spec(
             _ -> False
           }
         })
+
+      // BUG FIX (intent-cli-clm.3): Count BehaviorError as failures
+      // Previously, BehaviorError was NOT counted, causing pass=True even when
+      // network errors occurred (connection refused, timeout, DNS failure)
       let failed =
         list.count(results, fn(r) {
           case r {
             BehaviorFailed(_, _) -> True
+            BehaviorError(_, _) -> True  // NOW COUNTED AS FAILURE
             _ -> False
           }
         })
+
       let blocked =
         list.count(results, fn(r) {
           case r {
@@ -99,7 +155,9 @@ pub fn run_spec(
           }
         })
 
-      // Collect failures
+      // Collect failures for detailed reporting
+      // Note: BehaviorError (network errors) are counted in `failed` above
+      // but not included here since they lack response data for BehaviorFailure
       let failures =
         list.filter_map(results, fn(r) {
           case r {
@@ -123,6 +181,7 @@ pub fn run_spec(
       // Collect anti-patterns
       let anti_patterns = collect_anti_patterns(results, spec.anti_patterns)
 
+      // BUG FIX: pass is only True when failed == 0 (including errors) AND blocked == 0
       let pass = failed == 0 && blocked == 0
 
       let summary = case pass {
@@ -184,6 +243,7 @@ fn execute_behaviors_with_spinner(
   spec: Spec,
   failed_set: Set(String),
   sp: spinner.Spinner,
+  executor: BehaviorExecutor,
 ) -> #(List(BehaviorResult), Context, Set(String)) {
   list.fold(
     behaviors,
@@ -193,7 +253,7 @@ fn execute_behaviors_with_spinner(
       // Update spinner text with current behavior
       spinner.set_text(sp, "Testing: " <> rb.behavior.name)
       let #(result, new_ctx, new_failed) =
-        execute_single_behavior(rb, config, spec, ctx, failed)
+        execute_single_behavior(rb, config, spec, ctx, failed, executor)
       #([result, ..results], new_ctx, new_failed)
     },
   )
@@ -209,6 +269,7 @@ fn execute_single_behavior(
   _spec: Spec,
   ctx: Context,
   failed_set: Set(String),
+  executor: BehaviorExecutor,
 ) -> #(BehaviorResult, Context, Set(String)) {
   // Check if any dependencies failed
   let blocked_by = list.find(rb.behavior.requires, fn(dep) {
@@ -221,8 +282,8 @@ fn execute_single_behavior(
       #(result, ctx, set.insert(failed_set, rb.behavior.name))
     }
     Error(_) -> {
-      // Execute the request
-      case http_client.execute_request(config, rb.behavior.request, ctx) {
+      // Execute the request using the injected executor
+      case executor.execute(config, rb.behavior.request, ctx) {
         Error(e) -> {
           let result = BehaviorError(rb.behavior.name, e)
           #(result, ctx, set.insert(failed_set, rb.behavior.name))

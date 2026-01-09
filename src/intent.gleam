@@ -18,6 +18,8 @@ import intent/types
 import intent/quality_analyzer
 import intent/spec_linter
 import intent/improver
+import intent/answer_loader
+import intent/bead_feedback
 import intent/interview
 import intent/interview_storage
 import intent/interview_questions
@@ -32,6 +34,7 @@ import intent/kirk/coverage_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/compact_format
 import intent/kirk/ears_parser
+import intent/plan_mode
 import simplifile
 
 /// Exit codes
@@ -58,6 +61,7 @@ pub fn main() {
   |> glint.add(at: ["improve"], do: improve_command())
   |> glint.add(at: ["interview"], do: interview_command())
   |> glint.add(at: ["beads"], do: beads_command())
+  |> glint.add(at: ["bead-status"], do: bead_status_command())
   |> glint.add(at: ["history"], do: history_command())
   |> glint.add(at: ["diff"], do: diff_command())
   |> glint.add(at: ["sessions"], do: sessions_command())
@@ -69,6 +73,10 @@ pub fn main() {
   |> glint.add(at: ["compact"], do: kirk_compact_command())
   |> glint.add(at: ["prototext"], do: kirk_prototext_command())
   |> glint.add(at: ["ears"], do: kirk_ears_command())
+  // Plan commands
+  |> glint.add(at: ["plan"], do: plan_command())
+  |> glint.add(at: ["plan-approve"], do: plan_approve_command())
+  |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -91,9 +99,13 @@ fn check_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "only")
       |> result.unwrap("")
 
-    let is_verbose =
-      flag.get_bool(input.flags, "verbose")
-      |> result.unwrap(False)
+    let output_level = case flag.get_bool(input.flags, "verbose") {
+      Ok(True) -> runner.Verbose
+      _ -> case flag.get_bool(input.flags, "quiet") {
+        Ok(True) -> runner.Quiet
+        _ -> runner.Normal
+      }
+    }
 
     case input.args {
       [spec_path, ..] -> {
@@ -103,7 +115,7 @@ fn check_command() -> glint.Command(Nil) {
           is_json,
           feature_filter,
           only_filter,
-          is_verbose,
+          output_level,
         )
       }
       [] -> {
@@ -119,6 +131,7 @@ fn check_command() -> glint.Command(Nil) {
   |> glint.flag("feature", flag.string() |> flag.default("") |> flag.description("Filter to a specific feature"))
   |> glint.flag("only", flag.string() |> flag.default("") |> flag.description("Run only a specific behavior"))
   |> glint.flag("verbose", flag.bool() |> flag.default(False) |> flag.description("Verbose output"))
+  |> glint.flag("quiet", flag.bool() |> flag.default(False) |> flag.description("Quiet output (errors only)"))
 }
 
 fn run_check(
@@ -127,7 +140,7 @@ fn run_check(
   is_json: Bool,
   feature_filter: String,
   only_filter: String,
-  verbose: Bool,
+  output_level: runner.OutputLevel,
 ) -> Nil {
   // Load the spec
   case loader.load_spec(spec_path) {
@@ -149,7 +162,7 @@ fn run_check(
             "" -> None
             b -> Some(b)
           },
-          verbose: verbose,
+          output_level: output_level,
         )
 
       // Run the spec
@@ -458,20 +471,24 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "export")
       |> result.unwrap("")
 
-    let json_input =
+    let answers_file =
       flag.get_string(input.flags, "answers")
       |> result.unwrap("")
+
+    let strict_mode =
+      flag.get_bool(input.flags, "strict")
+      |> result.unwrap(False)
 
     case resume_id {
       // Resume an existing session
       "" ->
         case string.lowercase(profile_str) {
-          "api" -> run_interview(interview.Api, json_input, export_to)
-          "cli" -> run_interview(interview.Cli, json_input, export_to)
-          "event" -> run_interview(interview.Event, json_input, export_to)
-          "data" -> run_interview(interview.Data, json_input, export_to)
-          "workflow" -> run_interview(interview.Workflow, json_input, export_to)
-          "ui" -> run_interview(interview.UI, json_input, export_to)
+          "api" -> run_interview(interview.Api, answers_file, strict_mode, export_to)
+          "cli" -> run_interview(interview.Cli, answers_file, strict_mode, export_to)
+          "event" -> run_interview(interview.Event, answers_file, strict_mode, export_to)
+          "data" -> run_interview(interview.Data, answers_file, strict_mode, export_to)
+          "workflow" -> run_interview(interview.Workflow, answers_file, strict_mode, export_to)
+          "ui" -> run_interview(interview.UI, answers_file, strict_mode, export_to)
           _ -> {
             io.println_error(
               "Error: unknown profile '" <> profile_str <> "'",
@@ -506,7 +523,13 @@ fn interview_command() -> glint.Command(Nil) {
     "answers",
     flag.string()
     |> flag.default("")
-    |> flag.description("Path to YAML/JSON file with pre-filled answers"),
+    |> flag.description("Path to CUE file with pre-filled answers for non-interactive mode"),
+  )
+  |> glint.flag(
+    "strict",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Strict mode: fail if answers file is missing required answers (requires --answers)"),
   )
   |> glint.flag(
     "export",
@@ -518,7 +541,8 @@ fn interview_command() -> glint.Command(Nil) {
 
 fn run_interview(
   profile: interview.Profile,
-  _json_input: String,
+  answers_file: String,
+  strict_mode: Bool,
   export_to: String,
 ) -> Nil {
   // Initialize session
@@ -526,6 +550,34 @@ fn run_interview(
   let timestamp = current_timestamp()
 
   let session = interview.create_session(session_id, profile, timestamp)
+
+  // Load answers from file if provided
+  let answers_dict = case string.is_empty(answers_file) {
+    True -> option.None
+    False -> {
+      case answer_loader.load_from_file(answers_file) {
+        Ok(dict) -> {
+          io.println("")
+          io.println("✓ Loaded " <> string.inspect(dict.size(dict)) <> " pre-filled answers from: " <> answers_file)
+          option.Some(dict)
+        }
+        Error(err) -> {
+          case strict_mode {
+            True -> {
+              io.println_error("✗ Failed to load answers file: " <> answer_loader_error_to_string(err))
+              halt(exit_error)
+              option.None  // unreachable, but needed for type consistency
+            }
+            False -> {
+              io.println("⚠ Failed to load answers file: " <> answer_loader_error_to_string(err))
+              io.println("  Continuing in interactive mode...")
+              option.None
+            }
+          }
+        }
+      }
+    }
+  }
 
   // Print welcome message
   io.println("")
@@ -535,6 +587,10 @@ fn run_interview(
   io.println("")
   io.println("Profile: " <> profile_to_display_string(profile))
   io.println("Session: " <> session_id)
+  case answers_dict {
+    option.None -> Nil
+    option.Some(_) -> io.println("Mode: Non-interactive (answers from file)")
+  }
   io.println("")
   io.println("This guided interview will help us discover and refine your")
   io.println("specification through structured questioning.")
@@ -882,6 +938,468 @@ fn beads_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Generate work items (beads) from an interview session")
+}
+
+/// Mark a bead with execution status (success/failed/blocked)
+fn bead_status_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let bead_id =
+      flag.get_string(input.flags, "bead-id")
+      |> result.unwrap("")
+
+    let status =
+      flag.get_string(input.flags, "status")
+      |> result.unwrap("")
+
+    let reason =
+      flag.get_string(input.flags, "reason")
+      |> result.unwrap("")
+
+    let session_id =
+      flag.get_string(input.flags, "session")
+      |> result.unwrap("")
+
+    case string.is_empty(bead_id) {
+      True -> {
+        io.println_error("Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]")
+        halt(exit_error)
+      }
+      False -> {
+        case status {
+          "success" -> {
+            case bead_feedback.mark_bead_executed(session_id, bead_id, bead_feedback.Success, reason, 0) {
+              Ok(Nil) -> {
+                io.println("✓ Bead " <> bead_id <> " marked as success")
+                halt(exit_pass)
+              }
+              Error(err) -> {
+                io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                halt(exit_error)
+              }
+            }
+          }
+          "failed" -> {
+            case bead_feedback.mark_bead_failed(session_id, bead_id, reason, "execution_error", "Bead execution failed", option.None, 0) {
+              Ok(Nil) -> {
+                io.println("✓ Bead " <> bead_id <> " marked as failed")
+                halt(exit_pass)
+              }
+              Error(err) -> {
+                io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                halt(exit_error)
+              }
+            }
+          }
+          "blocked" -> {
+            case string.is_empty(reason) {
+              True -> {
+                io.println_error("Error: --status blocked requires --reason")
+                halt(exit_error)
+              }
+              False -> {
+                case bead_feedback.mark_bead_blocked(session_id, bead_id, reason, "user_action", "User blocked this bead", "Manual resume required", 0) {
+                  Ok(Nil) -> {
+                    io.println("✓ Bead " <> bead_id <> " marked as blocked: " <> reason)
+                    halt(exit_pass)
+                  }
+                  Error(err) -> {
+                    io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+          _ -> {
+            io.println_error("Error: invalid status '" <> status <> "'")
+            io.println_error("Valid statuses: success, failed, blocked")
+            halt(exit_error)
+          }
+        }
+      }
+    }
+  })
+  |> glint.description("Mark bead execution status (success/failed/blocked)")
+  |> glint.flag("bead-id", flag.string() |> flag.default("") |> flag.description("Bead ID (required)"))
+  |> glint.flag("status", flag.string() |> flag.default("") |> flag.description("Status: success, failed, or blocked (required)"))
+  |> glint.flag("reason", flag.string() |> flag.default("") |> flag.description("Reason for status (required for blocked)"))
+  |> glint.flag("session", flag.string() |> flag.default("") |> flag.description("Session ID"))
+}
+
+// =============================================================================
+// PLAN COMMANDS
+// =============================================================================
+
+/// The `plan` command - display execution plan for a session
+fn plan_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let format =
+      flag.get_string(input.flags, "format")
+      |> result.unwrap("human")
+
+    case input.args {
+      [session_id, ..] -> {
+        case plan_mode.compute_plan(session_id) {
+          Error(err) -> {
+            io.println_error(plan_mode.format_error(err))
+            halt(exit_error)
+          }
+          Ok(plan) -> {
+            let output = case format {
+              "json" -> plan_mode.format_plan_json(plan)
+              _ -> plan_mode.format_plan_human(plan)
+            }
+            io.println(output)
+            halt(exit_pass)
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Usage: intent plan <session_id> [--format human|json]")
+        io.println_error("")
+        io.println_error("Display execution plan from session beads.")
+        io.println_error("")
+        io.println_error("Examples:")
+        io.println_error("  intent plan abc123              # Human-readable output")
+        io.println_error("  intent plan abc123 --format json  # JSON output")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Display execution plan from session beads")
+  |> glint.flag("format", flag.string() |> flag.default("human") |> flag.description("Output format: human or json"))
+}
+
+/// The `plan-approve` command - approve execution plan for CI/automation
+fn plan_approve_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let auto_approve =
+      flag.get_bool(input.flags, "yes")
+      |> result.unwrap(False)
+
+    let notes =
+      flag.get_string(input.flags, "notes")
+      |> result.unwrap("")
+
+    case input.args {
+      [session_id, ..] -> {
+        // First verify the session exists and has a valid plan
+        case plan_mode.compute_plan(session_id) {
+          Error(err) -> {
+            io.println_error(plan_mode.format_error(err))
+            halt(exit_error)
+          }
+          Ok(plan) -> {
+            // Show plan summary
+            io.println("")
+            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println("                    PLAN APPROVAL")
+            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println("")
+            io.println("Session: " <> plan.session_id)
+            io.println("Total Beads: " <> string.inspect(plan.total_beads))
+            io.println("Total Effort: " <> plan.total_effort)
+            io.println("Risk Level: " <> risk_level_to_string(plan.risk))
+            io.println("Phases: " <> string.inspect(list.length(plan.phases)))
+            io.println("")
+
+            case list.is_empty(plan.blockers) {
+              True -> Nil
+              False -> {
+                io.println("⚠ BLOCKERS:")
+                list.each(plan.blockers, fn(b) { io.println("  • " <> b) })
+                io.println("")
+              }
+            }
+
+            // Auto-approve or prompt
+            case auto_approve {
+              True -> {
+                case approve_plan(session_id, "ci", notes) {
+                  Ok(Nil) -> {
+                    io.println("✓ Plan approved automatically (CI mode)")
+                    halt(exit_pass)
+                  }
+                  Error(err) -> {
+                    io.println_error("✗ Failed to approve plan: " <> err)
+                    halt(exit_error)
+                  }
+                }
+              }
+              False -> {
+                io.println("Approve this plan? (yes/no)")
+                case stdin.read_line() {
+                  Ok(response) -> {
+                    let cleaned = string.trim(string.lowercase(response))
+                    case cleaned {
+                      "yes" | "y" -> {
+                        case approve_plan(session_id, "human", notes) {
+                          Ok(Nil) -> {
+                            io.println("✓ Plan approved")
+                            halt(exit_pass)
+                          }
+                          Error(err) -> {
+                            io.println_error("✗ Failed to approve plan: " <> err)
+                            halt(exit_error)
+                          }
+                        }
+                      }
+                      "no" | "n" -> {
+                        io.println("Plan not approved")
+                        halt(exit_fail)
+                      }
+                      _ -> {
+                        io.println_error("Invalid response. Please enter 'yes' or 'no'")
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                  Error(_) -> {
+                    io.println_error("Failed to read input")
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Usage: intent plan-approve <session_id> [--yes] [--notes 'text']")
+        io.println_error("")
+        io.println_error("Approve execution plan for a session.")
+        io.println_error("")
+        io.println_error("Flags:")
+        io.println_error("  --yes      Auto-approve for CI pipelines (non-interactive)")
+        io.println_error("  --notes    Optional approval notes")
+        io.println_error("")
+        io.println_error("Examples:")
+        io.println_error("  intent plan-approve abc123           # Interactive approval")
+        io.println_error("  intent plan-approve abc123 --yes     # CI auto-approval")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Approve execution plan for session")
+  |> glint.flag("yes", flag.bool() |> flag.default(False) |> flag.description("Auto-approve for CI (non-interactive)"))
+  |> glint.flag("notes", flag.string() |> flag.default("") |> flag.description("Approval notes"))
+}
+
+/// Write plan approval to session CUE file
+fn approve_plan(session_id: String, approved_by: String, notes: String) -> Result(Nil, String) {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+  let timestamp = current_iso8601_timestamp()
+
+  let notes_line = case string.is_empty(notes) {
+    True -> ""
+    False -> "\n\tnotes: \"" <> escape_cue_string(notes) <> "\""
+  }
+
+  let approval_cue =
+    "\n// Plan Approval\napproval: {\n\tapproved: true\n\tapproved_at: \""
+    <> timestamp
+    <> "\"\n\tapproved_by: \""
+    <> approved_by
+    <> "\""
+    <> notes_line
+    <> "\n}\n"
+
+  case simplifile.append(session_path, approval_cue) {
+    Ok(Nil) -> Ok(Nil)
+    Error(err) -> Error("Failed to write approval: " <> string.inspect(err))
+  }
+}
+
+fn risk_level_to_string(risk: plan_mode.RiskLevel) -> String {
+  case risk {
+    plan_mode.Low -> "low"
+    plan_mode.Medium -> "medium"
+    plan_mode.High -> "high"
+    plan_mode.Critical -> "critical"
+  }
+}
+
+fn escape_cue_string(s: String) -> String {
+  s
+  |> string.replace("\\", "\\\\")
+  |> string.replace("\"", "\\\"")
+  |> string.replace("\n", "\\n")
+  |> string.replace("\t", "\\t")
+}
+
+@external(erlang, "intent_ffi", "current_iso8601_timestamp")
+fn current_iso8601_timestamp() -> String
+
+// =============================================================================
+// BEADS REGENERATE
+// =============================================================================
+
+/// The `beads-regenerate` command - regenerate failed/blocked beads
+fn beads_regenerate_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let strategy =
+      flag.get_string(input.flags, "strategy")
+      |> result.unwrap("hybrid")
+
+    case input.args {
+      [session_id, ..] -> {
+        let session_path = ".intent/session-" <> session_id <> ".cue"
+
+        // Check session exists
+        case simplifile.verify_is_file(session_path) {
+          Error(_) -> {
+            io.println_error("Session not found: " <> session_id)
+            io.println_error("Expected file: " <> session_path)
+            halt(exit_error)
+          }
+          Ok(_) -> {
+            // Load feedback
+            case bead_feedback.load_feedback_for_session(session_id) {
+              Error(err) -> {
+                io.println_error("Failed to load feedback: " <> bead_feedback_error_to_string(err))
+                halt(exit_error)
+              }
+              Ok(feedback) -> {
+                // Filter failed/blocked beads
+                let needs_regen =
+                  feedback
+                  |> list.filter(fn(fb) {
+                    case fb.result {
+                      bead_feedback.Failed -> True
+                      bead_feedback.Blocked -> True
+                      _ -> False
+                    }
+                  })
+
+                io.println("")
+                io.println("═══════════════════════════════════════════════════════════════════")
+                io.println("                    BEAD REGENERATION")
+                io.println("═══════════════════════════════════════════════════════════════════")
+                io.println("")
+                io.println("Session: " <> session_id)
+                io.println("Strategy: " <> strategy)
+                io.println("Feedback entries: " <> string.inspect(list.length(feedback)))
+                io.println("Beads needing regeneration: " <> string.inspect(list.length(needs_regen)))
+                io.println("")
+
+                case list.is_empty(needs_regen) {
+                  True -> {
+                    io.println("✓ No beads need regeneration - all passed or skipped")
+                    halt(exit_pass)
+                  }
+                  False -> {
+                    // Display beads that need regeneration
+                    io.println("Beads to regenerate:")
+                    list.each(needs_regen, fn(fb) {
+                      let status_icon = case fb.result {
+                        bead_feedback.Failed -> "✗"
+                        bead_feedback.Blocked -> "⊘"
+                        _ -> "?"
+                      }
+                      io.println("  " <> status_icon <> " " <> fb.bead_id <> ": " <> fb.reason)
+                    })
+                    io.println("")
+
+                    // Generate regeneration entries
+                    let regen_entries = generate_regeneration_entries(needs_regen, strategy)
+
+                    // Append regeneration metadata to session
+                    case append_regeneration_to_session(session_path, regen_entries) {
+                      Ok(Nil) -> {
+                        io.println("✓ Regeneration metadata added to session")
+                        io.println("  Strategy: " <> strategy)
+                        io.println("  Beads marked for regeneration: " <> string.inspect(list.length(needs_regen)))
+                        io.println("")
+                        io.println("Next steps:")
+                        io.println("  1. Review regeneration suggestions in " <> session_path)
+                        io.println("  2. Run 'intent plan " <> session_id <> "' to see updated plan")
+                        io.println("  3. Execute regenerated beads")
+                        halt(exit_pass)
+                      }
+                      Error(err) -> {
+                        io.println_error("✗ Failed to update session: " <> err)
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]")
+        io.println_error("")
+        io.println_error("Regenerate failed/blocked beads with adjusted approach.")
+        io.println_error("")
+        io.println_error("Strategies:")
+        io.println_error("  hybrid     - Use all analysis methods (default)")
+        io.println_error("  inversion  - Focus on failure mode analysis")
+        io.println_error("  premortem  - Focus on what could go wrong")
+        io.println_error("")
+        io.println_error("Examples:")
+        io.println_error("  intent beads-regenerate abc123")
+        io.println_error("  intent beads-regenerate abc123 --strategy inversion")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Regenerate failed/blocked beads with adjusted approach")
+  |> glint.flag("strategy", flag.string() |> flag.default("hybrid") |> flag.description("Regeneration strategy: hybrid, inversion, or premortem"))
+}
+
+/// Generate regeneration entries based on failed beads and strategy
+fn generate_regeneration_entries(
+  failed_beads: List(bead_feedback.BeadFeedback),
+  strategy: String,
+) -> String {
+  let timestamp = current_iso8601_timestamp()
+
+  let entries =
+    failed_beads
+    |> list.map(fn(fb) {
+      let root_cause = case fb.error {
+        Some(err) -> err.message
+        None -> fb.reason
+      }
+
+      "  {\n"
+      <> "    bead_id: \"" <> fb.bead_id <> "\"\n"
+      <> "    strategy: \"" <> strategy <> "\"\n"
+      <> "    root_cause: \"" <> escape_cue_string(root_cause) <> "\"\n"
+      <> "    regenerated_at: \"" <> timestamp <> "\"\n"
+      <> "  }"
+    })
+    |> string.join(",\n")
+
+  entries
+}
+
+/// Append regeneration metadata to session CUE file
+fn append_regeneration_to_session(
+  session_path: String,
+  entries: String,
+) -> Result(Nil, String) {
+  let regen_cue =
+    "\n// Regeneration Metadata\nregenerations: [\n" <> entries <> "\n]\n"
+
+  case simplifile.append(session_path, regen_cue) {
+    Ok(Nil) -> Ok(Nil)
+    Error(err) -> Error("Failed to append: " <> string.inspect(err))
+  }
+}
+
+// =============================================================================
+// ERROR FORMATTING
+// =============================================================================
+
+fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
+  case err {
+    bead_feedback.SessionNotFound(id) -> "Session not found: " <> id
+    bead_feedback.WriteError(path, msg) -> "Write error to " <> path <> ": " <> msg
+    bead_feedback.ValidationError(msg) -> "Validation error: " <> msg
+  }
 }
 
 /// The `history` command - view session snapshot history
@@ -1505,6 +2023,20 @@ fn kirk_ears_command() -> glint.Command(Nil) {
 }
 
 import gleam/float
+
+// =============================================================================
+// ANSWER LOADER ERROR FORMATTING
+// =============================================================================
+
+fn answer_loader_error_to_string(err: answer_loader.AnswerLoaderError) -> String {
+  case err {
+    answer_loader.FileNotFound(path) -> "File not found: " <> path
+    answer_loader.PermissionDenied(path) -> "Permission denied reading: " <> path
+    answer_loader.ParseError(path, msg) -> "Parse error in " <> path <> ": " <> msg
+    answer_loader.SchemaError(msg) -> "Schema validation failed: " <> msg
+    answer_loader.IoError(msg) -> "I/O error: " <> msg
+  }
+}
 
 @external(erlang, "intent_ffi", "halt")
 fn halt(code: Int) -> Nil
