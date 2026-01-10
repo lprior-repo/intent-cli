@@ -11,7 +11,8 @@ This comprehensive guide covers everything you need to know to use Intent effect
 5. [Advanced Features](#advanced-features)
 6. [Best Practices](#best-practices)
 7. [Common Patterns](#common-patterns)
-8. [Troubleshooting](#troubleshooting)
+8. [Exit Codes](#exit-codes)
+9. [Troubleshooting](#troubleshooting)
 
 ## Getting Started
 
@@ -697,6 +698,158 @@ features: [{
     }
     response: { status: 200 }
 }
+```
+
+## Exit Codes
+
+Intent uses specific exit codes to indicate test results and errors. These codes are designed for automation and CI/CD integration.
+
+### Exit Code Summary
+
+| Code | Meaning | When It Occurs |
+|------|---------|----------------|
+| **0** | Success | All checks passed successfully |
+| **1** | Failed | One or more behaviors failed validation |
+| **2** | Blocked | Dependencies failed, blocking execution of dependent behaviors |
+| **3** | Invalid | Spec file is invalid, not found, or has syntax errors |
+| **4** | Error | General error (misuse, system error, network issues, etc.) |
+
+### Checking Exit Codes
+
+```bash
+# Check the exit code of the last command
+echo $?
+
+# Example outputs
+# 0 - Success
+# 1 - Failures
+# 2 - Blocked
+# 3 - Invalid spec
+# 4 - Error
+```
+
+### Shell Script Integration
+
+#### Basic Script
+
+```bash
+#!/bin/bash
+
+# Run Intent tests
+gleam run -- check spec.cue --target http://localhost:8080
+exit_code=$?
+
+if [ $exit_code -eq 0 ]; then
+    echo "All tests passed!"
+    exit 0
+elif [ $exit_code -eq 1 ]; then
+    echo "Some tests failed"
+    exit 1
+elif [ $exit_code -eq 2 ]; then
+    echo "Tests blocked by dependencies"
+    exit 1
+elif [ $exit_code -eq 3 ]; then
+    echo "Invalid spec file"
+    exit 1
+else
+    echo "Unexpected error occurred"
+    exit 1
+fi
+```
+
+#### CI/CD Pipeline Example
+
+```bash
+#!/bin/bash
+
+set -e  # Exit on error
+
+echo "Running Intent tests..."
+gleam run -- check spec.cue --target http://localhost:8080
+
+# Capture exit code
+RESULT=$?
+
+case $RESULT in
+    0)
+        echo "✓ All tests passed"
+        exit 0
+        ;;
+    1)
+        echo "✗ Test failures detected"
+        # Generate detailed report
+        gleam run -- check spec.cue --target http://localhost:8080 --verbose
+        exit 1
+        ;;
+    2)
+        echo "✗ Tests blocked by dependency failures"
+        exit 1
+        ;;
+    3)
+        echo "✗ Invalid specification"
+        gleam run -- validate spec.cue
+        exit 1
+        ;;
+    4)
+        echo "✗ System error occurred"
+        exit 1
+        ;;
+    *)
+        echo "✗ Unknown exit code: $RESULT"
+        exit 1
+        ;;
+esac
+```
+
+#### Multiple Specs with Aggregated Results
+
+```bash
+#!/bin/bash
+
+TOTAL_FAILED=0
+TOTAL_BLOCKED=0
+TOTAL_INVALID=0
+TOTAL_ERROR=0
+
+# Run multiple specs
+for spec in specs/*.cue; do
+    echo "Testing: $spec"
+    gleam run -- check "$spec" --target http://localhost:8080
+    case $? in
+        1) TOTAL_FAILED=$((TOTAL_FAILED + 1)) ;;
+        2) TOTAL_BLOCKED=$((TOTAL_BLOCKED + 1)) ;;
+        3) TOTAL_INVALID=$((TOTAL_INVALID + 1)) ;;
+        4) TOTAL_ERROR=$((TOTAL_ERROR + 1)) ;;
+    esac
+done
+
+# Summary
+echo ""
+echo "Test Results:"
+echo "  Failed: $TOTAL_FAILED"
+echo "  Blocked: $TOTAL_BLOCKED"
+echo "  Invalid: $TOTAL_INVALID"
+echo "  Errors: $TOTAL_ERROR"
+
+# Exit with error if any issues
+if [ $((TOTAL_FAILED + TOTAL_BLOCKED + TOTAL_INVALID + TOTAL_ERROR)) -gt 0 ]; then
+    exit 1
+fi
+
+exit 0
+```
+
+### Viewing Exit Codes
+
+```bash
+# View exit codes in help output
+intent --help
+
+# View dedicated exit codes documentation
+intent exit-codes
+
+# View dedicated exit codes documentation
+intent --exit-codes
 ```
 
 ## Troubleshooting

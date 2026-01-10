@@ -259,7 +259,7 @@ fn parse_unwanted(line: String, id: String) -> Result(EarsRequirement, EarsError
                 trigger: None,
                 state: None,
                 condition: Some(string.trim(condition)),
-                system_shall: "",
+                system_shall: "NOT " <> string.trim(behavior),
                 system_shall_not: Some(string.trim(behavior)),
                 raw_text: line,
               ))

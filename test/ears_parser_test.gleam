@@ -126,8 +126,28 @@ pub fn parse_unwanted_requirement_test() {
   }
 }
 
+pub fn parse_unwanted_intent_not_empty_test() {
+  let input = "IF user is banned THEN THE SYSTEM SHALL NOT allow login"
+  let result = ears_parser.parse(input)
+
+  result.requirements
+  |> list.length
+  |> should.equal(1)
+
+  case result.requirements {
+    [req] -> {
+      req.pattern |> should.equal(Unwanted)
+      req.system_shall_not |> should.equal(Some("allow login"))
+      req.condition |> should.equal(Some("user is banned"))
+      req.system_shall |> should.equal("NOT allow login")
+    }
+    _ -> should.fail()
+  }
+}
+
 pub fn parse_complex_requirement_test() {
-  let input = "WHILE user is logged in WHEN session expires THE SYSTEM SHALL redirect to login"
+  let input =
+    "WHILE user is logged in WHEN session expires THE SYSTEM SHALL redirect to login"
   let result = ears_parser.parse(input)
 
   result.requirements
@@ -231,6 +251,20 @@ pub fn to_behaviors_generates_names_test() {
   }
 }
 
+pub fn to_behaviors_unwanted_has_intent_test() {
+  let input = "IF user is banned THEN THE SYSTEM SHALL NOT allow login"
+  let result = ears_parser.parse(input)
+  let behaviors = ears_parser.to_behaviors(result)
+
+  case behaviors {
+    [b] -> {
+      b.intent
+      |> should.equal("NOT allow login")
+    }
+    _ -> should.fail()
+  }
+}
+
 pub fn to_behaviors_infers_http_methods_test() {
   let create_input = "THE SYSTEM SHALL create a new user"
   let create_result = ears_parser.parse(create_input)
@@ -292,6 +326,15 @@ pub fn to_cue_generates_valid_structure_test() {
   // Should contain behaviors section
   cue_output
   |> should_contain("behaviors:")
+}
+
+pub fn to_cue_unwanted_has_intent_test() {
+  let input = "IF user is banned THEN THE SYSTEM SHALL NOT allow login"
+  let result = ears_parser.parse(input)
+  let cue_output = ears_parser.to_cue(result, "TestSpec")
+
+  cue_output
+  |> should_contain("intent: \"NOT allow login\"")
 }
 
 pub fn to_cue_escapes_special_characters_test() {

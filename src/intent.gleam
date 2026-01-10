@@ -47,53 +47,6 @@ const exit_invalid = 3
 
 const exit_error = 4
 
-/// Known boolean flags that should default to true when used without a value
-const boolean_flags = [
-  "--json", "--verbose", "--quiet", "--dry-run", "--force", "--skip-optional",
-]
-
-/// Normalize arguments to handle bare boolean flags (--json -> --json=true)
-/// and flags with space-separated values (--flag value -> --flag=value)
-fn normalize_args(args: List(String)) -> List(String) {
-  normalize_args_loop(args, [])
-}
-
-fn normalize_args_loop(args: List(String), acc: List(String)) -> List(String) {
-  case args {
-    [] -> list.reverse(acc)
-    [arg, ..rest] -> {
-      case string.starts_with(arg, "--") {
-        True -> {
-          // Check if it already has an = value
-          case string.contains(arg, "=") {
-            True -> normalize_args_loop(rest, [arg, ..acc])
-            False -> {
-              // Check if this is a known boolean flag
-              case list.contains(boolean_flags, arg) {
-                True -> normalize_args_loop(rest, [arg <> "=true", ..acc])
-                False -> {
-                  // Check if next arg is a value (not a flag or subcommand)
-                  case rest {
-                    [next, ..rest2] -> {
-                      case string.starts_with(next, "-") {
-                        True -> normalize_args_loop(rest, [arg, ..acc])
-                        False ->
-                          normalize_args_loop(rest2, [arg <> "=" <> next, ..acc])
-                      }
-                    }
-                    [] -> normalize_args_loop(rest, [arg, ..acc])
-                  }
-                }
-              }
-            }
-          }
-        }
-        False -> normalize_args_loop(rest, [arg, ..acc])
-      }
-    }
-  }
-}
-
 /// CLI version - update with each release
 const version = "0.1.0"
 
@@ -105,7 +58,7 @@ const exit_codes_doc = "EXIT CODES:
   4  Error (system/runtime error)"
 
 pub fn main() {
-  let args = normalize_args(argv.load().arguments)
+  let args = argv.load().arguments
 
   // Handle --version, -V, and --exit-codes before glint
   case args {
@@ -123,6 +76,7 @@ pub fn main() {
   glint.new()
   |> glint.with_name("intent")
   |> glint.with_pretty_help(glint.default_pretty_help())
+  |> glint.with_global_help(exit_codes_doc)
   |> glint.add(at: ["check"], do: check_command())
   |> glint.add(at: ["validate"], do: validate_command())
   |> glint.add(at: ["show"], do: show_command())
@@ -189,8 +143,8 @@ fn check_command() -> glint.Command(Nil) {
         }
     }
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         run_check(
           spec_path,
           target_url,
@@ -200,7 +154,7 @@ fn check_command() -> glint.Command(Nil) {
           output_level,
         )
       }
-      [] -> {
+      _ -> {
         io.println_error("Error: spec file path required")
         io.println_error("Usage: intent check <spec.cue> --target <url>")
         halt(exit_error)
@@ -317,8 +271,8 @@ fn validate_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.validate_cue(spec_path) {
           Ok(_) -> {
             case is_json {
@@ -356,7 +310,7 @@ fn validate_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         case is_json {
           True -> {
             let json_obj =
@@ -394,8 +348,8 @@ fn show_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case is_json {
           True ->
             case loader.export_spec_json(spec_path) {
@@ -422,7 +376,7 @@ fn show_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         io.println_error("Error: spec file path required")
         io.println_error("Usage: intent show <spec.cue> [--json]")
         halt(exit_error)
@@ -502,8 +456,8 @@ fn print_spec_summary(spec: types.Spec) -> Nil {
 /// The `export` command - export spec to JSON
 fn export_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.export_spec_json(spec_path) {
           Ok(json_str) -> {
             io.println(json_str)
@@ -515,7 +469,7 @@ fn export_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         io.println_error("Error: spec file path required")
         io.println_error("Usage: intent export <spec.cue>")
         halt(exit_error)
@@ -533,8 +487,8 @@ fn lint_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let lint_result = spec_linter.lint_spec(spec)
@@ -570,7 +524,7 @@ fn lint_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         io.println_error("Error: spec file path required")
         io.println_error("Usage: intent lint <spec.cue>")
         halt(exit_error)
@@ -594,8 +548,8 @@ fn analyze_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = quality_analyzer.analyze_spec(spec)
@@ -618,7 +572,7 @@ fn analyze_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         io.println_error("Error: spec file path required")
         io.println_error("Usage: intent analyze <spec.cue>")
         halt(exit_error)
@@ -644,8 +598,8 @@ fn improve_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let quality_report = quality_analyzer.analyze_spec(spec)
@@ -676,7 +630,7 @@ fn improve_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         io.println_error("Error: spec file path required")
         io.println_error("Usage: intent improve <spec.cue>")
         halt(exit_error)
@@ -1174,8 +1128,8 @@ fn beads_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [session_id, ..] -> {
+    case input.named_args {
+      [#("session_id", session_id)] -> {
         case
           interview_storage.get_session_from_jsonl(
             ".interview/sessions.jsonl",
@@ -1289,7 +1243,7 @@ fn beads_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         case is_json {
           True -> {
             let json_obj =
@@ -1616,8 +1570,8 @@ fn plan_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "format")
       |> result.unwrap("human")
 
-    case input.args {
-      [session_id, ..] -> {
+    case input.named_args {
+      [#("session_id", session_id)] -> {
         case plan_mode.compute_plan(session_id) {
           Error(err) -> {
             io.println_error(plan_mode.format_error(err))
@@ -1633,7 +1587,7 @@ fn plan_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         io.println_error(
           "Usage: intent plan <session_id> [--format human|json]",
         )
@@ -1670,8 +1624,8 @@ fn plan_approve_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "notes")
       |> result.unwrap("")
 
-    case input.args {
-      [session_id, ..] -> {
+    case input.named_args {
+      [#("session_id", session_id)] -> {
         // First verify the session exists and has a valid plan
         case plan_mode.compute_plan(session_id) {
           Error(err) -> {
@@ -1761,7 +1715,7 @@ fn plan_approve_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         io.println_error(
           "Usage: intent plan-approve <session_id> [--yes] [--notes 'text']",
         )
@@ -1863,8 +1817,8 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "strategy")
       |> result.unwrap("hybrid")
 
-    case input.args {
-      [session_id, ..] -> {
+    case input.named_args {
+      [#("session_id", session_id)] -> {
         let session_path = ".intent/session-" <> session_id <> ".cue"
 
         case simplifile.verify_is_file(session_path) {
@@ -2084,7 +2038,7 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         case is_json {
           True -> {
             let json_obj =
@@ -2362,8 +2316,8 @@ fn history_command() -> glint.Command(Nil) {
 
     let history_path = ".interview/history.jsonl"
 
-    case input.args {
-      [session_id, ..] -> {
+    case input.named_args {
+      [#("session_id", session_id)] -> {
         case interview_storage.list_session_history(history_path, session_id) {
           Error(err) -> {
             cli_ui.print_error(err)
@@ -2421,7 +2375,7 @@ fn history_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         case is_json {
           True -> {
             let json_obj =
@@ -2462,8 +2416,8 @@ fn diff_command() -> glint.Command(Nil) {
 
     let jsonl_path = ".interview/sessions.jsonl"
 
-    case input.args {
-      [from_id, to_id, ..] -> {
+    case input.named_args {
+      [#("from_session", from_id), #("to_session", to_id)] -> {
         case interview_storage.get_session_from_jsonl(jsonl_path, from_id) {
           Error(err) -> {
             case is_json {
@@ -2540,16 +2494,13 @@ fn diff_command() -> glint.Command(Nil) {
           }
         }
       }
-      [single_id] -> {
+      _ -> {
         case is_json {
           True -> {
             let json_obj =
               json.object([
                 #("valid", json.bool(False)),
-                #(
-                  "error",
-                  json.string("Two session IDs required for comparison"),
-                ),
+                #("error", json.string("Two session IDs required for comparison")),
               ])
             io.println(json.to_string(json_obj))
           }
@@ -2559,31 +2510,6 @@ fn diff_command() -> glint.Command(Nil) {
             io.println("Usage: intent diff <from-session> <to-session>")
             io.println("")
             io.println("Tip: Use 'intent sessions' to list available sessions")
-            io.println("     Session provided: " <> single_id)
-          }
-        }
-        halt(exit_error)
-      }
-      [] -> {
-        case is_json {
-          True -> {
-            let json_obj =
-              json.object([
-                #("valid", json.bool(False)),
-                #("error", json.string("Session IDs required")),
-              ])
-            io.println(json.to_string(json_obj))
-          }
-          False -> {
-            cli_ui.print_error("Session IDs required")
-            io.println("")
-            io.println("Usage: intent diff <from-session> <to-session>")
-            io.println("")
-            io.println("Compare two interview sessions and show differences")
-            io.println("in answers, gaps, conflicts, and stage.")
-            io.println("")
-            io.println("Example:")
-            io.println("  intent diff interview-abc123 interview-def456")
           }
         }
         halt(exit_error)
@@ -2730,8 +2656,8 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = kirk_quality.analyze_quality(spec)
@@ -2773,7 +2699,7 @@ fn kirk_quality_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         cli_ui.print_error("spec file path required")
         io.println("Usage: intent quality <spec.cue> [--json]")
         halt(exit_error)
@@ -2795,8 +2721,8 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = inversion_checker.analyze_inversions(spec)
@@ -2841,7 +2767,7 @@ fn kirk_invert_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         cli_ui.print_error("spec file path required")
         io.println("Usage: intent invert <spec.cue> [--json]")
         halt(exit_error)
@@ -2877,8 +2803,8 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = coverage_analyzer.analyze_coverage(spec)
@@ -2921,7 +2847,7 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         cli_ui.print_error("spec file path required")
         io.println("Usage: intent coverage <spec.cue> [--json]")
         halt(exit_error)
@@ -2943,8 +2869,8 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = gap_detector.detect_gaps(spec)
@@ -2998,7 +2924,7 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         cli_ui.print_error("spec file path required")
         io.println("Usage: intent gaps <spec.cue> [--json]")
         halt(exit_error)
@@ -3099,8 +3025,8 @@ fn kirk_compact_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "tokens")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let compact = compact_format.spec_to_compact(spec)
@@ -3159,7 +3085,7 @@ fn kirk_compact_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         case is_json {
           True -> {
             let json_obj =
@@ -3203,8 +3129,8 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
-    case input.args {
-      [spec_path, ..] -> {
+    case input.named_args {
+      [#("spec.cue", spec_path)] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let output = compact_format.spec_to_prototext(spec)
@@ -3238,7 +3164,7 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         case is_json {
           True -> {
             let json_obj =
@@ -3278,8 +3204,8 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "out")
       |> result.unwrap("")
 
-    case input.args {
-      [requirements_path, ..] -> {
+    case input.named_args {
+      [#("requirements.md", requirements_path)] -> {
         case simplifile.read(requirements_path) {
           Ok(content) -> {
             let result = ears_parser.parse(content)
@@ -3299,14 +3225,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
                     #(
                       "requirements",
                       json.array(result.requirements, fn(r) {
-                        // For Unwanted patterns, system_shall is empty and action is in system_shall_not
-                        let shall_value = case
-                          r.system_shall,
-                          r.system_shall_not
-                        {
-                          "", Some(not_behavior) -> "NOT " <> not_behavior
-                          s, _ -> s
-                        }
+                        let shall_value = r.system_shall
                         json.object([
                           #("id", json.string(r.id)),
                           #(
@@ -3365,7 +3284,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
           }
         }
       }
-      [] -> {
+      _ -> {
         cli_ui.print_error("requirements file path required")
         io.println(
           "Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
