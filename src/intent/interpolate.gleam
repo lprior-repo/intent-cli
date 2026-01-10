@@ -1,6 +1,7 @@
 /// Variable interpolation for captured values
 /// Handles ${variable} syntax in strings
 /// Supports array indexing: ${items[0].id}, ${array[-1]}, etc.
+
 import gleam/dict.{type Dict}
 import gleam/json.{type Json}
 import gleam/list

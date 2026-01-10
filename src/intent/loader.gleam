@@ -1,4 +1,5 @@
 /// CUE spec loader - loads and validates CUE files using the cue command
+
 import gleam/dict
 import gleam/dynamic
 import gleam/json
@@ -7,7 +8,6 @@ import gleam/option.{None}
 import gleam/string
 import gleam_community/ansi
 import intent/parser
-import intent/security
 import intent/types.{
   type LightSpec, type Spec, AIHints, Behavior, Config, Feature,
   ImplementationHints, Request, Response, SecurityHints, Spec,
@@ -24,27 +24,24 @@ pub type LoadError {
   JsonParseError(message: String)
   SpecParseError(message: String)
   LightSpecParseError(message: String)
-  SecurityError(message: String)
 }
 
 /// Load a spec from a CUE file (with spinner UI)
 pub fn load_spec(path: String) -> Result(Spec, LoadError) {
-  // Validate path for security
-  case security.validate_file_path(path) {
-    Ok(validated_path) -> load_and_parse_with_spinner(validated_path)
-    Error(security_error) ->
-      Error(SecurityError(security.format_security_error(security_error)))
+  // First check the file exists
+  case simplifile.verify_is_file(path) {
+    Ok(True) -> load_and_parse_with_spinner(path)
+    _ -> Error(FileNotFound(path))
   }
 }
 
 /// Load a spec from a CUE file without spinner UI
 /// Use this for testing and automation where no UI output is desired
 pub fn load_spec_quiet(path: String) -> Result(Spec, LoadError) {
-  // Validate path for security
-  case security.validate_file_path(path) {
-    Ok(validated_path) -> load_and_parse_impl(validated_path)
-    Error(security_error) ->
-      Error(SecurityError(security.format_security_error(security_error)))
+  // First check the file exists
+  case simplifile.verify_is_file(path) {
+    Ok(True) -> load_and_parse_impl(path)
+    _ -> Error(FileNotFound(path))
   }
 }
 
@@ -80,34 +77,11 @@ fn load_and_parse_with_spinner(path: String) -> Result(Spec, LoadError) {
   }
 }
 
-/// Validate a CUE file without exporting (CUE syntax only)
+/// Validate a CUE file without exporting
 pub fn validate_cue(path: String) -> Result(Nil, LoadError) {
-  // Validate path for security FIRST
-  case security.validate_file_path(path) {
-    Ok(validated_path) ->
-      case shellout.command("cue", ["vet", validated_path], ".", []) {
-        Ok(_) -> Ok(Nil)
-        Error(#(_, stderr)) -> Error(CueValidationError(stderr))
-      }
-    Error(security_error) ->
-      Error(SecurityError(security.format_security_error(security_error)))
-  }
-}
-
-/// Validate a spec file by running the full parsing pipeline
-/// This ensures the spec will work with other commands (show, check, lint)
-/// intent-cli-a6u: validate command must use same parser as other commands
-pub fn validate_spec(path: String) -> Result(Nil, LoadError) {
-  // First check the file exists
-  case simplifile.verify_is_file(path) {
-    Ok(True) -> {
-      // Run full validation and parsing (same as load_spec_quiet)
-      case load_and_parse_impl(path) {
-        Ok(_spec) -> Ok(Nil)
-        Error(e) -> Error(e)
-      }
-    }
-    _ -> Error(FileNotFound(path))
+  case shellout.command("cue", ["vet", path], ".", []) {
+    Ok(_) -> Ok(Nil)
+    Error(#(_, stderr)) -> Error(CueValidationError(stderr))
   }
 }
 
@@ -117,9 +91,7 @@ fn export_and_parse(path: String) -> Result(Spec, LoadError) {
     Ok(json_str) -> parse_json_spec(json_str)
     Error(_) -> {
       // Try as light_spec
-      case
-        shellout.command("cue", ["export", path, "-e", "light_spec"], ".", [])
-      {
+      case shellout.command("cue", ["export", path, "-e", "light_spec"], ".", []) {
         Ok(json_str) -> parse_json_light_spec(json_str)
         Error(#(_, stderr)) -> Error(CueExportError(stderr))
       }
@@ -242,22 +214,17 @@ fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
 }
 
 fn format_single_decode_error(error: dynamic.DecodeError) -> String {
-  let path_str = case error.path {
-    [] -> "at root"
-    path_parts ->
-      "at "
-      <> string.join(path_parts, ".")
-      <> " (path: ."
-      <> string.join(path_parts, ".")
-      <> ")"
-  }
+  let path_str =
+    case error.path {
+      [] -> "at root"
+      path_parts ->
+        "at " <> string.join(path_parts, ".") <> " (path: ." <> string.join(
+          path_parts,
+          ".",
+        ) <> ")"
+    }
 
-  "Expected "
-  <> error.expected
-  <> " but found "
-  <> error.found
-  <> " "
-  <> path_str
+  "Expected " <> error.expected <> " but found " <> error.found <> " " <> path_str
 }
 
 fn format_json_error(error: json.DecodeError) -> String {
@@ -266,15 +233,11 @@ fn format_json_error(error: json.DecodeError) -> String {
       "Unexpected end of input - JSON is incomplete or truncated.\n"
       <> "  • Check that your JSON is properly closed with matching braces/brackets"
     json.UnexpectedByte(b) ->
-      "Unexpected byte: '"
-      <> b
-      <> "' in JSON at this position.\n"
+      "Unexpected byte: '" <> b <> "' in JSON at this position.\n"
       <> "  • Check for syntax errors like missing commas, quotes, or brackets\n"
       <> "  • Ensure strings are properly quoted"
     json.UnexpectedSequence(s) ->
-      "Unexpected sequence: '"
-      <> s
-      <> "' in JSON.\n"
+      "Unexpected sequence: '" <> s <> "' in JSON.\n"
       <> "  • This sequence is not valid JSON syntax\n"
       <> "  • Check for typos or invalid characters"
     json.UnexpectedFormat(errs) ->
@@ -284,22 +247,13 @@ fn format_json_error(error: json.DecodeError) -> String {
 
 /// Export a spec to JSON format (for AI consumption)
 pub fn export_spec_json(path: String) -> Result(String, LoadError) {
-  // Validate path for security FIRST
-  case security.validate_file_path(path) {
-    Ok(validated_path) ->
-      case
-        shellout.command(
-          "cue",
-          ["export", validated_path, "-e", "spec"],
-          ".",
-          [],
-        )
-      {
+  case simplifile.verify_is_file(path) {
+    Ok(True) ->
+      case shellout.command("cue", ["export", path, "-e", "spec"], ".", []) {
         Ok(json_str) -> Ok(json_str)
         Error(#(_, stderr)) -> Error(CueExportError(stderr))
       }
-    Error(security_error) ->
-      Error(SecurityError(security.format_security_error(security_error)))
+    _ -> Error(FileNotFound(path))
   }
 }
 
@@ -312,6 +266,5 @@ pub fn format_error(error: LoadError) -> String {
     JsonParseError(msg) -> "JSON parse error: " <> msg
     SpecParseError(msg) -> "Spec parse error: " <> msg
     LightSpecParseError(msg) -> "Light spec parse error: " <> msg
-    SecurityError(msg) -> "Security error: " <> msg
   }
 }

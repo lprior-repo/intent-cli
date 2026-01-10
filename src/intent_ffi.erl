@@ -31,7 +31,7 @@ base64_url_decode(Input) when is_binary(Input) ->
 generate_uuid() ->
     <<A:32, B:16, C:16, D:16, E:48>> = crypto:strong_rand_bytes(16),
     Parts = [to_hex(A, 8), "-", to_hex(B, 4), "-", to_hex(C, 4), "-", to_hex(D, 4), "-", to_hex(E, 12)],
-    unicode:characters_to_binary(Parts).
+    list_to_binary(Parts).
 
 to_hex(N, Width) ->
     Hex = integer_to_list(N, 16),
@@ -40,5 +40,4 @@ to_hex(N, Width) ->
 %% Get current timestamp in ISO 8601 format
 current_timestamp() ->
     Now = erlang:system_time(millisecond),
-    Timestamp = calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]),
-    unicode:characters_to_binary(Timestamp).
+    calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]).

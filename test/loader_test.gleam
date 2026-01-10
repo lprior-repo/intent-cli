@@ -6,8 +6,8 @@
 import gleam/string
 import gleeunit/should
 import intent/loader.{
-  CueExportError, CueValidationError, FileNotFound, JsonParseError,
-  LightSpecParseError, SecurityError, SpecParseError,
+  CueExportError, CueValidationError, FileNotFound,
+  JsonParseError, LightSpecParseError, SpecParseError,
 }
 
 // ============================================================================
@@ -19,8 +19,10 @@ pub fn loader_file_not_found_test() {
   let result = loader.load_spec("/nonexistent/path/to/spec.cue")
 
   case result {
-    Error(SecurityError(_)) -> should.be_true(True)
-    Error(FileNotFound(_)) -> should.be_true(True)
+    Error(FileNotFound(path)) -> {
+      path
+      |> should.equal("/nonexistent/path/to/spec.cue")
+    }
     _ -> should.fail()
   }
 }
@@ -30,7 +32,6 @@ pub fn loader_file_not_found_relative_path_test() {
   let result = loader.load_spec("nonexistent.cue")
 
   case result {
-    Error(SecurityError(_)) -> should.be_true(True)
     Error(FileNotFound(path)) -> {
       path
       |> should.equal("nonexistent.cue")
@@ -44,7 +45,6 @@ pub fn loader_file_not_found_empty_path_test() {
   let result = loader.load_spec("")
 
   case result {
-    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
     Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
@@ -55,7 +55,6 @@ pub fn loader_directory_instead_of_file_test() {
   let result = loader.load_spec("/tmp")
 
   case result {
-    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
     Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
@@ -161,7 +160,6 @@ pub fn loader_export_nonexistent_file_test() {
   let result = loader.export_spec_json("/nonexistent/spec.cue")
 
   case result {
-    Error(SecurityError(_)) -> should.be_true(True)
     Error(FileNotFound(path)) -> {
       path
       |> should.equal("/nonexistent/spec.cue")
@@ -240,40 +238,10 @@ pub fn loader_load_spec_quiet_file_not_found_test() {
   let result = loader.load_spec_quiet("/nonexistent/path/to/spec.cue")
 
   case result {
-    Error(SecurityError(_)) -> should.be_true(True)
     Error(FileNotFound(path)) -> {
       path
       |> should.equal("/nonexistent/path/to/spec.cue")
     }
-    _ -> should.fail()
-  }
-}
-
-// ============================================================================
-// validate_spec Tests (intent-cli-a6u)
-// Tests for the new validate_spec function that runs full parsing
-// ============================================================================
-
-pub fn loader_validate_spec_nonexistent_file_test() {
-  // validate_spec should return FileNotFound for missing files
-  let result = loader.validate_spec("/nonexistent/spec.cue")
-
-  case result {
-    Error(SecurityError(_)) -> should.be_true(True)
-    Error(FileNotFound(path)) -> {
-      path
-      |> should.equal("/nonexistent/spec.cue")
-    }
-    _ -> should.fail()
-  }
-}
-
-pub fn loader_validate_spec_empty_path_test() {
-  // Empty path should fail validation
-  let result = loader.validate_spec("")
-
-  case result {
-    Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
 }
@@ -283,7 +251,6 @@ pub fn loader_load_spec_quiet_empty_path_test() {
   let result = loader.load_spec_quiet("")
 
   case result {
-    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
     Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
@@ -294,7 +261,6 @@ pub fn loader_load_spec_quiet_directory_test() {
   let result = loader.load_spec_quiet("/tmp")
 
   case result {
-    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
     Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }

@@ -23,9 +23,7 @@ get_or_compile_regex(Pattern) when is_binary(Pattern) ->
             {ok, CompiledRegex};
         [] ->
             %% Pattern not cached, compile it using gleam_regexp_ffi
-            %% Options tuple: {options, Caseless, Multiline}
-            Options = {options, false, false},
-            case gleam_regexp_ffi:compile(Pattern, Options) of
+            case gleam_regexp_ffi:compile(Pattern) of
                 {ok, Regex} ->
                     %% Cache the compiled regex
                     ets:insert(?CACHE_TABLE, {Pattern, Regex}),

@@ -17,10 +17,6 @@ package intent
 	extract_into:  [...string] | *[]
 	depends_on:    [...string] | *[]
 	blocks:        [...string] | *[]
-	// Optional: Mark questions only asked with --with-context flag
-	context_mode?: bool
-	// Optional: Mark questions only asked in --light mode
-	light_mode?: bool
 }
 
 // Profile-specific question structure
@@ -46,7 +42,6 @@ questions: {
 				context:     "We're starting with the core intent. Give us the simplest possible description."
 				example:     "Allow users to log in with email and password"
 				extract_into: ["name"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-user-api-2"
@@ -58,7 +53,6 @@ questions: {
 				context:     "Understanding your audience helps us design the right behavior."
 				example:     "Mobile app users, web frontend, and third-party integrations"
 				extract_into: ["audience", "success_criteria"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-user-api-3"
@@ -70,7 +64,6 @@ questions: {
 				context:     "Describe the ideal flow from start to finish. Don't worry about errors yet."
 				example:     "Client sends POST /login with email/password → validates → returns JWT token"
 				extract_into: ["behaviors"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-dev-api-1"
@@ -82,7 +75,6 @@ questions: {
 				context:     "Understanding the domain helps us catch inconsistencies."
 				example:     "Users (id, email, password_hash), Tokens (token, user_id, expires_at)"
 				extract_into: ["entities"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-security-api-1"
@@ -94,7 +86,6 @@ questions: {
 				context:     "Auth method cascades through the whole design."
 				example:     "JWT for mobile, session cookies for web, API keys for server-to-server"
 				extract_into: ["auth_method"]
-				light_mode:  true
 			},
 		]
 		round_2: [
@@ -149,7 +140,6 @@ questions: {
 				context:     "Start with the primary use case."
 				example:     "intent check --file=spec.cue --target=http://api.example.com"
 				extract_into: ["name", "command_name"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-user-cli-2"
@@ -161,7 +151,6 @@ questions: {
 				context:     "Developers? DevOps? QA engineers?"
 				example:     "API test engineers and DevOps teams testing HTTP endpoints"
 				extract_into: ["audience"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-dev-cli-1"
@@ -173,7 +162,6 @@ questions: {
 				context:     "List the key operations users will perform."
 				example:     "check, validate, generate, run, report, export"
 				extract_into: ["behaviors"]
-				light_mode:  true
 			},
 		]
 		round_2: [
@@ -217,7 +205,6 @@ questions: {
 				context:     "Start with the main event types."
 				example:     "user.created, user.deleted, order.placed, payment.confirmed"
 				extract_into: ["name", "event_types"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-user-event-2"
@@ -229,7 +216,6 @@ questions: {
 				context:     "What systems care about these events?"
 				example:     "Email service, analytics pipeline, notification system"
 				extract_into: ["audience"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-dev-event-1"
@@ -241,7 +227,6 @@ questions: {
 				context:     "The common schema across all events."
 				example:     "id, timestamp, type, version, source, payload"
 				extract_into: ["entities"]
-				light_mode:  true
 			},
 		]
 		round_2: [
@@ -274,7 +259,6 @@ questions: {
 				context:     "The main thing users care about."
 				example:     "Users, Products, Orders, Documents"
 				extract_into: ["name", "entities"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-ops-data-1"
@@ -286,7 +270,6 @@ questions: {
 				context:     "Affects storage, compliance, archival strategy."
 				example:     "Keep indefinitely, delete after 90 days, archive after 1 year"
 				extract_into: ["retention"]
-				light_mode:  true
 			},
 		]
 		round_2: [
@@ -319,7 +302,6 @@ questions: {
 				context:     "How does something move from start to finish?"
 				example:     "Draft → Submitted → Approved → Completed"
 				extract_into: ["states"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-user-workflow-2"
@@ -331,7 +313,6 @@ questions: {
 				context:     "Not all state changes should be valid."
 				example:     "Can't go from Approved back to Draft; Draft can skip to Completed if auto-approved"
 				extract_into: ["transitions"]
-				light_mode:  true
 			},
 		]
 		round_2: [
@@ -364,7 +345,6 @@ questions: {
 				context:     "The entry point to your application."
 				example:     "Dashboard showing recent activity, login screen, or home page"
 				extract_into: ["name", "screens"]
-				light_mode:  true
 			},
 			{
 				id:          "r1-user-ui-2"
@@ -376,7 +356,6 @@ questions: {
 				context:     "The happy path through your interface."
 				example:     "Log in → View dashboard → Create new item → Confirm → See results"
 				extract_into: ["user_flows"]
-				light_mode:  true
 			},
 		]
 		round_2: [
@@ -495,60 +474,6 @@ questions: {
 				context:     "Observability strategy."
 				example:     "Prometheus metrics, ELK logs, PagerDuty alerts on p95 latency > 500ms"
 				extract_into: ["monitoring"]
-			},
-		]
-
-		// =========================================================================
-		// CONTEXT MODE - Codebase Context Questions (--with-context flag)
-		// =========================================================================
-		context: [...#Question] & [
-			{
-				id:           "ctx-patterns-1"
-				round:        1
-				perspective:  "developer"
-				category:     "constraint"
-				priority:     "important"
-				question:     "What existing patterns should the AI follow?"
-				context:      "Help the AI understand your codebase conventions and style."
-				example:      "We use Result types for errors, snake_case for functions, pipelines for transforms"
-				extract_into: ["codebase.patterns"]
-				context_mode: true
-			},
-			{
-				id:           "ctx-files-1"
-				round:        1
-				perspective:  "developer"
-				category:     "constraint"
-				priority:     "important"
-				question:     "What files should the AI edit?"
-				context:      "Specify which files are in scope for changes."
-				example:      "src/intent/interview.gleam, src/intent/types.gleam"
-				extract_into: ["codebase.entry_points"]
-				context_mode: true
-			},
-			{
-				id:           "ctx-files-2"
-				round:        1
-				perspective:  "developer"
-				category:     "constraint"
-				priority:     "important"
-				question:     "What files should the AI NOT touch?"
-				context:      "Define boundaries to prevent accidental changes."
-				example:      "src/intent_ffi.erl, schema/*.cue, test/fixtures/*"
-				extract_into: ["codebase.boundaries"]
-				context_mode: true
-			},
-			{
-				id:           "ctx-testing-1"
-				round:        1
-				perspective:  "developer"
-				category:     "constraint"
-				priority:     "important"
-				question:     "What testing patterns does the codebase use?"
-				context:      "Help the AI write tests that match your style."
-				example:      "Gleeunit with should.equal assertions, test functions ending in _test"
-				extract_into: ["codebase.testing_patterns"]
-				context_mode: true
 			},
 		]
 	}

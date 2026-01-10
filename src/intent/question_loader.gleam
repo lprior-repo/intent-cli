@@ -1,6 +1,7 @@
 /// Question Loader
 /// Loads interview questions from CUE files at runtime
 /// Supports custom questions from .intent/custom-questions.cue
+
 import gleam/dynamic.{type Dynamic}
 import gleam/json
 import gleam/list
@@ -11,7 +12,6 @@ import intent/question_types.{
   Business, Constraint, Critical, Dependency, Developer, EdgeCase, ErrorCase,
   HappyPath, Important, NiceTohave, NonFunctional, Ops, Question, Security, User,
 }
-import intent/security
 import shellout
 import simplifile
 
@@ -21,7 +21,6 @@ pub type QuestionLoadError {
   CueExportError(message: String)
   JsonParseError(message: String)
   QuestionParseError(message: String)
-  SecurityError(message: String)
 }
 
 /// Loaded questions database
@@ -81,14 +80,10 @@ pub type CustomCommonQuestions {
 const custom_questions_path = ".intent/custom-questions.cue"
 
 /// Load questions from a CUE file
-pub fn load_questions(
-  path: String,
-) -> Result(QuestionsDatabase, QuestionLoadError) {
-  // Validate path for security
-  case security.validate_file_path(path) {
-    Ok(validated_path) -> export_and_parse(validated_path)
-    Error(security_error) ->
-      Error(SecurityError(security.format_security_error(security_error)))
+pub fn load_questions(path: String) -> Result(QuestionsDatabase, QuestionLoadError) {
+  case simplifile.verify_is_file(path) {
+    Ok(True) -> export_and_parse(path)
+    _ -> Error(FileNotFound(path))
   }
 }
 
@@ -100,8 +95,7 @@ pub fn load_default_questions() -> Result(QuestionsDatabase, QuestionLoadError) 
       // Try to load custom questions and merge them
       case load_custom_questions(custom_questions_path) {
         Ok(custom) -> Ok(merge_custom_questions(db, custom))
-        Error(_) -> Ok(db)
-        // No custom questions or error loading - use defaults
+        Error(_) -> Ok(db)  // No custom questions or error loading - use defaults
       }
     }
     Error(e) -> Error(e)
@@ -121,9 +115,7 @@ pub fn load_custom_questions(
 fn export_and_parse_custom(
   path: String,
 ) -> Result(CustomQuestions, QuestionLoadError) {
-  case
-    shellout.command("cue", ["export", path, "-e", "custom_questions"], ".", [])
-  {
+  case shellout.command("cue", ["export", path, "-e", "custom_questions"], ".", []) {
     Ok(json_str) -> parse_custom_questions_json(json_str)
     Error(#(_, stderr)) -> Error(CueExportError(stderr))
   }
@@ -249,9 +241,7 @@ fn merge_question_list(
   }
 }
 
-fn export_and_parse(
-  path: String,
-) -> Result(QuestionsDatabase, QuestionLoadError) {
+fn export_and_parse(path: String) -> Result(QuestionsDatabase, QuestionLoadError) {
   case shellout.command("cue", ["export", path, "-e", "questions"], ".", []) {
     Ok(json_str) -> parse_questions_json(json_str)
     Error(#(_, stderr)) -> Error(CueExportError(stderr))
@@ -315,16 +305,7 @@ fn parse_question(data: Dynamic) -> Result(Question, List(dynamic.DecodeError)) 
   let base_decoder =
     dynamic.decode8(
       fn(id, round, perspective, category, priority, question, context, example) {
-        #(
-          id,
-          round,
-          perspective,
-          category,
-          priority,
-          question,
-          context,
-          example,
-        )
+        #(id, round, perspective, category, priority, question, context, example)
       },
       dynamic.field("id", dynamic.string),
       dynamic.field("round", dynamic.int),
@@ -348,16 +329,7 @@ fn parse_question(data: Dynamic) -> Result(Question, List(dynamic.DecodeError)) 
     )
 
   case base_decoder(data), extra_decoder(data) {
-    Ok(#(
-      id,
-      round,
-      perspective_str,
-      category_str,
-      priority_str,
-      question,
-      context,
-      example,
-    )),
+    Ok(#(id, round, perspective_str, category_str, priority_str, question, context, example)),
       Ok(#(expected_type_opt, extract_into_opt, depends_on_opt, blocks_opt))
     -> {
       let perspective = parse_perspective(perspective_str)
@@ -457,6 +429,5 @@ pub fn format_error(error: QuestionLoadError) -> String {
     CueExportError(msg) -> "CUE export failed:\n" <> msg
     JsonParseError(msg) -> "JSON parse error: " <> msg
     QuestionParseError(msg) -> "Question parse error: " <> msg
-    SecurityError(msg) -> "Security error: " <> msg
   }
 }
