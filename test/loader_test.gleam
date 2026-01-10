@@ -6,8 +6,8 @@
 import gleam/string
 import gleeunit/should
 import intent/loader.{
-  CueExportError, CueValidationError, FileNotFound,
-  JsonParseError, LightSpecParseError, SpecParseError,
+  CueExportError, CueValidationError, FileNotFound, JsonParseError,
+  LightSpecParseError, SpecParseError,
 }
 
 // ============================================================================
@@ -242,6 +242,34 @@ pub fn loader_load_spec_quiet_file_not_found_test() {
       path
       |> should.equal("/nonexistent/path/to/spec.cue")
     }
+    _ -> should.fail()
+  }
+}
+
+// ============================================================================
+// validate_spec Tests (intent-cli-a6u)
+// Tests for the new validate_spec function that runs full parsing
+// ============================================================================
+
+pub fn loader_validate_spec_nonexistent_file_test() {
+  // validate_spec should return FileNotFound for missing files
+  let result = loader.validate_spec("/nonexistent/spec.cue")
+
+  case result {
+    Error(FileNotFound(path)) -> {
+      path
+      |> should.equal("/nonexistent/spec.cue")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn loader_validate_spec_empty_path_test() {
+  // Empty path should fail validation
+  let result = loader.validate_spec("")
+
+  case result {
+    Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
 }

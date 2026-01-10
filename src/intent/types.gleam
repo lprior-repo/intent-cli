@@ -1,8 +1,8 @@
 /// Core types for the Intent specification
 /// These types mirror the CUE schema definitions
-
 import gleam/dict.{type Dict}
 import gleam/json.{type Json}
+import gleam/option.{type Option}
 
 /// The main specification type - all fields required
 pub type Spec {
@@ -119,9 +119,14 @@ pub type Rule {
   )
 }
 
-/// Conditions for when a rule applies - all fields required
+/// Conditions for when a rule applies
+/// intent-cli-5zd: Fields are optional (None = wildcard, matches everything)
 pub type When {
-  When(status: String, method: Method, path: String)
+  When(
+    status: option.Option(String),
+    method: option.Option(Method),
+    path: option.Option(String),
+  )
 }
 
 /// Rule checks for global rules - all fields required
@@ -154,6 +159,7 @@ pub type AIHints {
     entities: Dict(String, EntityHint),
     security: SecurityHints,
     pitfalls: List(String),
+    codebase: Option(CodebaseContext),
   )
 }
 
@@ -171,5 +177,87 @@ pub type SecurityHints {
     jwt_algorithm: String,
     jwt_expiry: String,
     rate_limiting: String,
+  )
+}
+
+// =============================================================================
+// Codebase Context Types - For AI to understand existing patterns
+// =============================================================================
+
+/// Codebase context for AI to understand existing project patterns
+pub type CodebaseContext {
+  CodebaseContext(
+    patterns: Option(CodebasePatterns),
+    stack: Option(CodebaseStack),
+    entry_points: List(EntryPoint),
+    boundaries: List(Boundary),
+  )
+}
+
+/// Common patterns in the codebase
+pub type CodebasePatterns {
+  CodebasePatterns(
+    error_handling: String,
+    auth_middleware: String,
+    validation: String,
+    testing: String,
+  )
+}
+
+/// Technology stack
+pub type CodebaseStack {
+  CodebaseStack(
+    language: String,
+    framework: String,
+    database: String,
+    orm: String,
+    testing: String,
+  )
+}
+
+/// Entry point into the codebase
+pub type EntryPoint {
+  EntryPoint(name: String, path: String, description: String)
+}
+
+/// Architectural boundary
+pub type Boundary {
+  Boundary(name: String, description: String, modules: List(String))
+}
+
+// =============================================================================
+// Light Spec Types - Minimal spec for simple tasks
+// =============================================================================
+
+/// Simplified behavior for light specs (HTTP/API focused)
+/// No requires, tags, captures, or notes - just the essentials
+pub type LightBehavior {
+  LightBehavior(
+    name: String,
+    intent: String,
+    request: LightRequest,
+    response: LightResponse,
+  )
+}
+
+/// Simplified request for light behaviors
+pub type LightRequest {
+  LightRequest(method: Method, path: String, body: Json)
+}
+
+/// Simplified response for light behaviors
+pub type LightResponse {
+  LightResponse(status: Int, checks: Dict(String, Check))
+}
+
+/// Minimal spec for simple tasks
+/// No config block required, no rules required
+pub type LightSpec {
+  LightSpec(
+    name: String,
+    description: String,
+    behaviors: List(LightBehavior),
+    anti_patterns: List(AntiPattern),
+    ai_hints: Option(AIHints),
   )
 }

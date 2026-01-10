@@ -1,11 +1,10 @@
 /// Pre-execution static validation of specs
 /// Validates rule syntax, variable references, and dependencies before any HTTP requests
-
 import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/string
-import intent/types.{type Spec, type Behavior}
+import intent/types.{type Behavior, type Spec}
 
 /// Result of pre-execution validation
 pub type ValidationResult {
@@ -16,11 +15,21 @@ pub type ValidationResult {
 /// Issues found during validation
 pub type ValidationIssue {
   RuleSyntaxError(behavior: String, field: String, rule: String, error: String)
-  UndefinedVariable(behavior: String, field: String, var_name: String, suggestion: String)
+  UndefinedVariable(
+    behavior: String,
+    field: String,
+    var_name: String,
+    suggestion: String,
+  )
   InvalidPath(behavior: String, path: String, error: String)
   MissingDependency(behavior: String, depends_on: String)
   CircularDependency(behaviors: List(String))
-  MissingCapture(behavior: String, field: String, var_name: String, captured_by: List(String))
+  MissingCapture(
+    behavior: String,
+    field: String,
+    var_name: String,
+    captured_by: List(String),
+  )
 }
 
 /// Validate a complete spec before execution
@@ -123,7 +132,12 @@ fn validate_variable_references(
         True -> Error(Nil)
         False -> {
           let captured_by = find_behaviors_capturing(var_name, all_behaviors)
-          Ok(MissingCapture(behavior.name, "request.path", var_name, captured_by))
+          Ok(MissingCapture(
+            behavior.name,
+            "request.path",
+            var_name,
+            captured_by,
+          ))
         }
       }
     })
@@ -144,7 +158,12 @@ fn validate_variable_references(
         True -> Error(Nil)
         False -> {
           let captured_by = find_behaviors_capturing(var_name, all_behaviors)
-          Ok(MissingCapture(behavior.name, "request.headers", var_name, captured_by))
+          Ok(MissingCapture(
+            behavior.name,
+            "request.headers",
+            var_name,
+            captured_by,
+          ))
         }
       }
     })
@@ -164,7 +183,12 @@ fn get_available_captures(
     all_behaviors
     |> list.find_map(fn(b) {
       case b.name == behavior.name {
-        True -> Ok(list.length(list.take_while(all_behaviors, fn(x) { x.name != b.name })))
+        True ->
+          Ok(
+            list.length(
+              list.take_while(all_behaviors, fn(x) { x.name != b.name }),
+            ),
+          )
         False -> Error(Nil)
       }
     })
@@ -175,9 +199,7 @@ fn get_available_captures(
       // Get all captures from behaviors before this one
       all_behaviors
       |> list.take(idx)
-      |> list.flat_map(fn(b) {
-        dict.keys(b.captures)
-      })
+      |> list.flat_map(fn(b) { dict.keys(b.captures) })
       |> list.unique
     }
   }
@@ -240,7 +262,11 @@ fn has_circular_dependency(
         Ok(behavior) -> {
           // Check each dependency
           list.any(behavior.requires, fn(dep) {
-            has_circular_dependency(dep, list.append(visited, [behavior_name]), all_behaviors)
+            has_circular_dependency(
+              dep,
+              list.append(visited, [behavior_name]),
+              all_behaviors,
+            )
           })
         }
       }
@@ -255,32 +281,80 @@ pub fn format_issues(issues: List(ValidationIssue)) -> String {
     |> list.map(format_issue)
     |> string.join("\n\n")
 
-  "Validation failed with " <> int.to_string(list.length(issues)) <> " issue(s):\n\n" <> issue_lines
+  "Validation failed with "
+  <> int.to_string(list.length(issues))
+  <> " issue(s):\n\n"
+  <> issue_lines
 }
 
 /// Format a single validation issue
 fn format_issue(issue: ValidationIssue) -> String {
   case issue {
     RuleSyntaxError(behavior, field, rule, error) ->
-      "Behavior '" <> behavior <> "', field '" <> field <> "':\n" <> "  Invalid rule syntax: " <> rule <> "\n" <> "  Error: " <> error
+      "Behavior '"
+      <> behavior
+      <> "', field '"
+      <> field
+      <> "':\n"
+      <> "  Invalid rule syntax: "
+      <> rule
+      <> "\n"
+      <> "  Error: "
+      <> error
 
     UndefinedVariable(behavior, field, var_name, suggestion) ->
-      "Behavior '" <> behavior <> "', field '" <> field <> "':\n" <> "  Variable '" <> var_name <> "' is not defined\n" <> "  Suggestion: " <> suggestion
+      "Behavior '"
+      <> behavior
+      <> "', field '"
+      <> field
+      <> "':\n"
+      <> "  Variable '"
+      <> var_name
+      <> "' is not defined\n"
+      <> "  Suggestion: "
+      <> suggestion
 
     InvalidPath(behavior, path, error) ->
-      "Behavior '" <> behavior <> "':\n" <> "  Invalid path: " <> path <> "\n" <> "  Error: " <> error
+      "Behavior '"
+      <> behavior
+      <> "':\n"
+      <> "  Invalid path: "
+      <> path
+      <> "\n"
+      <> "  Error: "
+      <> error
 
     MissingDependency(behavior, depends_on) ->
-      "Behavior '" <> behavior <> "':\n" <> "  Depends on behavior '" <> depends_on <> "' which does not exist"
+      "Behavior '"
+      <> behavior
+      <> "':\n"
+      <> "  Depends on behavior '"
+      <> depends_on
+      <> "' which does not exist"
 
     CircularDependency(behaviors) ->
-      "Circular dependency detected:\n" <> "  Behaviors: " <> string.join(behaviors, " -> ")
+      "Circular dependency detected:\n"
+      <> "  Behaviors: "
+      <> string.join(behaviors, " -> ")
 
     MissingCapture(behavior, location, var_name, captured_by) ->
-      "Behavior '" <> behavior <> "', " <> location <> ":\n" <> "  Variable '" <> var_name <> "' is not available\n" <> case captured_by {
+      "Behavior '"
+      <> behavior
+      <> "', "
+      <> location
+      <> ":\n"
+      <> "  Variable '"
+      <> var_name
+      <> "' is not available\n"
+      <> case captured_by {
         [] -> "  Hint: No behavior captures this variable. Check spelling."
         _ ->
-          "  Hint: This variable is captured by: " <> string.join(captured_by, ", ") <> "\n" <> "  Ensure these behaviors run before '" <> behavior <> "'"
+          "  Hint: This variable is captured by: "
+          <> string.join(captured_by, ", ")
+          <> "\n"
+          <> "  Ensure these behaviors run before '"
+          <> behavior
+          <> "'"
       }
   }
 }

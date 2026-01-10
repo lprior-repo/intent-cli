@@ -1,6 +1,5 @@
 /// Rigorous format validators using pure Gleam parsing
 /// No regex-only validation - actual structural parsing and validation
-
 import gleam/int
 import gleam/list
 import gleam/string
@@ -24,7 +23,8 @@ pub fn validate_email(email: String) -> Result(Nil, String) {
         }
       }
     }
-    _ -> Error("'" <> email <> "' is not a valid email address (invalid @ format)")
+    _ ->
+      Error("'" <> email <> "' is not a valid email address (invalid @ format)")
   }
 }
 
@@ -35,15 +35,11 @@ fn validate_email_local(local: String) -> Result(Nil, String) {
     False -> {
       // Check for consecutive dots
       case string.contains(local, "..") {
-        True ->
-          Error("Email local part cannot contain consecutive dots")
+        True -> Error("Email local part cannot contain consecutive dots")
         False -> {
           // Check that it doesn't start or end with a dot
-          case
-            string.starts_with(local, ".") || string.ends_with(local, ".")
-          {
-            True ->
-              Error("Email local part cannot start or end with a dot")
+          case string.starts_with(local, ".") || string.ends_with(local, ".") {
+            True -> Error("Email local part cannot start or end with a dot")
             False -> {
               // Check valid characters: alphanumeric, dots, hyphens, underscores, plus
               let valid = is_valid_email_local_chars(local)
@@ -51,8 +47,7 @@ fn validate_email_local(local: String) -> Result(Nil, String) {
                 True -> Ok(Nil)
                 False ->
                   Error(
-                    "Email local part contains invalid characters: "
-                    <> local,
+                    "Email local part contains invalid characters: " <> local,
                   )
               }
             }
@@ -70,7 +65,12 @@ fn is_valid_email_local_chars(s: String) -> Bool {
     case c {
       "." | "-" | "_" | "+" -> True
       _ ->
-        case string.contains("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", c) {
+        case
+          string.contains(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            c,
+          )
+        {
           True -> True
           False -> False
         }
@@ -90,12 +90,16 @@ fn validate_email_domain(domain: String) -> Result(Nil, String) {
           // Split by dots - none should be empty
           let labels = string.split(domain, ".")
           case list.any(labels, string.is_empty) {
-            True -> Error("Email domain contains empty label (consecutive or trailing dots)")
+            True ->
+              Error(
+                "Email domain contains empty label (consecutive or trailing dots)",
+              )
             False -> {
               // Check each label is valid
               case list.all(labels, is_valid_domain_label) {
                 True -> Ok(Nil)
-                False -> Error("Email domain contains invalid labels: " <> domain)
+                False ->
+                  Error("Email domain contains invalid labels: " <> domain)
               }
             }
           }
@@ -115,7 +119,12 @@ fn is_valid_domain_label(label: String) -> Bool {
       let all_chars_valid =
         string.to_graphemes(label)
         |> list.all(fn(c) {
-          case string.contains("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-", c) {
+          case
+            string.contains(
+              "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-",
+              c,
+            )
+          {
             True -> True
             False -> False
           }
@@ -141,7 +150,9 @@ pub fn validate_uuid(uuid: String) -> Result(Nil, String) {
       {
         False ->
           Error(
-            "'" <> uuid <> "' has invalid UUID segment lengths (expected 8-4-4-4-12)",
+            "'"
+            <> uuid
+            <> "' has invalid UUID segment lengths (expected 8-4-4-4-12)",
           )
         True -> {
           // Check all parts are valid hex
@@ -160,21 +171,20 @@ pub fn validate_uuid(uuid: String) -> Result(Nil, String) {
               case string.contains("12345", version_char) {
                 False ->
                   Error(
-                    "'" <> uuid <> "' has invalid UUID version (expected 1-5, got "
-                    <> version_char <> ")",
+                    "'"
+                    <> uuid
+                    <> "' has invalid UUID version (expected 1-5, got "
+                    <> version_char
+                    <> ")",
                   )
                 True -> {
                   // Validate variant bits (clock_seq_hi_variant[0] for RFC 4122)
                   let variant_char = string.slice(clock_seq_hi_variant, 0, 1)
-                  case
-                    string.contains(
-                      "89abAB",
-                      variant_char,
-                    )
-                  {
+                  case string.contains("89abAB", variant_char) {
                     False ->
                       Error(
-                        "'" <> uuid
+                        "'"
+                        <> uuid
                         <> "' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)",
                       )
                     True -> Ok(Nil)
@@ -186,10 +196,7 @@ pub fn validate_uuid(uuid: String) -> Result(Nil, String) {
         }
       }
     }
-    _ ->
-      Error(
-        "'" <> uuid <> "' is not a valid UUID (invalid segment count)",
-      )
+    _ -> Error("'" <> uuid <> "' is not a valid UUID (invalid segment count)")
   }
 }
 
@@ -218,10 +225,7 @@ pub fn validate_uri(uri: String) -> Result(Nil, String) {
           // Extract and validate scheme
           case string.split_once(uri, "://") {
             Error(_) ->
-              Error(
-                "'" <> uri
-                <> "' is not a valid URI (malformed scheme)",
-              )
+              Error("'" <> uri <> "' is not a valid URI (malformed scheme)")
             Ok(#(scheme, rest)) -> {
               case validate_uri_scheme(scheme) {
                 Error(e) -> Error(e)
@@ -249,11 +253,58 @@ fn validate_uri_scheme(scheme: String) -> Result(Nil, String) {
     False -> {
       let first_char = string.slice(scheme, 0, 1)
       let is_letter = case first_char {
-        "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l"
-        | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w"
-        | "x" | "y" | "z" | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H"
-        | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S"
-        | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" -> True
+        "a"
+        | "b"
+        | "c"
+        | "d"
+        | "e"
+        | "f"
+        | "g"
+        | "h"
+        | "i"
+        | "j"
+        | "k"
+        | "l"
+        | "m"
+        | "n"
+        | "o"
+        | "p"
+        | "q"
+        | "r"
+        | "s"
+        | "t"
+        | "u"
+        | "v"
+        | "w"
+        | "x"
+        | "y"
+        | "z"
+        | "A"
+        | "B"
+        | "C"
+        | "D"
+        | "E"
+        | "F"
+        | "G"
+        | "H"
+        | "I"
+        | "J"
+        | "K"
+        | "L"
+        | "M"
+        | "N"
+        | "O"
+        | "P"
+        | "Q"
+        | "R"
+        | "S"
+        | "T"
+        | "U"
+        | "V"
+        | "W"
+        | "X"
+        | "Y"
+        | "Z" -> True
         _ -> False
       }
 
@@ -292,9 +343,7 @@ pub fn validate_iso8601(datetime: String) -> Result(Nil, String) {
   // At minimum, must have YYYY-MM-DD
   case string.length(datetime) {
     len if len < 10 ->
-      Error(
-        "'" <> datetime <> "' is not a valid ISO8601 datetime (too short)",
-      )
+      Error("'" <> datetime <> "' is not a valid ISO8601 datetime (too short)")
     _ -> {
       // Extract date part (first 10 chars)
       let date_part = string.slice(datetime, 0, 10)
@@ -309,12 +358,14 @@ pub fn validate_iso8601(datetime: String) -> Result(Nil, String) {
               let time_sep = string.slice(datetime, 10, 1)
               case time_sep {
                 "T" | " " -> {
-                  let time_part = string.slice(datetime, 11, string.length(datetime))
+                  let time_part =
+                    string.slice(datetime, 11, string.length(datetime))
                   validate_iso8601_time(time_part)
                 }
                 _ ->
                   Error(
-                    "'" <> datetime
+                    "'"
+                    <> datetime
                     <> "' is not a valid ISO8601 datetime (invalid separator, expected T or space)",
                   )
               }
@@ -334,11 +385,7 @@ fn validate_iso8601_date(date_str: String) -> Result(Nil, String) {
       let parts = string.split(date_str, "-")
       case parts {
         [year_str, month_str, day_str] -> {
-          case
-            parse_int(year_str),
-            parse_int(month_str),
-            parse_int(day_str)
-          {
+          case parse_int(year_str), parse_int(month_str), parse_int(day_str) {
             Error(_), _, _ ->
               Error("'" <> date_str <> "' has invalid year (not a number)")
             _, Error(_), _ ->
@@ -350,18 +397,22 @@ fn validate_iso8601_date(date_str: String) -> Result(Nil, String) {
               case month {
                 m if m < 1 || m > 12 ->
                   Error(
-                    "'" <> date_str <> "' has invalid month: "
+                    "'"
+                    <> date_str
+                    <> "' has invalid month: "
                     <> month_str
                     <> " (must be 01-12)",
                   )
                 _ -> {
                   // Validate day based on month and leap year
-                  let max_day =
-                    get_days_in_month(month, is_leap_year(year))
+                  let max_day = get_days_in_month(month, is_leap_year(year))
                   case day {
                     d if d < 1 || d > max_day ->
                       Error(
-                        "'" <> date_str <> "' has invalid day: " <> day_str
+                        "'"
+                        <> date_str
+                        <> "' has invalid day: "
+                        <> day_str
                         <> " (month "
                         <> month_str
                         <> " has max "
@@ -378,7 +429,12 @@ fn validate_iso8601_date(date_str: String) -> Result(Nil, String) {
         _ -> Error("'" <> date_str <> "' is not valid ISO8601 date format")
       }
     }
-    _ -> Error("'" <> date_str <> "' is not valid ISO8601 date format (expected YYYY-MM-DD)")
+    _ ->
+      Error(
+        "'"
+        <> date_str
+        <> "' is not valid ISO8601 date format (expected YYYY-MM-DD)",
+      )
   }
 }
 
@@ -406,7 +462,9 @@ fn validate_iso8601_time(time_str: String) -> Result(Nil, String) {
         Error(_), _ ->
           Error("Invalid ISO8601 time: hour must be a number, got " <> hour_str)
         _, Error(_) ->
-          Error("Invalid ISO8601 time: minute must be a number, got " <> minute_str)
+          Error(
+            "Invalid ISO8601 time: minute must be a number, got " <> minute_str,
+          )
         Ok(hour), Ok(minute) -> {
           case hour {
             h if h < 0 || h > 23 ->
