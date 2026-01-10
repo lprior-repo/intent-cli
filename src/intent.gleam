@@ -34,6 +34,7 @@ import intent/kirk/coverage_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/compact_format
 import intent/kirk/ears_parser
+import intent/kirk/effects_analyzer
 import intent/plan_mode
 import simplifile
 
@@ -73,10 +74,13 @@ pub fn main() {
   |> glint.add(at: ["compact"], do: kirk_compact_command())
   |> glint.add(at: ["prototext"], do: kirk_prototext_command())
   |> glint.add(at: ["ears"], do: kirk_ears_command())
+  |> glint.add(at: ["effects"], do: kirk_effects_command())
   // Plan commands
   |> glint.add(at: ["plan"], do: plan_command())
   |> glint.add(at: ["plan-approve"], do: plan_approve_command())
   |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
+  // Context scanning
+  |> glint.add(at: ["context-scan"], do: context_scan_command())
   |> glint.run(argv.load().arguments)
 }
 
@@ -1849,6 +1853,33 @@ fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
     #("suggestion", json.string(gap.suggestion)),
     #("mental_model", json.string(gap.mental_model)),
   ])
+}
+
+/// The `effects` command - KIRK second-order effects analysis
+fn kirk_effects_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(spec) -> {
+            let report = effects_analyzer.analyze_effects(spec)
+            io.println(effects_analyzer.format_report(report))
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            cli_ui.print_error(loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("spec file path required")
+        io.println("Usage: intent effects <spec.cue>")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("KIRK: Analyze second-order effects (consequence tracing)")
 }
 
 /// The `compact` command - KIRK compact format (CIN)

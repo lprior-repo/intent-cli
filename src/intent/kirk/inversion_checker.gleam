@@ -161,8 +161,8 @@ fn check_security_inversions(behaviors: List(Behavior), _paths: List(String), sp
     let #(name, desc, expected_status) = inv
     let is_tested = is_inversion_covered(name, expected_status, behavior_names, behavior_intents, behavior_statuses, spec)
     case is_tested {
-      True -> None
-      False -> Some(InversionGap(
+      True -> Error(Nil)
+      False -> Ok(InversionGap(
         category: "security",
         description: desc,
         severity: security_severity(name),
@@ -217,8 +217,8 @@ fn check_usability_inversions(behaviors: List(Behavior), _paths: List(String)) -
       || list.contains(behavior_statuses, expected_status)
 
     case is_tested {
-      True -> None
-      False -> Some(InversionGap(
+      True -> Error(Nil)
+      False -> Ok(InversionGap(
         category: "usability",
         description: desc,
         severity: usability_severity(name),
@@ -269,8 +269,8 @@ fn check_integration_inversions(behaviors: List(Behavior), _paths: List(String))
       || list.contains(behavior_statuses, expected_status)
 
     case is_tested {
-      True -> None
-      False -> Some(InversionGap(
+      True -> Error(Nil)
+      False -> Ok(InversionGap(
         category: "integration",
         description: desc,
         severity: integration_severity(name),
@@ -406,21 +406,57 @@ fn gap_to_name(gap: InversionGap) -> String {
 
 fn gap_to_method_status(description: String) -> #(Method, Int) {
   let desc = string.lowercase(description)
-  case True {
-    _ if string.contains(desc, "authentication") -> #(Get, 401)
-    _ if string.contains(desc, "token") -> #(Get, 401)
-    _ if string.contains(desc, "access") -> #(Get, 403)
-    _ if string.contains(desc, "admin") -> #(Post, 403)
-    _ if string.contains(desc, "injection") -> #(Post, 400)
-    _ if string.contains(desc, "xss") -> #(Post, 400)
-    _ if string.contains(desc, "not-found") -> #(Get, 404)
-    _ if string.contains(desc, "non-existent") -> #(Get, 404)
-    _ if string.contains(desc, "malformed") -> #(Post, 400)
-    _ if string.contains(desc, "required") -> #(Post, 400)
-    _ if string.contains(desc, "duplicate") -> #(Post, 409)
-    _ if string.contains(desc, "rate") -> #(Get, 429)
-    _ if string.contains(desc, "timeout") -> #(Get, 504)
-    _ -> #(Get, 400)
+  case string.contains(desc, "authentication") {
+    True -> #(Get, 401)
+    False ->
+      case string.contains(desc, "token") {
+        True -> #(Get, 401)
+        False ->
+          case string.contains(desc, "access") {
+            True -> #(Get, 403)
+            False ->
+              case string.contains(desc, "admin") {
+                True -> #(Post, 403)
+                False ->
+                  case string.contains(desc, "injection") {
+                    True -> #(Post, 400)
+                    False ->
+                      case string.contains(desc, "xss") {
+                        True -> #(Post, 400)
+                        False ->
+                          case string.contains(desc, "not-found") {
+                            True -> #(Get, 404)
+                            False ->
+                              case string.contains(desc, "non-existent") {
+                                True -> #(Get, 404)
+                                False ->
+                                  case string.contains(desc, "malformed") {
+                                    True -> #(Post, 400)
+                                    False ->
+                                      case string.contains(desc, "required") {
+                                        True -> #(Post, 400)
+                                        False ->
+                                          case string.contains(desc, "duplicate") {
+                                            True -> #(Post, 409)
+                                            False ->
+                                              case string.contains(desc, "rate") {
+                                                True -> #(Get, 429)
+                                                False ->
+                                                  case string.contains(desc, "timeout") {
+                                                    True -> #(Get, 504)
+                                                    False -> #(Get, 400)
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      }
   }
 }
 

@@ -8,7 +8,7 @@ import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import gleam/string_tree
+import gleam/string_builder
 import intent/types.{
   type Spec, type Feature, type Behavior, type Request, type Response, type Check,
   type Rule, type AntiPattern, type Method,

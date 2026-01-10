@@ -1,5 +1,4 @@
 /// Rule evaluation - evaluates validation rules against JSON values
-
 import gleam/dict
 import gleam/dynamic
 import gleam/float
@@ -36,41 +35,67 @@ pub fn evaluate_rule(
     rule.EqualsFloat(expected) -> check_equals_float(value, expected)
     rule.EqualsBool(expected) -> check_equals_bool(value, expected)
 
-    rule.IsString -> check_is_string(value)
-    rule.IsInteger -> check_is_integer(value)
+    rule.IsString -> check_is_type(value, dynamic.string, "string")
+    rule.IsInteger -> check_is_type(value, dynamic.int, "integer")
     rule.IsNumber -> check_is_number(value)
-    rule.IsBoolean -> check_is_boolean(value)
-    rule.IsArray -> check_is_array(value)
-    rule.IsObject -> check_is_object(value)
+    rule.IsBoolean -> check_is_type(value, dynamic.bool, "boolean")
+    rule.IsArray -> check_is_type(value, dynamic.list(dynamic.dynamic), "array")
+    rule.IsObject ->
+      check_is_type(
+        value,
+        dynamic.dict(dynamic.string, dynamic.dynamic),
+        "object",
+      )
     rule.IsNull -> check_is_null(value)
 
     rule.NonEmptyString -> check_non_empty_string(value)
     rule.StringMatching(pattern) -> check_string_matching(value, pattern)
-    rule.StringStartingWith(prefix) -> check_string_starting_with(value, prefix)
-    rule.StringEndingWith(suffix) -> check_string_ending_with(value, suffix)
+    rule.StringStartingWith(prefix) ->
+      check_string_with_predicate(
+        value,
+        fn(s) { string.starts_with(s, prefix) },
+        "String '" <> "' does not start with '" <> prefix <> "'",
+      )
+    rule.StringEndingWith(suffix) ->
+      check_string_with_predicate(
+        value,
+        fn(s) { string.ends_with(s, suffix) },
+        "String '" <> "' does not end with '" <> suffix <> "'",
+      )
     rule.StringContaining(substring) ->
-      check_string_containing(value, substring)
+      check_string_with_predicate(
+        value,
+        fn(s) { string.contains(s, substring) },
+        "String '" <> "' does not contain '" <> substring <> "'",
+      )
 
-    rule.IsEmail -> check_is_email(value)
-    rule.IsUuid -> check_is_uuid(value)
-    rule.IsUri -> check_is_uri(value)
-    rule.IsJwt -> check_is_jwt(value)
-    rule.IsIso8601 -> check_is_iso8601(value)
+    rule.IsEmail -> check_string_format(value, formats.validate_email)
+    rule.IsUuid -> check_string_format(value, formats.validate_uuid)
+    rule.IsUri -> check_string_format(value, formats.validate_uri)
+    rule.IsJwt -> check_valid_jwt(value)
+    rule.IsIso8601 -> check_string_format(value, formats.validate_iso8601)
     rule.ValidJwt -> check_valid_jwt(value)
-    rule.ValidIso8601 -> check_is_iso8601(value)
+    rule.ValidIso8601 -> check_string_format(value, formats.validate_iso8601)
 
-    rule.IntegerGte(n) -> check_integer_gte(value, n)
-    rule.IntegerGt(n) -> check_integer_gt(value, n)
-    rule.IntegerLte(n) -> check_integer_lte(value, n)
-    rule.IntegerLt(n) -> check_integer_lt(value, n)
+    rule.IntegerGte(n) ->
+      check_integer_comparison(value, n, fn(a, b) { a >= b }, ">=")
+    rule.IntegerGt(n) ->
+      check_integer_comparison(value, n, fn(a, b) { a > b }, ">")
+    rule.IntegerLte(n) ->
+      check_integer_comparison(value, n, fn(a, b) { a <= b }, "<=")
+    rule.IntegerLt(n) ->
+      check_integer_comparison(value, n, fn(a, b) { a < b }, "<")
     rule.IntegerBetween(low, high) -> check_integer_between(value, low, high)
     rule.NumberBetween(low, high) -> check_number_between(value, low, high)
 
     rule.NotNull -> check_not_null(value)
     rule.NonEmptyArray -> check_non_empty_array(value)
-    rule.ArrayOfLength(n) -> check_array_of_length(value, n)
-    rule.ArrayWithMinItems(n) -> check_array_min_items(value, n)
-    rule.ArrayWithMaxItems(n) -> check_array_max_items(value, n)
+    rule.ArrayOfLength(n) ->
+      check_array_length(value, n, fn(a, b) { a == b }, "of length")
+    rule.ArrayWithMinItems(n) ->
+      check_array_length(value, n, fn(a, b) { a >= b }, "with at least")
+    rule.ArrayWithMaxItems(n) ->
+      check_array_length(value, n, fn(a, b) { a <= b }, "with at most")
 
     rule.OneOf(options) -> check_one_of(value, options)
 
@@ -111,7 +136,101 @@ pub fn evaluate_rule(
   }
 }
 
-// Individual check functions
+// ===== Generic Helper Functions =====
+
+/// Generic type checker - reduces duplication for all type checking functions
+fn check_is_type(
+  value: Json,
+  decoder: dynamic.Decoder(a),
+  type_name: String,
+) -> Result(Nil, String) {
+  case json.decode(json.to_string(value), decoder) {
+    Ok(_) -> Ok(Nil)
+    Error(_) ->
+      Error("Expected " <> type_name <> " but got " <> json.to_string(value))
+  }
+}
+
+/// Generic string predicate checker - reduces duplication for string operations
+fn check_string_with_predicate(
+  value: Json,
+  predicate: fn(String) -> Bool,
+  error_template: String,
+) -> Result(Nil, String) {
+  case json.decode(json.to_string(value), dynamic.string) {
+    Ok(s) ->
+      case predicate(s) {
+        True -> Ok(Nil)
+        False -> Error(string.replace(error_template, "'", "'" <> s))
+      }
+    Error(_) -> Error("Expected string but got " <> json.to_string(value))
+  }
+}
+
+/// Generic string format validator - reduces duplication for format checks
+fn check_string_format(
+  value: Json,
+  validator: fn(String) -> Result(Nil, String),
+) -> Result(Nil, String) {
+  case json.decode(json.to_string(value), dynamic.string) {
+    Ok(s) -> validator(s)
+    Error(_) -> Error("Expected string but got " <> json.to_string(value))
+  }
+}
+
+/// Generic integer comparison - reduces duplication for all integer comparisons
+fn check_integer_comparison(
+  value: Json,
+  n: Int,
+  comparator: fn(Int, Int) -> Bool,
+  operator: String,
+) -> Result(Nil, String) {
+  case json.decode(json.to_string(value), dynamic.int) {
+    Ok(actual) ->
+      case comparator(actual, n) {
+        True -> Ok(Nil)
+        False ->
+          Error(
+            "Expected integer "
+            <> operator
+            <> " "
+            <> int.to_string(n)
+            <> " but got "
+            <> int.to_string(actual),
+          )
+      }
+    Error(_) -> Error("Expected integer but got " <> json.to_string(value))
+  }
+}
+
+/// Generic array length checker - reduces duplication for array length validations
+fn check_array_length(
+  value: Json,
+  n: Int,
+  comparator: fn(Int, Int) -> Bool,
+  description: String,
+) -> Result(Nil, String) {
+  case json.decode(json.to_string(value), dynamic.list(dynamic.dynamic)) {
+    Ok(arr) -> {
+      let actual_len = list.length(arr)
+      case comparator(actual_len, n) {
+        True -> Ok(Nil)
+        False ->
+          Error(
+            "Expected array "
+            <> description
+            <> " "
+            <> int.to_string(n)
+            <> " items but got "
+            <> int.to_string(actual_len),
+          )
+      }
+    }
+    Error(_) -> Error("Expected array but got " <> json.to_string(value))
+  }
+}
+
+// ===== Specialized Check Functions =====
 
 fn check_equals_string(value: Json, expected: String) -> Result(Nil, String) {
   let actual = field_validation.json_to_raw_string(value)
@@ -126,8 +245,7 @@ fn check_equals_json(value: Json, expected: Json) -> Result(Nil, String) {
   let expected_str = json.to_string(expected)
   case actual_str == expected_str {
     True -> Ok(Nil)
-    False ->
-      Error("Expected " <> expected_str <> " but got " <> actual_str)
+    False -> Error("Expected " <> expected_str <> " but got " <> actual_str)
   }
 }
 
@@ -186,20 +304,6 @@ fn check_equals_bool(value: Json, expected: Bool) -> Result(Nil, String) {
   }
 }
 
-fn check_is_string(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(_) -> Ok(Nil)
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_is_integer(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.int) {
-    Ok(_) -> Ok(Nil)
-    Error(_) -> Error("Expected integer but got " <> json.to_string(value))
-  }
-}
-
 fn check_is_number(value: Json) -> Result(Nil, String) {
   let json_str = json.to_string(value)
   case json.decode(json_str, dynamic.int) {
@@ -209,29 +313,6 @@ fn check_is_number(value: Json) -> Result(Nil, String) {
         Ok(_) -> Ok(Nil)
         Error(_) -> Error("Expected number but got " <> json_str)
       }
-  }
-}
-
-fn check_is_boolean(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.bool) {
-    Ok(_) -> Ok(Nil)
-    Error(_) -> Error("Expected boolean but got " <> json.to_string(value))
-  }
-}
-
-fn check_is_array(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.list(dynamic.dynamic)) {
-    Ok(_) -> Ok(Nil)
-    Error(_) -> Error("Expected array but got " <> json.to_string(value))
-  }
-}
-
-fn check_is_object(value: Json) -> Result(Nil, String) {
-  case
-    json.decode(json.to_string(value), dynamic.dict(dynamic.string, dynamic.dynamic))
-  {
-    Ok(_) -> Ok(Nil)
-    Error(_) -> Error("Expected object but got " <> json.to_string(value))
   }
 }
 
@@ -261,79 +342,18 @@ fn check_string_matching(value: Json, pattern: String) -> Result(Nil, String) {
           case regexp.check(re, s) {
             True -> Ok(Nil)
             False ->
-              Error("String '" <> s <> "' does not match pattern /" <> pattern <> "/")
+              Error(
+                "String '"
+                <> s
+                <> "' does not match pattern /"
+                <> pattern
+                <> "/",
+              )
           }
         Error(_) -> Error("Invalid regex pattern: " <> pattern)
       }
     Error(_) -> Error("Expected string but got " <> json.to_string(value))
   }
-}
-
-fn check_string_starting_with(
-  value: Json,
-  prefix: String,
-) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(s) ->
-      case string.starts_with(s, prefix) {
-        True -> Ok(Nil)
-        False ->
-          Error("String '" <> s <> "' does not start with '" <> prefix <> "'")
-      }
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_string_ending_with(value: Json, suffix: String) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(s) ->
-      case string.ends_with(s, suffix) {
-        True -> Ok(Nil)
-        False ->
-          Error("String '" <> s <> "' does not end with '" <> suffix <> "'")
-      }
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_string_containing(
-  value: Json,
-  substring: String,
-) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(s) ->
-      case string.contains(s, substring) {
-        True -> Ok(Nil)
-        False ->
-          Error("String '" <> s <> "' does not contain '" <> substring <> "'")
-      }
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_is_email(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(s) -> formats.validate_email(s)
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_is_uuid(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(s) -> formats.validate_uuid(s)
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_is_uri(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(s) -> formats.validate_uri(s)
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_is_jwt(value: Json) -> Result(Nil, String) {
-  check_valid_jwt(value)
 }
 
 fn check_valid_jwt(value: Json) -> Result(Nil, String) {
@@ -357,9 +377,7 @@ fn check_valid_jwt(value: Json) -> Result(Nil, String) {
         }
         _ ->
           Error(
-            "'"
-            <> s
-            <> "' is not a valid JWT (expected 3 dot-separated parts)",
+            "'" <> s <> "' is not a valid JWT (expected 3 dot-separated parts)",
           )
       }
     }
@@ -398,82 +416,11 @@ fn validate_jwt_header_has_alg(header: String) -> Result(Nil, String) {
 @external(erlang, "intent_ffi", "base64_url_decode")
 fn base64_url_decode(input: String) -> Result(String, String)
 
-fn check_is_iso8601(value: Json) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.string) {
-    Ok(s) -> formats.validate_iso8601(s)
-    Error(_) -> Error("Expected string but got " <> json.to_string(value))
-  }
-}
-
-fn check_integer_gte(value: Json, n: Int) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.int) {
-    Ok(actual) ->
-      case actual >= n {
-        True -> Ok(Nil)
-        False ->
-          Error(
-            "Expected integer >= "
-            <> int.to_string(n)
-            <> " but got "
-            <> int.to_string(actual),
-          )
-      }
-    Error(_) -> Error("Expected integer but got " <> json.to_string(value))
-  }
-}
-
-fn check_integer_gt(value: Json, n: Int) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.int) {
-    Ok(actual) ->
-      case actual > n {
-        True -> Ok(Nil)
-        False ->
-          Error(
-            "Expected integer > "
-            <> int.to_string(n)
-            <> " but got "
-            <> int.to_string(actual),
-          )
-      }
-    Error(_) -> Error("Expected integer but got " <> json.to_string(value))
-  }
-}
-
-fn check_integer_lte(value: Json, n: Int) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.int) {
-    Ok(actual) ->
-      case actual <= n {
-        True -> Ok(Nil)
-        False ->
-          Error(
-            "Expected integer <= "
-            <> int.to_string(n)
-            <> " but got "
-            <> int.to_string(actual),
-          )
-      }
-    Error(_) -> Error("Expected integer but got " <> json.to_string(value))
-  }
-}
-
-fn check_integer_lt(value: Json, n: Int) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.int) {
-    Ok(actual) ->
-      case actual < n {
-        True -> Ok(Nil)
-        False ->
-          Error(
-            "Expected integer < "
-            <> int.to_string(n)
-            <> " but got "
-            <> int.to_string(actual),
-          )
-      }
-    Error(_) -> Error("Expected integer but got " <> json.to_string(value))
-  }
-}
-
-fn check_integer_between(value: Json, low: Int, high: Int) -> Result(Nil, String) {
+fn check_integer_between(
+  value: Json,
+  low: Int,
+  high: Int,
+) -> Result(Nil, String) {
   case json.decode(json.to_string(value), dynamic.int) {
     Ok(actual) ->
       case actual >= low && actual <= high {
@@ -552,63 +499,6 @@ fn check_non_empty_array(value: Json) -> Result(Nil, String) {
   }
 }
 
-fn check_array_of_length(value: Json, n: Int) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.list(dynamic.dynamic)) {
-    Ok(arr) -> {
-      let actual_len = list.length(arr)
-      case actual_len == n {
-        True -> Ok(Nil)
-        False ->
-          Error(
-            "Expected array of length "
-            <> int.to_string(n)
-            <> " but got length "
-            <> int.to_string(actual_len),
-          )
-      }
-    }
-    Error(_) -> Error("Expected array but got " <> json.to_string(value))
-  }
-}
-
-fn check_array_min_items(value: Json, n: Int) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.list(dynamic.dynamic)) {
-    Ok(arr) -> {
-      let actual_len = list.length(arr)
-      case actual_len >= n {
-        True -> Ok(Nil)
-        False ->
-          Error(
-            "Expected array with at least "
-            <> int.to_string(n)
-            <> " items but got "
-            <> int.to_string(actual_len),
-          )
-      }
-    }
-    Error(_) -> Error("Expected array but got " <> json.to_string(value))
-  }
-}
-
-fn check_array_max_items(value: Json, n: Int) -> Result(Nil, String) {
-  case json.decode(json.to_string(value), dynamic.list(dynamic.dynamic)) {
-    Ok(arr) -> {
-      let actual_len = list.length(arr)
-      case actual_len <= n {
-        True -> Ok(Nil)
-        False ->
-          Error(
-            "Expected array with at most "
-            <> int.to_string(n)
-            <> " items but got "
-            <> int.to_string(actual_len),
-          )
-      }
-    }
-    Error(_) -> Error("Expected array but got " <> json.to_string(value))
-  }
-}
-
 fn check_one_of(value: Json, options: List(String)) -> Result(Nil, String) {
   let actual = field_validation.json_to_raw_string(value)
   case list.contains(options, actual) {
@@ -635,11 +525,7 @@ fn check_string_contains_json(
         True -> Ok(Nil)
         False ->
           Error(
-            "String '"
-            <> s
-            <> "' does not contain '"
-            <> expected_str
-            <> "'",
+            "String '" <> s <> "' does not contain '" <> expected_str <> "'",
           )
       }
     }
@@ -660,15 +546,21 @@ fn check_array_where_each(
         |> list.index_map(fn(item, idx) {
           let item_json = parser.dynamic_to_json(item)
           let result = case inner_rule {
-            rule.IsString -> check_is_string(item_json)
-            rule.IsInteger -> check_is_integer(item_json)
+            rule.IsString -> check_is_type(item_json, dynamic.string, "string")
+            rule.IsInteger -> check_is_type(item_json, dynamic.int, "integer")
             rule.IsNumber -> check_is_number(item_json)
-            rule.IsBoolean -> check_is_boolean(item_json)
-            rule.IsObject -> check_is_object(item_json)
+            rule.IsBoolean -> check_is_type(item_json, dynamic.bool, "boolean")
+            rule.IsObject ->
+              check_is_type(
+                item_json,
+                dynamic.dict(dynamic.string, dynamic.dynamic),
+                "object",
+              )
             rule.StringMatching(pattern) ->
               check_string_matching(item_json, pattern)
-            rule.IsEmail -> check_is_email(item_json)
-            rule.IsUuid -> check_is_uuid(item_json)
+            rule.IsEmail ->
+              check_string_format(item_json, formats.validate_email)
+            rule.IsUuid -> check_string_format(item_json, formats.validate_uuid)
             _ -> {
               // For complex rules, recursively evaluate
               case
@@ -701,10 +593,7 @@ fn check_array_where_each(
         [] -> Ok(Nil)
         [#(idx, msg), ..] ->
           Error(
-            "Array item at index "
-            <> int.to_string(idx)
-            <> " failed: "
-            <> msg,
+            "Array item at index " <> int.to_string(idx) <> " failed: " <> msg,
           )
       }
     }

@@ -8,6 +8,8 @@ import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
+import gleam/json
+import gleam/result
 import intent/types.{type Spec, type Feature, type Behavior, type Check, type Rule, type AntiPattern}
 
 // =============================================================================
@@ -38,7 +40,7 @@ pub type QualityIssue {
 pub type Severity {
   Info
   Warning
-  Error
+  ErrorLevel
   Critical
 }
 
@@ -210,8 +212,8 @@ fn find_path_conflicts(behaviors: List(Behavior)) -> List(String) {
       |> list.map(fn(b) { b.response.status })
       |> list.unique()
     case list.length(statuses) > 1 {
-      True -> Some("Multiple status expectations for " <> key)
-      False -> None
+      True -> Ok("Multiple status expectations for " <> key)
+      False -> Error(Nil)
     }
   })
 }
@@ -333,14 +335,8 @@ fn evaluate_security_coverage(spec: Spec) -> Float {
   let security_rules =
     spec.rules
     |> list.filter(fn(r) {
-      let body_not_contain = case r.check.body_must_not_contain {
-        Some(items) -> list.length(items) > 0
-        None -> False
-      }
-      let fields_not_exist = case r.check.fields_must_not_exist {
-        Some(items) -> list.length(items) > 0
-        None -> False
-      }
+      let body_not_contain = !list.is_empty(r.check.body_must_not_contain)
+      let fields_not_exist = !list.is_empty(r.check.fields_must_not_exist)
       body_not_contain || fields_not_exist
     })
     |> list.length()
@@ -391,12 +387,12 @@ fn find_missing_why_issues(spec: Spec) -> List(QualityIssue) {
         let #(field, check) = pair
         case string.is_empty(check.why) {
           True ->
-            Some(QualityIssue(
+            Ok(QualityIssue(
               field: b.name <> ".checks." <> field <> ".why",
               issue: "Missing explanation (why field)",
               severity: Warning,
             ))
-          False -> None
+          False -> Error(Nil)
         }
       })
     })
@@ -409,12 +405,12 @@ fn find_short_intent_issues(spec: Spec) -> List(QualityIssue) {
   |> list.filter_map(fn(b) {
     case string.length(b.intent) < 10 {
       True ->
-        Some(QualityIssue(
+        Ok(QualityIssue(
           field: b.name <> ".intent",
           issue: "Intent too short (< 10 chars)",
           severity: Warning,
         ))
-      False -> None
+      False -> Error(Nil)
     }
   })
 }
@@ -423,14 +419,14 @@ fn find_missing_example_issues(spec: Spec) -> List(QualityIssue) {
   spec.features
   |> list.flat_map(fn(f) { f.behaviors })
   |> list.filter_map(fn(b) {
-    case b.response.example {
-      None ->
-        Some(QualityIssue(
+    case b.response.example == json.null() {
+      True ->
+        Ok(QualityIssue(
           field: b.name <> ".response.example",
           issue: "Missing response example",
           severity: Info,
         ))
-      Some(_) -> None
+      False -> Error(Nil)
     }
   })
 }
@@ -441,12 +437,12 @@ fn find_empty_checks_issues(spec: Spec) -> List(QualityIssue) {
   |> list.filter_map(fn(b) {
     case dict.is_empty(b.response.checks) {
       True ->
-        Some(QualityIssue(
+        Ok(QualityIssue(
           field: b.name <> ".response.checks",
           issue: "No response checks defined",
-          severity: Error,
+          severity: ErrorLevel,
         ))
-      False -> None
+      False -> Error(Nil)
     }
   })
 }
@@ -599,7 +595,7 @@ fn format_issues(issues: List(QualityIssue)) -> String {
     let icon = case i.severity {
       Info -> "ℹ️ "
       Warning -> "⚠️ "
-      Error -> "❌"
+      ErrorLevel -> "❌"
       Critical -> "🚨"
     }
     "  " <> icon <> " " <> i.field <> ": " <> i.issue
@@ -619,7 +615,7 @@ pub fn severity_to_string(s: Severity) -> String {
   case s {
     Info -> "info"
     Warning -> "warning"
-    Error -> "error"
+    ErrorLevel -> "error"
     Critical -> "critical"
   }
 }
