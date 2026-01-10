@@ -22,3 +22,28 @@ Thumbs.db
 
 # Test outputs
 *.test
+
+# Sensitive files and credentials
+.env
+*.env
+.env.*
+credentials.json
+*.key
+*.pem
+*.p12
+*.pfx
+config.yaml
+.beads/config.yaml
+
+# Interview data (may contain PII)
+.interview/
+
+# Beads database (contains local state)
+.beads/beads.db
+.beads/beads.db-*
+.beads/daemon.log
+.beads/daemon.pid
+.beads/daemon.lock
+.beads/bd.sock
+.beads/.local_version
+.beads/interactions.jsonl

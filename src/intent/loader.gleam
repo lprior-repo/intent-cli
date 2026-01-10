@@ -1,5 +1,4 @@
 /// CUE spec loader - loads and validates CUE files using the cue command
-
 import gleam/dict
 import gleam/dynamic
 import gleam/json
@@ -8,6 +7,7 @@ import gleam/option.{None}
 import gleam/string
 import gleam_community/ansi
 import intent/parser
+import intent/security
 import intent/types.{
   type LightSpec, type Spec, AIHints, Behavior, Config, Feature,
   ImplementationHints, Request, Response, SecurityHints, Spec,
@@ -24,24 +24,27 @@ pub type LoadError {
   JsonParseError(message: String)
   SpecParseError(message: String)
   LightSpecParseError(message: String)
+  SecurityError(message: String)
 }
 
 /// Load a spec from a CUE file (with spinner UI)
 pub fn load_spec(path: String) -> Result(Spec, LoadError) {
-  // First check the file exists
-  case simplifile.verify_is_file(path) {
-    Ok(True) -> load_and_parse_with_spinner(path)
-    _ -> Error(FileNotFound(path))
+  // Validate path for security
+  case security.validate_file_path(path) {
+    Ok(validated_path) -> load_and_parse_with_spinner(validated_path)
+    Error(security_error) ->
+      Error(SecurityError(security.format_security_error(security_error)))
   }
 }
 
 /// Load a spec from a CUE file without spinner UI
 /// Use this for testing and automation where no UI output is desired
 pub fn load_spec_quiet(path: String) -> Result(Spec, LoadError) {
-  // First check the file exists
-  case simplifile.verify_is_file(path) {
-    Ok(True) -> load_and_parse_impl(path)
-    _ -> Error(FileNotFound(path))
+  // Validate path for security
+  case security.validate_file_path(path) {
+    Ok(validated_path) -> load_and_parse_impl(validated_path)
+    Error(security_error) ->
+      Error(SecurityError(security.format_security_error(security_error)))
   }
 }
 
@@ -91,7 +94,9 @@ fn export_and_parse(path: String) -> Result(Spec, LoadError) {
     Ok(json_str) -> parse_json_spec(json_str)
     Error(_) -> {
       // Try as light_spec
-      case shellout.command("cue", ["export", path, "-e", "light_spec"], ".", []) {
+      case
+        shellout.command("cue", ["export", path, "-e", "light_spec"], ".", [])
+      {
         Ok(json_str) -> parse_json_light_spec(json_str)
         Error(#(_, stderr)) -> Error(CueExportError(stderr))
       }
@@ -214,17 +219,22 @@ fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
 }
 
 fn format_single_decode_error(error: dynamic.DecodeError) -> String {
-  let path_str =
-    case error.path {
-      [] -> "at root"
-      path_parts ->
-        "at " <> string.join(path_parts, ".") <> " (path: ." <> string.join(
-          path_parts,
-          ".",
-        ) <> ")"
-    }
+  let path_str = case error.path {
+    [] -> "at root"
+    path_parts ->
+      "at "
+      <> string.join(path_parts, ".")
+      <> " (path: ."
+      <> string.join(path_parts, ".")
+      <> ")"
+  }
 
-  "Expected " <> error.expected <> " but found " <> error.found <> " " <> path_str
+  "Expected "
+  <> error.expected
+  <> " but found "
+  <> error.found
+  <> " "
+  <> path_str
 }
 
 fn format_json_error(error: json.DecodeError) -> String {
@@ -233,11 +243,15 @@ fn format_json_error(error: json.DecodeError) -> String {
       "Unexpected end of input - JSON is incomplete or truncated.\n"
       <> "  • Check that your JSON is properly closed with matching braces/brackets"
     json.UnexpectedByte(b) ->
-      "Unexpected byte: '" <> b <> "' in JSON at this position.\n"
+      "Unexpected byte: '"
+      <> b
+      <> "' in JSON at this position.\n"
       <> "  • Check for syntax errors like missing commas, quotes, or brackets\n"
       <> "  • Ensure strings are properly quoted"
     json.UnexpectedSequence(s) ->
-      "Unexpected sequence: '" <> s <> "' in JSON.\n"
+      "Unexpected sequence: '"
+      <> s
+      <> "' in JSON.\n"
       <> "  • This sequence is not valid JSON syntax\n"
       <> "  • Check for typos or invalid characters"
     json.UnexpectedFormat(errs) ->
