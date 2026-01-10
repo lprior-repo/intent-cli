@@ -1,13 +1,12 @@
 /// Spec quality analysis and scoring
 /// Analyzes completeness, clarity, testability, and AI readiness
-
 import gleam/dict
 import gleam/int
-import gleam/list
 import gleam/json
+import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/types.{type Spec, type Behavior, type Rule}
+import intent/types.{type Behavior, type Rule, type Spec}
 
 /// Quality metrics for a spec
 pub type QualityReport {
@@ -46,7 +45,8 @@ pub fn analyze_spec(spec: Spec) -> QualityReport {
   let ai_readiness_score = calculate_ai_readiness_score(spec, behaviors)
 
   let overall_score = {
-    let sum = coverage_score + clarity_score + testability_score + ai_readiness_score
+    let sum =
+      coverage_score + clarity_score + testability_score + ai_readiness_score
     sum / 4
   }
 
@@ -66,10 +66,7 @@ pub fn analyze_spec(spec: Spec) -> QualityReport {
 
 /// Calculate coverage score (0-100)
 /// Measures how many error cases and edge cases are tested
-fn calculate_coverage_score(
-  behaviors: List(Behavior),
-  rules: List(Rule),
-) -> Int {
+fn calculate_coverage_score(behaviors: List(Behavior), rules: List(Rule)) -> Int {
   let base = 50
 
   // Count error status codes tested
@@ -82,7 +79,6 @@ fn calculate_coverage_score(
     |> list.length
 
   let error_bonus = int.min(50, error_statuses * 10)
-
 
   // Check if authentication tested
   let has_auth_test =
@@ -113,7 +109,8 @@ fn calculate_coverage_score(
   // Check for anti-pattern coverage
   let antipattern_bonus = int.min(5, list.length(rules) * 2)
 
-  let coverage_total = base + error_bonus + auth_bonus + edge_bonus + antipattern_bonus
+  let coverage_total =
+    base + error_bonus + auth_bonus + edge_bonus + antipattern_bonus
   int.min(100, coverage_total)
 }
 
@@ -200,12 +197,11 @@ fn calculate_testability_score(behaviors: List(Behavior)) -> Int {
   // Check for examples
   let with_examples =
     behaviors
-    |> list.filter(fn(b) {
-      b.response.example != json.null()
-    })
+    |> list.filter(fn(b) { b.response.example != json.null() })
     |> list.length
 
-  let example_bonus = int.min(5, with_examples / int.max(1, list.length(behaviors) / 2))
+  let example_bonus =
+    int.min(5, with_examples / int.max(1, list.length(behaviors) / 2))
 
   let testability_total = base + capture_bonus + deps_bonus + example_bonus
   int.min(100, testability_total)
@@ -249,9 +245,7 @@ fn calculate_ai_readiness_score(spec: Spec, behaviors: List(Behavior)) -> Int {
   // Count example responses
   let with_examples =
     behaviors
-    |> list.filter(fn(b) {
-      b.response.example != json.null()
-    })
+    |> list.filter(fn(b) { b.response.example != json.null() })
     |> list.length
 
   let example_bonus = int.min(10, with_examples * 5)
@@ -268,8 +262,7 @@ fn find_quality_issues(
   let mut_issues = []
 
   // Check for error tests
-  let has_error_tests =
-    list.any(behaviors, fn(b) { b.response.status >= 400 })
+  let has_error_tests = list.any(behaviors, fn(b) { b.response.status >= 400 })
 
   let mut_issues = case has_error_tests {
     True -> mut_issues
@@ -278,9 +271,7 @@ fn find_quality_issues(
 
   // Check for auth tests
   let has_auth_test =
-    list.any(behaviors, fn(b) {
-      contains_any_ignore_case(b.name, ["auth"])
-    })
+    list.any(behaviors, fn(b) { contains_any_ignore_case(b.name, ["auth"]) })
 
   let mut_issues = case has_auth_test {
     True -> mut_issues
@@ -316,7 +307,8 @@ fn find_quality_issues(
   }
 
   // Check for examples
-  let has_examples = list.any(behaviors, fn(b) { b.response.example != json.null() })
+  let has_examples =
+    list.any(behaviors, fn(b) { b.response.example != json.null() })
 
   let mut_issues = case has_examples {
     True -> mut_issues
@@ -395,31 +387,36 @@ fn add_suggestion_if(
 /// Format quality report for display
 pub fn format_report(report: QualityReport) -> String {
   let score_section =
-    "Quality Score: " <> int.to_string(report.overall_score) <> "/100\n" <> "  Coverage: " <> int.to_string(
-      report.coverage_score,
-    ) <> "/100\n" <> "  Clarity: " <> int.to_string(
-      report.clarity_score,
-    ) <> "/100\n" <> "  Testability: " <> int.to_string(
-      report.testability_score,
-    ) <> "/100\n" <> "  AI Readiness: " <> int.to_string(
-      report.ai_readiness_score,
-    ) <> "/100"
+    "Quality Score: "
+    <> int.to_string(report.overall_score)
+    <> "/100\n"
+    <> "  Coverage: "
+    <> int.to_string(report.coverage_score)
+    <> "/100\n"
+    <> "  Clarity: "
+    <> int.to_string(report.clarity_score)
+    <> "/100\n"
+    <> "  Testability: "
+    <> int.to_string(report.testability_score)
+    <> "/100\n"
+    <> "  AI Readiness: "
+    <> int.to_string(report.ai_readiness_score)
+    <> "/100"
 
   let issues_section = case list.is_empty(report.issues) {
     True -> "No quality issues found!"
     False ->
-      "Quality Issues:\n" <> string.join(
-        report.issues |> list.map(format_issue),
-        "\n",
-      )
+      "Quality Issues:\n"
+      <> string.join(report.issues |> list.map(format_issue), "\n")
   }
 
   let suggestions_section = case list.is_empty(report.suggestions) {
     True -> ""
     False ->
-      "\n\nSuggestions for Improvement:\n" <> string.join(
+      "\n\nSuggestions for Improvement:\n"
+      <> string.join(
         report.suggestions
-        |> list.index_map(fn(s, i) { int.to_string(i + 1) <> ". " <> s }),
+          |> list.index_map(fn(s, i) { int.to_string(i + 1) <> ". " <> s }),
         "\n",
       )
   }
@@ -433,10 +430,38 @@ fn format_issue(issue: QualityIssue) -> String {
     MissingErrorTests -> "  • Missing error status code tests (4xx, 5xx)"
     MissingAuthenticationTest -> "  • Missing authentication tests"
     MissingEdgeCases -> "  • Missing edge case tests (empty, invalid, etc)"
-    VagueRules -> "  • Vague validation rules ('valid data', 'correct format')"
+    VagueRules ->
+      "  • Vague validation rules ('valid data', 'correct format')"
     NoExamples -> "  • No response examples provided"
     MissingExplanations -> "  • Missing 'why' explanations in checks"
     UntestedRules -> "  • Global rules not tested in behaviors"
     MissingAIHints -> "  • No AI implementation hints provided"
   }
+}
+
+/// Convert QualityReport to JSON
+pub fn report_to_json(report: QualityReport) -> json.Json {
+  json.object([
+    #("coverage_score", json.int(report.coverage_score)),
+    #("clarity_score", json.int(report.clarity_score)),
+    #("testability_score", json.int(report.testability_score)),
+    #("ai_readiness_score", json.int(report.ai_readiness_score)),
+    #("overall_score", json.int(report.overall_score)),
+    #(
+      "issues",
+      json.array(report.issues, fn(i) {
+        json.string(case i {
+          MissingErrorTests -> "missing_error_tests"
+          MissingAuthenticationTest -> "missing_authentication_test"
+          MissingEdgeCases -> "missing_edge_cases"
+          VagueRules -> "vague_rules"
+          NoExamples -> "no_examples"
+          MissingExplanations -> "missing_explanations"
+          UntestedRules -> "untested_rules"
+          MissingAIHints -> "missing_ai_hints"
+        })
+      }),
+    ),
+    #("suggestions", json.array(report.suggestions, json.string)),
+  ])
 }

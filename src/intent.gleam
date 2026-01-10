@@ -97,13 +97,24 @@ fn normalize_args_loop(args: List(String), acc: List(String)) -> List(String) {
 /// CLI version - update with each release
 const version = "0.1.0"
 
+const exit_codes_doc = "EXIT CODES:
+  0  Success (all checks passed)
+  1  Failure (checks failed)
+  2  Blocked (dependencies not met)
+  3  Invalid (spec validation error)
+  4  Error (system/runtime error)"
+
 pub fn main() {
   let args = normalize_args(argv.load().arguments)
 
-  // Handle --version and -V before glint
+  // Handle --version, -V, and --exit-codes before glint
   case args {
     ["--version", ..] | ["-V", ..] -> {
       io.println("intent " <> version)
+      halt(exit_pass)
+    }
+    ["--exit-codes", ..] -> {
+      io.println(exit_codes_doc)
       halt(exit_pass)
     }
     _ -> Nil
@@ -125,6 +136,7 @@ pub fn main() {
   |> glint.add(at: ["history"], do: history_command())
   |> glint.add(at: ["diff"], do: diff_command())
   |> glint.add(at: ["sessions"], do: sessions_command())
+  |> glint.add(at: ["exit-codes"], do: exit_codes_command())
   // KIRK commands
   |> glint.add(at: ["quality"], do: kirk_quality_command())
   |> glint.add(at: ["invert"], do: kirk_invert_command())
@@ -138,6 +150,15 @@ pub fn main() {
   |> glint.add(at: ["plan-approve"], do: plan_approve_command())
   |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
   |> glint.run(args)
+}
+
+/// The `exit-codes` command - show exit codes documentation
+fn exit_codes_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    io.println(exit_codes_doc)
+    halt(exit_pass)
+  })
+  |> glint.description("Show exit codes documentation")
 }
 
 /// The `check` command - run spec against a target
@@ -569,13 +590,27 @@ fn lint_command() -> glint.Command(Nil) {
 /// The `analyze` command - analyze spec quality
 fn analyze_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = quality_analyzer.analyze_spec(spec)
-            io.println(quality_analyzer.format_report(report))
-            halt(exit_pass)
+            case is_json {
+              True -> {
+                io.println(
+                  json.to_string(quality_analyzer.report_to_json(report)),
+                )
+                halt(exit_pass)
+              }
+              False -> {
+                io.println(quality_analyzer.format_report(report))
+                halt(exit_pass)
+              }
+            }
           }
           Error(e) -> {
             io.println_error("Error: " <> loader.format_error(e))
@@ -594,11 +629,21 @@ fn analyze_command() -> glint.Command(Nil) {
     "Analyze spec quality and provide improvement suggestions",
   )
   |> glint.named_args(["spec.cue"])
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `improve` command - suggest improvements
 fn improve_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -612,8 +657,18 @@ fn improve_command() -> glint.Command(Nil) {
                 spec: spec,
               )
             let suggestions = improver.suggest_improvements(context)
-            io.println(improver.format_improvements(suggestions))
-            halt(exit_pass)
+            case is_json {
+              True -> {
+                io.println(
+                  json.to_string(improver.improvements_to_json(suggestions)),
+                )
+                halt(exit_pass)
+              }
+              False -> {
+                io.println(improver.format_improvements(suggestions))
+                halt(exit_pass)
+              }
+            }
           }
           Error(e) -> {
             io.println_error("Error: " <> loader.format_error(e))
@@ -632,6 +687,12 @@ fn improve_command() -> glint.Command(Nil) {
     "Suggest improvements based on quality analysis and linting",
   )
   |> glint.named_args(["spec.cue"])
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `interview` command - guided specification discovery
@@ -1109,9 +1170,12 @@ fn profile_to_display_string(profile: interview.Profile) -> String {
 /// The `beads` command - generate work items from interview session
 fn beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [session_id, ..] -> {
-        // Load session from JSONL
         case
           interview_storage.get_session_from_jsonl(
             ".interview/sessions.jsonl",
@@ -1119,73 +1183,149 @@ fn beads_command() -> glint.Command(Nil) {
           )
         {
           Error(err) -> {
-            io.println_error("Error: " <> err)
+            case is_json {
+              True -> {
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(False)),
+                    #("error", json.string(err)),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> {
+                io.println_error("Error: " <> err)
+              }
+            }
             halt(exit_error)
           }
           Ok(session) -> {
-            // Generate beads from session
             let beads = bead_templates.generate_beads_from_session(session)
             let bead_count = list.length(beads)
 
-            io.println("")
-            io.println(
-              "═══════════════════════════════════════════════════════════════════",
-            )
-            io.println("                    BEAD GENERATION")
-            io.println(
-              "═══════════════════════════════════════════════════════════════════",
-            )
-            io.println("")
-            io.println(
-              "Generated "
-              <> string.inspect(bead_count)
-              <> " work items from session: "
-              <> session_id,
-            )
-            io.println("")
-
-            // Export to .beads/issues.jsonl
-            let jsonl_output = bead_templates.beads_to_jsonl(beads)
-
-            case
-              simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
-            {
-              Ok(Nil) -> {
-                io.println("✓ Beads exported to: .beads/issues.jsonl")
+            case is_json {
+              True -> {
+                let json_beads =
+                  json.array(beads, fn(b) {
+                    json.object([
+                      #("title", json.string(b.title)),
+                      #("description", json.string(b.description)),
+                      #("profile_type", json.string(b.profile_type)),
+                      #("priority", json.int(b.priority)),
+                      #("issue_type", json.string(b.issue_type)),
+                      #("labels", json.array(b.labels, json.string)),
+                      #("ai_hints", json.string(b.ai_hints)),
+                      #(
+                        "acceptance_criteria",
+                        json.array(b.acceptance_criteria, json.string),
+                      ),
+                      #("dependencies", json.array(b.dependencies, json.string)),
+                    ])
+                  })
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(True)),
+                    #("session_id", json.string(session_id)),
+                    #("beads", json_beads),
+                    #("count", json.int(bead_count)),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> {
+                io.println("")
+                io.println(
+                  "═══════════════════════════════════════════════════════════════════",
+                )
+                io.println("                    BEAD GENERATION")
+                io.println(
+                  "═══════════════════════════════════════════════════════════════════",
+                )
+                io.println("")
+                io.println(
+                  "Generated "
+                  <> string.inspect(bead_count)
+                  <> " work items from session: "
+                  <> session_id,
+                )
                 io.println("")
 
-                // Show stats
-                let stats = bead_templates.bead_stats(beads)
-                io.println("Summary:")
-                io.println("  Total beads: " <> string.inspect(stats.total))
+                // Export to .beads/issues.jsonl
+                let jsonl_output = bead_templates.beads_to_jsonl(beads)
 
-                halt(exit_pass)
-              }
-              Error(err) -> {
-                io.println_error(
-                  "✗ Failed to write beads: " <> string.inspect(err),
-                )
-                halt(exit_error)
+                case
+                  simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
+                {
+                  Ok(Nil) -> {
+                    io.println("✓ Beads exported to: .beads/issues.jsonl")
+                    io.println("")
+
+                    // Show stats
+                    let stats = bead_templates.bead_stats(beads)
+                    io.println("Summary:")
+                    io.println("  Total beads: " <> string.inspect(stats.total))
+                    io.println("  Critical: " <> string.inspect(stats.critical))
+                    io.println(
+                      "  High priority: " <> string.inspect(stats.high),
+                    )
+                    io.println(
+                      "  Medium priority: " <> string.inspect(stats.medium),
+                    )
+                    io.println("  Low priority: " <> string.inspect(stats.low))
+                    io.println("")
+                    io.println(
+                      "Next: Run 'bv' to triage and prioritize your beads",
+                    )
+
+                    halt(exit_pass)
+                  }
+                  Error(err) -> {
+                    io.println_error(
+                      "✗ Failed to write beads: " <> string.inspect(err),
+                    )
+                    halt(exit_error)
+                  }
+                }
               }
             }
           }
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads <session_id>")
-        io.println_error("")
-        io.println_error("Example: intent beads interview-abc123def456")
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #("error", json.string("Usage: intent beads <session_id>")),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            io.println_error("Usage: intent beads <session_id>")
+            io.println_error("")
+            io.println_error("Example: intent beads interview-abc123def456")
+          }
+        }
         halt(exit_error)
       }
     }
   })
   |> glint.description("Generate work items (beads) from an interview session")
   |> glint.named_args(["session_id"])
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output results as JSON"),
+  )
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
 fn bead_status_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     let bead_id =
       flag.get_string(input.flags, "bead-id")
       |> result.unwrap("")
@@ -1204,9 +1344,26 @@ fn bead_status_command() -> glint.Command(Nil) {
 
     case string.is_empty(bead_id) {
       True -> {
-        io.println_error(
-          "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
-        )
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #(
+                  "error",
+                  json.string(
+                    "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+                  ),
+                ),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            io.println_error(
+              "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+            )
+          }
+        }
         halt(exit_error)
       }
       False -> {
@@ -1222,14 +1379,42 @@ fn bead_status_command() -> glint.Command(Nil) {
               )
             {
               Ok(Nil) -> {
-                io.println("✓ Bead " <> bead_id <> " marked as success")
+                case is_json {
+                  True -> {
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(True)),
+                        #("bead_id", json.string(bead_id)),
+                        #("status", json.string("success")),
+                        #("message", json.string("Bead marked as success")),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False ->
+                    io.println("✓ Bead " <> bead_id <> " marked as success")
+                }
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error(
-                  "✗ Failed to mark bead: "
-                  <> bead_feedback_error_to_string(err),
-                )
+                case is_json {
+                  True -> {
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(False)),
+                        #(
+                          "error",
+                          json.string(bead_feedback_error_to_string(err)),
+                        ),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False -> {
+                    io.println_error(
+                      "✗ Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
+                    )
+                  }
+                }
                 halt(exit_error)
               }
             }
@@ -1247,14 +1432,42 @@ fn bead_status_command() -> glint.Command(Nil) {
               )
             {
               Ok(Nil) -> {
-                io.println("✓ Bead " <> bead_id <> " marked as failed")
+                case is_json {
+                  True -> {
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(True)),
+                        #("bead_id", json.string(bead_id)),
+                        #("status", json.string("failed")),
+                        #("reason", json.string(reason)),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False ->
+                    io.println("✓ Bead " <> bead_id <> " marked as failed")
+                }
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error(
-                  "✗ Failed to mark bead: "
-                  <> bead_feedback_error_to_string(err),
-                )
+                case is_json {
+                  True -> {
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(False)),
+                        #(
+                          "error",
+                          json.string(bead_feedback_error_to_string(err)),
+                        ),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False -> {
+                    io.println_error(
+                      "✗ Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
+                    )
+                  }
+                }
                 halt(exit_error)
               }
             }
@@ -1262,7 +1475,23 @@ fn bead_status_command() -> glint.Command(Nil) {
           "blocked" -> {
             case string.is_empty(reason) {
               True -> {
-                io.println_error("Error: --status blocked requires --reason")
+                case is_json {
+                  True -> {
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(False)),
+                        #(
+                          "error",
+                          json.string("--status blocked requires --reason"),
+                        ),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False ->
+                    io.println_error(
+                      "Error: --status blocked requires --reason",
+                    )
+                }
                 halt(exit_error)
               }
               False -> {
@@ -1278,16 +1507,48 @@ fn bead_status_command() -> glint.Command(Nil) {
                   )
                 {
                   Ok(Nil) -> {
-                    io.println(
-                      "✓ Bead " <> bead_id <> " marked as blocked: " <> reason,
-                    )
+                    case is_json {
+                      True -> {
+                        let json_obj =
+                          json.object([
+                            #("valid", json.bool(True)),
+                            #("bead_id", json.string(bead_id)),
+                            #("status", json.string("blocked")),
+                            #("reason", json.string(reason)),
+                          ])
+                        io.println(json.to_string(json_obj))
+                      }
+                      False -> {
+                        io.println(
+                          "✓ Bead "
+                          <> bead_id
+                          <> " marked as blocked: "
+                          <> reason,
+                        )
+                      }
+                    }
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error(
-                      "✗ Failed to mark bead: "
-                      <> bead_feedback_error_to_string(err),
-                    )
+                    case is_json {
+                      True -> {
+                        let json_obj =
+                          json.object([
+                            #("valid", json.bool(False)),
+                            #(
+                              "error",
+                              json.string(bead_feedback_error_to_string(err)),
+                            ),
+                          ])
+                        io.println(json.to_string(json_obj))
+                      }
+                      False -> {
+                        io.println_error(
+                          "✗ Failed to mark bead: "
+                          <> bead_feedback_error_to_string(err),
+                        )
+                      }
+                    }
                     halt(exit_error)
                   }
                 }
@@ -1295,8 +1556,20 @@ fn bead_status_command() -> glint.Command(Nil) {
             }
           }
           _ -> {
-            io.println_error("Error: invalid status '" <> status <> "'")
-            io.println_error("Valid statuses: success, failed, blocked")
+            case is_json {
+              True -> {
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(False)),
+                    #("error", json.string("Invalid status '" <> status <> "'")),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> {
+                io.println_error("Error: invalid status '" <> status <> "'")
+                io.println_error("Valid statuses: success, failed, blocked")
+              }
+            }
             halt(exit_error)
           }
         }
@@ -1323,6 +1596,12 @@ fn bead_status_command() -> glint.Command(Nil) {
   |> glint.flag(
     "session",
     flag.string() |> flag.default("") |> flag.description("Session ID"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
   )
 }
 
@@ -1576,6 +1855,10 @@ fn current_iso8601_timestamp() -> String
 /// The `beads-regenerate` command - regenerate failed/blocked beads
 fn beads_regenerate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     let strategy =
       flag.get_string(input.flags, "strategy")
       |> result.unwrap("hybrid")
@@ -1584,13 +1867,280 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
       [session_id, ..] -> {
         let session_path = ".intent/session-" <> session_id <> ".cue"
 
-        // Check session exists
         case simplifile.verify_is_file(session_path) {
           Error(_) -> {
-            io.println_error("Session not found: " <> session_id)
-            io.println_error("Expected file: " <> session_path)
+            case is_json {
+              True -> {
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(False)),
+                    #("error", json.string("Session not found: " <> session_id)),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> {
+                io.println_error("Session not found: " <> session_id)
+                io.println_error("Expected file: " <> session_path)
+              }
+            }
             halt(exit_error)
           }
+          Ok(_) -> {
+            case bead_feedback.load_feedback_for_session(session_id) {
+              Error(err) -> {
+                case is_json {
+                  True -> {
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(False)),
+                        #("error", json.string(bead_feedback_error_to_string(err))),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False -> {
+                    io.println_error(
+                      "Failed to load feedback: "
+                      <> bead_feedback_error_to_string(err),
+                    )
+                  }
+                }
+                halt(exit_error)
+              }
+              Ok(feedback) -> {
+                let needs_regen =
+                  feedback
+                  |> list.filter(fn(fb) {
+                    case fb.result {
+                      bead_feedback.Failed -> True
+                      bead_feedback.Blocked -> True
+                      _ -> False
+                    }
+                  })
+
+                case is_json {
+                  True -> {
+                    let json_beads =
+                      json.array(needs_regen, fn(fb) {
+                        json.object([
+                          #("bead_id", json.string(fb.bead_id)),
+                          #(
+                            "status",
+                            json.string(case fb.result {
+                              bead_feedback.Failed -> "failed"
+                              bead_feedback.Blocked -> "blocked"
+                              _ -> "unknown"
+                            }),
+                          ),
+                          #("reason", json.string(fb.reason)),
+                        ])
+                      })
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(True)),
+                        #("session_id", json.string(session_id)),
+                        #("strategy", json.string(strategy)),
+                        #("feedback_count", json.int(list.length(feedback))),
+                        #("beads_to_regenerate", json_beads),
+                        #("count", json.int(list.length(needs_regen))),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False -> {
+                    io.println("")
+                    io.println(
+                      "═══════════════════════════════════════════════════════════════════",
+                    )
+                    io.println("                    BEAD REGENERATION")
+                    io.println(
+                      "═══════════════════════════════════════════════════════════════════",
+                    )
+                    io.println("")
+                    io.println("Session: " <> session_id)
+                    io.println("Strategy: " <> strategy)
+                    io.println(
+                      "Feedback entries: " <> string.inspect(list.length(feedback)),
+                    )
+                    io.println(
+                      "Beads needing regeneration: "
+                      <> string.inspect(list.length(needs_regen)),
+                    )
+                    io.println("")
+                  }
+                }
+
+                case list.is_empty(needs_regen) {
+                  True -> {
+                    case is_json {
+                      True -> {
+                        let json_obj =
+                          json.object([
+                            #("valid", json.bool(True)),
+                            #("message", json.string("No beads need regeneration")),
+                          ])
+                        io.println(json.to_string(json_obj))
+                      }
+                      False -> {
+                        io.println(
+                          "✓ No beads need regeneration - all passed or skipped",
+                        )
+                      }
+                    }
+                    halt(exit_pass)
+                  }
+                  False -> {
+                    case is_json {
+                      False -> {
+                        io.println("Beads to regenerate:")
+                        list.each(needs_regen, fn(fb) {
+                          let status_icon = case fb.result {
+                            bead_feedback.Failed -> "✗"
+                            bead_feedback.Blocked -> "⊘"
+                            _ -> "?"
+                          }
+                          io.println(
+                            "  "
+                            <> status_icon
+                            <> " "
+                            <> fb.bead_id
+                            <> ": "
+                            <> fb.reason,
+                          )
+                        })
+                        io.println("")
+                      }
+                      True -> Nil
+                    }
+
+                    let regen_entries =
+                      generate_regeneration_entries(needs_regen, strategy)
+
+                    case
+                      append_regeneration_to_session(
+                        session_path,
+                        regen_entries,
+                      )
+                    {
+                      Ok(Nil) -> {
+                        case is_json {
+                          True -> {
+                            let json_obj =
+                              json.object([
+                                #("valid", json.bool(True)),
+                                #("message", json.string("Regeneration metadata added")),
+                                #("strategy", json.string(strategy)),
+                                #(
+                                  "beads_count",
+                                  json.int(list.length(needs_regen)),
+                                ),
+                              ])
+                            io.println(json.to_string(json_obj))
+                          }
+                          False -> {
+                            io.println("✓ Regeneration metadata added to session")
+                            io.println("  Strategy: " <> strategy)
+                            io.println(
+                              "  Beads marked for regeneration: "
+                              <> string.inspect(list.length(needs_regen)),
+                            )
+                            io.println("")
+                            io.println("Next steps:")
+                            io.println(
+                              "  1. Review regeneration suggestions in "
+                              <> session_path,
+                            )
+                            io.println(
+                              "  2. Run 'intent plan "
+                              <> session_id
+                              <> "' to see updated plan",
+                            )
+                            io.println("  3. Execute regenerated beads")
+                          }
+                        }
+                        halt(exit_pass)
+                      }
+                      Error(err) -> {
+                        case is_json {
+                          True -> {
+                            let json_obj =
+                              json.object([
+                                #("valid", json.bool(False)),
+                                #("error", json.string(err)),
+                              ])
+                            io.println(json.to_string(json_obj))
+                          }
+                          False -> {
+                            io.println_error(
+                              "✗ Failed to update session: " <> err,
+                            )
+                          }
+                        }
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      [] -> {
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #(
+                  "error",
+                  json.string(
+                    "Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
+                  ),
+                ),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            io.println_error(
+              "Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
+            )
+            io.println_error("")
+            io.println_error(
+              "Regenerate failed/blocked beads with adjusted approach.",
+            )
+            io.println_error("")
+            io.println_error("Strategies:")
+            io.println_error("  hybrid     - Use all analysis methods (default)")
+            io.println_error("  inversion  - Focus on failure mode analysis")
+            io.println_error("  premortem  - Focus on what could go wrong")
+            io.println_error("")
+            io.println_error("Examples:")
+            io.println_error("  intent beads-regenerate abc123")
+            io.println_error(
+              "  intent beads-regenerate abc123 --strategy inversion",
+            )
+          }
+        }
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Regenerate failed/blocked beads with adjusted approach")
+  |> glint.named_args(["session_id"])
+  |> glint.flag(
+    "strategy",
+    flag.string()
+      |> flag.default("hybrid")
+      |> flag.description(
+        "Regeneration strategy: hybrid, inversion, or premortem",
+      ),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
+}
           Ok(_) -> {
             // Load feedback
             case bead_feedback.load_feedback_for_session(session_id) {
@@ -1806,6 +2356,10 @@ fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
 /// The `history` command - view session snapshot history
 fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     let history_path = ".interview/history.jsonl"
 
     case input.args {
@@ -1816,94 +2370,170 @@ fn history_command() -> glint.Command(Nil) {
             halt(exit_error)
           }
           Ok([]) -> {
-            cli_ui.print_warning("No history found for session: " <> session_id)
-            io.println("")
-            io.println(
-              "Tip: Session history is recorded when you save snapshots",
-            )
-            io.println("during an interview with --snapshot flag.")
+            case is_json {
+              True -> io.println("[]")
+              False -> {
+                cli_ui.print_warning(
+                  "No history found for session: " <> session_id,
+                )
+                io.println("")
+                io.println(
+                  "Tip: Session history is recorded when you save snapshots",
+                )
+                io.println("during an interview with --snapshot flag.")
+              }
+            }
             halt(exit_pass)
           }
           Ok(snapshots) -> {
-            cli_ui.print_header("Session History: " <> session_id)
-            io.println("")
+            case is_json {
+              True -> {
+                let json_snapshots =
+                  json.array(snapshots, interview_storage.snapshot_to_json)
+                io.println(json.to_string(json_snapshots))
+              }
+              False -> {
+                cli_ui.print_header("Session History: " <> session_id)
+                io.println("")
 
-            list.each(snapshots, fn(snapshot) {
-              io.println("┌─ " <> snapshot.snapshot_id)
-              io.println("│  Time: " <> snapshot.timestamp)
-              io.println("│  Stage: " <> snapshot.stage)
-              io.println("│  Description: " <> snapshot.description)
-              io.println(
-                "│  Answers: " <> string.inspect(dict.size(snapshot.answers)),
-              )
-              io.println("│  Gaps: " <> string.inspect(snapshot.gaps_count))
-              io.println(
-                "│  Conflicts: " <> string.inspect(snapshot.conflicts_count),
-              )
-              io.println("└─")
-              io.println("")
-            })
-
+                list.each(snapshots, fn(snapshot) {
+                  io.println("┌─ " <> snapshot.snapshot_id)
+                  io.println("│  Time: " <> snapshot.timestamp)
+                  io.println("│  Stage: " <> snapshot.stage)
+                  io.println("│  Description: " <> snapshot.description)
+                  io.println(
+                    "│  Answers: "
+                    <> string.inspect(dict.size(snapshot.answers)),
+                  )
+                  io.println(
+                    "│  Gaps: " <> string.inspect(snapshot.gaps_count),
+                  )
+                  io.println(
+                    "│  Conflicts: "
+                    <> string.inspect(snapshot.conflicts_count),
+                  )
+                  io.println("└─")
+                  io.println("")
+                })
+              }
+            }
             halt(exit_pass)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("Session ID required")
-        io.println("")
-        io.println("Usage: intent history <session-id>")
-        io.println("")
-        io.println("Example: intent history interview-abc123")
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #("errors", json.array(["Session ID required"], json.string)),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            cli_ui.print_error("Session ID required")
+            io.println("")
+            io.println("Usage: intent history <session-id>")
+            io.println("")
+            io.println("Example: intent history interview-abc123")
+          }
+        }
         halt(exit_error)
       }
     }
   })
   |> glint.description("View snapshot history for an interview session")
   |> glint.named_args(["session_id"])
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `diff` command - compare two sessions
 fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     let jsonl_path = ".interview/sessions.jsonl"
 
     case input.args {
       [from_id, to_id, ..] -> {
-        // Load both sessions
         case interview_storage.get_session_from_jsonl(jsonl_path, from_id) {
           Error(err) -> {
-            cli_ui.print_error("Failed to load 'from' session: " <> err)
+            case is_json {
+              True -> {
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(False)),
+                    #(
+                      "error",
+                      json.string("Failed to load 'from' session: " <> err),
+                    ),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False ->
+                cli_ui.print_error("Failed to load 'from' session: " <> err)
+            }
             halt(exit_error)
           }
           Ok(from_session) -> {
             case interview_storage.get_session_from_jsonl(jsonl_path, to_id) {
               Error(err) -> {
-                cli_ui.print_error("Failed to load 'to' session: " <> err)
+                case is_json {
+                  True -> {
+                    let json_obj =
+                      json.object([
+                        #("valid", json.bool(False)),
+                        #(
+                          "error",
+                          json.string("Failed to load 'to' session: " <> err),
+                        ),
+                      ])
+                    io.println(json.to_string(json_obj))
+                  }
+                  False ->
+                    cli_ui.print_error("Failed to load 'to' session: " <> err)
+                }
                 halt(exit_error)
               }
               Ok(to_session) -> {
-                // Compute and display diff
                 let diff =
                   interview_storage.diff_sessions(from_session, to_session)
-                cli_ui.print_header("Session Comparison")
-                io.println("")
-                io.println(interview_storage.format_diff(diff))
 
-                // Summary stats
-                io.println("")
-                let total_changes =
-                  list.length(diff.answers_added)
-                  + list.length(diff.answers_modified)
-                  + list.length(diff.answers_removed)
-
-                case total_changes {
-                  0 -> cli_ui.print_info("No answer changes between sessions")
-                  n ->
-                    cli_ui.print_info(
-                      string.inspect(n) <> " total answer changes",
+                case is_json {
+                  True -> {
+                    io.println(
+                      json.to_string(interview_storage.diff_to_json(diff)),
                     )
-                }
+                  }
+                  False -> {
+                    cli_ui.print_header("Session Comparison")
+                    io.println("")
+                    io.println(interview_storage.format_diff(diff))
 
+                    io.println("")
+                    let total_changes =
+                      list.length(diff.answers_added)
+                      + list.length(diff.answers_modified)
+                      + list.length(diff.answers_removed)
+
+                    case total_changes {
+                      0 ->
+                        cli_ui.print_info("No answer changes between sessions")
+                      n ->
+                        cli_ui.print_info(
+                          string.inspect(n) <> " total answer changes",
+                        )
+                    }
+                  }
+                }
                 halt(exit_pass)
               }
             }
@@ -1911,31 +2541,63 @@ fn diff_command() -> glint.Command(Nil) {
         }
       }
       [single_id] -> {
-        // Compare session with its previous version (if exists)
-        cli_ui.print_error("Two session IDs required for comparison")
-        io.println("")
-        io.println("Usage: intent diff <from-session> <to-session>")
-        io.println("")
-        io.println("Tip: Use 'intent sessions' to list available sessions")
-        io.println("     Session provided: " <> single_id)
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #(
+                  "error",
+                  json.string("Two session IDs required for comparison"),
+                ),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            cli_ui.print_error("Two session IDs required for comparison")
+            io.println("")
+            io.println("Usage: intent diff <from-session> <to-session>")
+            io.println("")
+            io.println("Tip: Use 'intent sessions' to list available sessions")
+            io.println("     Session provided: " <> single_id)
+          }
+        }
         halt(exit_error)
       }
       [] -> {
-        cli_ui.print_error("Session IDs required")
-        io.println("")
-        io.println("Usage: intent diff <from-session> <to-session>")
-        io.println("")
-        io.println("Compare two interview sessions and show differences")
-        io.println("in answers, gaps, conflicts, and stage.")
-        io.println("")
-        io.println("Example:")
-        io.println("  intent diff interview-abc123 interview-def456")
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #("error", json.string("Session IDs required")),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            cli_ui.print_error("Session IDs required")
+            io.println("")
+            io.println("Usage: intent diff <from-session> <to-session>")
+            io.println("")
+            io.println("Compare two interview sessions and show differences")
+            io.println("in answers, gaps, conflicts, and stage.")
+            io.println("")
+            io.println("Example:")
+            io.println("  intent diff interview-abc123 interview-def456")
+          }
+        }
         halt(exit_error)
       }
     }
   })
   |> glint.description("Compare two interview sessions and show differences")
   |> glint.named_args(["from_session", "to_session"])
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `sessions` command - list all interview sessions
@@ -2361,9 +3023,78 @@ fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
   ])
 }
 
+fn compact_to_json(compact: compact_format.CompactSpec) -> json.Json {
+  json.object([
+    #("name", json.string(compact.name)),
+    #("version", json.string(compact.version)),
+    #("description", json.string(compact.description)),
+    #(
+      "features",
+      json.array(compact.features, fn(f) {
+        json.object([
+          #("name", json.string(f.name)),
+          #(
+            "behaviors",
+            json.array(f.behaviors, fn(b) {
+              json.object([
+                #("name", json.string(b.name)),
+                #("intent", json.string(b.intent)),
+                #("requires", json.array(b.requires, json.string)),
+                #("request", json.string(b.request)),
+                #("status", json.int(b.status)),
+                #(
+                  "checks",
+                  json.array(b.checks, fn(c) {
+                    json.object([
+                      #("field", json.string(c.field)),
+                      #("rule", json.string(c.rule)),
+                      #("why", json.string(c.why)),
+                    ])
+                  }),
+                ),
+                #("captures", json.array(b.captures, json.string)),
+              ])
+            }),
+          ),
+        ])
+      }),
+    ),
+    #(
+      "rules",
+      json.array(compact.rules, fn(r) {
+        json.object([
+          #("name", json.string(r.name)),
+          #("when", json.string(r.when)),
+          #("must_not_contain", json.array(r.must_not_contain, json.string)),
+          #("must_contain", json.array(r.must_contain, json.string)),
+          #("fields_must_exist", json.array(r.fields_must_exist, json.string)),
+          #(
+            "fields_must_not_exist",
+            json.array(r.fields_must_not_exist, json.string),
+          ),
+        ])
+      }),
+    ),
+    #(
+      "anti_patterns",
+      json.array(compact.anti_patterns, fn(a) {
+        json.object([
+          #("name", json.string(a.name)),
+          #("bad_example", json.string(a.bad_example)),
+          #("good_example", json.string(a.good_example)),
+        ])
+      }),
+    ),
+  ])
+}
+
 /// The `compact` command - KIRK compact format (CIN)
 fn kirk_compact_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     let show_tokens =
       flag.get_bool(input.flags, "tokens")
       |> result.unwrap(False)
@@ -2373,8 +3104,16 @@ fn kirk_compact_command() -> glint.Command(Nil) {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let compact = compact_format.spec_to_compact(spec)
-            let output = compact_format.format_compact(compact)
-            io.println(output)
+            case is_json {
+              True -> {
+                let json_compact = compact_to_json(compact)
+                io.println(json.to_string(json_compact))
+              }
+              False -> {
+                let output = compact_format.format_compact(compact)
+                io.println(output)
+              }
+            }
 
             case show_tokens {
               True -> {
@@ -2405,14 +3144,36 @@ fn kirk_compact_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            case is_json {
+              True -> {
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(False)),
+                    #("error", json.string(loader.format_error(e))),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> cli_ui.print_error(loader.format_error(e))
+            }
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
-        io.println("Usage: intent compact <spec.cue> [--tokens]")
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #("error", json.string("spec file path required")),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            cli_ui.print_error("spec file path required")
+            io.println("Usage: intent compact <spec.cue> [--tokens]")
+          }
+        }
         halt(exit_error)
       }
     }
@@ -2421,6 +3182,12 @@ fn kirk_compact_command() -> glint.Command(Nil) {
     "KIRK: Convert to Compact Intent Notation (token-efficient)",
   )
   |> glint.named_args(["spec.cue"])
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
   |> glint.flag(
     "tokens",
     flag.bool()
@@ -2432,29 +3199,72 @@ fn kirk_compact_command() -> glint.Command(Nil) {
 /// The `prototext` command - KIRK protobuf text format output
 fn kirk_prototext_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let output = compact_format.spec_to_prototext(spec)
-            io.println(output)
+            case is_json {
+              True -> {
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(True)),
+                    #("format", json.string("prototext")),
+                    #("output", json.string(output)),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> io.println(output)
+            }
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            case is_json {
+              True -> {
+                let json_obj =
+                  json.object([
+                    #("valid", json.bool(False)),
+                    #("error", json.string(loader.format_error(e))),
+                  ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> cli_ui.print_error(loader.format_error(e))
+            }
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
-        io.println("Usage: intent prototext <spec.cue>")
+        case is_json {
+          True -> {
+            let json_obj =
+              json.object([
+                #("valid", json.bool(False)),
+                #("error", json.string("spec file path required")),
+              ])
+            io.println(json.to_string(json_obj))
+          }
+          False -> {
+            cli_ui.print_error("spec file path required")
+            io.println("Usage: intent prototext <spec.cue>")
+          }
+        }
         halt(exit_error)
       }
     }
   })
   |> glint.description("KIRK: Export to Protobuf text format")
   |> glint.named_args(["spec.cue"])
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `ears` command - KIRK EARS requirements parser
