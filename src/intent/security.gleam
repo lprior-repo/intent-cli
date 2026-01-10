@@ -1,4 +1,5 @@
 /// Security utilities for input validation and sanitization
+import gleam/list
 import gleam/string
 import simplifile
 
@@ -7,6 +8,101 @@ pub type SecurityError {
   PathTraversalAttempt(path: String)
   InvalidPath(path: String, reason: String)
   FileNotAccessible(path: String)
+  UnsafeRegexPattern(pattern: String, reason: String)
+}
+
+/// Validate a file path to prevent path traversal attacks
+/// 
+/// Checks:
+/// - Path does not contain ".." (parent directory references)
+/// - File actually exists and is accessible
+///
+/// # Example
+/// ```gleam
+/// case validate_file_path("specs/api.cue") {
+///   Ok(path) -> load_file(path)
+///   Error(PathTraversalAttempt(_)) -> halt_with_error()
+/// }
+/// ```
+pub fn validate_file_path(path: String) -> Result(String, SecurityError) {
+  // Check for path traversal patterns
+  case string.contains(path, "..") {
+    True -> Error(PathTraversalAttempt(path))
+    False -> {
+      // Verify file exists
+      case simplifile.verify_is_file(path) {
+        Ok(True) -> Ok(path)
+        Ok(False) -> Error(InvalidPath(path, "Not a regular file"))
+        Error(_) -> Error(FileNotAccessible(path))
+      }
+    }
+  }
+}
+
+/// Validate a regex pattern to prevent ReDoS (Regular Expression Denial of Service) attacks
+///
+/// Checks for known dangerous patterns that can cause exponential backtracking:
+/// - Nested quantifiers like (.+)+ or ([^)]*)+
+/// - Multiple overlapping quantifiers
+/// - Catastrophic backtracking patterns
+///
+/// This is a basic check - it won't catch all ReDoS patterns but prevents the most common ones.
+///
+/// # Example
+/// ```gleam
+/// case validate_regex_pattern("^[a-z]+$") {
+///   Ok(pattern) -> compile_regex(pattern)
+///   Error(UnsafeRegexPattern(_, reason)) -> Error(reason)
+/// }
+/// ```
+pub fn validate_regex_pattern(pattern: String) -> Result(String, SecurityError) {
+  // List of dangerous regex patterns that can cause ReDoS
+  let dangerous_patterns = [
+    // Nested quantifiers
+    "(.+)+", "(.*)\\+", "(.*)*", "([^)]*)+", "([^(]+)+", "(\\w+)+", "(\\d+)+",
+    "(\\s+)+", "(.+)+$", "^(.+)+",
+    // Multiple overlapping quantifiers
+    ".*.*", ".+.+",
+    // Alternation with overlapping patterns
+    "(a+)+", "(a*)*",
+  ]
+
+  // Check if pattern contains any dangerous constructs
+  let has_danger =
+    list.any(dangerous_patterns, fn(dangerous) {
+      string.contains(pattern, dangerous)
+    })
+
+  case has_danger {
+    True ->
+      Error(UnsafeRegexPattern(
+        pattern,
+        "Pattern contains potentially unsafe construct that could cause ReDoS (exponential backtracking)",
+      ))
+    False -> Ok(pattern)
+  }
+}
+
+/// Format security error for display
+pub fn format_security_error(error: SecurityError) -> String {
+  case error {
+    PathTraversalAttempt(path) ->
+      "Security error: Path traversal attempt detected in '"
+      <> path
+      <> "'. Paths cannot contain '..' references."
+    InvalidPath(path, reason) ->
+      "Security error: Invalid path '" <> path <> "': " <> reason
+    FileNotAccessible(path) ->
+      "Security error: File '"
+      <> path
+      <> "' is not accessible or does not exist."
+    UnsafeRegexPattern(pattern, reason) ->
+      "Security error: Unsafe regex pattern '"
+      <> pattern
+      <> "': "
+      <> reason
+      <> "\nFor security, patterns with nested quantifiers are not allowed."
+  }
 }
 
 /// Validate a file path to prevent path traversal attacks
