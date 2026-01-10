@@ -11,6 +11,7 @@ import intent/question_types.{
   Business, Constraint, Critical, Dependency, Developer, EdgeCase, ErrorCase,
   HappyPath, Important, NiceTohave, NonFunctional, Ops, Question, Security, User,
 }
+import intent/security
 import shellout
 import simplifile
 
@@ -20,6 +21,7 @@ pub type QuestionLoadError {
   CueExportError(message: String)
   JsonParseError(message: String)
   QuestionParseError(message: String)
+  SecurityError(message: String)
 }
 
 /// Loaded questions database
@@ -82,9 +84,11 @@ const custom_questions_path = ".intent/custom-questions.cue"
 pub fn load_questions(
   path: String,
 ) -> Result(QuestionsDatabase, QuestionLoadError) {
-  case simplifile.verify_is_file(path) {
-    Ok(True) -> export_and_parse(path)
-    _ -> Error(FileNotFound(path))
+  // Validate path for security
+  case security.validate_file_path(path) {
+    Ok(validated_path) -> export_and_parse(validated_path)
+    Error(security_error) ->
+      Error(SecurityError(security.format_security_error(security_error)))
   }
 }
 
@@ -453,5 +457,6 @@ pub fn format_error(error: QuestionLoadError) -> String {
     CueExportError(msg) -> "CUE export failed:\n" <> msg
     JsonParseError(msg) -> "JSON parse error: " <> msg
     QuestionParseError(msg) -> "Question parse error: " <> msg
+    SecurityError(msg) -> "Security error: " <> msg
   }
 }
