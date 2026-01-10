@@ -1,0 +1,10 @@
+[secrets]
+# Test JWT tokens in test files - these are intentionally fake for testing
+test/checker_rules_test.gleam:jwt:83
+test/checker_rules_test.gleam:jwt:98
+
+# Documentation example API keys - these are clearly fake examples
+examples/ai-friendly-spec.cue:generic-api-key:59
+docs/schema-antipattern-aihints.md:generic-api-key:225
+docs/schema-config-type.md:stripe-access-token:94
+docs/schema-feature-type.md:generic-api-key:111
