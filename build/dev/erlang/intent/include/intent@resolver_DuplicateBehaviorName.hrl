@@ -1,1 +1,0 @@
--record(duplicate_behavior_name, {name :: binary()}).

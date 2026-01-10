@@ -1,1 +1,0 @@
--record(lint_warnings, {warnings :: list(intent@spec_linter:lint_warning())}).

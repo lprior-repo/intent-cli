@@ -1,1 +1,0 @@
--record(circular_dependency, {behaviors :: list(binary())}).
