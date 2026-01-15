@@ -57,15 +57,13 @@
 /// - EARS (Easy Approach to Requirements Syntax)
 /// - ISO/IEC/IEEE 29148:2018 Requirements Engineering
 
-import gleam/dict.{type Dict}
+import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
 import gleam/json
-import gleam/result
-import intent/types.{type Spec, type Feature, type Behavior, type Check, type Rule, type AntiPattern}
+import intent/types.{type Spec, type Behavior, type Check}
 
 // =============================================================================
 // TYPES

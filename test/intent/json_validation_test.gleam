@@ -27,7 +27,7 @@ pub fn validate_json_safety_large_under_limit_test() {
 
 pub fn validate_json_safety_over_10mb_test() {
   // Create a JSON string larger than 10MB (simulate with byte_size check)
-  let size = parser.max_json_size_bytes + 1000
+  let _size = parser.max_json_size_bytes + 1000
   // Note: We can't actually create 10MB+ strings efficiently in tests
   // so we test the logic by checking if a large size would be rejected
   let padding = string.repeat("a", 100_000)

@@ -47,7 +47,6 @@
 import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
 import intent/types.{type Spec, type Behavior}
 
@@ -255,7 +254,7 @@ fn find_second_order_gaps(behaviors: List(Behavior)) -> List(Gap) {
     })
 
   // Check if mutations have follow-up verification behaviors
-  let behavior_names = behaviors |> list.map(fn(b) { b.name })
+  let _behavior_names = behaviors |> list.map(fn(b) { b.name })
 
   mutations
   |> list.filter_map(fn(m) {

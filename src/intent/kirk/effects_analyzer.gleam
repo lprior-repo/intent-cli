@@ -54,14 +54,13 @@
 /// - "The Fifth Discipline" - Peter Senge on systems thinking
 /// - Event Storming - Alberto Brandolini on discovering domain events
 
-import gleam/dict.{type Dict}
+import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import intent/types.{
-  type Behavior, type Feature, type Method, type Spec, Delete, Get, Head,
+  type Behavior, type Spec, Delete, Get, Head,
   Options, Patch, Post, Put,
 }
 
@@ -312,7 +311,7 @@ fn infer_delete_effects(behavior: Behavior) -> List(SecondOrderEffect) {
   list.concat([base_effects, user_specific])
 }
 
-fn infer_create_effects(behavior: Behavior) -> List(SecondOrderEffect) {
+fn infer_create_effects(_behavior: Behavior) -> List(SecondOrderEffect) {
   [
     SecondOrderEffect(
       description: "Resource can now be retrieved via GET",
@@ -335,7 +334,7 @@ fn infer_create_effects(behavior: Behavior) -> List(SecondOrderEffect) {
   ]
 }
 
-fn infer_update_effects(behavior: Behavior) -> List(SecondOrderEffect) {
+fn infer_update_effects(_behavior: Behavior) -> List(SecondOrderEffect) {
   [
     SecondOrderEffect(
       description: "Updated values are reflected in subsequent reads",
@@ -502,7 +501,7 @@ fn detect_orphan_patterns(
   behavior: Behavior,
   resource_type: String,
 ) -> List(OrphanedResource) {
-  let name_lower = string.lowercase(behavior.name)
+  let _name_lower = string.lowercase(behavior.name)
 
   case resource_type {
     "user" | "users" | "account" | "accounts" -> [
@@ -803,30 +802,8 @@ fn float_to_int_safe(f: Float) -> Int {
 }
 
 fn float_floor(f: Float) -> Int {
-  // Simple floor implementation
-  let str = float_to_string(f)
-  case string.split(str, ".") {
-    [int_str, ..] ->
-      case int.parse(int_str) {
-        Ok(i) -> i
-        Error(_) -> 0
-      }
-    _ -> 0
-  }
-}
-
-fn float_to_string(f: Float) -> String {
-  // This is a workaround - Gleam doesn't have direct float to string
-  // We'll use string interpolation trick
-  let result = f *. 1.0
-  case result {
-    _ ->
-      int.to_string(float_floor(result))
-      <> "."
-      <> int.to_string(float_floor(
-        { result -. int.to_float(float_floor(result)) } *. 10.0,
-      ))
-  }
+  // Use Gleam's standard library truncate (toward zero, good enough for positive numbers)
+  float.truncate(f)
 }
 
 // =============================================================================

@@ -239,17 +239,24 @@ fn check_for_duplicate_behaviors(behaviors: List(Behavior)) -> List(LintWarning)
     behaviors
     |> list.drop(idx + 1)
     |> list.filter_map(fn(other) {
-      let similarity = calculate_behavior_similarity(behavior, other)
-      case similarity >. 0.7 {
-        True ->
-          Ok(DuplicateBehavior(
-            behavior.name,
-            other.name,
-            "Similar request path and method (similarity: "
-            <> string.trim(float_to_string(similarity, 2))
-            <> ")",
-          ))
+      // Only flag as duplicate if response status codes match
+      // Different status codes mean different test scenarios (success vs error cases)
+      case behavior.response.status == other.response.status {
         False -> Error(Nil)
+        True -> {
+          let similarity = calculate_behavior_similarity(behavior, other)
+          case similarity >. 0.7 {
+            True ->
+              Ok(DuplicateBehavior(
+                behavior.name,
+                other.name,
+                "Similar request path and method with same status code (similarity: "
+                <> string.trim(float_to_string(similarity, 2))
+                <> ")",
+              ))
+            False -> Error(Nil)
+          }
+        }
       }
     })
   })

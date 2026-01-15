@@ -63,9 +63,8 @@ import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
-import intent/types.{type Spec, type Behavior, type Method, Get, Post, Put, Patch, Delete, Head, Options}
+import intent/types.{type Spec, type Behavior, type Method}
 
 // =============================================================================
 // TYPES

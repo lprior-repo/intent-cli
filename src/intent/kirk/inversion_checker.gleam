@@ -42,12 +42,10 @@
 /// - "The Black Swan" - Nassim Taleb on negative knowledge
 /// - Google SRE Book - Error handling and graceful degradation
 
-import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
-import intent/types.{type Spec, type Behavior, type Method, Get, Post, Put, Patch, Delete}
+import intent/types.{type Spec, type Behavior, type Method, Get, Post}
 
 // =============================================================================
 // TYPES

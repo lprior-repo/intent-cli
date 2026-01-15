@@ -148,6 +148,16 @@ fn run_check(
   only_filter: String,
   output_level: runner.OutputLevel,
 ) -> Nil {
+  // Validate target URL is provided
+  case string.is_empty(target_url) {
+    True -> {
+      cli_ui.print_error("--target URL is required")
+      io.println("Usage: intent check <spec.cue> --target=<url>")
+      halt(exit_error)
+    }
+    False -> Nil
+  }
+
   // Load the spec
   case loader.load_spec(spec_path) {
     Error(e) -> {
@@ -205,12 +215,13 @@ fn run_check(
   }
 }
 
-/// The `validate` command - validate CUE spec without running
+/// The `validate` command - validate CUE spec syntax AND structure
 fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     case input.args {
       [spec_path, ..] -> {
-        case loader.validate_cue(spec_path) {
+        // Use load_spec_quiet to validate both CUE syntax AND spec structure
+        case loader.load_spec_quiet(spec_path) {
           Ok(_) -> {
             cli_ui.print_success("Valid spec: " <> spec_path)
             halt(exit_pass)
@@ -228,7 +239,7 @@ fn validate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Validate a CUE spec file without running tests")
+  |> glint.description("Validate a CUE spec file (syntax and structure)")
 }
 
 /// The `show` command - pretty print a parsed spec

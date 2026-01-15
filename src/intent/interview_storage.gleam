@@ -34,6 +34,24 @@ pub type SessionRecord {
 }
 
 // =============================================================================
+// File Error Formatting
+// =============================================================================
+
+/// Format simplifile errors with user-friendly messages instead of raw Erlang atoms
+fn format_file_error(err: simplifile.FileError, context: String) -> String {
+  case err {
+    simplifile.Enoent -> context <> " - file not found"
+    simplifile.Eacces -> context <> " - permission denied"
+    simplifile.Eisdir -> context <> " - path is a directory"
+    simplifile.Enospc -> context <> " - no space left on device"
+    simplifile.Enotdir -> context <> " - not a directory"
+    simplifile.Eexist -> context <> " - file already exists"
+    simplifile.Eio -> context <> " - I/O error"
+    _ -> context <> " - " <> string.inspect(err)
+  }
+}
+
+// =============================================================================
 // Answer History Tracking
 // =============================================================================
 
@@ -358,7 +376,7 @@ pub fn append_to_history(
   }
 
   simplifile.write(history_path, content)
-  |> result.map_error(fn(err) { "Failed to write history: " <> string.inspect(err) })
+  |> result.map_error(fn(err) { format_file_error(err, "Failed to write history") })
 }
 
 fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
@@ -385,7 +403,7 @@ pub fn list_session_history(
 ) -> Result(List(SessionSnapshot), String) {
   use content <- result.try(
     simplifile.read(history_path)
-    |> result.map_error(fn(err) { "Failed to read history: " <> string.inspect(err) })
+    |> result.map_error(fn(err) { format_file_error(err, "Failed to read history") })
   )
 
   case string.length(string.trim(content)) {
@@ -570,14 +588,14 @@ pub fn append_session_to_jsonl(
   let content = string.join(all_lines, "\n")
 
   simplifile.write(jsonl_path, content)
-  |> result.map_error(fn(err) { "Failed to write JSONL: " <> string.inspect(err) })
+  |> result.map_error(fn(err) { format_file_error(err, "Failed to write JSONL") })
 }
 
 /// List all sessions from JSONL file
 pub fn list_sessions_from_jsonl(jsonl_path: String) -> Result(List(InterviewSession), String) {
   use content <- result.try(
     simplifile.read(jsonl_path)
-    |> result.map_error(fn(err) { "Failed to read JSONL: " <> string.inspect(err) }),
+    |> result.map_error(fn(err) { format_file_error(err, "Failed to read JSONL") }),
   )
 
   case string.length(string.trim(content)) {
@@ -740,12 +758,13 @@ fn session_decoder(json_value: dynamic.Dynamic) -> Result(InterviewSession, dyna
   )
   use stage_str <- result.try(dynamic.field("stage", dynamic.string)(json_value))
   use stage <- result.try(
-    case stage_str {
-      "Discovery" -> Ok(interview.Discovery)
-      "Refinement" -> Ok(interview.Refinement)
-      "Validation" -> Ok(interview.Validation)
-      "Complete" -> Ok(interview.Complete)
-      "Paused" -> Ok(interview.Paused)
+    // Normalize to lowercase to handle both "Discovery" and "discovery"
+    case string.lowercase(stage_str) {
+      "discovery" -> Ok(interview.Discovery)
+      "refinement" -> Ok(interview.Refinement)
+      "validation" -> Ok(interview.Validation)
+      "complete" -> Ok(interview.Complete)
+      "paused" -> Ok(interview.Paused)
       _ -> Error([dynamic.DecodeError("stage", "invalid stage", [])])
     },
   )

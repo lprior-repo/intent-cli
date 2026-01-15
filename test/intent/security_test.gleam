@@ -50,8 +50,9 @@ pub fn is_safe_path_rejects_redirection_test() {
   security.is_safe_path("file.txt > output") |> should.be_false()
 }
 
-pub fn is_safe_path_rejects_spaces_test() {
-  security.is_safe_path("my file.txt") |> should.be_false()
+pub fn is_safe_path_accepts_spaces_test() {
+  // Spaces are now allowed in paths (blocklist approach)
+  security.is_safe_path("my file.txt") |> should.be_true()
 }
 
 // =============================================================================
@@ -298,7 +299,6 @@ pub fn format_shell_metacharacters_error_test() {
 
   string.contains(formatted, "shell metacharacters") |> should.be_true()
   string.contains(formatted, "; rm -rf /") |> should.be_true()
-  string.contains(formatted, "alphanumeric") |> should.be_true()
 }
 
 // =============================================================================
@@ -377,7 +377,8 @@ pub fn validate_regex_pattern_email_like_safe_test() {
 }
 
 pub fn is_safe_path_empty_string_test() {
-  security.is_safe_path("") |> should.be_false()
+  // Empty string has no dangerous chars, but file existence is checked elsewhere
+  security.is_safe_path("") |> should.be_true()
 }
 
 pub fn is_safe_path_only_dots_test() {
@@ -387,6 +388,15 @@ pub fn is_safe_path_only_dots_test() {
 pub fn validate_regex_pattern_empty_pattern_test() {
   case security.validate_regex_pattern("") {
     Ok(_) -> Nil
+    _ -> should.fail()
+  }
+}
+
+pub fn validate_file_path_rejects_empty_string_test() {
+  case security.validate_file_path("") {
+    Error(security.InvalidPath(_, reason)) -> {
+      string.contains(reason, "empty") |> should.be_true()
+    }
     _ -> should.fail()
   }
 }
