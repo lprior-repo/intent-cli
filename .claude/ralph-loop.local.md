@@ -1,9 +1,9 @@
 ---
 active: true
-iteration: 4
+iteration: 1
 max_iterations: 0
 completion_promise: null
-started_at: "2026-01-15T06:37:35Z"
+started_at: "2026-01-15T07:05:41Z"
 ---
 
-Please go through drive all of my beads to completion by using 7 gleam rules and skills for claude so this repo is finally finished and properly working as well here
+Work through all open beads and then make sure that this
