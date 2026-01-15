@@ -39,7 +39,6 @@ fn make_ai_hints() -> AIHints {
       rate_limiting: "100/min",
     ),
     pitfalls: [],
-    codebase: None,
   )
 }
 

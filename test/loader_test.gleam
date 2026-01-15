@@ -7,7 +7,7 @@ import gleam/string
 import gleeunit/should
 import intent/loader.{
   CueExportError, CueValidationError, FileNotFound,
-  JsonParseError, LightSpecParseError, SpecParseError,
+  JsonParseError, SpecParseError,
 }
 
 // ============================================================================
@@ -140,7 +140,7 @@ pub fn loader_format_spec_parse_error_test() {
 }
 
 pub fn loader_format_light_spec_parse_error_test() {
-  let error = LightSpecParseError("Missing required field 'behaviors'")
+  let error = SpecParseError("Missing required field 'behaviors'")
   let formatted = loader.format_error(error)
 
   formatted

@@ -134,7 +134,7 @@ fn behavior_to_compact(b: Behavior) -> CompactBehavior {
   let request_line = method_to_string(b.request.method)
     <> " "
     <> b.request.path
-    <> body_to_compact(b.request.body)
+    <> body_to_compact(option.Some(b.request.body))
 
   let checks =
     b.response.checks
@@ -171,34 +171,30 @@ fn body_to_compact(body: option.Option(json.Json)) -> String {
 }
 
 fn rule_to_compact(r: Rule) -> CompactRule {
-  let when_str = case r.when {
-    None -> "*"
-    Some(w) -> {
-      let status_part = case w.status {
-        Some(s) -> "status" <> s
-        None -> ""
-      }
-      let method_part = case w.method {
-        Some(m) -> types.method_to_string(m)
-        None -> ""
-      }
-      let path_part = case w.path {
-        Some(p) -> "path:" <> p
-        None -> ""
-      }
-      [status_part, method_part, path_part]
-      |> list.filter(fn(s) { !string.is_empty(s) })
-      |> string.join(",")
-    }
+  let w = r.when
+  let status_part = case w.status {
+    "" -> ""
+    s -> "status:" <> s
+  }
+  let method_part = types.method_to_string(w.method)
+  let path_part = case w.path {
+    "" -> ""
+    p -> "path:" <> p
+  }
+  let when_str = case [status_part, method_part, path_part]
+    |> list.filter(fn(s) { !string.is_empty(s) })
+  {
+    [] -> "*"
+    parts -> string.join(parts, ",")
   }
 
   CompactRule(
     name: r.name,
     when: when_str,
-    must_not_contain: option.unwrap(r.check.body_must_not_contain, []),
-    must_contain: option.unwrap(r.check.body_must_contain, []),
-    fields_must_exist: option.unwrap(r.check.fields_must_exist, []),
-    fields_must_not_exist: option.unwrap(r.check.fields_must_not_exist, []),
+    must_not_contain: r.check.body_must_not_contain,
+    must_contain: r.check.body_must_contain,
+    fields_must_exist: r.check.fields_must_exist,
+    fields_must_not_exist: r.check.fields_must_not_exist,
   )
 }
 
@@ -494,7 +490,7 @@ fn format_request_proto(req: Request) -> String {
   <> "        method: " <> method_to_proto_enum(req.method) <> "\n"
   <> "        path: \"" <> escape_string(req.path) <> "\"\n"
   <> format_headers_proto(req.headers, "        ")
-  <> format_body_proto(req.body)
+  <> format_body_proto(option.Some(req.body))
   <> "      }\n"
 }
 

@@ -6,10 +6,11 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/result
 import gleam/string
 import intent/types.{
-  type Behavior, type Feature, type Method, type Spec, Delete, Get, Patch, Post,
-  Put,
+  type Behavior, type Feature, type Method, type Spec, Delete, Get, Head,
+  Options, Patch, Post, Put,
 }
 
 // =============================================================================
@@ -172,7 +173,7 @@ fn describe_first_order_effect(behavior: Behavior) -> String {
       "Resource is created (status "
       <> int.to_string(behavior.response.status)
       <> ")"
-    Get ->
+    Get | Head ->
       "Resource is retrieved (status "
       <> int.to_string(behavior.response.status)
       <> ")"
@@ -184,6 +185,10 @@ fn describe_first_order_effect(behavior: Behavior) -> String {
       "Resource is deleted (status "
       <> int.to_string(behavior.response.status)
       <> ")"
+    Options ->
+      "Resource options are retrieved (status "
+      <> int.to_string(behavior.response.status)
+      <> ")"
   }
 }
 
@@ -192,7 +197,7 @@ fn infer_second_order_effects(behavior: Behavior) -> List(SecondOrderEffect) {
     Delete -> infer_delete_effects(behavior)
     Post -> infer_create_effects(behavior)
     Put | Patch -> infer_update_effects(behavior)
-    Get -> infer_read_effects(behavior)
+    Get | Head | Options -> infer_read_effects(behavior)
   }
 
   let name_based = infer_from_behavior_name(behavior)
@@ -330,12 +335,12 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     True ->
       list.append(
         effects,
-        SecondOrderEffect(
+        [SecondOrderEffect(
           description: "Background job is queued for processing",
           severity: Warning,
           category: ExternalDependency,
           has_verification: False,
-        ),
+        )],
       )
     False -> effects
   }
@@ -349,12 +354,12 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     True ->
       list.append(
         effects,
-        SecondOrderEffect(
+        [SecondOrderEffect(
           description: "External notification system is triggered",
           severity: Warning,
           category: ExternalDependency,
           has_verification: False,
-        ),
+        )],
       )
     False -> effects
   }
@@ -368,12 +373,12 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     True ->
       list.append(
         effects,
-        SecondOrderEffect(
+        [SecondOrderEffect(
           description: "Financial transaction is recorded",
           severity: Critical,
           category: DataIntegrity,
           has_verification: False,
-        ),
+        )],
       )
     False -> effects
   }
@@ -385,12 +390,12 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     True ->
       list.append(
         effects,
-        SecondOrderEffect(
+        [SecondOrderEffect(
           description: "Concurrent access patterns are affected",
           severity: Warning,
           category: SystemState,
           has_verification: False,
-        ),
+        )],
       )
     False -> effects
   }
@@ -437,7 +442,7 @@ fn extract_resource_type(path: String) -> String {
   |> list.filter(fn(segment) { !string.starts_with(segment, "{") })
   |> list.filter(fn(segment) { segment != "" })
   |> list.first()
-  |> option.unwrap("resource")
+  |> result.unwrap("resource")
   |> string.lowercase()
 }
 
@@ -495,9 +500,9 @@ fn detect_cascade_operations(behaviors: List(Behavior)) -> List(CascadeWarning) 
   |> list.filter_map(fn(b) {
     let cascades = infer_cascades(b)
     case list.length(cascades) {
-      0 -> None
+      0 -> Error(Nil)
       _ ->
-        Some(CascadeWarning(
+        Ok(CascadeWarning(
           operation: b.name,
           cascades_to: cascades,
           requires_transaction: True,
@@ -518,7 +523,7 @@ fn infer_cascades(behavior: Behavior) -> List(String) {
   let cascades = case
     string.contains(combined, "user") || string.contains(combined, "account")
   {
-    True -> list.append(cascades, "sessions")
+    True -> list.append(cascades, ["sessions"])
     False -> cascades
   }
 
@@ -557,13 +562,13 @@ fn infer_state_mutations(behavior: Behavior) -> List(String) {
     Post -> ["creates new resource"]
     Put | Patch -> ["modifies existing resource"]
     Delete -> ["removes resource"]
-    Get -> []
+    Get | Head | Options -> []
   }
 }
 
 fn infer_isolation_level(behavior: Behavior) -> String {
   case behavior.request.method {
-    Get -> "READ_COMMITTED"
+    Get | Head | Options -> "READ_COMMITTED"
     Post | Put | Patch | Delete -> "SERIALIZABLE"
   }
 }

@@ -137,7 +137,6 @@ pub fn make_test_spec(features: List(Feature)) -> Spec {
         rate_limiting: "",
       ),
       pitfalls: [],
-      codebase: None,
     ),
   )
 }
