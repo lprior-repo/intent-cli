@@ -1,16 +1,8 @@
 -module(intent@rules_engine).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/rules_engine.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([check_rules/3, format_violation/1]).
 -export_type([rule_result/0, rule_violation/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type rule_result() :: {rule_passed, binary()} |
     {rule_failed, binary(), binary(), list(rule_violation())}.
@@ -22,7 +14,6 @@
     {header_missing, binary()} |
     {header_present, binary()}.
 
--file("src/intent/rules_engine.gleam", 65).
 -spec check_path_pattern(binary(), binary()) -> boolean().
 check_path_pattern(Pattern, Path) ->
     case Pattern =:= Path of
@@ -39,7 +30,6 @@ check_path_pattern(Pattern, Path) ->
             end
     end.
 
--file("src/intent/rules_engine.gleam", 79).
 -spec check_status_condition(binary(), integer()) -> boolean().
 check_status_condition(Expr, Status) ->
     Expr@1 = gleam@string:trim(Expr),
@@ -122,7 +112,6 @@ check_status_condition(Expr, Status) ->
             end
     end.
 
--file("src/intent/rules_engine.gleam", 50).
 -spec check_when_conditions(
     intent@types:'when'(),
     intent@http_client:execution_result()
@@ -139,13 +128,10 @@ check_when_conditions(When, Response) ->
     ),
     (Status_ok andalso Method_ok) andalso Path_ok.
 
--file("src/intent/rules_engine.gleam", 46).
-?DOC(" Check if a rule applies based on its `when` conditions\n").
 -spec rule_applies(intent@types:rule(), intent@http_client:execution_result()) -> boolean().
 rule_applies(Rule, Response) ->
     check_when_conditions(erlang:element(4, Rule), Response).
 
--file("src/intent/rules_engine.gleam", 233).
 -spec contains_string(binary(), binary()) -> boolean().
 contains_string(Body, Needle) ->
     gleam_stdlib:contains_string(
@@ -153,7 +139,6 @@ contains_string(Body, Needle) ->
         gleam@string:lowercase(Needle)
     ).
 
--file("src/intent/rules_engine.gleam", 242).
 -spec navigate_and_check(gleam@json:json(), list(binary())) -> boolean().
 navigate_and_check(Value, Path) ->
     case Path of
@@ -184,13 +169,11 @@ navigate_and_check(Value, Path) ->
             end
     end.
 
--file("src/intent/rules_engine.gleam", 237).
 -spec field_exists(gleam@json:json(), binary()) -> boolean().
 field_exists(Body, Field_path) ->
     Parts = gleam@string:split(Field_path, <<"."/utf8>>),
     navigate_and_check(Body, Parts).
 
--file("src/intent/rules_engine.gleam", 264).
 -spec header_exists(gleam@dict:dict(binary(), binary()), binary()) -> boolean().
 header_exists(Headers, Header_name) ->
     Lower_name = gleam@string:lowercase(Header_name),
@@ -203,7 +186,6 @@ header_exists(Headers, Header_name) ->
         end
     ).
 
--file("src/intent/rules_engine.gleam", 152).
 -spec collect_violations(
     intent@types:rule_check(),
     intent@http_client:execution_result()
@@ -290,8 +272,6 @@ collect_violations(Check, Response) ->
     end,
     Violations@6.
 
--file("src/intent/rules_engine.gleam", 139).
-?DOC(" Check a single rule against a response\n").
 -spec check_rule(
     intent@types:rule(),
     intent@http_client:execution_result(),
@@ -310,8 +290,6 @@ check_rule(Rule, Response, _) ->
                 Violations}
     end.
 
--file("src/intent/rules_engine.gleam", 35).
-?DOC(" Check all global rules against a response\n").
 -spec check_rules(
     list(intent@types:rule()),
     intent@http_client:execution_result(),
@@ -328,8 +306,6 @@ check_rules(Rules, Response, Behavior_name) ->
         fun(Rule@1) -> check_rule(Rule@1, Response, Behavior_name) end
     ).
 
--file("src/intent/rules_engine.gleam", 272).
-?DOC(" Format a rule violation as a human-readable string\n").
 -spec format_violation(rule_violation()) -> binary().
 format_violation(Violation) ->
     case Violation of

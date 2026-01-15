@@ -1,22 +1,9 @@
 -module(glint@flag@constraint).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/glint/flag/constraint.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([one_of/1, none_of/1, each/1]).
 
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
-
--file("src/glint/flag/constraint.gleam", 15).
-?DOC(
-    " one_of returns a Constraint that ensures the parsed flag value is\n"
-    " one of the allowed values.\n"
-).
--spec one_of(list(IKA)) -> fun((IKA) -> {ok, nil} | {error, snag:snag()}).
+-spec one_of(list(KMC)) -> fun((KMC) -> {ok, nil} | {error, snag:snag()}).
 one_of(Allowed) ->
     Allowed_set = gleam@set:from_list(Allowed),
     fun(Val) -> case gleam@set:contains(Allowed_set, Val) of
@@ -44,9 +31,7 @@ one_of(Allowed) ->
                 )
         end end.
 
--file("src/glint/flag/constraint.gleam", 38).
-?DOC(" none_of returns a Constraint that ensures the parsed flag value is not one of the disallowed values.\n").
--spec none_of(list(IKD)) -> fun((IKD) -> {ok, nil} | {error, snag:snag()}).
+-spec none_of(list(KMF)) -> fun((KMF) -> {ok, nil} | {error, snag:snag()}).
 none_of(Disallowed) ->
     Disallowed_set = gleam@set:from_list(Disallowed),
     fun(Val) -> case gleam@set:contains(Disallowed_set, Val) of
@@ -74,17 +59,7 @@ none_of(Disallowed) ->
                 )
         end end.
 
--file("src/glint/flag/constraint.gleam", 68).
-?DOC(
-    " each is a convenience function for applying a Constraint(a) to a List(a).\n"
-    " This is useful because the default behaviour for constraints on lists is that they will apply to the list as a whole.\n"
-    " \n"
-    " For example, to apply one_of to all items in a `List(Int)`:\n"
-    " ```gleam\n"
-    " [1, 2, 3, 4] |> one_of |> each\n"
-    " ```\n"
-).
--spec each(fun((IKG) -> {ok, nil} | {error, snag:snag()})) -> fun((list(IKG)) -> {ok,
+-spec each(fun((KMI) -> {ok, nil} | {error, snag:snag()})) -> fun((list(KMI)) -> {ok,
         nil} |
     {error, snag:snag()}).
 each(Constraint) ->

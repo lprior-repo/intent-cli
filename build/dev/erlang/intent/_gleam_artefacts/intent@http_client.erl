@@ -1,16 +1,8 @@
 -module(intent@http_client).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/http_client.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([execute_request/3]).
 -export_type([execution_result/0, execution_error/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type execution_result() :: {execution_result,
         integer(),
@@ -24,9 +16,9 @@
 -type execution_error() :: {url_parse_error, binary()} |
     {interpolation_error, binary()} |
     {request_error, binary()} |
-    {response_parse_error, binary()}.
+    {response_parse_error, binary()} |
+    {ssrf_blocked, binary()}.
 
--file("src/intent/http_client.gleam", 80).
 -spec interpolate_path(binary(), intent@interpolate:context()) -> {ok, binary()} |
     {error, execution_error()}.
 interpolate_path(Path, Ctx) ->
@@ -36,7 +28,6 @@ interpolate_path(Path, Ctx) ->
         fun(Field@0) -> {interpolation_error, Field@0} end
     ).
 
--file("src/intent/http_client.gleam", 85).
 -spec interpolate_headers(
     gleam@dict:dict(binary(), binary()),
     intent@interpolate:context()
@@ -48,7 +39,6 @@ interpolate_headers(Headers, Ctx) ->
         fun(Field@0) -> {interpolation_error, Field@0} end
     ).
 
--file("src/intent/http_client.gleam", 93).
 -spec interpolate_body(gleam@json:json(), intent@interpolate:context()) -> {ok,
         gleam@json:json()} |
     {error, execution_error()}.
@@ -73,7 +63,6 @@ interpolate_body(Body, Ctx) ->
             {error, {interpolation_error, E}}
     end.
 
--file("src/intent/http_client.gleam", 109).
 -spec merge_headers(
     gleam@dict:dict(binary(), binary()),
     gleam@dict:dict(binary(), binary())
@@ -81,7 +70,6 @@ interpolate_body(Body, Ctx) ->
 merge_headers(Config_headers, Request_headers) ->
     gleam@dict:merge(Config_headers, Request_headers).
 
--file("src/intent/http_client.gleam", 117).
 -spec convert_method(intent@types:method()) -> gleam@http:method().
 convert_method(Method) ->
     case Method of
@@ -107,7 +95,6 @@ convert_method(Method) ->
             options
     end.
 
--file("src/intent/http_client.gleam", 174).
 -spec ensure_leading_slash(binary()) -> binary().
 ensure_leading_slash(Path) ->
     case gleam@string:starts_with(Path, <<"/"/utf8>>) of
@@ -118,7 +105,6 @@ ensure_leading_slash(Path) ->
             <<"/"/utf8, Path/binary>>
     end.
 
--file("src/intent/http_client.gleam", 129).
 -spec build_http_request(
     gleam@http:method(),
     gleam@uri:uri(),
@@ -176,7 +162,6 @@ build_http_request(Method, Parsed_uri, Headers, Body) ->
     end,
     {ok, Req@3}.
 
--file("src/intent/http_client.gleam", 197).
 -spec parse_response(
     gleam@http@response:response(binary()),
     integer(),
@@ -217,7 +202,6 @@ parse_response(Resp, Elapsed_ms, Method, Path) ->
         Method,
         Path}.
 
--file("src/intent/http_client.gleam", 228).
 -spec format_httpc_error(gleam@dynamic:dynamic_()) -> binary().
 format_httpc_error(Error) ->
     Error_str = begin
@@ -302,7 +286,135 @@ format_httpc_error(Error) ->
     end,
     Message.
 
--file("src/intent/http_client.gleam", 181).
+-spec is_private_ipv4(binary()) -> boolean().
+is_private_ipv4(Host) ->
+    ((((((((((((((((gleam@string:starts_with(Host, <<"10."/utf8>>) orelse gleam@string:starts_with(
+        Host,
+        <<"192.168."/utf8>>
+    ))
+    orelse gleam@string:starts_with(Host, <<"172.16."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.17."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.18."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.19."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.20."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.21."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.22."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.23."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.24."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.25."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.26."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.27."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.28."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.29."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.30."/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"172.31."/utf8>>).
+
+-spec is_internal_domain(binary()) -> boolean().
+is_internal_domain(Host) ->
+    ((gleam@string:ends_with(Host, <<".local"/utf8>>) orelse gleam@string:ends_with(
+        Host,
+        <<".internal"/utf8>>
+    ))
+    orelse (Host =:= <<"metadata.google.internal"/utf8>>))
+    orelse gleam@string:ends_with(Host, <<".metadata.google.internal"/utf8>>).
+
+-spec is_private_ipv6(binary()) -> boolean().
+is_private_ipv6(Host) ->
+    (((((((Host =:= <<"::1"/utf8>>) orelse (Host =:= <<"[::1]"/utf8>>)) orelse gleam@string:starts_with(
+        Host,
+        <<"fe80:"/utf8>>
+    ))
+    orelse gleam@string:starts_with(Host, <<"[fe80:"/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"fc"/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"fd"/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"[fc"/utf8>>))
+    orelse gleam@string:starts_with(Host, <<"[fd"/utf8>>).
+
+-spec validate_host(binary()) -> {ok, nil} | {error, execution_error()}.
+validate_host(Host) ->
+    Lowercase_host = gleam@string:lowercase(Host),
+    case ((Lowercase_host =:= <<"localhost"/utf8>>) orelse (Lowercase_host =:= <<"127.0.0.1"/utf8>>))
+    orelse gleam@string:starts_with(Lowercase_host, <<"127."/utf8>>) of
+        true ->
+            {error,
+                {ssrf_blocked,
+                    <<"Blocked request to localhost (127.x). Private IP ranges are not allowed for security reasons."/utf8>>}};
+
+        false ->
+            case is_private_ipv4(Lowercase_host) of
+                true ->
+                    {error,
+                        {ssrf_blocked,
+                            <<<<"Blocked request to private IP range ("/utf8,
+                                    Host/binary>>/binary,
+                                "). Private networks (10.x, 172.16-31.x, 192.168.x) are not allowed for security reasons."/utf8>>}};
+
+                false ->
+                    case Lowercase_host =:= <<"169.254.169.254"/utf8>> of
+                        true ->
+                            {error,
+                                {ssrf_blocked,
+                                    <<"Blocked request to AWS metadata endpoint (169.254.169.254). This is a common SSRF target."/utf8>>}};
+
+                        false ->
+                            case is_internal_domain(Lowercase_host) of
+                                true ->
+                                    {error,
+                                        {ssrf_blocked,
+                                            <<<<"Blocked request to internal domain ("/utf8,
+                                                    Host/binary>>/binary,
+                                                "). Internal domains (.local, .internal, metadata.google.internal) are not allowed."/utf8>>}};
+
+                                false ->
+                                    case is_private_ipv6(Lowercase_host) of
+                                        true ->
+                                            {error,
+                                                {ssrf_blocked,
+                                                    <<<<"Blocked request to private IPv6 address ("/utf8,
+                                                            Host/binary>>/binary,
+                                                        "). IPv6 private ranges are not allowed."/utf8>>}};
+
+                                        false ->
+                                            {ok, nil}
+                                    end
+                            end
+                    end
+            end
+    end.
+
+-spec validate_scheme(gleam@uri:uri()) -> {ok, nil} | {error, execution_error()}.
+validate_scheme(Parsed_uri) ->
+    case erlang:element(2, Parsed_uri) of
+        {some, <<"http"/utf8>>} ->
+            {ok, nil};
+
+        {some, <<"https"/utf8>>} ->
+            {ok, nil};
+
+        {some, Scheme} ->
+            {error,
+                {ssrf_blocked,
+                    <<<<"Blocked non-HTTP(S) scheme: "/utf8, Scheme/binary>>/binary,
+                        ". Only http:// and https:// are allowed."/utf8>>}};
+
+        none ->
+            {ok, nil}
+    end.
+
+-spec validate_safe_url(gleam@uri:uri()) -> {ok, nil} |
+    {error, execution_error()}.
+validate_safe_url(Parsed_uri) ->
+    gleam@result:'try'(
+        validate_scheme(Parsed_uri),
+        fun(_) -> case erlang:element(4, Parsed_uri) of
+                none ->
+                    {error, {ssrf_blocked, <<"URL missing hostname"/utf8>>}};
+
+                {some, Host} ->
+                    validate_host(Host)
+            end end
+    ).
+
 -spec execute_with_timing(
     gleam@http@request:request(binary()),
     intent@types:method(),
@@ -319,8 +431,6 @@ execute_with_timing(Req, Method, Path) ->
             {error, {request_error, format_httpc_error(E)}}
     end.
 
--file("src/intent/http_client.gleam", 41).
-?DOC(" Execute a behavior request against the target\n").
 -spec execute_request(
     intent@types:config(),
     intent@types:request(),
@@ -345,30 +455,38 @@ execute_request(Config, Req, Ctx) ->
                 end,
                 fun(Parsed_uri) ->
                     gleam@result:'try'(
-                        interpolate_headers(erlang:element(4, Req), Ctx),
-                        fun(Request_headers) ->
-                            Merged_headers = merge_headers(
-                                erlang:element(4, Config),
-                                Request_headers
-                            ),
+                        validate_safe_url(Parsed_uri),
+                        fun(_) ->
                             gleam@result:'try'(
-                                interpolate_body(erlang:element(6, Req), Ctx),
-                                fun(Interpolated_body) ->
-                                    Method = convert_method(
-                                        erlang:element(2, Req)
+                                interpolate_headers(erlang:element(4, Req), Ctx),
+                                fun(Request_headers) ->
+                                    Merged_headers = merge_headers(
+                                        erlang:element(4, Config),
+                                        Request_headers
                                     ),
                                     gleam@result:'try'(
-                                        build_http_request(
-                                            Method,
-                                            Parsed_uri,
-                                            Merged_headers,
-                                            Interpolated_body
+                                        interpolate_body(
+                                            erlang:element(6, Req),
+                                            Ctx
                                         ),
-                                        fun(Http_req) ->
-                                            execute_with_timing(
-                                                Http_req,
-                                                erlang:element(2, Req),
-                                                Path
+                                        fun(Interpolated_body) ->
+                                            Method = convert_method(
+                                                erlang:element(2, Req)
+                                            ),
+                                            gleam@result:'try'(
+                                                build_http_request(
+                                                    Method,
+                                                    Parsed_uri,
+                                                    Merged_headers,
+                                                    Interpolated_body
+                                                ),
+                                                fun(Http_req) ->
+                                                    execute_with_timing(
+                                                        Http_req,
+                                                        erlang:element(2, Req),
+                                                        Path
+                                                    )
+                                                end
                                             )
                                         end
                                     )

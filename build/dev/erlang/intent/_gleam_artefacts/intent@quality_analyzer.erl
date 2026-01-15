@@ -1,16 +1,8 @@
 -module(intent@quality_analyzer).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/quality_analyzer.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([analyze_spec/1, format_report/1]).
 -export_type([quality_report/0, quality_issue/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type quality_report() :: {quality_report,
         integer(),
@@ -28,13 +20,8 @@
     no_examples |
     missing_explanations |
     untested_rules |
-    missing_a_i_hints.
+    missing_ai_hints.
 
--file("src/intent/quality_analyzer.gleam", 69).
-?DOC(
-    " Calculate coverage score (0-100)\n"
-    " Measures how many error cases and edge cases are tested\n"
-).
 -spec calculate_coverage_score(
     list(intent@types:behavior()),
     list(intent@types:rule())
@@ -103,11 +90,6 @@ calculate_coverage_score(Behaviors, Rules) ->
     Coverage_total = (((Base + Error_bonus) + Auth_bonus) + Edge_bonus) + Antipattern_bonus,
     gleam@int:min(100, Coverage_total).
 
--file("src/intent/quality_analyzer.gleam", 122).
-?DOC(
-    " Calculate clarity score (0-100)\n"
-    " Measures how well documented the spec is\n"
-).
 -spec calculate_clarity_score(list(intent@types:behavior())) -> integer().
 calculate_clarity_score(Behaviors) ->
     Base = 60,
@@ -192,11 +174,6 @@ calculate_clarity_score(Behaviors) ->
     Clarity_total = ((Base + Intent_bonus) + Notes_bonus) + Vague_penalty,
     gleam@int:max(0, gleam@int:min(100, Clarity_total)).
 
--file("src/intent/quality_analyzer.gleam", 181).
-?DOC(
-    " Calculate testability score (0-100)\n"
-    " Measures how well structured for execution\n"
-).
 -spec calculate_testability_score(list(intent@types:behavior())) -> integer().
 calculate_testability_score(Behaviors) ->
     Base = 70,
@@ -238,11 +215,6 @@ calculate_testability_score(Behaviors) ->
     Testability_total = ((Base + Capture_bonus) + Deps_bonus) + Example_bonus,
     gleam@int:min(100, Testability_total).
 
--file("src/intent/quality_analyzer.gleam", 216).
-?DOC(
-    " Calculate AI readiness score (0-100)\n"
-    " Measures how much guidance is available for AI\n"
-).
 -spec calculate_ai_readiness_score(
     intent@types:spec(),
     list(intent@types:behavior())
@@ -309,8 +281,6 @@ calculate_ai_readiness_score(Spec, Behaviors) ->
     Ai_readiness_total = ((Base + Hints_bonus) + Why_bonus) + Example_bonus,
     gleam@int:max(0, gleam@int:min(100, Ai_readiness_total)).
 
--file("src/intent/quality_analyzer.gleam", 264).
-?DOC(" Find quality issues in spec\n").
 -spec find_quality_issues(
     list(intent@types:behavior()),
     list(intent@types:rule())
@@ -427,8 +397,6 @@ find_quality_issues(Behaviors, Rules) ->
     end,
     Mut_issues@7.
 
--file("src/intent/quality_analyzer.gleam", 384).
-?DOC(" Helper to add suggestion conditionally\n").
 -spec add_suggestion_if(list(binary()), boolean(), binary()) -> list(binary()).
 add_suggestion_if(Suggestions, Condition, Suggestion) ->
     case Condition of
@@ -439,8 +407,6 @@ add_suggestion_if(Suggestions, Condition, Suggestion) ->
             Suggestions
     end.
 
--file("src/intent/quality_analyzer.gleam", 351).
-?DOC(" Generate suggestions for improvement\n").
 -spec generate_suggestions(
     list(quality_issue()),
     list(intent@types:behavior()),
@@ -479,8 +445,6 @@ generate_suggestions(Issues, _, _) ->
         <<"Add 'why' explanations to validation rules to clarify intent"/utf8>>
     ).
 
--file("src/intent/quality_analyzer.gleam", 38).
-?DOC(" Analyze spec quality\n").
 -spec analyze_spec(intent@types:spec()) -> quality_report().
 analyze_spec(Spec) ->
     Behaviors = begin
@@ -513,8 +477,6 @@ analyze_spec(Spec) ->
         Issues,
         Suggestions}.
 
--file("src/intent/quality_analyzer.gleam", 431).
-?DOC(" Format a quality issue\n").
 -spec format_issue(quality_issue()) -> binary().
 format_issue(Issue) ->
     case Issue of
@@ -539,12 +501,10 @@ format_issue(Issue) ->
         untested_rules ->
             <<"  • Global rules not tested in behaviors"/utf8>>;
 
-        missing_a_i_hints ->
+        missing_ai_hints ->
             <<"  • No AI implementation hints provided"/utf8>>
     end.
 
--file("src/intent/quality_analyzer.gleam", 396).
-?DOC(" Format quality report for display\n").
 -spec format_report(quality_report()) -> binary().
 format_report(Report) ->
     Score_section = <<<<<<<<<<<<<<<<<<<<<<<<<<<<"Quality Score: "/utf8,

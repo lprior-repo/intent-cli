@@ -1,16 +1,8 @@
 -module(intent@validator).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/validator.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([validate_spec/1, format_issues/1]).
 -export_type([validation_result/0, validation_issue/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type validation_result() :: validation_valid |
     {validation_invalid, list(validation_issue())}.
@@ -26,14 +18,10 @@
     {circular_dependency, list(binary())} |
     {missing_capture, binary(), binary(), binary(), list(binary())}.
 
--file("src/intent/validator.gleam", 97).
-?DOC(" Validate rule syntax by attempting to parse it\n").
 -spec validate_rule_syntax(binary(), binary(), binary()) -> list(validation_issue()).
 validate_rule_syntax(_, _, _) ->
     [].
 
--file("src/intent/validator.gleam", 158).
-?DOC(" Get list of variables that are available before a behavior runs\n").
 -spec get_available_captures(
     intent@types:behavior(),
     list(intent@types:behavior())
@@ -79,8 +67,6 @@ get_available_captures(Behavior, All_behaviors) ->
             gleam@list:unique(_pipe@3)
     end.
 
--file("src/intent/validator.gleam", 187).
-?DOC(" Find which behaviors capture a given variable\n").
 -spec find_behaviors_capturing(binary(), list(intent@types:behavior())) -> list(binary()).
 find_behaviors_capturing(Var_name, Behaviors) ->
     _pipe = Behaviors,
@@ -95,8 +81,6 @@ find_behaviors_capturing(Var_name, Behaviors) ->
             end end
     ).
 
--file("src/intent/validator.gleam", 201).
-?DOC(" Extract variable names from a string (${var_name} syntax)\n").
 -spec extract_variables(binary()) -> list(binary()).
 extract_variables(S) ->
     Parts = gleam@string:split(S, <<"${"/utf8>>),
@@ -113,8 +97,6 @@ extract_variables(S) ->
             end end
     ).
 
--file("src/intent/validator.gleam", 108).
-?DOC(" Validate variable references in behavior\n").
 -spec validate_variable_references(
     intent@types:behavior(),
     list(intent@types:behavior())
@@ -183,8 +165,6 @@ validate_variable_references(Behavior, All_behaviors) ->
     Mut_issues@2 = lists:append(Mut_issues@1, Header_issues),
     Mut_issues@2.
 
--file("src/intent/validator.gleam", 59).
-?DOC(" Validate a single behavior\n").
 -spec validate_behavior(
     intent@types:behavior(),
     list(binary()),
@@ -231,8 +211,6 @@ validate_behavior(Behavior, All_behavior_names, All_behaviors) ->
     Mut_issues@3 = lists:append(Mut_issues@2, Var_issues),
     Mut_issues@3.
 
--file("src/intent/validator.gleam", 229).
-?DOC(" Check if a behavior has circular dependency\n").
 -spec has_circular_dependency(
     binary(),
     list(binary()),
@@ -265,8 +243,6 @@ has_circular_dependency(Behavior_name, Visited, All_behaviors) ->
             end
     end.
 
--file("src/intent/validator.gleam", 216).
-?DOC(" Check for circular dependencies\n").
 -spec check_circular_dependencies(list(intent@types:behavior())) -> list(validation_issue()).
 check_circular_dependencies(Behaviors) ->
     _pipe = Behaviors,
@@ -287,8 +263,6 @@ check_circular_dependencies(Behaviors) ->
         end
     ).
 
--file("src/intent/validator.gleam", 27).
-?DOC(" Validate a complete spec before execution\n").
 -spec validate_spec(intent@types:spec()) -> validation_result().
 validate_spec(Spec) ->
     Mut_issues = [],
@@ -323,8 +297,6 @@ validate_spec(Spec) ->
             {validation_invalid, Mut_issues@2}
     end.
 
--file("src/intent/validator.gleam", 262).
-?DOC(" Format a single validation issue\n").
 -spec format_issue(validation_issue()) -> binary().
 format_issue(Issue) ->
     case Issue of
@@ -395,8 +367,6 @@ format_issue(Issue) ->
                 end)/binary>>
     end.
 
--file("src/intent/validator.gleam", 252).
-?DOC(" Format validation issues for display\n").
 -spec format_issues(list(validation_issue())) -> binary().
 format_issues(Issues) ->
     Issue_lines = begin

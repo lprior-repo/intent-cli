@@ -1,18 +1,8 @@
 -module(intent@interview_questions).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/interview_questions.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([get_questions_for_round_with_db/3, get_questions_for_round/2, get_next_question/3]).
 
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
-
--file("src/intent/interview_questions.gleam", 20).
-?DOC(" Get questions with explicit database (for testing or to avoid reloading)\n").
 -spec get_questions_for_round_with_db(
     binary(),
     integer(),
@@ -21,7 +11,6 @@
 get_questions_for_round_with_db(Profile, Round, Db) ->
     intent@question_loader:get_questions(Db, Profile, Round).
 
--file("src/intent/interview_questions.gleam", 56).
 -spec list_contains(list(binary()), binary()) -> boolean().
 list_contains(List, Item) ->
     case List of
@@ -38,7 +27,6 @@ list_contains(List, Item) ->
             end
     end.
 
--file("src/intent/interview_questions.gleam", 41).
 -spec find_first_unanswered(
     list(intent@question_types:question()),
     list(binary())
@@ -58,8 +46,6 @@ find_first_unanswered(Questions, Answered) ->
             end
     end.
 
--file("src/intent/interview_questions.gleam", 69).
-?DOC(" Fallback questions if CUE loading fails\n").
 -spec fallback_questions(binary(), integer()) -> list(intent@question_types:question()).
 fallback_questions(Profile, Round) ->
     case Round of
@@ -84,12 +70,6 @@ fallback_questions(Profile, Round) ->
             []
     end.
 
--file("src/intent/interview_questions.gleam", 12).
-?DOC(
-    " Get all questions for a specific profile and round\n"
-    " Loads questions from CUE file on each call - for repeated calls,\n"
-    " use get_questions_for_round_with_db with a cached database\n"
-).
 -spec get_questions_for_round(binary(), integer()) -> list(intent@question_types:question()).
 get_questions_for_round(Profile, Round) ->
     case intent@question_loader:load_default_questions() of
@@ -100,8 +80,6 @@ get_questions_for_round(Profile, Round) ->
             fallback_questions(Profile, Round)
     end.
 
--file("src/intent/interview_questions.gleam", 29).
-?DOC(" Get the next unasked question in the current round\n").
 -spec get_next_question(binary(), integer(), list(binary())) -> gleam@option:option(intent@question_types:question()).
 get_next_question(Profile, Round, Answered_ids) ->
     Questions = get_questions_for_round(Profile, Round),

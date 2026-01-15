@@ -1,16 +1,8 @@
 -module(intent@improver).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/improver.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([suggest_improvements/1, apply_improvements/2, format_improvements/1]).
 -export_type([improvement_suggestion/0, proposed_change/0, improvement_context/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type improvement_suggestion() :: {improvement_suggestion,
         binary(),
@@ -31,8 +23,6 @@
         intent@spec_linter:lint_result(),
         intent@types:spec()}.
 
--file("src/intent/improver.gleam", 82).
-?DOC(" Add suggestions for improving coverage\n").
 -spec append_coverage_suggestions(
     list(improvement_suggestion()),
     intent@quality_analyzer:quality_report(),
@@ -61,8 +51,6 @@ append_coverage_suggestions(Suggestions, _, Behaviors) ->
             )
     end.
 
--file("src/intent/improver.gleam", 113).
-?DOC(" Add suggestions for improving clarity\n").
 -spec append_clarity_suggestions(
     list(improvement_suggestion()),
     intent@quality_analyzer:quality_report(),
@@ -97,8 +85,6 @@ append_clarity_suggestions(Suggestions, _, Behaviors) ->
             )
     end.
 
--file("src/intent/improver.gleam", 147).
-?DOC(" Add suggestions for improving testability\n").
 -spec append_testability_suggestions(
     list(improvement_suggestion()),
     intent@quality_analyzer:quality_report(),
@@ -132,8 +118,6 @@ append_testability_suggestions(Suggestions, _, Behaviors) ->
             )
     end.
 
--file("src/intent/improver.gleam", 179).
-?DOC(" Add suggestions for improving AI readiness\n").
 -spec append_ai_readiness_suggestions(
     list(improvement_suggestion()),
     intent@quality_analyzer:quality_report(),
@@ -174,8 +158,6 @@ append_ai_readiness_suggestions(Suggestions, _, Behaviors) ->
             )
     end.
 
--file("src/intent/improver.gleam", 66).
-?DOC(" Generate suggestions based on quality analysis\n").
 -spec suggest_from_quality_issues(
     intent@quality_analyzer:quality_report(),
     intent@types:spec()
@@ -191,8 +173,6 @@ suggest_from_quality_issues(Report, Spec) ->
     _pipe@4 = append_testability_suggestions(_pipe@3, Report, Behaviors),
     append_ai_readiness_suggestions(_pipe@4, Report, Behaviors).
 
--file("src/intent/improver.gleam", 214).
-?DOC(" Generate suggestions from lint warnings\n").
 -spec suggest_from_lint_warnings(intent@spec_linter:lint_result()) -> list(improvement_suggestion()).
 suggest_from_lint_warnings(Lint_result) ->
     case Lint_result of
@@ -293,8 +273,6 @@ suggest_from_lint_warnings(Lint_result) ->
                     end end)
     end.
 
--file("src/intent/improver.gleam", 44).
-?DOC(" Generate improvement suggestions from analysis results\n").
 -spec suggest_improvements(improvement_context()) -> list(improvement_suggestion()).
 suggest_improvements(Context) ->
     Mut_suggestions = [],
@@ -313,14 +291,10 @@ suggest_improvements(Context) ->
         end
     ).
 
--file("src/intent/improver.gleam", 311).
-?DOC(" Generate a refined spec based on accepted suggestions\n").
 -spec apply_improvements(intent@types:spec(), list(improvement_suggestion())) -> intent@types:spec().
 apply_improvements(Spec, _) ->
     Spec.
 
--file("src/intent/improver.gleam", 321).
-?DOC(" Format improvements for interactive display\n").
 -spec format_improvements(list(improvement_suggestion())) -> binary().
 format_improvements(Suggestions) ->
     Count = erlang:length(Suggestions),

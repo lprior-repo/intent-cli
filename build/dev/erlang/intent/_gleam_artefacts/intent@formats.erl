@@ -1,18 +1,8 @@
 -module(intent@formats).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/formats.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([validate_email/1, validate_uuid/1, validate_uri/1, validate_iso8601/1]).
 
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
-
--file("src/intent/formats.gleam", 67).
-?DOC(" Check if email local part contains only valid characters\n").
 -spec is_valid_email_local_chars(binary()) -> boolean().
 is_valid_email_local_chars(S) ->
     _pipe = gleam@string:to_graphemes(S),
@@ -42,8 +32,6 @@ is_valid_email_local_chars(S) ->
                     end
             end end).
 
--file("src/intent/formats.gleam", 32).
-?DOC(" Validate email local part (before @)\n").
 -spec validate_email_local(binary()) -> {ok, nil} | {error, binary()}.
 validate_email_local(Local) ->
     case gleam@string:is_empty(Local) of
@@ -80,8 +68,6 @@ validate_email_local(Local) ->
             end
     end.
 
--file("src/intent/formats.gleam", 109).
-?DOC(" Check if a domain label is valid (alphanumeric and hyphens, not starting/ending with hyphen)\n").
 -spec is_valid_domain_label(binary()) -> boolean().
 is_valid_domain_label(Label) ->
     case gleam@string:length(Label) of
@@ -112,8 +98,6 @@ is_valid_domain_label(Label) ->
             (not Starts_with_hyphen andalso not Ends_with_hyphen) andalso All_chars_valid
     end.
 
--file("src/intent/formats.gleam", 82).
-?DOC(" Validate email domain part (after @)\n").
 -spec validate_email_domain(binary()) -> {ok, nil} | {error, binary()}.
 validate_email_domain(Domain) ->
     case gleam@string:is_empty(Domain) of
@@ -150,11 +134,6 @@ validate_email_domain(Domain) ->
             end
     end.
 
--file("src/intent/formats.gleam", 10).
-?DOC(
-    " Validate email using RFC 5322 compliant parsing\n"
-    " This is stricter than simple regex - validates local and domain parts\n"
-).
 -spec validate_email(binary()) -> {ok, nil} | {error, binary()}.
 validate_email(Email) ->
     Parts = gleam@string:split(Email, <<"@"/utf8>>),
@@ -180,8 +159,6 @@ validate_email(Email) ->
                     "' is not a valid email address (invalid @ format)"/utf8>>}
     end.
 
--file("src/intent/formats.gleam", 197).
-?DOC(" Check if a string contains only valid hexadecimal characters\n").
 -spec is_valid_hex(binary()) -> boolean().
 is_valid_hex(S) ->
     _pipe = gleam@string:to_graphemes(S),
@@ -201,11 +178,6 @@ is_valid_hex(S) ->
         end
     ).
 
--file("src/intent/formats.gleam", 131).
-?DOC(
-    " Validate UUID format and structure\n"
-    " Validates version (1-5) and variant (RFC 4122) bits\n"
-).
 -spec validate_uuid(binary()) -> {ok, nil} | {error, binary()}.
 validate_uuid(Uuid) ->
     Parts = gleam@string:split(Uuid, <<"-"/utf8>>),
@@ -280,8 +252,6 @@ validate_uuid(Uuid) ->
                     "' is not a valid UUID (invalid segment count)"/utf8>>}
     end.
 
--file("src/intent/formats.gleam", 246).
-?DOC(" Validate URI scheme (must start with letter, contain only alphanumeric, +, -, .)\n").
 -spec validate_uri_scheme(binary()) -> {ok, nil} | {error, binary()}.
 validate_uri_scheme(Scheme) ->
     case gleam@string:is_empty(Scheme) of
@@ -491,11 +461,6 @@ validate_uri_scheme(Scheme) ->
             end
     end.
 
--file("src/intent/formats.gleam", 209).
-?DOC(
-    " Validate URI following RFC 3986\n"
-    " Checks for valid scheme, authority, path, query, and fragment\n"
-).
 -spec validate_uri(binary()) -> {ok, nil} | {error, binary()}.
 validate_uri(Uri) ->
     case gleam@string:is_empty(Uri) of
@@ -537,8 +502,6 @@ validate_uri(Uri) ->
             end
     end.
 
--file("src/intent/formats.gleam", 477).
-?DOC(" Parse a string to integer\n").
 -spec parse_int(binary()) -> {ok, integer()} | {error, nil}.
 parse_int(S) ->
     case gleam@int:parse(S) of
@@ -549,8 +512,6 @@ parse_int(S) ->
             {error, nil}
     end.
 
--file("src/intent/formats.gleam", 386).
-?DOC(" Validate ISO8601 time part (HH:MM:SS with optional fractional seconds and timezone)\n").
 -spec validate_iso8601_time(binary()) -> {ok, nil} | {error, binary()}.
 validate_iso8601_time(Time_str) ->
     Time_without_tz = case gleam@string:split_once(Time_str, <<"Z"/utf8>>) of
@@ -656,8 +617,6 @@ validate_iso8601_time(Time_str) ->
             {error, <<"Invalid ISO8601 time format (expected HH:MM:SS)"/utf8>>}
     end.
 
--file("src/intent/formats.gleam", 485).
-?DOC(" Check if a year is a leap year\n").
 -spec is_leap_year(integer()) -> boolean().
 is_leap_year(Year) ->
     case Year rem 4 of
@@ -680,8 +639,6 @@ is_leap_year(Year) ->
             false
     end.
 
--file("src/intent/formats.gleam", 501).
-?DOC(" Get the number of days in a month\n").
 -spec get_days_in_month(integer(), boolean()) -> integer().
 get_days_in_month(Month, Is_leap) ->
     case Month of
@@ -731,14 +688,10 @@ get_days_in_month(Month, Is_leap) ->
             0
     end.
 
--file("src/intent/formats.gleam", 515).
-?DOC(" Convert integer to string (for error messages)\n").
 -spec int_to_string(integer()) -> binary().
 int_to_string(N) ->
     gleam@int:to_string(N).
 
--file("src/intent/formats.gleam", 330).
-?DOC(" Validate ISO8601 date (YYYY-MM-DD) with proper calendar validation\n").
 -spec validate_iso8601_date(binary()) -> {ok, nil} | {error, binary()}.
 validate_iso8601_date(Date_str) ->
     case gleam@string:length(Date_str) of
@@ -809,11 +762,6 @@ validate_iso8601_date(Date_str) ->
                     "' is not valid ISO8601 date format (expected YYYY-MM-DD)"/utf8>>}
     end.
 
--file("src/intent/formats.gleam", 291).
-?DOC(
-    " Validate ISO 8601 datetime format with actual calendar validation\n"
-    " Supports: YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, with optional timezone\n"
-).
 -spec validate_iso8601(binary()) -> {ok, nil} | {error, binary()}.
 validate_iso8601(Datetime) ->
     case gleam@string:length(Datetime) of

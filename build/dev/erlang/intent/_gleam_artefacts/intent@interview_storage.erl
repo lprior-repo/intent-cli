@@ -1,16 +1,8 @@
 -module(intent@interview_storage).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/interview_storage.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([answer_to_version/3, format_diff/1, list_session_history/2, create_snapshot/2, diff_sessions/2, append_to_history/3, session_to_json/1, session_to_jsonl_line/1, init_database/1, save_session_to_db/2, query_sessions_by_profile/2, query_ready_sessions/1, append_session_to_jsonl/2, sync_to_jsonl/3, list_sessions_from_jsonl/1, get_session_from_jsonl/2, sync_from_jsonl/2]).
 -export_type([session_record/0, answer_version/0, answer_with_history/0, session_snapshot/0, session_diff/0, answer_diff/0, answer_change_type/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type session_record() :: {session_record,
         binary(),
@@ -72,8 +64,6 @@
 
 -type answer_change_type() :: added | modified | removed.
 
--file("src/intent/interview_storage.gleam", 120).
-?DOC(" Create an AnswerVersion from an Answer\n").
 -spec answer_to_version(intent@interview:answer(), integer(), binary()) -> answer_version().
 answer_to_version(Answer, Version, Change_reason) ->
     {answer_version,
@@ -84,8 +74,6 @@ answer_to_version(Answer, Version, Change_reason) ->
         erlang:element(10, Answer),
         Change_reason}.
 
--file("src/intent/interview_storage.gleam", 327).
-?DOC(" Truncate a string with ellipsis\n").
 -spec truncate(binary(), integer()) -> binary().
 truncate(S, Max_len) ->
     Trimmed = gleam@string:trim(S),
@@ -97,8 +85,6 @@ truncate(S, Max_len) ->
             Trimmed
     end.
 
--file("src/intent/interview_storage.gleam", 248).
-?DOC(" Format a SessionDiff as a human-readable string\n").
 -spec format_diff(session_diff()) -> binary().
 format_diff(Diff) ->
     Lines = [],
@@ -240,7 +226,6 @@ format_diff(Diff) ->
     end,
     gleam@string:join(Lines@7, <<"\n"/utf8>>).
 
--file("src/intent/interview_storage.gleam", 364).
 -spec snapshot_to_jsonl_line(session_snapshot()) -> binary().
 snapshot_to_jsonl_line(Snapshot) ->
     _pipe@1 = gleam@json:object(
@@ -271,7 +256,6 @@ snapshot_to_jsonl_line(Snapshot) ->
     ),
     gleam@json:to_string(_pipe@1).
 
--file("src/intent/interview_storage.gleam", 409).
 -spec snapshot_decoder(gleam@dynamic:dynamic_()) -> {ok, session_snapshot()} |
     {error, list(gleam@dynamic:decode_error())}.
 snapshot_decoder(Json_value) ->
@@ -352,8 +336,6 @@ snapshot_decoder(Json_value) ->
         end
     ).
 
--file("src/intent/interview_storage.gleam", 382).
-?DOC(" List all snapshots for a session from history\n").
 -spec list_session_history(binary(), binary()) -> {ok, list(session_snapshot())} |
     {error, binary()}.
 list_session_history(History_path, Session_id) ->
@@ -405,7 +387,6 @@ list_session_history(History_path, Session_id) ->
             end end
     ).
 
--file("src/intent/interview_storage.gleam", 453).
 -spec profile_to_string(intent@interview:profile()) -> binary().
 profile_to_string(Profile) ->
     case Profile of
@@ -424,11 +405,10 @@ profile_to_string(Profile) ->
         workflow ->
             <<"workflow"/utf8>>;
 
-        u_i ->
+        ui ->
             <<"ui"/utf8>>
     end.
 
--file("src/intent/interview_storage.gleam", 464).
 -spec stage_to_string(intent@interview:interview_stage()) -> binary().
 stage_to_string(Stage) ->
     case Stage of
@@ -448,8 +428,6 @@ stage_to_string(Stage) ->
             <<"paused"/utf8>>
     end.
 
--file("src/intent/interview_storage.gleam", 136).
-?DOC(" Create a session snapshot for comparison\n").
 -spec create_snapshot(intent@interview:interview_session(), binary()) -> session_snapshot().
 create_snapshot(Session, Description) ->
     Answers_dict = gleam@list:fold(
@@ -482,8 +460,6 @@ create_snapshot(Session, Description) ->
         erlang:length(Unresolved_conflicts),
         stage_to_string(erlang:element(7, Session))}.
 
--file("src/intent/interview_storage.gleam", 160).
-?DOC(" Compare two sessions and produce a diff\n").
 -spec diff_sessions(
     intent@interview:interview_session(),
     intent@interview:interview_session()
@@ -632,11 +608,6 @@ diff_sessions(From_session, To_session) ->
         Conflicts_resolved,
         Stage_changed}.
 
--file("src/intent/interview_storage.gleam", 341).
-?DOC(
-    " Append a session snapshot to history JSONL\n"
-    " File: .interview/history.jsonl\n"
-).
 -spec append_to_history(
     intent@interview:interview_session(),
     binary(),
@@ -670,7 +641,6 @@ append_to_history(Session, Description, History_path) ->
         end
     ).
 
--file("src/intent/interview_storage.gleam", 491).
 -spec perspective_to_string(intent@question_types:perspective()) -> binary().
 perspective_to_string(Perspective) ->
     case Perspective of
@@ -690,7 +660,6 @@ perspective_to_string(Perspective) ->
             <<"business"/utf8>>
     end.
 
--file("src/intent/interview_storage.gleam", 474).
 -spec answer_to_json(intent@interview:answer()) -> gleam@json:json().
 answer_to_json(Answer) ->
     gleam@json:object(
@@ -722,7 +691,6 @@ answer_to_json(Answer) ->
                 gleam@json:string(erlang:element(10, Answer))}]
     ).
 
--file("src/intent/interview_storage.gleam", 501).
 -spec gap_to_json(intent@interview:gap()) -> gleam@json:json().
 gap_to_json(Gap) ->
     gleam@json:object(
@@ -738,7 +706,6 @@ gap_to_json(Gap) ->
             {<<"resolution"/utf8>>, gleam@json:string(erlang:element(10, Gap))}]
     ).
 
--file("src/intent/interview_storage.gleam", 527).
 -spec conflict_resolution_to_json(intent@interview:conflict_resolution()) -> gleam@json:json().
 conflict_resolution_to_json(Res) ->
     gleam@json:object(
@@ -749,7 +716,6 @@ conflict_resolution_to_json(Res) ->
                 gleam@json:string(erlang:element(5, Res))}]
     ).
 
--file("src/intent/interview_storage.gleam", 515).
 -spec conflict_to_json(intent@interview:conflict()) -> gleam@json:json().
 conflict_to_json(Conflict) ->
     {Between_1, Between_2} = erlang:element(3, Conflict),
@@ -771,12 +737,6 @@ conflict_to_json(Conflict) ->
             {<<"chosen"/utf8>>, gleam@json:int(erlang:element(7, Conflict))}]
     ).
 
--file("src/intent/interview_storage.gleam", 437).
-?DOC(
-    " JSONL operations - git-friendly line-delimited JSON\n"
-    " Each line is a complete session snapshot\n"
-    " Stored at: .interview/sessions.jsonl\n"
-).
 -spec session_to_json(intent@interview:interview_session()) -> gleam@json:json().
 session_to_json(Session) ->
     gleam@json:object(
@@ -809,96 +769,38 @@ session_to_json(Session) ->
                 gleam@json:string(erlang:element(12, Session))}]
     ).
 
--file("src/intent/interview_storage.gleam", 537).
-?DOC(" Encode session to JSONL line (for git storage)\n").
 -spec session_to_jsonl_line(intent@interview:interview_session()) -> binary().
 session_to_jsonl_line(Session) ->
     _pipe = Session,
     _pipe@1 = session_to_json(_pipe),
     gleam@json:to_string(_pipe@1).
 
--file("src/intent/interview_storage.gleam", 653).
-?DOC(
-    " SQLite operations - local database for queries and performance\n"
-    " Database schema:\n"
-    "\n"
-    " CREATE TABLE sessions (\n"
-    "   id TEXT PRIMARY KEY,\n"
-    "   profile TEXT NOT NULL,\n"
-    "   created_at TEXT NOT NULL,\n"
-    "   updated_at TEXT NOT NULL,\n"
-    "   completed_at TEXT,\n"
-    "   stage TEXT NOT NULL,\n"
-    "   rounds_completed INTEGER NOT NULL,\n"
-    "   raw_notes TEXT,\n"
-    "   data JSONB  -- Full session data\n"
-    " );\n"
-    "\n"
-    " CREATE TABLE answers (\n"
-    "   id TEXT PRIMARY KEY,\n"
-    "   session_id TEXT NOT NULL REFERENCES sessions(id),\n"
-    "   question_id TEXT NOT NULL,\n"
-    "   round INTEGER NOT NULL,\n"
-    "   perspective TEXT NOT NULL,\n"
-    "   response TEXT NOT NULL,\n"
-    "   confidence REAL NOT NULL,\n"
-    "   timestamp TEXT NOT NULL\n"
-    " );\n"
-    "\n"
-    " CREATE TABLE gaps (\n"
-    "   id TEXT PRIMARY KEY,\n"
-    "   session_id TEXT NOT NULL REFERENCES sessions(id),\n"
-    "   field TEXT NOT NULL,\n"
-    "   blocking BOOLEAN NOT NULL,\n"
-    "   resolved BOOLEAN NOT NULL\n"
-    " );\n"
-    "\n"
-    " CREATE TABLE conflicts (\n"
-    "   id TEXT PRIMARY KEY,\n"
-    "   session_id TEXT NOT NULL REFERENCES sessions(id),\n"
-    "   description TEXT NOT NULL,\n"
-    "   chosen INTEGER\n"
-    " );\n"
-    " Initialize SQLite database (create tables if not exist)\n"
-).
 -spec init_database(binary()) -> {ok, nil} | {error, binary()}.
 init_database(_) ->
     {ok, nil}.
 
--file("src/intent/interview_storage.gleam", 662).
-?DOC(" Save session to SQLite\n").
 -spec save_session_to_db(binary(), intent@interview:interview_session()) -> {ok,
         nil} |
     {error, binary()}.
 save_session_to_db(_, _) ->
     {ok, nil}.
 
--file("src/intent/interview_storage.gleam", 672).
-?DOC(" Query sessions by profile\n").
 -spec query_sessions_by_profile(binary(), binary()) -> {ok,
         list(session_record())} |
     {error, binary()}.
 query_sessions_by_profile(_, _) ->
     {ok, []}.
 
--file("src/intent/interview_storage.gleam", 680).
-?DOC(" Query ready sessions (active, not complete, has gaps)\n").
 -spec query_ready_sessions(binary()) -> {ok, list(session_record())} |
     {error, binary()}.
 query_ready_sessions(_) ->
     {ok, []}.
 
--file("src/intent/interview_storage.gleam", 716).
 -spec session_id_decoder(gleam@dynamic:dynamic_()) -> {ok, binary()} |
     {error, list(gleam@dynamic:decode_error())}.
 session_id_decoder(Json_value) ->
     (gleam@dynamic:field(<<"id"/utf8>>, fun gleam@dynamic:string/1))(Json_value).
 
--file("src/intent/interview_storage.gleam", 545).
-?DOC(
-    " Write session to .interview/sessions.jsonl\n"
-    " Each session ID appears once, most recent last (for efficient updates)\n"
-).
 -spec append_session_to_jsonl(intent@interview:interview_session(), binary()) -> {ok,
         nil} |
     {error, binary()}.
@@ -942,14 +844,6 @@ append_session_to_jsonl(Session, Jsonl_path) ->
         end
     ).
 
--file("src/intent/interview_storage.gleam", 690).
-?DOC(
-    " Sync operations - keep SQLite and JSONL in sync\n"
-    " Strategy: JSONL is source of truth for git\n"
-    " 1. On read: load from JSONL, check SQLite is consistent\n"
-    " 2. On write: write to both\n"
-    " 3. Conflict resolution: JSONL wins (it's in git)\n"
-).
 -spec sync_to_jsonl(intent@interview:interview_session(), binary(), binary()) -> {ok,
         nil} |
     {error, binary()}.
@@ -964,7 +858,6 @@ sync_to_jsonl(Session, Db_path, Jsonl_path) ->
         end
     ).
 
--file("src/intent/interview_storage.gleam", 720).
 -spec session_decoder(gleam@dynamic:dynamic_()) -> {ok,
         intent@interview:interview_session()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -996,7 +889,7 @@ session_decoder(Json_value) ->
                                 {ok, workflow};
 
                             <<"ui"/utf8>> ->
-                                {ok, u_i};
+                                {ok, ui};
 
                             _ ->
                                 {error,
@@ -1127,8 +1020,6 @@ session_decoder(Json_value) ->
         end
     ).
 
--file("src/intent/interview_storage.gleam", 576).
-?DOC(" List all sessions from JSONL file\n").
 -spec list_sessions_from_jsonl(binary()) -> {ok,
         list(intent@interview:interview_session())} |
     {error, binary()}.
@@ -1173,8 +1064,6 @@ list_sessions_from_jsonl(Jsonl_path) ->
             end end
     ).
 
--file("src/intent/interview_storage.gleam", 600).
-?DOC(" Get session by ID from JSONL\n").
 -spec get_session_from_jsonl(binary(), binary()) -> {ok,
         intent@interview:interview_session()} |
     {error, binary()}.
@@ -1194,7 +1083,6 @@ get_session_from_jsonl(Jsonl_path, Session_id) ->
         end
     ).
 
--file("src/intent/interview_storage.gleam", 702).
 -spec sync_from_jsonl(binary(), binary()) -> {ok,
         list(intent@interview:interview_session())} |
     {error, binary()}.

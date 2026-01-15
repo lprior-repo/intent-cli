@@ -1,16 +1,8 @@
 -module(intent@rule).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/rule.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([to_string/1, parse/1]).
 -export_type([rule_expr/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type rule_expr() :: {equals, binary()} |
     {equals_variable, binary()} |
@@ -54,7 +46,6 @@
     {contains_variable, binary()} |
     {raw, binary()}.
 
--file("src/intent/rule.gleam", 107).
 -spec try_parse_equals(binary()) -> gleam@option:option(rule_expr()).
 try_parse_equals(Rule) ->
     case gleam@string:starts_with(Rule, <<"equals "/utf8>>) of
@@ -101,7 +92,6 @@ try_parse_equals(Rule) ->
             none
     end.
 
--file("src/intent/rule.gleam", 139).
 -spec try_parse_type(binary()) -> gleam@option:option(rule_expr()).
 try_parse_type(Rule) ->
     case Rule of
@@ -130,7 +120,6 @@ try_parse_type(Rule) ->
             none
     end.
 
--file("src/intent/rule.gleam", 152).
 -spec try_parse_string_pattern(binary()) -> gleam@option:option(rule_expr()).
 try_parse_string_pattern(Rule) ->
     case Rule of
@@ -219,7 +208,6 @@ try_parse_string_pattern(Rule) ->
             end
     end.
 
--file("src/intent/rule.gleam", 250).
 -spec parse_range(binary(), binary()) -> gleam@option:option({integer(),
     integer()}).
 parse_range(S, Sep) ->
@@ -237,7 +225,6 @@ parse_range(S, Sep) ->
             none
     end.
 
--file("src/intent/rule.gleam", 261).
 -spec parse_float_range(binary()) -> gleam@option:option({float(), float()}).
 parse_float_range(S) ->
     case gleam@string:split(S, <<" and "/utf8>>) of
@@ -254,7 +241,6 @@ parse_float_range(S) ->
             none
     end.
 
--file("src/intent/rule.gleam", 191).
 -spec try_parse_number(binary()) -> gleam@option:option(rule_expr()).
 try_parse_number(Rule) ->
     case gleam@string:starts_with(Rule, <<"integer >= "/utf8>>) of
@@ -342,7 +328,6 @@ try_parse_number(Rule) ->
             end
     end.
 
--file("src/intent/rule.gleam", 272).
 -spec try_parse_presence(binary()) -> gleam@option:option(rule_expr()).
 try_parse_presence(Rule) ->
     case Rule of
@@ -359,8 +344,6 @@ try_parse_presence(Rule) ->
             none
     end.
 
--file("src/intent/rule.gleam", 361).
-?DOC(" Parse a list like [\"a\", \"b\", \"c\"]\n").
 -spec parse_string_list(binary()) -> {ok, list(binary())} | {error, nil}.
 parse_string_list(S) ->
     S@1 = gleam@string:trim(S),
@@ -401,7 +384,6 @@ parse_string_list(S) ->
             {error, nil}
     end.
 
--file("src/intent/rule.gleam", 342).
 -spec try_parse_compound(binary()) -> gleam@option:option(rule_expr()).
 try_parse_compound(Rule) ->
     case Rule of
@@ -428,8 +410,6 @@ try_parse_compound(Rule) ->
             end
     end.
 
--file("src/intent/rule.gleam", 391).
-?DOC(" Format a rule expression back to a human-readable string\n").
 -spec to_string(rule_expr()) -> binary().
 to_string(Expr) ->
     case Expr of
@@ -577,7 +557,6 @@ to_string(Expr) ->
             S@1
     end.
 
--file("src/intent/rule.gleam", 281).
 -spec try_parse_array(binary()) -> gleam@option:option(rule_expr()).
 try_parse_array(Rule) ->
     case Rule of
@@ -691,8 +670,6 @@ try_parse_array(Rule) ->
             end
     end.
 
--file("src/intent/rule.gleam", 73).
-?DOC(" Parse a rule string into a RuleExpr\n").
 -spec parse(binary()) -> rule_expr().
 parse(Rule) ->
     Rule@1 = gleam@string:trim(Rule),

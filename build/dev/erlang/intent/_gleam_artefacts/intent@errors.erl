@@ -1,16 +1,8 @@
 -module(intent@errors).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/errors.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([field_not_found/3, format_error/1, format_validation_error/1, extract_available_fields/1, format_format_error/4, suggest_next_steps/1]).
 -export_type([contextual_error/0, validation_error/0, field_failure/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type contextual_error() :: {contextual_error,
         binary(),
@@ -31,11 +23,6 @@
         binary(),
         binary()}.
 
--file("src/intent/errors.gleam", 70).
-?DOC(
-    " Calculate Levenshtein distance between two strings\n"
-    " Used for suggesting similar field names\n"
-).
 -spec levenshtein_distance(binary(), binary()) -> integer().
 levenshtein_distance(S1, S2) ->
     Len1 = gleam@string:length(S1),
@@ -60,11 +47,6 @@ levenshtein_distance(S1, S2) ->
             (Len1 + Len2) - (2 * Common)
     end.
 
--file("src/intent/errors.gleam", 46).
-?DOC(
-    " Suggest similar field names based on Levenshtein distance\n"
-    " Helps users catch typos in field paths\n"
-).
 -spec suggest_field_names(binary(), list(binary())) -> list(binary()).
 suggest_field_names(Target, Available) ->
     _pipe = Available,
@@ -96,8 +78,6 @@ suggest_field_names(Target, Available) ->
     ),
     gleam@list:take(_pipe@4, 3).
 
--file("src/intent/errors.gleam", 26).
-?DOC(" Create a contextual error with field suggestions\n").
 -spec field_not_found(binary(), binary(), list(binary())) -> contextual_error().
 field_not_found(Behavior, Field_path, Available_fields) ->
     Suggestions = suggest_field_names(Field_path, Available_fields),
@@ -112,8 +92,6 @@ field_not_found(Behavior, Field_path, Available_fields) ->
         <<<<"Field '"/utf8, Field_path/binary>>/binary,
             "' not found in response"/utf8>>}.
 
--file("src/intent/errors.gleam", 93).
-?DOC(" Format contextual error for display\n").
 -spec format_error(contextual_error()) -> binary().
 format_error(Error) ->
     Field_info = <<<<"Field: '"/utf8, (erlang:element(3, Error))/binary>>/binary,
@@ -149,8 +127,6 @@ format_error(Error) ->
             "\n\n"/utf8>>/binary,
         (erlang:element(9, Error))/binary>>.
 
--file("src/intent/errors.gleam", 136).
-?DOC(" Format validation error showing all failures at once\n").
 -spec format_validation_error(validation_error()) -> binary().
 format_validation_error(Error) ->
     Count = erlang:length(erlang:element(3, Error)),
@@ -197,8 +173,6 @@ format_validation_error(Error) ->
             ":\n\n"/utf8>>/binary,
         Failure_lines/binary>>.
 
--file("src/intent/errors.gleam", 160).
-?DOC(" Extract available fields from JSON object for suggestions\n").
 -spec extract_available_fields(gleam@json:json()) -> list(binary()).
 extract_available_fields(Json) ->
     Json_str = gleam@json:to_string(Json),
@@ -217,8 +191,6 @@ extract_available_fields(Json) ->
             []
     end.
 
--file("src/intent/errors.gleam", 172).
-?DOC(" Format error message for format validation failures\n").
 -spec format_format_error(binary(), binary(), binary(), binary()) -> binary().
 format_format_error(Field, Format_name, Value, Reason) ->
     <<<<<<<<<<<<<<"Field '"/utf8, Field/binary>>/binary,
@@ -229,8 +201,6 @@ format_format_error(Field, Format_name, Value, Reason) ->
             "\n  Problem: "/utf8>>/binary,
         Reason/binary>>.
 
--file("src/intent/errors.gleam", 182).
-?DOC(" Suggest next validation steps based on error pattern\n").
 -spec suggest_next_steps(binary()) -> list(binary()).
 suggest_next_steps(Error_type) ->
     case Error_type of

@@ -1,16 +1,8 @@
 -module(intent@anti_patterns).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/anti_patterns.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([check_anti_patterns/3, format_anti_pattern/1]).
 -export_type([anti_pattern_result/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type anti_pattern_result() :: no_anti_patterns |
     {anti_pattern_detected,
@@ -20,7 +12,6 @@
         gleam@json:json(),
         gleam@json:json()}.
 
--file("src/intent/anti_patterns.gleam", 93).
 -spec get_all_keys_from_dynamic(gleam@dynamic:dynamic_()) -> gleam@set:set(binary()).
 get_all_keys_from_dynamic(Data) ->
     case (gleam@dynamic:dict(
@@ -44,8 +35,6 @@ get_all_keys_from_dynamic(Data) ->
             gleam@set:new()
     end.
 
--file("src/intent/anti_patterns.gleam", 76).
-?DOC(" Get all keys from a JSON object (recursively)\n").
 -spec get_all_keys(gleam@json:json()) -> gleam@set:set(binary()).
 get_all_keys(Value) ->
     Json_str = gleam@json:to_string(Value),
@@ -73,11 +62,6 @@ get_all_keys(Value) ->
             gleam@set:new()
     end.
 
--file("src/intent/anti_patterns.gleam", 67).
-?DOC(
-    " Extract the keys from bad_example that make it bad\n"
-    " (keys present in bad but not in good)\n"
-).
 -spec extract_problem_keys(intent@types:anti_pattern()) -> gleam@set:set(binary()).
 extract_problem_keys(Pattern) ->
     Bad_keys = get_all_keys(erlang:element(4, Pattern)),
@@ -87,8 +71,6 @@ extract_problem_keys(Pattern) ->
         fun(Key) -> not gleam@set:contains(Good_keys, Key) end
     ).
 
--file("src/intent/anti_patterns.gleam", 110).
-?DOC(" Check if any bad keys are present in the response\n").
 -spec check_for_bad_keys(gleam@json:json(), gleam@set:set(binary())) -> list(binary()).
 check_for_bad_keys(Body, Bad_keys) ->
     Response_keys = get_all_keys(Body),
@@ -99,8 +81,6 @@ check_for_bad_keys(Body, Bad_keys) ->
         fun(Key) -> gleam@set:contains(Response_keys, Key) end
     ).
 
--file("src/intent/anti_patterns.gleam", 42).
-?DOC(" Detect a single anti-pattern in a response\n").
 -spec detect_pattern(
     intent@types:anti_pattern(),
     intent@http_client:execution_result()
@@ -123,8 +103,6 @@ detect_pattern(Pattern, Response) ->
                     erlang:element(5, Pattern)}}
     end.
 
--file("src/intent/anti_patterns.gleam", 27).
-?DOC(" Check a response for all defined anti-patterns\n").
 -spec check_anti_patterns(
     list(intent@types:anti_pattern()),
     intent@http_client:execution_result(),
@@ -143,8 +121,6 @@ check_anti_patterns(Patterns, Response, _) ->
             end end
     ).
 
--file("src/intent/anti_patterns.gleam", 119).
-?DOC(" Format an anti-pattern result as a human-readable string\n").
 -spec format_anti_pattern(anti_pattern_result()) -> binary().
 format_anti_pattern(Result) ->
     case Result of

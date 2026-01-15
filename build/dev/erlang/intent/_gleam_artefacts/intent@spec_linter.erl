@@ -1,16 +1,8 @@
 -module(intent@spec_linter).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/spec_linter.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([lint_spec/1, format_warnings/1]).
 -export_type([lint_result/0, lint_warning/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type lint_result() :: lint_valid | {lint_warnings, list(lint_warning())}.
 
@@ -21,8 +13,6 @@
     {naming_convention, binary(), binary()} |
     {duplicate_behavior, binary(), binary(), binary()}.
 
--file("src/intent/spec_linter.gleam", 141).
-?DOC(" Extract all keys from a JSON object (recursively)\n").
 -spec extract_all_keys(gleam@json:json()) -> list(binary()).
 extract_all_keys(Json) ->
     Json_str = gleam@json:to_string(Json),
@@ -40,8 +30,6 @@ extract_all_keys(Json) ->
             []
     end.
 
--file("src/intent/spec_linter.gleam", 132).
-?DOC(" Check if a JSON example contains the bad pattern keys\n").
 -spec contains_anti_pattern_keys(gleam@json:json(), intent@types:anti_pattern()) -> boolean().
 contains_anti_pattern_keys(Example, Pattern) ->
     Bad_keys = extract_all_keys(erlang:element(4, Pattern)),
@@ -51,8 +39,6 @@ contains_anti_pattern_keys(Example, Pattern) ->
         fun(Key) -> gleam@list:contains(Example_keys, Key) end
     ).
 
--file("src/intent/spec_linter.gleam", 107).
-?DOC(" Check for anti-patterns in a behavior's response example\n").
 -spec check_anti_patterns(
     intent@types:behavior(),
     list(intent@types:anti_pattern())
@@ -86,8 +72,6 @@ check_anti_patterns(Behavior, Patterns) ->
             )
     end.
 
--file("src/intent/spec_linter.gleam", 153).
-?DOC(" Check for vague rules in a behavior\n").
 -spec check_for_vague_rules(intent@types:behavior()) -> list(lint_warning()).
 check_for_vague_rules(Behavior) ->
     _pipe = erlang:element(4, erlang:element(8, Behavior)),
@@ -151,8 +135,6 @@ check_for_vague_rules(Behavior) ->
         end
     ).
 
--file("src/intent/spec_linter.gleam", 211).
-?DOC(" Check if a name has invalid characters (not alphanumeric, hyphen, underscore)\n").
 -spec has_invalid_name_chars(binary()) -> boolean().
 has_invalid_name_chars(Name) ->
     _pipe = gleam@string:to_graphemes(Name),
@@ -172,8 +154,6 @@ has_invalid_name_chars(Name) ->
         end
     ).
 
--file("src/intent/spec_linter.gleam", 196).
-?DOC(" Check naming conventions for behaviors\n").
 -spec check_naming_convention(intent@types:behavior()) -> {ok, lint_warning()} |
     {error, nil}.
 check_naming_convention(Behavior) ->
@@ -188,8 +168,6 @@ check_naming_convention(Behavior) ->
                     <<"Use kebab-case for behavior names (e.g., 'get-user-by-id')"/utf8>>}}
     end.
 
--file("src/intent/spec_linter.gleam", 292).
-?DOC(" Count common substrings between two strings\n").
 -spec count_common_substrings(binary(), binary()) -> integer().
 count_common_substrings(S1, S2) ->
     G1 = gleam@string:to_graphemes(S1),
@@ -201,8 +179,6 @@ count_common_substrings(S1, S2) ->
     ),
     erlang:length(_pipe@1).
 
--file("src/intent/spec_linter.gleam", 270).
-?DOC(" Calculate string similarity (simple Levenshtein-based approach)\n").
 -spec calculate_string_similarity(binary(), binary()) -> float().
 calculate_string_similarity(S1, S2) ->
     case S1 =:= S2 of
@@ -229,8 +205,6 @@ calculate_string_similarity(S1, S2) ->
             end
     end.
 
--file("src/intent/spec_linter.gleam", 247).
-?DOC(" Calculate similarity between two behaviors\n").
 -spec calculate_behavior_similarity(
     intent@types:behavior(),
     intent@types:behavior()
@@ -256,14 +230,10 @@ calculate_behavior_similarity(B1, B2) ->
     ),
     (Method_match + (Path_similarity * 0.35)) + (Intent_similarity * 0.15).
 
--file("src/intent/spec_linter.gleam", 303).
-?DOC(" Convert float to string with precision\n").
 -spec float_to_string(float(), integer()) -> binary().
 float_to_string(F, _) ->
     gleam@float:to_string(F).
 
--file("src/intent/spec_linter.gleam", 222).
-?DOC(" Check for duplicate or similar behaviors\n").
 -spec check_for_duplicate_behaviors(list(intent@types:behavior())) -> list(lint_warning()).
 check_for_duplicate_behaviors(Behaviors) ->
     _pipe = Behaviors,
@@ -295,8 +265,6 @@ check_for_duplicate_behaviors(Behaviors) ->
     ),
     gleam@list:flatten(_pipe@3).
 
--file("src/intent/spec_linter.gleam", 30).
-?DOC(" Lint a complete spec\n").
 -spec lint_spec(intent@types:spec()) -> lint_result().
 lint_spec(Spec) ->
     Mut_warnings = [],
@@ -392,8 +360,6 @@ lint_spec(Spec) ->
             {lint_warnings, Mut_warnings@6}
     end.
 
--file("src/intent/spec_linter.gleam", 319).
-?DOC(" Format a single lint warning\n").
 -spec format_warning(lint_warning()) -> binary().
 format_warning(Warning) ->
     case Warning of
@@ -437,8 +403,6 @@ format_warning(Warning) ->
                 " - consider consolidating"/utf8>>
     end.
 
--file("src/intent/spec_linter.gleam", 309).
-?DOC(" Format lint warnings for display\n").
 -spec format_warnings(list(lint_warning())) -> binary().
 format_warnings(Warnings) ->
     Warning_lines = begin

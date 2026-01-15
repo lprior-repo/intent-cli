@@ -1,14 +1,12 @@
 -module(intent_test).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "test/intent_test.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([main/0, resolver_simple_no_deps_test/0, resolver_linear_dependency_chain_test/0, resolver_multiple_deps_on_one_test/0, resolver_missing_dependency_test/0, resolver_cyclic_dependency_test/0, resolver_duplicate_name_test/0, resolver_cross_feature_deps_test/0, interpolate_missing_variable_test/0, interpolate_no_variables_test/0, interpolate_simple_variable_test/0, interpolate_multiple_variables_test/0, interview_get_questions_api_round_1_test/0, interview_get_questions_cli_round_1_test/0, interview_create_session_test/0, interview_extract_auth_method_jwt_test/0, interview_extract_auth_method_oauth_test/0, interview_extract_entities_test/0, interview_extract_audience_mobile_test/0, interview_detect_gaps_empty_answers_test/0, interview_detect_gaps_with_answers_test/0, interview_detect_conflicts_cap_theorem_test/0, interview_calculate_confidence_high_test/0, interview_add_answer_test/0, interview_complete_round_test/0, interview_format_question_critical_test/0, http_client_url_construction_simple_test/0, http_client_path_interpolation_test/0, http_client_missing_variable_interpolation_test/0, http_client_header_interpolation_test/0, http_client_header_merge_test/0, http_client_body_json_interpolation_test/0, http_client_invalid_url_test/0, http_client_https_url_test/0, http_client_custom_port_test/0, http_client_path_leading_slash_test/0, http_client_method_conversion_get_test/0, http_client_method_conversion_post_test/0, http_client_multiple_header_merge_test/0, rules_engine_check_when_status_equals_test/0, rules_engine_check_when_status_greater_than_test/0, rules_engine_check_when_status_less_than_test/0, rules_engine_check_when_method_mismatch_test/0, rules_engine_check_when_path_exact_match_test/0, rules_engine_check_when_path_regex_match_test/0, rules_engine_check_body_must_contain_test/0, rules_engine_check_body_must_not_contain_test/0, rules_engine_check_body_must_not_contain_violation_test/0, rules_engine_check_body_must_contain_violation_test/0, rules_engine_check_multiple_rules_test/0, rules_engine_format_violation_body_contains_test/0, rules_engine_format_violation_body_missing_test/0, rules_engine_format_violation_field_missing_test/0, rules_engine_format_violation_header_missing_test/0, resolver_complex_diamond_dependency_test/0, resolver_multiple_branches_test/0, resolver_deep_chain_test/0, rules_engine_empty_body_test/0, rules_engine_null_json_value_test/0, rules_engine_whitespace_body_test/0, rules_engine_nested_null_field_test/0, rules_engine_empty_object_test/0, interpolate_unicode_variable_test/0, interpolate_unicode_in_path_test/0, rules_engine_unicode_body_content_test/0, rules_engine_emoji_in_description_test/0, interpolate_special_characters_test/0, http_client_unicode_header_test/0, json_encoding_test/0, summary_calculation_test/0, string_formatting_test/0, error_message_formatting_test/0, list_to_string_formatting_test/0, boolean_to_status_test/0, json_null_handling_test/0, bead_generation_api_profile_test/0, bead_generation_cli_profile_test/0, bead_to_jsonl_format_test/0, beads_to_jsonl_multiple_test/0, bead_stats_calculation_test/0, filter_beads_by_type_test/0, sort_beads_by_priority_test/0, add_bead_dependency_test/0, empty_session_beads_test/0, interview_session_to_json_test/0, bead_generation_event_profile_test/0, bead_generation_data_profile_test/0, bead_generation_workflow_profile_test/0, bead_generation_ui_profile_test/0, bead_record_required_fields_test/0, bead_stats_empty_list_test/0, bead_multiple_dependencies_test/0, bead_generation_preserves_answer_content_test/0, formats_validate_email_valid_simple_test/0, formats_validate_email_valid_with_subdomain_test/0, formats_validate_email_valid_with_plus_test/0, formats_validate_email_valid_with_dots_test/0, formats_validate_email_valid_with_hyphen_local_test/0, formats_validate_email_valid_with_underscore_test/0, formats_validate_email_invalid_no_at_test/0, formats_validate_email_invalid_multiple_at_test/0, formats_validate_email_invalid_empty_local_test/0, formats_validate_email_invalid_empty_domain_test/0, formats_validate_email_invalid_consecutive_dots_local_test/0, formats_validate_email_invalid_starts_with_dot_test/0, formats_validate_email_invalid_ends_with_dot_test/0, formats_validate_email_invalid_no_domain_dot_test/0, formats_validate_email_invalid_domain_starts_hyphen_test/0, formats_validate_email_invalid_domain_ends_hyphen_test/0, formats_validate_uuid_valid_v4_test/0, formats_validate_uuid_valid_v1_test/0, formats_validate_uuid_valid_uppercase_test/0, formats_validate_uuid_invalid_wrong_segment_count_test/0, formats_validate_uuid_invalid_wrong_segment_length_test/0, formats_validate_uuid_invalid_non_hex_test/0, formats_validate_uuid_invalid_version_test/0, formats_validate_uuid_invalid_variant_test/0, formats_validate_uuid_invalid_no_dashes_test/0, formats_validate_uri_valid_http_test/0, formats_validate_uri_valid_https_test/0, formats_validate_uri_valid_ftp_test/0, formats_validate_uri_valid_with_path_test/0, formats_validate_uri_valid_with_port_test/0, formats_validate_uri_valid_with_query_test/0, formats_validate_uri_invalid_empty_test/0, formats_validate_uri_invalid_no_scheme_test/0, formats_validate_uri_invalid_scheme_only_test/0, formats_validate_uri_invalid_scheme_starts_number_test/0, formats_validate_iso8601_valid_date_only_test/0, formats_validate_iso8601_valid_datetime_test/0, formats_validate_iso8601_valid_datetime_with_z_test/0, formats_validate_iso8601_valid_datetime_with_tz_plus_test/0, formats_validate_iso8601_valid_datetime_with_tz_minus_test/0, formats_validate_iso8601_valid_datetime_fractional_seconds_test/0, formats_validate_iso8601_valid_feb_28_non_leap_test/0, formats_validate_iso8601_valid_feb_29_leap_test/0, formats_validate_iso8601_invalid_too_short_test/0, formats_validate_iso8601_invalid_month_13_test/0, formats_validate_iso8601_invalid_month_00_test/0, formats_validate_iso8601_invalid_day_32_test/0, formats_validate_iso8601_invalid_day_00_test/0, formats_validate_iso8601_invalid_feb_29_non_leap_test/0, formats_validate_iso8601_invalid_april_31_test/0, formats_validate_iso8601_invalid_hour_24_test/0, formats_validate_iso8601_invalid_minute_60_test/0, formats_validate_iso8601_invalid_second_60_test/0, formats_validate_iso8601_invalid_separator_test/0, formats_validate_iso8601_valid_space_separator_test/0, checker_status_code_match_test/0, checker_status_code_mismatch_test/0, checker_field_equals_string_pass_test/0, checker_field_equals_string_fail_test/0, checker_field_equals_int_pass_test/0, checker_field_is_string_pass_test/0, checker_field_is_string_fail_test/0, checker_field_is_integer_pass_test/0, checker_field_is_boolean_pass_test/0, checker_field_is_array_pass_test/0, checker_field_is_object_pass_test/0, checker_field_present_pass_test/0, checker_field_present_fail_test/0, checker_field_absent_pass_test/0, checker_field_absent_fail_test/0, checker_field_non_empty_string_pass_test/0, checker_field_non_empty_string_fail_test/0, checker_field_is_email_pass_test/0, checker_field_is_email_fail_test/0, checker_field_is_uuid_pass_test/0, checker_field_is_uuid_fail_test/0, checker_field_is_iso8601_pass_test/0, checker_field_integer_gte_pass_test/0, checker_field_integer_gte_fail_test/0, checker_field_integer_lte_pass_test/0, checker_field_number_between_pass_test/0, checker_field_number_between_fail_test/0, checker_string_starts_with_pass_test/0, checker_string_ends_with_pass_test/0, checker_string_containing_pass_test/0, checker_non_empty_array_pass_test/0, checker_non_empty_array_fail_test/0, checker_array_of_length_pass_test/0, checker_array_min_items_pass_test/0, checker_one_of_pass_test/0, checker_one_of_fail_test/0, checker_header_present_pass_test/0, checker_header_value_mismatch_test/0, checker_header_missing_test/0, checker_header_case_insensitive_test/0, checker_nested_field_pass_test/0, checker_nested_field_missing_test/0, checker_multiple_checks_test/0, question_loader_file_not_found_test/0, question_loader_merge_empty_custom_returns_base_test/0, question_loader_merge_adds_new_questions_test/0, question_loader_merge_overrides_by_id_test/0, question_loader_merge_preserves_non_overridden_test/0, question_loader_merge_common_rounds_test/0, diff_sessions_no_changes_test/0, diff_sessions_answer_added_test/0, diff_sessions_answer_modified_test/0, diff_sessions_answer_removed_test/0, diff_sessions_stage_changed_test/0, diff_sessions_gaps_resolved_test/0, diff_sessions_conflicts_resolved_test/0, create_snapshot_test/0, format_diff_produces_output_test/0]).
 
--file("test/intent_test.gleam", 25).
 -spec main() -> nil.
 main() ->
     gleeunit:main().
 
--file("test/intent_test.gleam", 33).
 -spec make_behavior(binary(), list(binary())) -> intent@types:behavior().
 make_behavior(Name, Requires) ->
     {behavior,
@@ -26,12 +24,10 @@ make_behavior(Name, Requires) ->
         {response, 200, gleam@json:null(), gleam@dict:new(), gleam@dict:new()},
         gleam@dict:new()}.
 
--file("test/intent_test.gleam", 57).
 -spec make_feature(binary(), list(intent@types:behavior())) -> intent@types:feature().
 make_feature(Name, Behaviors) ->
     {feature, Name, <<"Test feature"/utf8>>, Behaviors}.
 
--file("test/intent_test.gleam", 61).
 -spec make_spec(list(intent@types:feature())) -> intent@types:spec().
 make_spec(Features) ->
     {spec,
@@ -44,13 +40,12 @@ make_spec(Features) ->
         Features,
         [],
         [],
-        {a_i_hints,
+        {ai_hints,
             {implementation_hints, []},
             gleam@dict:new(),
             {security_hints, <<""/utf8>>, <<""/utf8>>, <<""/utf8>>, <<""/utf8>>},
             []}}.
 
--file("test/intent_test.gleam", 90).
 -spec resolver_simple_no_deps_test() -> nil.
 resolver_simple_no_deps_test() ->
     B1 = make_behavior(<<"first"/utf8>>, []),
@@ -67,7 +62,6 @@ resolver_simple_no_deps_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 109).
 -spec resolver_linear_dependency_chain_test() -> nil.
 resolver_linear_dependency_chain_test() ->
     B1 = make_behavior(<<"first"/utf8>>, []),
@@ -93,7 +87,6 @@ resolver_linear_dependency_chain_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 133).
 -spec resolver_multiple_deps_on_one_test() -> nil.
 resolver_multiple_deps_on_one_test() ->
     B1 = make_behavior(<<"base"/utf8>>, []),
@@ -109,29 +102,23 @@ resolver_multiple_deps_on_one_test() ->
                 Resolved,
                 fun(Rb) -> erlang:element(2, erlang:element(3, Rb)) end
             ),
-            First@1 = case Names of
-                [First | _] -> First;
+            [First | _] = case Names of
+                [_ | _] -> Names;
                 _assert_fail ->
                     erlang:error(#{gleam_error => let_assert,
-                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
-                                file => <<?FILEPATH/utf8>>,
+                                message => <<"Assertion pattern match failed"/utf8>>,
+                                value => _assert_fail,
                                 module => <<"intent_test"/utf8>>,
                                 function => <<"resolver_multiple_deps_on_one_test"/utf8>>,
-                                line => 150,
-                                value => _assert_fail,
-                                start => 3896,
-                                'end' => 3926,
-                                pattern_start => 3907,
-                                pattern_end => 3918})
+                                line => 150})
             end,
-            _pipe@1 = First@1,
+            _pipe@1 = First,
             gleeunit_ffi:should_equal(_pipe@1, <<"base"/utf8>>);
 
         {error, _} ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 158).
 -spec resolver_missing_dependency_test() -> nil.
 resolver_missing_dependency_test() ->
     B1 = make_behavior(<<"first"/utf8>>, [<<"nonexistent"/utf8>>]),
@@ -151,7 +138,6 @@ resolver_missing_dependency_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 178).
 -spec resolver_cyclic_dependency_test() -> nil.
 resolver_cyclic_dependency_test() ->
     B1 = make_behavior(<<"first"/utf8>>, [<<"second"/utf8>>]),
@@ -169,7 +155,6 @@ resolver_cyclic_dependency_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 194).
 -spec resolver_duplicate_name_test() -> nil.
 resolver_duplicate_name_test() ->
     B1 = make_behavior(<<"same-name"/utf8>>, []),
@@ -188,7 +173,6 @@ resolver_duplicate_name_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 213).
 -spec resolver_cross_feature_deps_test() -> nil.
 resolver_cross_feature_deps_test() ->
     B1 = make_behavior(<<"base"/utf8>>, []),
@@ -216,7 +200,6 @@ resolver_cross_feature_deps_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 277).
 -spec interpolate_missing_variable_test() -> binary().
 interpolate_missing_variable_test() ->
     Ctx = intent@interpolate:new_context(),
@@ -227,7 +210,6 @@ interpolate_missing_variable_test() ->
     _pipe = Result,
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 286).
 -spec interpolate_no_variables_test() -> nil.
 interpolate_no_variables_test() ->
     Ctx = intent@interpolate:new_context(),
@@ -244,12 +226,10 @@ interpolate_no_variables_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 300).
 -spec json_string(binary()) -> gleam@json:json().
 json_string(S) ->
     gleam@json:string(S).
 
--file("test/intent_test.gleam", 243).
 -spec interpolate_simple_variable_test() -> nil.
 interpolate_simple_variable_test() ->
     Ctx = begin
@@ -275,7 +255,6 @@ interpolate_simple_variable_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 261).
 -spec interpolate_multiple_variables_test() -> nil.
 interpolate_multiple_variables_test() ->
     Ctx = begin
@@ -304,7 +283,6 @@ interpolate_multiple_variables_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 308).
 -spec interview_get_questions_api_round_1_test() -> nil.
 interview_get_questions_api_round_1_test() ->
     Questions = intent@interview_questions:get_questions_for_round(
@@ -315,7 +293,6 @@ interview_get_questions_api_round_1_test() ->
     _pipe = Has_questions,
     gleeunit@should:be_true(_pipe).
 
--file("test/intent_test.gleam", 314).
 -spec interview_get_questions_cli_round_1_test() -> nil.
 interview_get_questions_cli_round_1_test() ->
     Questions = intent@interview_questions:get_questions_for_round(
@@ -326,7 +303,6 @@ interview_get_questions_cli_round_1_test() ->
     _pipe = Has_questions,
     gleeunit@should:be_true(_pipe).
 
--file("test/intent_test.gleam", 320).
 -spec interview_create_session_test() -> nil.
 interview_create_session_test() ->
     Session = intent@interview:create_session(
@@ -346,7 +322,6 @@ interview_create_session_test() ->
     _pipe@5 = erlang:length(_pipe@4),
     gleeunit_ffi:should_equal(_pipe@5, 0).
 
--file("test/intent_test.gleam", 331).
 -spec interview_extract_auth_method_jwt_test() -> nil.
 interview_extract_auth_method_jwt_test() ->
     Extracted = intent@interview:extract_from_answer(
@@ -358,7 +333,6 @@ interview_extract_auth_method_jwt_test() ->
     _pipe = Auth_method,
     gleeunit_ffi:should_equal(_pipe, {ok, <<"jwt"/utf8>>}).
 
--file("test/intent_test.gleam", 340).
 -spec interview_extract_auth_method_oauth_test() -> nil.
 interview_extract_auth_method_oauth_test() ->
     Extracted = intent@interview:extract_from_answer(
@@ -370,7 +344,6 @@ interview_extract_auth_method_oauth_test() ->
     _pipe = Auth_method,
     gleeunit_ffi:should_equal(_pipe, {ok, <<"oauth"/utf8>>}).
 
--file("test/intent_test.gleam", 349).
 -spec interview_extract_entities_test() -> nil.
 interview_extract_entities_test() ->
     Extracted = intent@interview:extract_from_answer(
@@ -385,7 +358,6 @@ interview_extract_entities_test() ->
         {ok, <<"Users, Orders, Products, Payments"/utf8>>}
     ).
 
--file("test/intent_test.gleam", 359).
 -spec interview_extract_audience_mobile_test() -> nil.
 interview_extract_audience_mobile_test() ->
     Extracted = intent@interview:extract_from_answer(
@@ -397,7 +369,6 @@ interview_extract_audience_mobile_test() ->
     _pipe = Audience,
     gleeunit_ffi:should_equal(_pipe, {ok, <<"mobile"/utf8>>}).
 
--file("test/intent_test.gleam", 368).
 -spec interview_detect_gaps_empty_answers_test() -> nil.
 interview_detect_gaps_empty_answers_test() ->
     Answers = [],
@@ -406,7 +377,6 @@ interview_detect_gaps_empty_answers_test() ->
     _pipe = Has_gaps,
     gleeunit@should:be_true(_pipe).
 
--file("test/intent_test.gleam", 375).
 -spec interview_detect_gaps_with_answers_test() -> nil.
 interview_detect_gaps_with_answers_test() ->
     Answers = [{answer,
@@ -471,7 +441,6 @@ interview_detect_gaps_with_answers_test() ->
     _pipe@1 = erlang:length(_pipe),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 438).
 -spec interview_detect_conflicts_cap_theorem_test() -> nil.
 interview_detect_conflicts_cap_theorem_test() ->
     Answers = [{answer,
@@ -502,7 +471,6 @@ interview_detect_conflicts_cap_theorem_test() ->
     ),
     gleeunit@should:be_true(_pipe@1).
 
--file("test/intent_test.gleam", 469).
 -spec interview_calculate_confidence_high_test() -> nil.
 interview_calculate_confidence_high_test() ->
     Extracted = maps:from_list(
@@ -518,7 +486,6 @@ interview_calculate_confidence_high_test() ->
     _pipe = Is_high,
     gleeunit@should:be_true(_pipe).
 
--file("test/intent_test.gleam", 484).
 -spec interview_add_answer_test() -> nil.
 interview_add_answer_test() ->
     Session = intent@interview:create_session(
@@ -543,7 +510,6 @@ interview_add_answer_test() ->
     _pipe@2 = erlang:element(5, Updated),
     gleeunit_ffi:should_equal(_pipe@2, <<"2024-01-01T00:01:00Z"/utf8>>).
 
--file("test/intent_test.gleam", 504).
 -spec interview_complete_round_test() -> nil.
 interview_complete_round_test() ->
     Session = intent@interview:create_session(
@@ -557,7 +523,6 @@ interview_complete_round_test() ->
     _pipe@1 = erlang:element(7, After_round_1),
     gleeunit_ffi:should_equal(_pipe@1, discovery).
 
--file("test/intent_test.gleam", 513).
 -spec interview_format_question_critical_test() -> nil.
 interview_format_question_critical_test() ->
     Question = {question,
@@ -584,7 +549,6 @@ interview_format_question_critical_test() ->
     ),
     gleeunit@should:be_true(_pipe@3).
 
--file("test/intent_test.gleam", 538).
 -spec http_client_url_construction_simple_test() -> nil.
 http_client_url_construction_simple_test() ->
     Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
@@ -604,7 +568,6 @@ http_client_url_construction_simple_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 567).
 -spec http_client_path_interpolation_test() -> nil.
 http_client_path_interpolation_test() ->
     Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
@@ -631,7 +594,6 @@ http_client_path_interpolation_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 597).
 -spec http_client_missing_variable_interpolation_test() -> nil.
 http_client_missing_variable_interpolation_test() ->
     Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
@@ -651,7 +613,6 @@ http_client_missing_variable_interpolation_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 623).
 -spec http_client_header_interpolation_test() -> nil.
 http_client_header_interpolation_test() ->
     Config = {config,
@@ -681,7 +642,6 @@ http_client_header_interpolation_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 652).
 -spec http_client_header_merge_test() -> nil.
 http_client_header_merge_test() ->
     Config = {config,
@@ -707,7 +667,6 @@ http_client_header_merge_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 682).
 -spec http_client_body_json_interpolation_test() -> nil.
 http_client_body_json_interpolation_test() ->
     Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
@@ -738,7 +697,6 @@ http_client_body_json_interpolation_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 717).
 -spec http_client_invalid_url_test() -> nil.
 http_client_invalid_url_test() ->
     Config = {config, <<"not a valid url at all"/utf8>>, 5000, gleam@dict:new()},
@@ -758,7 +716,6 @@ http_client_invalid_url_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 743).
 -spec http_client_https_url_test() -> nil.
 http_client_https_url_test() ->
     Config = {config,
@@ -781,7 +738,6 @@ http_client_https_url_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 770).
 -spec http_client_custom_port_test() -> nil.
 http_client_custom_port_test() ->
     Config = {config, <<"http://localhost:3000"/utf8>>, 5000, gleam@dict:new()},
@@ -801,7 +757,6 @@ http_client_custom_port_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 797).
 -spec http_client_path_leading_slash_test() -> nil.
 http_client_path_leading_slash_test() ->
     Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
@@ -821,7 +776,6 @@ http_client_path_leading_slash_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 825).
 -spec http_client_method_conversion_get_test() -> nil.
 http_client_method_conversion_get_test() ->
     Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
@@ -841,7 +795,6 @@ http_client_method_conversion_get_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 852).
 -spec http_client_method_conversion_post_test() -> nil.
 http_client_method_conversion_post_test() ->
     Config = {config, <<"http://localhost:8080"/utf8>>, 5000, gleam@dict:new()},
@@ -863,7 +816,6 @@ http_client_method_conversion_post_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 879).
 -spec http_client_multiple_header_merge_test() -> nil.
 http_client_multiple_header_merge_test() ->
     Config = {config,
@@ -892,7 +844,6 @@ http_client_multiple_header_merge_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 916).
 -spec make_execution_result(
     integer(),
     binary(),
@@ -909,7 +860,6 @@ make_execution_result(Status, Body_str, Method, Path) ->
         Method,
         Path}.
 
--file("test/intent_test.gleam", 933).
 -spec rules_engine_check_when_status_equals_test() -> nil.
 rules_engine_check_when_status_equals_test() ->
     Rule = {rule,
@@ -935,7 +885,6 @@ rules_engine_check_when_status_equals_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 962).
 -spec rules_engine_check_when_status_greater_than_test() -> nil.
 rules_engine_check_when_status_greater_than_test() ->
     Rule = {rule,
@@ -965,7 +914,6 @@ rules_engine_check_when_status_greater_than_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 991).
 -spec rules_engine_check_when_status_less_than_test() -> nil.
 rules_engine_check_when_status_less_than_test() ->
     Rule = {rule,
@@ -993,7 +941,6 @@ rules_engine_check_when_status_less_than_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1017).
 -spec rules_engine_check_when_method_mismatch_test() -> nil.
 rules_engine_check_when_method_mismatch_test() ->
     Rule = {rule,
@@ -1016,7 +963,6 @@ rules_engine_check_when_method_mismatch_test() ->
     _pipe = erlang:length(Results),
     gleeunit_ffi:should_equal(_pipe, 0).
 
--file("test/intent_test.gleam", 1042).
 -spec rules_engine_check_when_path_exact_match_test() -> nil.
 rules_engine_check_when_path_exact_match_test() ->
     Rule = {rule,
@@ -1044,7 +990,6 @@ rules_engine_check_when_path_exact_match_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1068).
 -spec rules_engine_check_when_path_regex_match_test() -> nil.
 rules_engine_check_when_path_regex_match_test() ->
     Rule = {rule,
@@ -1072,7 +1017,6 @@ rules_engine_check_when_path_regex_match_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1094).
 -spec rules_engine_check_body_must_contain_test() -> nil.
 rules_engine_check_body_must_contain_test() ->
     Rule = {rule,
@@ -1100,7 +1044,6 @@ rules_engine_check_body_must_contain_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1120).
 -spec rules_engine_check_body_must_not_contain_test() -> nil.
 rules_engine_check_body_must_not_contain_test() ->
     Rule = {rule,
@@ -1128,7 +1071,6 @@ rules_engine_check_body_must_not_contain_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1146).
 -spec rules_engine_check_body_must_not_contain_violation_test() -> nil.
 rules_engine_check_body_must_not_contain_violation_test() ->
     Rule = {rule,
@@ -1159,7 +1101,6 @@ rules_engine_check_body_must_not_contain_violation_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1176).
 -spec rules_engine_check_body_must_contain_violation_test() -> nil.
 rules_engine_check_body_must_contain_violation_test() ->
     Rule = {rule,
@@ -1194,7 +1135,6 @@ rules_engine_check_body_must_contain_violation_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1204).
 -spec rules_engine_check_multiple_rules_test() -> nil.
 rules_engine_check_multiple_rules_test() ->
     Rule1 = {rule,
@@ -1218,7 +1158,6 @@ rules_engine_check_multiple_rules_test() ->
     _pipe = erlang:length(Results),
     gleeunit_ffi:should_equal(_pipe, 2).
 
--file("test/intent_test.gleam", 1242).
 -spec rules_engine_format_violation_body_contains_test() -> nil.
 rules_engine_format_violation_body_contains_test() ->
     Violation = {body_contains, <<"forbidden"/utf8>>, <<"response body"/utf8>>},
@@ -1227,7 +1166,6 @@ rules_engine_format_violation_body_contains_test() ->
     _pipe@1 = gleam_stdlib:contains_string(_pipe, <<"forbidden"/utf8>>),
     gleeunit@should:be_true(_pipe@1).
 
--file("test/intent_test.gleam", 1250).
 -spec rules_engine_format_violation_body_missing_test() -> nil.
 rules_engine_format_violation_body_missing_test() ->
     Violation = {body_missing, <<"required"/utf8>>},
@@ -1236,7 +1174,6 @@ rules_engine_format_violation_body_missing_test() ->
     _pipe@1 = gleam_stdlib:contains_string(_pipe, <<"required"/utf8>>),
     gleeunit@should:be_true(_pipe@1).
 
--file("test/intent_test.gleam", 1258).
 -spec rules_engine_format_violation_field_missing_test() -> nil.
 rules_engine_format_violation_field_missing_test() ->
     Violation = {field_missing, <<"user.id"/utf8>>},
@@ -1245,7 +1182,6 @@ rules_engine_format_violation_field_missing_test() ->
     _pipe@1 = gleam_stdlib:contains_string(_pipe, <<"user.id"/utf8>>),
     gleeunit@should:be_true(_pipe@1).
 
--file("test/intent_test.gleam", 1266).
 -spec rules_engine_format_violation_header_missing_test() -> nil.
 rules_engine_format_violation_header_missing_test() ->
     Violation = {header_missing, <<"X-Custom"/utf8>>},
@@ -1254,7 +1190,6 @@ rules_engine_format_violation_header_missing_test() ->
     _pipe@1 = gleam_stdlib:contains_string(_pipe, <<"X-Custom"/utf8>>),
     gleeunit@should:be_true(_pipe@1).
 
--file("test/intent_test.gleam", 1278).
 -spec resolver_complex_diamond_dependency_test() -> nil.
 resolver_complex_diamond_dependency_test() ->
     B1 = make_behavior(<<"base"/utf8>>, []),
@@ -1271,22 +1206,17 @@ resolver_complex_diamond_dependency_test() ->
                 Resolved,
                 fun(Rb) -> erlang:element(2, erlang:element(3, Rb)) end
             ),
-            First@1 = case Names of
-                [First | _] -> First;
+            [First | _] = case Names of
+                [_ | _] -> Names;
                 _assert_fail ->
                     erlang:error(#{gleam_error => let_assert,
-                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
-                                file => <<?FILEPATH/utf8>>,
+                                message => <<"Assertion pattern match failed"/utf8>>,
+                                value => _assert_fail,
                                 module => <<"intent_test"/utf8>>,
                                 function => <<"resolver_complex_diamond_dependency_test"/utf8>>,
-                                line => 1293,
-                                value => _assert_fail,
-                                start => 35259,
-                                'end' => 35289,
-                                pattern_start => 35270,
-                                pattern_end => 35281})
+                                line => 1293})
             end,
-            _pipe@1 = First@1,
+            _pipe@1 = First,
             gleeunit_ffi:should_equal(_pipe@1, <<"base"/utf8>>),
             case gleam@list:last(Names) of
                 {ok, Last} ->
@@ -1301,7 +1231,6 @@ resolver_complex_diamond_dependency_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1305).
 -spec resolver_multiple_branches_test() -> nil.
 resolver_multiple_branches_test() ->
     B1 = make_behavior(<<"root"/utf8>>, []),
@@ -1346,7 +1275,6 @@ resolver_multiple_branches_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1331).
 -spec resolver_deep_chain_test() -> nil.
 resolver_deep_chain_test() ->
     B1 = make_behavior(<<"step1"/utf8>>, []),
@@ -1378,7 +1306,6 @@ resolver_deep_chain_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1356).
 -spec rules_engine_empty_body_test() -> nil.
 rules_engine_empty_body_test() ->
     Rule = {rule,
@@ -1404,7 +1331,6 @@ rules_engine_empty_body_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1390).
 -spec rules_engine_null_json_value_test() -> nil.
 rules_engine_null_json_value_test() ->
     Rule = {rule,
@@ -1430,7 +1356,6 @@ rules_engine_null_json_value_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1424).
 -spec rules_engine_whitespace_body_test() -> nil.
 rules_engine_whitespace_body_test() ->
     Rule = {rule,
@@ -1456,7 +1381,6 @@ rules_engine_whitespace_body_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1458).
 -spec rules_engine_nested_null_field_test() -> nil.
 rules_engine_nested_null_field_test() ->
     Rule = {rule,
@@ -1482,7 +1406,6 @@ rules_engine_nested_null_field_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1492).
 -spec rules_engine_empty_object_test() -> nil.
 rules_engine_empty_object_test() ->
     Rule = {rule,
@@ -1508,7 +1431,6 @@ rules_engine_empty_object_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1530).
 -spec interpolate_unicode_variable_test() -> nil.
 interpolate_unicode_variable_test() ->
     Ctx = begin
@@ -1532,7 +1454,6 @@ interpolate_unicode_variable_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1543).
 -spec interpolate_unicode_in_path_test() -> nil.
 interpolate_unicode_in_path_test() ->
     Ctx = begin
@@ -1556,7 +1477,6 @@ interpolate_unicode_in_path_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1556).
 -spec rules_engine_unicode_body_content_test() -> nil.
 rules_engine_unicode_body_content_test() ->
     Rule = {rule,
@@ -1582,7 +1502,6 @@ rules_engine_unicode_body_content_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1590).
 -spec rules_engine_emoji_in_description_test() -> nil.
 rules_engine_emoji_in_description_test() ->
     Rule = {rule,
@@ -1609,7 +1528,6 @@ rules_engine_emoji_in_description_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1626).
 -spec interpolate_special_characters_test() -> nil.
 interpolate_special_characters_test() ->
     Ctx = begin
@@ -1633,7 +1551,6 @@ interpolate_special_characters_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1639).
 -spec http_client_unicode_header_test() -> nil.
 http_client_unicode_header_test() ->
     Config = {config,
@@ -1656,7 +1573,6 @@ http_client_unicode_header_test() ->
             gleeunit_ffi:should_be_ok({ok, nil})
     end.
 
--file("test/intent_test.gleam", 1670).
 -spec json_encoding_test() -> nil.
 json_encoding_test() ->
     Value = gleam@json:object(
@@ -1672,7 +1588,6 @@ json_encoding_test() ->
     _pipe@3 = gleam_stdlib:contains_string(_pipe@2, <<"42"/utf8>>),
     gleeunit@should:be_true(_pipe@3).
 
--file("test/intent_test.gleam", 1690).
 -spec summary_calculation_test() -> nil.
 summary_calculation_test() ->
     Passed = 10,
@@ -1688,7 +1603,6 @@ summary_calculation_test() ->
     _pipe@1 = Percentage,
     gleeunit_ffi:should_equal(_pipe@1, 71).
 
--file("test/intent_test.gleam", 1703).
 -spec string_formatting_test() -> nil.
 string_formatting_test() ->
     Behavior_name = <<"get-user-by-id"/utf8>>,
@@ -1698,7 +1612,6 @@ string_formatting_test() ->
     _pipe = Formatted,
     gleeunit_ffi:should_equal(_pipe, <<"User Management: get-user-by-id"/utf8>>).
 
--file("test/intent_test.gleam", 1714).
 -spec error_message_formatting_test() -> nil.
 error_message_formatting_test() ->
     Field = <<"status"/utf8>>,
@@ -1720,7 +1633,6 @@ error_message_formatting_test() ->
     _pipe@5 = gleam_stdlib:contains_string(_pipe@4, <<"404"/utf8>>),
     gleeunit@should:be_true(_pipe@5).
 
--file("test/intent_test.gleam", 1736).
 -spec list_to_string_formatting_test() -> nil.
 list_to_string_formatting_test() ->
     Items = [<<"first"/utf8>>, <<"second"/utf8>>, <<"third"/utf8>>],
@@ -1728,18 +1640,19 @@ list_to_string_formatting_test() ->
     _pipe = Formatted,
     gleeunit_ffi:should_equal(_pipe, <<"first, second, third"/utf8>>).
 
--file("test/intent_test.gleam", 1744).
 -spec boolean_to_status_test() -> nil.
 boolean_to_status_test() ->
     Passed = true,
     Status = case Passed of
         true ->
-            <<"PASS"/utf8>>
+            <<"PASS"/utf8>>;
+
+        false ->
+            <<"FAIL"/utf8>>
     end,
     _pipe = Status,
     gleeunit_ffi:should_equal(_pipe, <<"PASS"/utf8>>).
 
--file("test/intent_test.gleam", 1754).
 -spec json_null_handling_test() -> nil.
 json_null_handling_test() ->
     Value = gleam@json:null(),
@@ -1747,7 +1660,6 @@ json_null_handling_test() ->
     _pipe = Json_str,
     gleeunit_ffi:should_equal(_pipe, <<"null"/utf8>>).
 
--file("test/intent_test.gleam", 1766).
 -spec bead_generation_api_profile_test() -> nil.
 bead_generation_api_profile_test() ->
     Session = {interview_session,
@@ -1797,7 +1709,6 @@ bead_generation_api_profile_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1821).
 -spec bead_generation_cli_profile_test() -> nil.
 bead_generation_cli_profile_test() ->
     Session = {interview_session,
@@ -1833,7 +1744,6 @@ bead_generation_cli_profile_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 1859).
 -spec bead_to_jsonl_format_test() -> nil.
 bead_to_jsonl_format_test() ->
     Bead = {bead_record,
@@ -1866,7 +1776,6 @@ bead_to_jsonl_format_test() ->
     _pipe@9 = gleam_stdlib:contains_string(_pipe@8, <<"\"api\""/utf8>>),
     gleeunit@should:be_true(_pipe@9).
 
--file("test/intent_test.gleam", 1883).
 -spec beads_to_jsonl_multiple_test() -> nil.
 beads_to_jsonl_multiple_test() ->
     Beads = [{bead_record,
@@ -1906,7 +1815,6 @@ beads_to_jsonl_multiple_test() ->
     _pipe@8 = gleam_stdlib:contains_string(_pipe@7, <<"Second task"/utf8>>),
     gleeunit@should:be_true(_pipe@8).
 
--file("test/intent_test.gleam", 1923).
 -spec bead_stats_calculation_test() -> nil.
 bead_stats_calculation_test() ->
     Beads = [{bead_record,
@@ -1951,7 +1859,6 @@ bead_stats_calculation_test() ->
     _pipe@4 = gleam@dict:get(erlang:element(4, Stats), 2),
     gleeunit_ffi:should_equal(_pipe@4, {ok, 1}).
 
--file("test/intent_test.gleam", 1980).
 -spec filter_beads_by_type_test() -> nil.
 filter_beads_by_type_test() ->
     Beads = [{bead_record,
@@ -1997,7 +1904,6 @@ filter_beads_by_type_test() ->
     _pipe@1 = erlang:length(Schemas),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 2025).
 -spec sort_beads_by_priority_test() -> nil.
 sort_beads_by_priority_test() ->
     Beads = [{bead_record,
@@ -2048,7 +1954,6 @@ sort_beads_by_priority_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2078).
 -spec add_bead_dependency_test() -> nil.
 add_bead_dependency_test() ->
     Beads = [{bead_record,
@@ -2090,7 +1995,6 @@ add_bead_dependency_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2118).
 -spec empty_session_beads_test() -> nil.
 empty_session_beads_test() ->
     Session = {interview_session,
@@ -2109,7 +2013,6 @@ empty_session_beads_test() ->
     _pipe = erlang:length(Beads),
     gleeunit_ffi:should_equal(_pipe, 0).
 
--file("test/intent_test.gleam", 2140).
 -spec interview_session_to_json_test() -> nil.
 interview_session_to_json_test() ->
     Session = {interview_session,
@@ -2148,7 +2051,6 @@ interview_session_to_json_test() ->
     _pipe@7 = gleam_stdlib:contains_string(_pipe@6, <<"Test question"/utf8>>),
     gleeunit@should:be_true(_pipe@7).
 
--file("test/intent_test.gleam", 2178).
 -spec bead_generation_event_profile_test() -> nil.
 bead_generation_event_profile_test() ->
     Session = {interview_session,
@@ -2184,7 +2086,6 @@ bead_generation_event_profile_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2216).
 -spec bead_generation_data_profile_test() -> nil.
 bead_generation_data_profile_test() ->
     Session = {interview_session,
@@ -2220,7 +2121,6 @@ bead_generation_data_profile_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2254).
 -spec bead_generation_workflow_profile_test() -> nil.
 bead_generation_workflow_profile_test() ->
     Session = {interview_session,
@@ -2256,12 +2156,11 @@ bead_generation_workflow_profile_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2292).
 -spec bead_generation_ui_profile_test() -> nil.
 bead_generation_ui_profile_test() ->
     Session = {interview_session,
         <<"test-ui-session"/utf8>>,
-        u_i,
+        ui,
         <<"2026-01-05T00:00:00Z"/utf8>>,
         <<"2026-01-05T00:00:00Z"/utf8>>,
         <<"2026-01-05T00:00:00Z"/utf8>>,
@@ -2292,7 +2191,6 @@ bead_generation_ui_profile_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2330).
 -spec bead_record_required_fields_test() -> nil.
 bead_record_required_fields_test() ->
     Bead = {bead_record,
@@ -2324,7 +2222,6 @@ bead_record_required_fields_test() ->
     _pipe@8 = erlang:length(erlang:element(10, Bead)),
     gleeunit_ffi:should_equal(_pipe@8, 1).
 
--file("test/intent_test.gleam", 2356).
 -spec bead_stats_empty_list_test() -> nil.
 bead_stats_empty_list_test() ->
     Beads = [],
@@ -2336,7 +2233,6 @@ bead_stats_empty_list_test() ->
     _pipe@2 = gleam@dict:is_empty(erlang:element(4, Stats)),
     gleeunit@should:be_true(_pipe@2).
 
--file("test/intent_test.gleam", 2366).
 -spec bead_multiple_dependencies_test() -> nil.
 bead_multiple_dependencies_test() ->
     Beads = [{bead_record,
@@ -2378,7 +2274,6 @@ bead_multiple_dependencies_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2395).
 -spec bead_generation_preserves_answer_content_test() -> nil.
 bead_generation_preserves_answer_content_test() ->
     Answer_text = <<"Create an API endpoint at /api/users that returns a list of all users with pagination support"/utf8>>,
@@ -2414,103 +2309,86 @@ bead_generation_preserves_answer_content_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 2443).
 -spec formats_validate_email_valid_simple_test() -> nil.
 formats_validate_email_valid_simple_test() ->
     _pipe = intent@formats:validate_email(<<"user@example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2448).
 -spec formats_validate_email_valid_with_subdomain_test() -> nil.
 formats_validate_email_valid_with_subdomain_test() ->
     _pipe = intent@formats:validate_email(<<"user@mail.example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2453).
 -spec formats_validate_email_valid_with_plus_test() -> nil.
 formats_validate_email_valid_with_plus_test() ->
     _pipe = intent@formats:validate_email(<<"user+tag@example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2458).
 -spec formats_validate_email_valid_with_dots_test() -> nil.
 formats_validate_email_valid_with_dots_test() ->
     _pipe = intent@formats:validate_email(<<"first.last@example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2463).
 -spec formats_validate_email_valid_with_hyphen_local_test() -> nil.
 formats_validate_email_valid_with_hyphen_local_test() ->
     _pipe = intent@formats:validate_email(<<"user-name@example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2468).
 -spec formats_validate_email_valid_with_underscore_test() -> nil.
 formats_validate_email_valid_with_underscore_test() ->
     _pipe = intent@formats:validate_email(<<"user_name@example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2473).
 -spec formats_validate_email_invalid_no_at_test() -> binary().
 formats_validate_email_invalid_no_at_test() ->
     _pipe = intent@formats:validate_email(<<"userexample.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2478).
 -spec formats_validate_email_invalid_multiple_at_test() -> binary().
 formats_validate_email_invalid_multiple_at_test() ->
     _pipe = intent@formats:validate_email(<<"user@@example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2483).
 -spec formats_validate_email_invalid_empty_local_test() -> binary().
 formats_validate_email_invalid_empty_local_test() ->
     _pipe = intent@formats:validate_email(<<"@example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2488).
 -spec formats_validate_email_invalid_empty_domain_test() -> binary().
 formats_validate_email_invalid_empty_domain_test() ->
     _pipe = intent@formats:validate_email(<<"user@"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2493).
 -spec formats_validate_email_invalid_consecutive_dots_local_test() -> binary().
 formats_validate_email_invalid_consecutive_dots_local_test() ->
     _pipe = intent@formats:validate_email(<<"user..name@example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2498).
 -spec formats_validate_email_invalid_starts_with_dot_test() -> binary().
 formats_validate_email_invalid_starts_with_dot_test() ->
     _pipe = intent@formats:validate_email(<<".user@example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2503).
 -spec formats_validate_email_invalid_ends_with_dot_test() -> binary().
 formats_validate_email_invalid_ends_with_dot_test() ->
     _pipe = intent@formats:validate_email(<<"user.@example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2508).
 -spec formats_validate_email_invalid_no_domain_dot_test() -> binary().
 formats_validate_email_invalid_no_domain_dot_test() ->
     _pipe = intent@formats:validate_email(<<"user@examplecom"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2513).
 -spec formats_validate_email_invalid_domain_starts_hyphen_test() -> binary().
 formats_validate_email_invalid_domain_starts_hyphen_test() ->
     _pipe = intent@formats:validate_email(<<"user@-example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2518).
 -spec formats_validate_email_invalid_domain_ends_hyphen_test() -> binary().
 formats_validate_email_invalid_domain_ends_hyphen_test() ->
     _pipe = intent@formats:validate_email(<<"user@example-.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2525).
 -spec formats_validate_uuid_valid_v4_test() -> nil.
 formats_validate_uuid_valid_v4_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2518,7 +2396,6 @@ formats_validate_uuid_valid_v4_test() ->
     ),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2530).
 -spec formats_validate_uuid_valid_v1_test() -> nil.
 formats_validate_uuid_valid_v1_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2526,7 +2403,6 @@ formats_validate_uuid_valid_v1_test() ->
     ),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2535).
 -spec formats_validate_uuid_valid_uppercase_test() -> nil.
 formats_validate_uuid_valid_uppercase_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2534,13 +2410,11 @@ formats_validate_uuid_valid_uppercase_test() ->
     ),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2540).
 -spec formats_validate_uuid_invalid_wrong_segment_count_test() -> binary().
 formats_validate_uuid_invalid_wrong_segment_count_test() ->
     _pipe = intent@formats:validate_uuid(<<"550e8400-e29b-41d4-a716"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2545).
 -spec formats_validate_uuid_invalid_wrong_segment_length_test() -> binary().
 formats_validate_uuid_invalid_wrong_segment_length_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2548,7 +2422,6 @@ formats_validate_uuid_invalid_wrong_segment_length_test() ->
     ),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2550).
 -spec formats_validate_uuid_invalid_non_hex_test() -> binary().
 formats_validate_uuid_invalid_non_hex_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2556,7 +2429,6 @@ formats_validate_uuid_invalid_non_hex_test() ->
     ),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2555).
 -spec formats_validate_uuid_invalid_version_test() -> binary().
 formats_validate_uuid_invalid_version_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2564,7 +2436,6 @@ formats_validate_uuid_invalid_version_test() ->
     ),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2560).
 -spec formats_validate_uuid_invalid_variant_test() -> binary().
 formats_validate_uuid_invalid_variant_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2572,7 +2443,6 @@ formats_validate_uuid_invalid_variant_test() ->
     ),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2565).
 -spec formats_validate_uuid_invalid_no_dashes_test() -> binary().
 formats_validate_uuid_invalid_no_dashes_test() ->
     _pipe = intent@formats:validate_uuid(
@@ -2580,25 +2450,21 @@ formats_validate_uuid_invalid_no_dashes_test() ->
     ),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2572).
 -spec formats_validate_uri_valid_http_test() -> nil.
 formats_validate_uri_valid_http_test() ->
     _pipe = intent@formats:validate_uri(<<"http://example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2577).
 -spec formats_validate_uri_valid_https_test() -> nil.
 formats_validate_uri_valid_https_test() ->
     _pipe = intent@formats:validate_uri(<<"https://example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2582).
 -spec formats_validate_uri_valid_ftp_test() -> nil.
 formats_validate_uri_valid_ftp_test() ->
     _pipe = intent@formats:validate_uri(<<"ftp://files.example.com"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2587).
 -spec formats_validate_uri_valid_with_path_test() -> nil.
 formats_validate_uri_valid_with_path_test() ->
     _pipe = intent@formats:validate_uri(
@@ -2606,13 +2472,11 @@ formats_validate_uri_valid_with_path_test() ->
     ),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2592).
 -spec formats_validate_uri_valid_with_port_test() -> nil.
 formats_validate_uri_valid_with_port_test() ->
     _pipe = intent@formats:validate_uri(<<"http://localhost:8080"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2597).
 -spec formats_validate_uri_valid_with_query_test() -> nil.
 formats_validate_uri_valid_with_query_test() ->
     _pipe = intent@formats:validate_uri(
@@ -2620,49 +2484,41 @@ formats_validate_uri_valid_with_query_test() ->
     ),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2602).
 -spec formats_validate_uri_invalid_empty_test() -> binary().
 formats_validate_uri_invalid_empty_test() ->
     _pipe = intent@formats:validate_uri(<<""/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2607).
 -spec formats_validate_uri_invalid_no_scheme_test() -> binary().
 formats_validate_uri_invalid_no_scheme_test() ->
     _pipe = intent@formats:validate_uri(<<"example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2612).
 -spec formats_validate_uri_invalid_scheme_only_test() -> binary().
 formats_validate_uri_invalid_scheme_only_test() ->
     _pipe = intent@formats:validate_uri(<<"http://"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2617).
 -spec formats_validate_uri_invalid_scheme_starts_number_test() -> binary().
 formats_validate_uri_invalid_scheme_starts_number_test() ->
     _pipe = intent@formats:validate_uri(<<"1http://example.com"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2624).
 -spec formats_validate_iso8601_valid_date_only_test() -> nil.
 formats_validate_iso8601_valid_date_only_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2629).
 -spec formats_validate_iso8601_valid_datetime_test() -> nil.
 formats_validate_iso8601_valid_datetime_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15T10:30:00"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2634).
 -spec formats_validate_iso8601_valid_datetime_with_z_test() -> nil.
 formats_validate_iso8601_valid_datetime_with_z_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15T10:30:00Z"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2639).
 -spec formats_validate_iso8601_valid_datetime_with_tz_plus_test() -> nil.
 formats_validate_iso8601_valid_datetime_with_tz_plus_test() ->
     _pipe = intent@formats:validate_iso8601(
@@ -2670,7 +2526,6 @@ formats_validate_iso8601_valid_datetime_with_tz_plus_test() ->
     ),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2644).
 -spec formats_validate_iso8601_valid_datetime_with_tz_minus_test() -> nil.
 formats_validate_iso8601_valid_datetime_with_tz_minus_test() ->
     _pipe = intent@formats:validate_iso8601(
@@ -2678,97 +2533,81 @@ formats_validate_iso8601_valid_datetime_with_tz_minus_test() ->
     ),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2649).
 -spec formats_validate_iso8601_valid_datetime_fractional_seconds_test() -> nil.
 formats_validate_iso8601_valid_datetime_fractional_seconds_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15T10:30:00.123"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2654).
 -spec formats_validate_iso8601_valid_feb_28_non_leap_test() -> nil.
 formats_validate_iso8601_valid_feb_28_non_leap_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2023-02-28"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2659).
 -spec formats_validate_iso8601_valid_feb_29_leap_test() -> nil.
 formats_validate_iso8601_valid_feb_29_leap_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-02-29"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2664).
 -spec formats_validate_iso8601_invalid_too_short_test() -> binary().
 formats_validate_iso8601_invalid_too_short_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2669).
 -spec formats_validate_iso8601_invalid_month_13_test() -> binary().
 formats_validate_iso8601_invalid_month_13_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-13-01"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2674).
 -spec formats_validate_iso8601_invalid_month_00_test() -> binary().
 formats_validate_iso8601_invalid_month_00_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-00-01"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2679).
 -spec formats_validate_iso8601_invalid_day_32_test() -> binary().
 formats_validate_iso8601_invalid_day_32_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-32"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2684).
 -spec formats_validate_iso8601_invalid_day_00_test() -> binary().
 formats_validate_iso8601_invalid_day_00_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-00"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2689).
 -spec formats_validate_iso8601_invalid_feb_29_non_leap_test() -> binary().
 formats_validate_iso8601_invalid_feb_29_non_leap_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2023-02-29"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2694).
 -spec formats_validate_iso8601_invalid_april_31_test() -> binary().
 formats_validate_iso8601_invalid_april_31_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-04-31"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2699).
 -spec formats_validate_iso8601_invalid_hour_24_test() -> binary().
 formats_validate_iso8601_invalid_hour_24_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15T24:00:00"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2704).
 -spec formats_validate_iso8601_invalid_minute_60_test() -> binary().
 formats_validate_iso8601_invalid_minute_60_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15T10:60:00"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2709).
 -spec formats_validate_iso8601_invalid_second_60_test() -> binary().
 formats_validate_iso8601_invalid_second_60_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15T10:30:60"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2714).
 -spec formats_validate_iso8601_invalid_separator_test() -> binary().
 formats_validate_iso8601_invalid_separator_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15X10:30:00"/utf8>>),
     gleeunit_ffi:should_be_error(_pipe).
 
--file("test/intent_test.gleam", 2719).
 -spec formats_validate_iso8601_valid_space_separator_test() -> nil.
 formats_validate_iso8601_valid_space_separator_test() ->
     _pipe = intent@formats:validate_iso8601(<<"2024-01-15 10:30:00"/utf8>>),
     gleeunit_ffi:should_be_ok(_pipe).
 
--file("test/intent_test.gleam", 2729).
 -spec make_test_response(
     integer(),
     gleam@dict:dict(binary(), intent@types:check())
@@ -2776,7 +2615,6 @@ formats_validate_iso8601_valid_space_separator_test() ->
 make_test_response(Status, Checks) ->
     {response, Status, gleam@json:null(), Checks, gleam@dict:new()}.
 
--file("test/intent_test.gleam", 2739).
 -spec make_test_execution(
     integer(),
     gleam@json:json(),
@@ -2792,12 +2630,10 @@ make_test_execution(Status, Body_json, Headers) ->
         get,
         <<"/test"/utf8>>}.
 
--file("test/intent_test.gleam", 2752).
 -spec empty_context() -> intent@interpolate:context().
 empty_context() ->
     intent@interpolate:new_context().
 
--file("test/intent_test.gleam", 2758).
 -spec checker_status_code_match_test() -> nil.
 checker_status_code_match_test() ->
     Expected = make_test_response(200, gleam@dict:new()),
@@ -2810,7 +2646,6 @@ checker_status_code_match_test() ->
     _pipe@2 = erlang:element(6, Result),
     gleeunit_ffi:should_equal(_pipe@2, 200).
 
--file("test/intent_test.gleam", 2768).
 -spec checker_status_code_mismatch_test() -> nil.
 checker_status_code_mismatch_test() ->
     Expected = make_test_response(200, gleam@dict:new()),
@@ -2823,7 +2658,6 @@ checker_status_code_mismatch_test() ->
     _pipe@2 = erlang:element(6, Result),
     gleeunit_ffi:should_equal(_pipe@2, 404).
 
--file("test/intent_test.gleam", 2780).
 -spec checker_field_equals_string_pass_test() -> nil.
 checker_field_equals_string_pass_test() ->
     Checks = maps:from_list(
@@ -2841,7 +2675,6 @@ checker_field_equals_string_pass_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 2793).
 -spec checker_field_equals_string_fail_test() -> nil.
 checker_field_equals_string_fail_test() ->
     Checks = maps:from_list(
@@ -2859,7 +2692,6 @@ checker_field_equals_string_fail_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 2806).
 -spec checker_field_equals_int_pass_test() -> nil.
 checker_field_equals_int_pass_test() ->
     Checks = maps:from_list(
@@ -2875,7 +2707,6 @@ checker_field_equals_int_pass_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 2819).
 -spec checker_field_is_string_pass_test() -> nil.
 checker_field_is_string_pass_test() ->
     Checks = maps:from_list(
@@ -2893,7 +2724,6 @@ checker_field_is_string_pass_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 2832).
 -spec checker_field_is_string_fail_test() -> nil.
 checker_field_is_string_fail_test() ->
     Checks = maps:from_list(
@@ -2909,7 +2739,6 @@ checker_field_is_string_fail_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 2845).
 -spec checker_field_is_integer_pass_test() -> nil.
 checker_field_is_integer_pass_test() ->
     Checks = maps:from_list(
@@ -2923,7 +2752,6 @@ checker_field_is_integer_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 2857).
 -spec checker_field_is_boolean_pass_test() -> nil.
 checker_field_is_boolean_pass_test() ->
     Checks = maps:from_list(
@@ -2937,7 +2765,6 @@ checker_field_is_boolean_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 2869).
 -spec checker_field_is_array_pass_test() -> nil.
 checker_field_is_array_pass_test() ->
     Checks = maps:from_list(
@@ -2956,7 +2783,6 @@ checker_field_is_array_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 2881).
 -spec checker_field_is_object_pass_test() -> nil.
 checker_field_is_object_pass_test() ->
     Checks = maps:from_list(
@@ -2975,7 +2801,6 @@ checker_field_is_object_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 2893).
 -spec checker_field_present_pass_test() -> nil.
 checker_field_present_pass_test() ->
     Checks = maps:from_list(
@@ -2993,7 +2818,6 @@ checker_field_present_pass_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 2906).
 -spec checker_field_present_fail_test() -> nil.
 checker_field_present_fail_test() ->
     Checks = maps:from_list(
@@ -3011,7 +2835,6 @@ checker_field_present_fail_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 2919).
 -spec checker_field_absent_pass_test() -> nil.
 checker_field_absent_pass_test() ->
     Checks = maps:from_list(
@@ -3031,7 +2854,6 @@ checker_field_absent_pass_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 2932).
 -spec checker_field_absent_fail_test() -> nil.
 checker_field_absent_fail_test() ->
     Checks = maps:from_list(
@@ -3051,7 +2873,6 @@ checker_field_absent_fail_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 2945).
 -spec checker_field_non_empty_string_pass_test() -> nil.
 checker_field_non_empty_string_pass_test() ->
     Checks = maps:from_list(
@@ -3069,7 +2890,6 @@ checker_field_non_empty_string_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 2957).
 -spec checker_field_non_empty_string_fail_test() -> nil.
 checker_field_non_empty_string_fail_test() ->
     Checks = maps:from_list(
@@ -3089,7 +2909,6 @@ checker_field_non_empty_string_fail_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 2970).
 -spec checker_field_is_email_pass_test() -> nil.
 checker_field_is_email_pass_test() ->
     Checks = maps:from_list(
@@ -3105,7 +2924,6 @@ checker_field_is_email_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 2982).
 -spec checker_field_is_email_fail_test() -> nil.
 checker_field_is_email_fail_test() ->
     Checks = maps:from_list(
@@ -3123,7 +2941,6 @@ checker_field_is_email_fail_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 2995).
 -spec checker_field_is_uuid_pass_test() -> nil.
 checker_field_is_uuid_pass_test() ->
     Checks = maps:from_list(
@@ -3142,7 +2959,6 @@ checker_field_is_uuid_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3007).
 -spec checker_field_is_uuid_fail_test() -> nil.
 checker_field_is_uuid_fail_test() ->
     Checks = maps:from_list(
@@ -3160,7 +2976,6 @@ checker_field_is_uuid_fail_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 3020).
 -spec checker_field_is_iso8601_pass_test() -> nil.
 checker_field_is_iso8601_pass_test() ->
     Checks = maps:from_list(
@@ -3179,7 +2994,6 @@ checker_field_is_iso8601_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3034).
 -spec checker_field_integer_gte_pass_test() -> nil.
 checker_field_integer_gte_pass_test() ->
     Checks = maps:from_list(
@@ -3193,7 +3007,6 @@ checker_field_integer_gte_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3046).
 -spec checker_field_integer_gte_fail_test() -> nil.
 checker_field_integer_gte_fail_test() ->
     Checks = maps:from_list(
@@ -3207,7 +3020,6 @@ checker_field_integer_gte_fail_test() ->
     _pipe = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3058).
 -spec checker_field_integer_lte_pass_test() -> nil.
 checker_field_integer_lte_pass_test() ->
     Checks = maps:from_list(
@@ -3223,7 +3035,6 @@ checker_field_integer_lte_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3070).
 -spec checker_field_number_between_pass_test() -> nil.
 checker_field_number_between_pass_test() ->
     Checks = maps:from_list(
@@ -3239,7 +3050,6 @@ checker_field_number_between_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3082).
 -spec checker_field_number_between_fail_test() -> nil.
 checker_field_number_between_fail_test() ->
     Checks = maps:from_list(
@@ -3255,7 +3065,6 @@ checker_field_number_between_fail_test() ->
     _pipe = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3096).
 -spec checker_string_starts_with_pass_test() -> nil.
 checker_string_starts_with_pass_test() ->
     Checks = maps:from_list(
@@ -3273,7 +3082,6 @@ checker_string_starts_with_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3108).
 -spec checker_string_ends_with_pass_test() -> nil.
 checker_string_ends_with_pass_test() ->
     Checks = maps:from_list(
@@ -3291,7 +3099,6 @@ checker_string_ends_with_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3120).
 -spec checker_string_containing_pass_test() -> nil.
 checker_string_containing_pass_test() ->
     Checks = maps:from_list(
@@ -3310,7 +3117,6 @@ checker_string_containing_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3134).
 -spec checker_non_empty_array_pass_test() -> nil.
 checker_non_empty_array_pass_test() ->
     Checks = maps:from_list(
@@ -3327,7 +3133,6 @@ checker_non_empty_array_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3146).
 -spec checker_non_empty_array_fail_test() -> nil.
 checker_non_empty_array_fail_test() ->
     Checks = maps:from_list(
@@ -3343,7 +3148,6 @@ checker_non_empty_array_fail_test() ->
     _pipe = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3158).
 -spec checker_array_of_length_pass_test() -> nil.
 checker_array_of_length_pass_test() ->
     Checks = maps:from_list(
@@ -3365,7 +3169,6 @@ checker_array_of_length_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3170).
 -spec checker_array_min_items_pass_test() -> nil.
 checker_array_min_items_pass_test() ->
     Checks = maps:from_list(
@@ -3389,7 +3192,6 @@ checker_array_min_items_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3184).
 -spec checker_one_of_pass_test() -> nil.
 checker_one_of_pass_test() ->
     Checks = maps:from_list(
@@ -3407,7 +3209,6 @@ checker_one_of_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3196).
 -spec checker_one_of_fail_test() -> nil.
 checker_one_of_fail_test() ->
     Checks = maps:from_list(
@@ -3425,7 +3226,6 @@ checker_one_of_fail_test() ->
     _pipe = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3210).
 -spec checker_header_present_pass_test() -> nil.
 checker_header_present_pass_test() ->
     Expected = {response,
@@ -3444,7 +3244,6 @@ checker_header_present_pass_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 3224).
 -spec checker_header_value_mismatch_test() -> nil.
 checker_header_value_mismatch_test() ->
     Expected = {response,
@@ -3463,7 +3262,6 @@ checker_header_value_mismatch_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 3238).
 -spec checker_header_missing_test() -> nil.
 checker_header_missing_test() ->
     Expected = {response,
@@ -3478,7 +3276,6 @@ checker_header_missing_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 3252).
 -spec checker_header_case_insensitive_test() -> nil.
 checker_header_case_insensitive_test() ->
     Expected = {response,
@@ -3495,7 +3292,6 @@ checker_header_case_insensitive_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3267).
 -spec checker_nested_field_pass_test() -> nil.
 checker_nested_field_pass_test() ->
     Checks = maps:from_list(
@@ -3514,7 +3310,6 @@ checker_nested_field_pass_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3281).
 -spec checker_nested_field_missing_test() -> nil.
 checker_nested_field_missing_test() ->
     Checks = maps:from_list(
@@ -3533,7 +3328,6 @@ checker_nested_field_missing_test() ->
     _pipe = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3297).
 -spec checker_multiple_checks_test() -> nil.
 checker_multiple_checks_test() ->
     Checks = maps:from_list(
@@ -3564,7 +3358,6 @@ checker_multiple_checks_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 0).
 
--file("test/intent_test.gleam", 3323).
 -spec make_test_question(binary(), integer(), binary()) -> intent@question_types:question().
 make_test_question(Id, Round, Question_text) ->
     {question,
@@ -3581,7 +3374,6 @@ make_test_question(Id, Round, Question_text) ->
         [],
         []}.
 
--file("test/intent_test.gleam", 3451).
 -spec question_loader_file_not_found_test() -> nil.
 question_loader_file_not_found_test() ->
     Result = intent@question_loader:load_custom_questions(
@@ -3595,7 +3387,6 @@ question_loader_file_not_found_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 3490).
 -spec merge_question_list_test(
     list(intent@question_types:question()),
     gleam@option:option(list(intent@question_types:question()))
@@ -3619,7 +3410,6 @@ merge_question_list_test(Base, Custom) ->
             lists:append(Filtered_base, Custom_questions)
     end.
 
--file("test/intent_test.gleam", 3463).
 -spec merge_profile_test(
     intent@question_loader:profile_questions(),
     gleam@option:option(intent@question_loader:custom_profile_questions())
@@ -3641,7 +3431,6 @@ merge_profile_test(Base, Custom) ->
                 )}
     end.
 
--file("test/intent_test.gleam", 3340).
 -spec question_loader_merge_empty_custom_returns_base_test() -> nil.
 question_loader_merge_empty_custom_returns_base_test() ->
     Base = {profile_questions,
@@ -3654,7 +3443,6 @@ question_loader_merge_empty_custom_returns_base_test() ->
     _pipe@1 = erlang:length(erlang:element(3, Result)),
     gleeunit_ffi:should_equal(_pipe@1, 1).
 
--file("test/intent_test.gleam", 3354).
 -spec question_loader_merge_adds_new_questions_test() -> nil.
 question_loader_merge_adds_new_questions_test() ->
     Base = {profile_questions,
@@ -3673,7 +3461,6 @@ question_loader_merge_adds_new_questions_test() ->
     _pipe = erlang:length(erlang:element(2, Result)),
     gleeunit_ffi:should_equal(_pipe, 2).
 
--file("test/intent_test.gleam", 3371).
 -spec question_loader_merge_overrides_by_id_test() -> nil.
 question_loader_merge_overrides_by_id_test() ->
     Base = {profile_questions,
@@ -3700,7 +3487,6 @@ question_loader_merge_overrides_by_id_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 3394).
 -spec question_loader_merge_preserves_non_overridden_test() -> nil.
 question_loader_merge_preserves_non_overridden_test() ->
     Base = {profile_questions,
@@ -3729,7 +3515,6 @@ question_loader_merge_preserves_non_overridden_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 3476).
 -spec merge_common_test(
     intent@question_loader:common_questions(),
     gleam@option:option(intent@question_loader:custom_common_questions())
@@ -3755,7 +3540,6 @@ merge_common_test(Base, Custom) ->
                 )}
     end.
 
--file("test/intent_test.gleam", 3422).
 -spec question_loader_merge_common_rounds_test() -> nil.
 question_loader_merge_common_rounds_test() ->
     Base = {common_questions,
@@ -3793,7 +3577,6 @@ question_loader_merge_common_rounds_test() ->
     _pipe@3 = erlang:length(erlang:element(4, Result)),
     gleeunit_ffi:should_equal(_pipe@3, 1).
 
--file("test/intent_test.gleam", 3509).
 -spec make_test_interview_session(
     binary(),
     list(intent@interview:answer()),
@@ -3815,7 +3598,6 @@ make_test_interview_session(Id, Answers, Gaps, Conflicts, Stage) ->
         Conflicts,
         <<""/utf8>>}.
 
--file("test/intent_test.gleam", 3532).
 -spec make_test_answer(binary(), binary()) -> intent@interview:answer().
 make_test_answer(Question_id, Response) ->
     {answer,
@@ -3829,7 +3611,6 @@ make_test_answer(Question_id, Response) ->
         <<""/utf8>>,
         <<"2024-01-01T10:30:00Z"/utf8>>}.
 
--file("test/intent_test.gleam", 3547).
 -spec make_test_gap(binary(), boolean()) -> intent@interview:gap().
 make_test_gap(Id, Resolved) ->
     {gap,
@@ -3843,7 +3624,6 @@ make_test_gap(Id, Resolved) ->
         Resolved,
         <<""/utf8>>}.
 
--file("test/intent_test.gleam", 3562).
 -spec make_test_conflict(binary(), integer()) -> intent@interview:conflict().
 make_test_conflict(Id, Chosen) ->
     {conflict,
@@ -3854,7 +3634,6 @@ make_test_conflict(Id, Chosen) ->
         [],
         Chosen}.
 
--file("test/intent_test.gleam", 3573).
 -spec diff_sessions_no_changes_test() -> nil.
 diff_sessions_no_changes_test() ->
     Session = make_test_interview_session(
@@ -3874,7 +3653,6 @@ diff_sessions_no_changes_test() ->
     _pipe@3 = erlang:element(13, Diff),
     gleeunit_ffi:should_equal(_pipe@3, none).
 
--file("test/intent_test.gleam", 3590).
 -spec diff_sessions_answer_added_test() -> nil.
 diff_sessions_answer_added_test() ->
     Session1 = make_test_interview_session(
@@ -3900,7 +3678,6 @@ diff_sessions_answer_added_test() ->
     _pipe@2 = erlang:length(erlang:element(8, Diff)),
     gleeunit_ffi:should_equal(_pipe@2, 0).
 
--file("test/intent_test.gleam", 3617).
 -spec diff_sessions_answer_modified_test() -> nil.
 diff_sessions_answer_modified_test() ->
     Session1 = make_test_interview_session(
@@ -3940,7 +3717,6 @@ diff_sessions_answer_modified_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 3651).
 -spec diff_sessions_answer_removed_test() -> nil.
 diff_sessions_answer_removed_test() ->
     Session1 = make_test_interview_session(
@@ -3968,7 +3744,6 @@ diff_sessions_answer_removed_test() ->
     _pipe@3 = erlang:element(8, Diff),
     gleeunit_ffi:should_equal(_pipe@3, [<<"q2"/utf8>>]).
 
--file("test/intent_test.gleam", 3679).
 -spec diff_sessions_stage_changed_test() -> nil.
 diff_sessions_stage_changed_test() ->
     Session1 = make_test_interview_session(
@@ -3997,7 +3772,6 @@ diff_sessions_stage_changed_test() ->
             gleeunit@should:fail()
     end.
 
--file("test/intent_test.gleam", 3707).
 -spec diff_sessions_gaps_resolved_test() -> nil.
 diff_sessions_gaps_resolved_test() ->
     Session1 = make_test_interview_session(
@@ -4020,7 +3794,6 @@ diff_sessions_gaps_resolved_test() ->
     _pipe = erlang:element(10, Diff),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3729).
 -spec diff_sessions_conflicts_resolved_test() -> nil.
 diff_sessions_conflicts_resolved_test() ->
     Session1 = make_test_interview_session(
@@ -4041,7 +3814,6 @@ diff_sessions_conflicts_resolved_test() ->
     _pipe = erlang:element(12, Diff),
     gleeunit_ffi:should_equal(_pipe, 1).
 
--file("test/intent_test.gleam", 3751).
 -spec create_snapshot_test() -> nil.
 create_snapshot_test() ->
     Session = make_test_interview_session(
@@ -4065,7 +3837,6 @@ create_snapshot_test() ->
     _pipe@3 = maps:size(erlang:element(6, Snapshot)),
     gleeunit_ffi:should_equal(_pipe@3, 2).
 
--file("test/intent_test.gleam", 3771).
 -spec format_diff_produces_output_test() -> nil.
 format_diff_produces_output_test() ->
     Session1 = make_test_interview_session(

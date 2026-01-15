@@ -1,16 +1,8 @@
 -module(intent@types).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/types.gleam").
--export([method_to_string/1, method_from_string/1]).
--export_type([spec/0, config/0, feature/0, behavior/0, method/0, request/0, response/0, check/0, rule/0, 'when'/0, rule_check/0, anti_pattern/0, a_i_hints/0, implementation_hints/0, entity_hint/0, security_hints/0]).
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
 
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
+-export([method_to_string/1, method_from_string/1]).
+-export_type([spec/0, config/0, feature/0, behavior/0, method/0, request/0, response/0, check/0, rule/0, 'when'/0, rule_check/0, anti_pattern/0, ai_hints/0, implementation_hints/0, entity_hint/0, security_hints/0]).
 
 -type spec() :: {spec,
         binary(),
@@ -22,7 +14,7 @@
         list(feature()),
         list(rule()),
         list(anti_pattern()),
-        a_i_hints()}.
+        ai_hints()}.
 
 -type config() :: {config,
         binary(),
@@ -82,7 +74,7 @@
         gleam@json:json(),
         binary()}.
 
--type a_i_hints() :: {a_i_hints,
+-type ai_hints() :: {ai_hints,
         implementation_hints(),
         gleam@dict:dict(binary(), entity_hint()),
         security_hints(),
@@ -98,8 +90,6 @@
         binary(),
         binary()}.
 
--file("src/intent/types.gleam", 59).
-?DOC(" Convert method to string\n").
 -spec method_to_string(method()) -> binary().
 method_to_string(Method) ->
     case Method of
@@ -125,8 +115,6 @@ method_to_string(Method) ->
             <<"OPTIONS"/utf8>>
     end.
 
--file("src/intent/types.gleam", 72).
-?DOC(" Parse method from string\n").
 -spec method_from_string(binary()) -> {ok, method()} | {error, binary()}.
 method_from_string(S) ->
     case S of

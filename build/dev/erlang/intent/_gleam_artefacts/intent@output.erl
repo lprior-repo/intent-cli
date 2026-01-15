@@ -1,16 +1,8 @@
 -module(intent@output).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/output.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([spec_result_to_json/1, spec_result_to_text/1, create_failure/5, create_blocked/2]).
 -export_type([spec_result/0, behavior_failure/0, problem/0, request_summary/0, response_summary/0, blocked_behavior/0, rule_violation_group/0, behavior_violation/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type spec_result() :: {spec_result,
         boolean(),
@@ -55,7 +47,6 @@
         list(binary()),
         gleam@option:option(gleam@json:json())}.
 
--file("src/intent/output.gleam", 129).
 -spec problem_to_json(problem()) -> gleam@json:json().
 problem_to_json(Problem) ->
     gleam@json:object(
@@ -67,7 +58,6 @@ problem_to_json(Problem) ->
                 gleam@json:string(erlang:element(6, Problem))}]
     ).
 
--file("src/intent/output.gleam", 139).
 -spec request_summary_to_json(request_summary()) -> gleam@json:json().
 request_summary_to_json(Req) ->
     gleam@json:object(
@@ -89,7 +79,6 @@ request_summary_to_json(Req) ->
                 )}]
     ).
 
--file("src/intent/output.gleam", 154).
 -spec response_summary_to_json(response_summary()) -> gleam@json:json().
 response_summary_to_json(Resp) ->
     gleam@json:object(
@@ -97,7 +86,6 @@ response_summary_to_json(Resp) ->
             {<<"body"/utf8>>, erlang:element(3, Resp)}]
     ).
 
--file("src/intent/output.gleam", 116).
 -spec behavior_failure_to_json(behavior_failure()) -> gleam@json:json().
 behavior_failure_to_json(Failure) ->
     gleam@json:object(
@@ -121,7 +109,6 @@ behavior_failure_to_json(Failure) ->
                 )}]
     ).
 
--file("src/intent/output.gleam", 161).
 -spec blocked_behavior_to_json(blocked_behavior()) -> gleam@json:json().
 blocked_behavior_to_json(Blocked) ->
     gleam@json:object(
@@ -130,7 +117,6 @@ blocked_behavior_to_json(Blocked) ->
             {<<"hint"/utf8>>, gleam@json:string(erlang:element(4, Blocked))}]
     ).
 
--file("src/intent/output.gleam", 177).
 -spec behavior_violation_to_json(behavior_violation()) -> gleam@json:json().
 behavior_violation_to_json(Violation) ->
     gleam@json:object(
@@ -147,7 +133,6 @@ behavior_violation_to_json(Violation) ->
                 )}]
     ).
 
--file("src/intent/output.gleam", 169).
 -spec rule_violation_group_to_json(rule_violation_group()) -> gleam@json:json().
 rule_violation_group_to_json(Group) ->
     gleam@json:object(
@@ -161,7 +146,6 @@ rule_violation_group_to_json(Group) ->
                 )}]
     ).
 
--file("src/intent/output.gleam", 185).
 -spec anti_pattern_result_to_json(intent@anti_patterns:anti_pattern_result()) -> gleam@json:json().
 anti_pattern_result_to_json(Result) ->
     case Result of
@@ -178,8 +162,6 @@ anti_pattern_result_to_json(Result) ->
             )
     end.
 
--file("src/intent/output.gleam", 90).
-?DOC(" Convert a SpecResult to JSON\n").
 -spec spec_result_to_json(spec_result()) -> gleam@json:json().
 spec_result_to_json(Result) ->
     gleam@json:object(
@@ -218,7 +200,6 @@ spec_result_to_json(Result) ->
                 )}]
     ).
 
--file("src/intent/output.gleam", 256).
 -spec format_failure(behavior_failure()) -> binary().
 format_failure(Failure) ->
     Problems_text = begin
@@ -272,7 +253,6 @@ format_failure(Failure) ->
                 <<"\nHint: "/utf8, Hint/binary>>
         end)/binary>>.
 
--file("src/intent/output.gleam", 295).
 -spec format_blocked(blocked_behavior()) -> binary().
 format_blocked(Blocked) ->
     <<<<<<<<"- "/utf8, (erlang:element(2, Blocked))/binary>>/binary, ": "/utf8>>/binary,
@@ -285,7 +265,6 @@ format_blocked(Blocked) ->
                 <<<<" ("/utf8, Hint/binary>>/binary, ")"/utf8>>
         end)/binary>>.
 
--file("src/intent/output.gleam", 306).
 -spec format_rule_violation_group(rule_violation_group()) -> binary().
 format_rule_violation_group(Group) ->
     Violations_text = begin
@@ -305,8 +284,6 @@ format_rule_violation_group(Group) ->
             "):\n"/utf8>>/binary,
         Violations_text/binary>>.
 
--file("src/intent/output.gleam", 200).
-?DOC(" Convert a SpecResult to human-readable text\n").
 -spec spec_result_to_text(spec_result()) -> binary().
 spec_result_to_text(Result) ->
     Header = case erlang:element(2, Result) of
@@ -382,7 +359,6 @@ spec_result_to_text(Result) ->
             Rules_text/binary>>/binary,
         Anti_patterns_text/binary>>.
 
--file("src/intent/output.gleam", 373).
 -spec generate_hint(
     intent@types:behavior(),
     intent@checker:response_check_result()
@@ -417,8 +393,6 @@ generate_hint(_, Check_result) ->
             end
     end.
 
--file("src/intent/output.gleam", 318).
-?DOC(" Create a BehaviorFailure from check results\n").
 -spec create_failure(
     binary(),
     intent@types:behavior(),
@@ -475,8 +449,6 @@ create_failure(Feature_name, Behavior, Check_result, Execution, Base_url) ->
         generate_hint(Behavior, Check_result),
         erlang:element(5, Behavior)}.
 
--file("src/intent/output.gleam", 395).
-?DOC(" Create a BlockedBehavior\n").
 -spec create_blocked(binary(), binary()) -> blocked_behavior().
 create_blocked(Behavior_name, Failed_dependency) ->
     {blocked_behavior,

@@ -1,41 +1,39 @@
 -module(intent@loader).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/loader.gleam").
--export([validate_cue/1, load_spec/1, export_spec_json/1, format_error/1]).
--export_type([load_error/0]).
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
 
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
+-export([validate_cue/1, load_spec_quiet/1, load_spec/1, export_spec_json/1, format_error/1]).
+-export_type([load_error/0]).
 
 -type load_error() :: {file_not_found, binary()} |
     {cue_validation_error, binary()} |
     {cue_export_error, binary()} |
     {json_parse_error, binary()} |
-    {spec_parse_error, binary()}.
+    {spec_parse_error, binary()} |
+    {security_error, binary()}.
 
--file("src/intent/loader.gleam", 55).
-?DOC(" Validate a CUE file without exporting\n").
 -spec validate_cue(binary()) -> {ok, nil} | {error, load_error()}.
 validate_cue(Path) ->
-    case shellout:command(
-        <<"cue"/utf8>>,
-        [<<"vet"/utf8>>, Path],
-        <<"."/utf8>>,
-        []
-    ) of
-        {ok, _} ->
-            {ok, nil};
+    case intent@security:validate_file_path(Path) of
+        {ok, Validated_path} ->
+            case shellout:command(
+                <<"cue"/utf8>>,
+                [<<"vet"/utf8>>, Validated_path],
+                <<"."/utf8>>,
+                []
+            ) of
+                {ok, _} ->
+                    {ok, nil};
 
-        {error, {_, Stderr}} ->
-            {error, {cue_validation_error, Stderr}}
+                {error, {_, Stderr}} ->
+                    {error, {cue_validation_error, Stderr}}
+            end;
+
+        {error, Security_error} ->
+            {error,
+                {security_error,
+                    intent@security:format_security_error(Security_error)}}
     end.
 
--file("src/intent/loader.gleam", 100).
 -spec format_single_decode_error(gleam@dynamic:decode_error()) -> binary().
 format_single_decode_error(Error) ->
     Path_str = case erlang:element(4, Error) of
@@ -55,7 +53,6 @@ format_single_decode_error(Error) ->
             " "/utf8>>/binary,
         Path_str/binary>>.
 
--file("src/intent/loader.gleam", 86).
 -spec format_decode_errors(list(gleam@dynamic:decode_error())) -> binary().
 format_decode_errors(Errors) ->
     case Errors of
@@ -79,7 +76,6 @@ format_decode_errors(Errors) ->
                 ))/binary>>
     end.
 
--file("src/intent/loader.gleam", 114).
 -spec format_json_error(gleam@json:decode_error()) -> binary().
 format_json_error(Error) ->
     case Error of
@@ -103,7 +99,6 @@ format_json_error(Error) ->
             <<"JSON format error:\n"/utf8, (format_decode_errors(Errs))/binary>>
     end.
 
--file("src/intent/loader.gleam", 70).
 -spec parse_json_spec(binary()) -> {ok, intent@types:spec()} |
     {error, load_error()}.
 parse_json_spec(Json_str) ->
@@ -125,7 +120,6 @@ parse_json_spec(Json_str) ->
             {error, {json_parse_error, format_json_error(E)}}
     end.
 
--file("src/intent/loader.gleam", 62).
 -spec export_and_parse(binary()) -> {ok, intent@types:spec()} |
     {error, load_error()}.
 export_and_parse(Path) ->
@@ -142,10 +136,33 @@ export_and_parse(Path) ->
             {error, {cue_export_error, Stderr}}
     end.
 
--file("src/intent/loader.gleam", 32).
--spec load_and_parse(binary()) -> {ok, intent@types:spec()} |
+-spec load_and_parse_impl(binary()) -> {ok, intent@types:spec()} |
     {error, load_error()}.
-load_and_parse(Path) ->
+load_and_parse_impl(Path) ->
+    case validate_cue(Path) of
+        {ok, _} ->
+            export_and_parse(Path);
+
+        {error, E} ->
+            {error, E}
+    end.
+
+-spec load_spec_quiet(binary()) -> {ok, intent@types:spec()} |
+    {error, load_error()}.
+load_spec_quiet(Path) ->
+    case intent@security:validate_file_path(Path) of
+        {ok, Validated_path} ->
+            load_and_parse_impl(Validated_path);
+
+        {error, Security_error} ->
+            {error,
+                {security_error,
+                    intent@security:format_security_error(Security_error)}}
+    end.
+
+-spec load_and_parse_with_spinner(binary()) -> {ok, intent@types:spec()} |
+    {error, load_error()}.
+load_and_parse_with_spinner(Path) ->
     Sp = begin
         _pipe = spinner:new(<<"Validating CUE spec..."/utf8>>),
         _pipe@1 = spinner:with_colour(_pipe, fun gleam_community@ansi:yellow/1),
@@ -163,27 +180,28 @@ load_and_parse(Path) ->
             {error, E}
     end.
 
--file("src/intent/loader.gleam", 24).
-?DOC(" Load a spec from a CUE file\n").
 -spec load_spec(binary()) -> {ok, intent@types:spec()} | {error, load_error()}.
 load_spec(Path) ->
-    case simplifile:verify_is_file(Path) of
-        {ok, true} ->
-            load_and_parse(Path);
+    case intent@security:validate_file_path(Path) of
+        {ok, Validated_path} ->
+            load_and_parse_with_spinner(Validated_path);
 
-        _ ->
-            {error, {file_not_found, Path}}
+        {error, Security_error} ->
+            {error,
+                {security_error,
+                    intent@security:format_security_error(Security_error)}}
     end.
 
--file("src/intent/loader.gleam", 133).
-?DOC(" Export a spec to JSON format (for AI consumption)\n").
 -spec export_spec_json(binary()) -> {ok, binary()} | {error, load_error()}.
 export_spec_json(Path) ->
-    case simplifile:verify_is_file(Path) of
-        {ok, true} ->
+    case intent@security:validate_file_path(Path) of
+        {ok, Validated_path} ->
             case shellout:command(
                 <<"cue"/utf8>>,
-                [<<"export"/utf8>>, Path, <<"-e"/utf8>>, <<"spec"/utf8>>],
+                [<<"export"/utf8>>,
+                    Validated_path,
+                    <<"-e"/utf8>>,
+                    <<"spec"/utf8>>],
                 <<"."/utf8>>,
                 []
             ) of
@@ -194,12 +212,12 @@ export_spec_json(Path) ->
                     {error, {cue_export_error, Stderr}}
             end;
 
-        _ ->
-            {error, {file_not_found, Path}}
+        {error, Security_error} ->
+            {error,
+                {security_error,
+                    intent@security:format_security_error(Security_error)}}
     end.
 
--file("src/intent/loader.gleam", 145).
-?DOC(" Format a LoadError as a human-readable string\n").
 -spec format_error(load_error()) -> binary().
 format_error(Error) ->
     case Error of
@@ -216,5 +234,8 @@ format_error(Error) ->
             <<"JSON parse error: "/utf8, Msg@2/binary>>;
 
         {spec_parse_error, Msg@3} ->
-            <<"Spec parse error: "/utf8, Msg@3/binary>>
+            <<"Spec parse error: "/utf8, Msg@3/binary>>;
+
+        {security_error, Msg@4} ->
+            Msg@4
     end.

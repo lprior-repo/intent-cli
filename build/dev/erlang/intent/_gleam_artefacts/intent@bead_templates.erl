@@ -1,16 +1,8 @@
 -module(intent@bead_templates).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/bead_templates.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([bead_to_jsonl_line/1, beads_to_jsonl/1, filter_beads_by_type/2, sort_beads_by_priority/1, add_dependency/3, generate_beads_from_session/1, bead_stats/1]).
 -export_type([bead_record/0, bead_stats/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type bead_record() :: {bead_record,
         binary(),
@@ -28,8 +20,6 @@
         gleam@dict:dict(binary(), integer()),
         gleam@dict:dict(integer(), integer())}.
 
--file("src/intent/bead_templates.gleam", 43).
-?DOC(" Generate API endpoint beads\n").
 -spec generate_api_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_api_beads(Session, Profile) ->
     Endpoint_answers = gleam@list:filter(
@@ -60,8 +50,6 @@ generate_api_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 69).
-?DOC(" Generate CLI command beads\n").
 -spec generate_cli_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_cli_beads(Session, Profile) ->
     Command_answers = gleam@list:filter(
@@ -92,8 +80,6 @@ generate_cli_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 95).
-?DOC(" Generate event beads\n").
 -spec generate_event_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_event_beads(Session, Profile) ->
     Event_answers = gleam@list:filter(
@@ -124,8 +110,6 @@ generate_event_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 121).
-?DOC(" Generate data model beads\n").
 -spec generate_data_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_data_beads(Session, Profile) ->
     Entity_answers = gleam@list:filter(
@@ -156,8 +140,6 @@ generate_data_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 147).
-?DOC(" Generate workflow beads\n").
 -spec generate_workflow_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_workflow_beads(Session, Profile) ->
     Workflow_answers = gleam@list:filter(
@@ -190,8 +172,6 @@ generate_workflow_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 173).
-?DOC(" Generate UI screen beads\n").
 -spec generate_ui_beads(intent@interview:interview_session(), binary()) -> list(bead_record()).
 generate_ui_beads(Session, Profile) ->
     Screen_answers = gleam@list:filter(
@@ -222,8 +202,6 @@ generate_ui_beads(Session, Profile) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 199).
-?DOC(" Convert bead record to JSONL line format (for .beads/issues.jsonl)\n").
 -spec bead_to_jsonl_line(bead_record()) -> binary().
 bead_to_jsonl_line(Bead) ->
     Json_list = [{<<"title"/utf8>>, gleam@json:string(erlang:element(2, Bead))},
@@ -241,16 +219,12 @@ bead_to_jsonl_line(Bead) ->
     _pipe = gleam@json:object(Json_list),
     gleam@json:to_string(_pipe).
 
--file("src/intent/bead_templates.gleam", 226).
-?DOC(" Format beads for output as JSONL (newline-delimited JSON)\n").
 -spec beads_to_jsonl(list(bead_record())) -> binary().
 beads_to_jsonl(Beads) ->
     _pipe = Beads,
     _pipe@1 = gleam@list:map(_pipe, fun bead_to_jsonl_line/1),
     gleam@string:join(_pipe@1, <<"\n"/utf8>>).
 
--file("src/intent/bead_templates.gleam", 233).
-?DOC(" Extract beads with specific issue type\n").
 -spec filter_beads_by_type(list(bead_record()), binary()) -> list(bead_record()).
 filter_beads_by_type(Beads, Issue_type) ->
     gleam@list:filter(
@@ -258,8 +232,6 @@ filter_beads_by_type(Beads, Issue_type) ->
         fun(Bead) -> erlang:element(6, Bead) =:= Issue_type end
     ).
 
--file("src/intent/bead_templates.gleam", 241).
-?DOC(" Sort beads by priority (higher number = higher priority)\n").
 -spec sort_beads_by_priority(list(bead_record())) -> list(bead_record()).
 sort_beads_by_priority(Beads) ->
     gleam@list:sort(
@@ -269,32 +241,23 @@ sort_beads_by_priority(Beads) ->
         end
     ).
 
--file("src/intent/bead_templates.gleam", 248).
-?DOC(" Add dependency between beads (updates beads in place)\n").
 -spec add_dependency(list(bead_record()), binary(), binary()) -> list(bead_record()).
 add_dependency(Beads, From_title, To_title) ->
     gleam@list:map(
         Beads,
         fun(Bead) -> case erlang:element(2, Bead) =:= From_title of
                 true ->
-                    {bead_record,
-                        erlang:element(2, Bead),
-                        erlang:element(3, Bead),
-                        erlang:element(4, Bead),
-                        erlang:element(5, Bead),
-                        erlang:element(6, Bead),
-                        erlang:element(7, Bead),
-                        erlang:element(8, Bead),
-                        erlang:element(9, Bead),
-                        lists:append(erlang:element(10, Bead), [To_title])};
+                    erlang:setelement(
+                        10,
+                        Bead,
+                        lists:append(erlang:element(10, Bead), [To_title])
+                    );
 
                 false ->
                     Bead
             end end
     ).
 
--file("src/intent/bead_templates.gleam", 266).
-?DOC(" Helper: convert Profile to string\n").
 -spec profile_to_string(intent@interview:profile()) -> binary().
 profile_to_string(Profile) ->
     case Profile of
@@ -313,12 +276,10 @@ profile_to_string(Profile) ->
         workflow ->
             <<"workflow"/utf8>>;
 
-        u_i ->
+        ui ->
             <<"ui"/utf8>>
     end.
 
--file("src/intent/bead_templates.gleam", 29).
-?DOC(" Generate beads from a completed interview session\n").
 -spec generate_beads_from_session(intent@interview:interview_session()) -> list(bead_record()).
 generate_beads_from_session(Session) ->
     Profile_str = profile_to_string(erlang:element(3, Session)),
@@ -338,12 +299,10 @@ generate_beads_from_session(Session) ->
         workflow ->
             generate_workflow_beads(Session, Profile_str);
 
-        u_i ->
+        ui ->
             generate_ui_beads(Session, Profile_str)
     end.
 
--file("src/intent/bead_templates.gleam", 287).
-?DOC(" Calculate stats for a list of beads\n").
 -spec bead_stats(list(bead_record())) -> bead_stats().
 bead_stats(Beads) ->
     Total = erlang:length(Beads),

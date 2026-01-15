@@ -1,21 +1,11 @@
 -module(intent@array_indexing).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/array_indexing.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([parse_path_component/1, get_all_array_elements/1, navigate_path/2, split_path/1, validate_path/1]).
 -export_type([array_spec/0]).
 
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
-
 -type array_spec() :: no_array | {index, integer()} | {last_n, integer()} | all.
 
--file("src/intent/array_indexing.gleam", 69).
-?DOC(" Parse a string to integer for array index\n").
 -spec parse_index(binary()) -> {ok, integer()} | {error, binary()}.
 parse_index(S) ->
     case gleam@int:parse(S) of
@@ -33,7 +23,6 @@ parse_index(S) ->
             {error, <<"Array index must be a number: "/utf8, S/binary>>}
     end.
 
--file("src/intent/array_indexing.gleam", 27).
 -spec parse_path_component(binary()) -> {ok, {binary(), array_spec()}} |
     {error, binary()}.
 parse_path_component(Component) ->
@@ -106,8 +95,6 @@ parse_path_component(Component) ->
             end
     end.
 
--file("src/intent/array_indexing.gleam", 212).
-?DOC(" Get all elements from an array (used for \"array where each\" validation)\n").
 -spec get_all_array_elements(gleam@json:json()) -> {ok, list(gleam@json:json())} |
     {error, binary()}.
 get_all_array_elements(Json) ->
@@ -127,19 +114,12 @@ get_all_array_elements(Json) ->
             {error, <<"Cannot get array elements from non-array JSON"/utf8>>}
     end.
 
--file("src/intent/array_indexing.gleam", 228).
-?DOC(
-    " Convert dynamic to Json (helper function)\n"
-    " This uses a parser function from the intent module\n"
-).
 -spec dynamic_to_json(gleam@dynamic:dynamic_()) -> {ok, gleam@json:json()} |
     {error, binary()}.
 dynamic_to_json(Dyn) ->
     Json_val = intent@parser:dynamic_to_json(Dyn),
     {ok, Json_val}.
 
--file("src/intent/array_indexing.gleam", 129).
-?DOC(" Navigate to a field in a JSON object\n").
 -spec navigate_field(gleam@json:json(), binary()) -> {ok,
         gleam@option:option(gleam@json:json())} |
     {error, binary()}.
@@ -174,8 +154,6 @@ navigate_field(Json, Field) ->
                     "' in non-object JSON"/utf8>>}
     end.
 
--file("src/intent/array_indexing.gleam", 149).
-?DOC(" Get array element by positive index\n").
 -spec get_array_element(gleam@json:json(), integer()) -> {ok, gleam@json:json()} |
     {error, binary()}.
 get_array_element(Json, Index) ->
@@ -218,8 +196,6 @@ get_array_element(Json, Index) ->
                     "]"/utf8>>}
     end.
 
--file("src/intent/array_indexing.gleam", 177).
-?DOC(" Get array element counting from the end (negative index)\n").
 -spec get_array_element_last(gleam@json:json(), integer()) -> {ok,
         gleam@json:json()} |
     {error, binary()}.
@@ -268,13 +244,6 @@ get_array_element_last(Json, From_end) ->
             {error, <<"Cannot index non-array JSON with negative index"/utf8>>}
     end.
 
--file("src/intent/array_indexing.gleam", 84).
-?DOC(
-    " Navigate a JSON path with array indexing support\n"
-    " Examples:\n"
-    "   navigate(json, [\"user\", \"emails[0]\"]) -> email at first index\n"
-    "   navigate(json, [\"items[*]\"]) -> all items in array\n"
-).
 -spec navigate_path(gleam@json:json(), list(binary())) -> {ok,
         gleam@json:json()} |
     {error, binary()}.
@@ -329,19 +298,12 @@ navigate_path(Json, Path_components) ->
             end
     end.
 
--file("src/intent/array_indexing.gleam", 237).
-?DOC(
-    " Split a path string into components\n"
-    " Handles nested paths like \"user.profile.emails[0].address\"\n"
-).
 -spec split_path(binary()) -> list(binary()).
 split_path(Path) ->
     _pipe = gleam@string:split(Path, <<"."/utf8>>),
     _pipe@1 = gleam@list:map(_pipe, fun gleam@string:trim/1),
     gleam@list:filter(_pipe@1, fun(S) -> not gleam@string:is_empty(S) end).
 
--file("src/intent/array_indexing.gleam", 245).
-?DOC(" Validate that a path string is well-formed\n").
 -spec validate_path(binary()) -> {ok, nil} | {error, binary()}.
 validate_path(Path) ->
     case gleam@string:is_empty(Path) of

@@ -1,16 +1,8 @@
 -module(intent@checker).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/intent/checker.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([check_response/3]).
 -export_type([check_result/0, response_check_result/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type check_result() :: {check_passed, binary(), binary()} |
     {check_failed, binary(), binary(), binary(), binary(), binary()}.
@@ -22,8 +14,6 @@
         integer(),
         integer()}.
 
--file("src/intent/checker.gleam", 105).
-?DOC(" Convert internal CheckResult to public CheckResult\n").
 -spec convert_check_result(intent@checker@types:check_result()) -> check_result().
 convert_check_result(Result) ->
     case Result of
@@ -34,7 +24,6 @@ convert_check_result(Result) ->
             {check_failed, Field@1, Rule@1, Expected, Actual, Explanation}
     end.
 
--file("src/intent/checker.gleam", 132).
 -spec interpolate_rule(binary(), intent@interpolate:context()) -> binary().
 interpolate_rule(Rule_str, Ctx) ->
     case intent@interpolate:interpolate_string(Ctx, Rule_str) of
@@ -45,7 +34,6 @@ interpolate_rule(Rule_str, Ctx) ->
             Rule_str
     end.
 
--file("src/intent/checker.gleam", 139).
 -spec check_absent(binary(), gleam@json:json()) -> intent@checker@types:check_result().
 check_absent(Field, Body) ->
     case intent@checker@json:get_field_value(Body, Field) of
@@ -62,7 +50,6 @@ check_absent(Field, Body) ->
                     "' should not be present in response"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 153).
 -spec check_present(binary(), gleam@json:json()) -> intent@checker@types:check_result().
 check_present(Field, Body) ->
     case intent@checker@json:get_field_value(Body, Field) of
@@ -79,7 +66,6 @@ check_present(Field, Body) ->
                     "' must be present in response"/utf8>>}
     end.
 
--file("src/intent/checker.gleam", 167).
 -spec check_rule(
     binary(),
     binary(),
@@ -108,8 +94,6 @@ check_rule(Field, Rule_str, Body, Ctx) ->
             )
     end.
 
--file("src/intent/checker.gleam", 114).
-?DOC(" Check a single field against its rule\n").
 -spec check_field(
     binary(),
     intent@types:check(),
@@ -130,8 +114,6 @@ check_field(Field, Check, Body, Ctx) ->
             check_rule(Field, Interpolated_rule, Body, Ctx)
     end.
 
--file("src/intent/checker.gleam", 49).
-?DOC(" Check an execution result against expected response\n").
 -spec check_response(
     intent@types:response(),
     intent@http_client:execution_result(),
