@@ -271,11 +271,18 @@ fn navigate_and_check(value: Json, path: List(String)) -> Bool {
   }
 }
 
-fn header_exists(headers: Dict(String, String), header_name: String) -> Bool {
-  let lower_name = string.lowercase(header_name)
+/// Build a lowercase header index for O(1) lookups
+fn build_header_index(headers: Dict(String, String)) -> Dict(String, String) {
   headers
   |> dict.to_list
-  |> list.any(fn(pair) { string.lowercase(pair.0) == lower_name })
+  |> list.map(fn(pair) { #(string.lowercase(pair.0), pair.1) })
+  |> dict.from_list
+}
+
+fn header_exists(headers: Dict(String, String), header_name: String) -> Bool {
+  let lower_name = string.lowercase(header_name)
+  let index = build_header_index(headers)
+  dict.has_key(index, lower_name)
 }
 
 /// Format a rule violation as a human-readable string
