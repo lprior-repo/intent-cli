@@ -1,0 +1,7 @@
+{
+  "last_failure": "2026-01-15T00:14:19.471758531-06:00",
+  "failure_count": 2,
+  "backoff_until": "2026-01-15T00:15:19.471758731-06:00",
+  "needs_manual_sync": false,
+  "failure_reason": "git pull failed in worktree: exit status 1\nFrom https://github.com/lprior-repo/intent-cli\n * branch            main       -\u003e FETCH_HEAD\n   7f6bc46..de75ad4  main       -\u003e origin/main\nRebasing (1/1)\rAuto-merging .beads/issues.jsonl\nCONFLICT (content): Merge conflict in .beads/issues.jsonl\nerror: could not apply 707bac8... audit: Add 7 critical beads from systematic codebase audit\nhint: Resolve all conflicts manually, mark them as resolved with\nhint: \"git add/rm \u003cconflicted_files\u003e\", then run \"git rebase --continue\".\nhint: You can instead skip this commit: run \"git rebase --skip\".\nhint: To abort and get back to the state before \"git rebase\", run \"git rebase --abort\".\nhint: Disable this message with \"git config set advice.mergeConflict false\"\nRecorded preimage for '.beads/issues.jsonl'\nCould not apply 707bac8... # audit: Add 7 critical beads from systematic codebase audit\n"
+}

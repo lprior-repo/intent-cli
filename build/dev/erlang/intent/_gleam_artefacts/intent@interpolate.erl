@@ -1,7 +1,7 @@
 -module(intent@interpolate).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
 
--export([new_context/0, set_variable/3, set_request_body/2, set_response_body/2, get_variable/2, json_to_string/1, interpolate_string/2, interpolate_headers/2, extract_capture/2]).
+-export([new_context/0, set_variable/3, set_request_body/2, set_response_body/2, get_variable/2, json_to_string/1, extract_capture/2, interpolate_string/2, interpolate_headers/2]).
 -export_type([context/0]).
 
 -type context() :: {context,
@@ -137,6 +137,11 @@ interpolate_matches(Ctx, S, Matches) ->
             end
     end.
 
+-spec extract_capture(context(), binary()) -> {ok, gleam@json:json()} |
+    {error, binary()}.
+extract_capture(Ctx, Capture_path) ->
+    resolve_path(Ctx, Capture_path).
+
 -spec interpolate_string(context(), binary()) -> {ok, binary()} |
     {error, binary()}.
 interpolate_string(Ctx, S) ->
@@ -144,7 +149,20 @@ interpolate_string(Ctx, S) ->
     case gleam@regexp:from_string(Pattern) of
         {ok, Re} ->
             Matches = gleam@regexp:scan(Re, S),
-            interpolate_matches(Ctx, S, Matches);
+            case erlang:length(Matches) > 100 of
+                true ->
+                    {error,
+                        <<<<<<<<"Too many variable interpolations ("/utf8,
+                                        (gleam@int:to_string(
+                                            erlang:length(Matches)
+                                        ))/binary>>/binary,
+                                    " found, maximum is "/utf8>>/binary,
+                                (gleam@int:to_string(100))/binary>>/binary,
+                            ")"/utf8>>};
+
+                false ->
+                    interpolate_matches(Ctx, S, Matches)
+            end;
 
         {error, _} ->
             {ok, S}
@@ -170,8 +188,3 @@ interpolate_headers(Ctx, Headers) ->
         end
     ),
     gleam@result:map(_pipe@2, fun maps:from_list/1).
-
--spec extract_capture(context(), binary()) -> {ok, gleam@json:json()} |
-    {error, binary()}.
-extract_capture(Ctx, Capture_path) ->
-    resolve_path(Ctx, Capture_path).

@@ -200,8 +200,11 @@ do_style(Lookup, Strings, Flag) ->
     Prepare_rgb = fun(Strings@1) ->
         New_strings = begin
             _pipe@6 = <<"0"/utf8>>,
-            _pipe@7 = gleam@list:repeat(_pipe@6, 3 - erlang:length(Strings@1)),
-            lists:append(Strings@1, _pipe@7)
+            _pipe@7 = gleam@list:repeat(
+                _pipe@6,
+                3 - gleam@list:length(Strings@1)
+            ),
+            gleam@list:append(Strings@1, _pipe@7)
         end,
         Code@3 = case Flag of
             <<"color"/utf8>> ->
@@ -213,25 +216,27 @@ do_style(Lookup, Strings, Flag) ->
         [Code@3, <<"2"/utf8>> | New_strings]
     end,
     _pipe@8 = erlang:element(2, Acc@2),
-    _pipe@9 = lists:reverse(_pipe@8),
+    _pipe@9 = gleam@list:reverse(_pipe@8),
     _pipe@15 = gleam@list:filter_map(_pipe@9, fun(Style) -> case Style of
                 {name, String} ->
                     _pipe@10 = Lookup@1,
                     _pipe@11 = gleam@dict:get(_pipe@10, String),
                     gleam@result:map(
                         _pipe@11,
-                        fun(Strings@2) -> case erlang:length(Strings@2) > 1 of
+                        fun(Strings@2) ->
+                            case gleam@list:length(Strings@2) > 1 of
                                 false ->
                                     Strings@2;
 
                                 true ->
                                     Prepare_rgb(Strings@2)
-                            end end
+                            end
+                        end
                     );
 
                 {rgb, Strings@3} ->
                     _pipe@12 = Strings@3,
-                    _pipe@13 = lists:reverse(_pipe@12),
+                    _pipe@13 = gleam@list:reverse(_pipe@12),
                     _pipe@14 = Prepare_rgb(_pipe@13),
                     {ok, _pipe@14}
             end end),

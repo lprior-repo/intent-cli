@@ -211,11 +211,24 @@ fn parse_response(
 
   let body = case string.is_empty(resp.body) {
     True -> json.null()
-    False ->
-      case json.decode(resp.body, dynamic.dynamic) {
-        Ok(data) -> parser.dynamic_to_json(data)
-        Error(_) -> json.null()
+    False -> {
+      // Validate JSON safety before parsing (prevents DOS attacks)
+      case parser.validate_json_safety(resp.body) {
+        Error(parser.PayloadTooLarge(_, _)) -> {
+          // Payload too large - return null body to prevent DOS
+          json.null()
+        }
+        Error(parser.NestingTooDeep(_, _)) -> {
+          // Nesting too deep - return null body to prevent DOS
+          json.null()
+        }
+        Ok(_) ->
+          case json.decode(resp.body, dynamic.dynamic) {
+            Ok(data) -> parser.dynamic_to_json(data)
+            Error(_) -> json.null()
+          }
       }
+    }
   }
 
   ExecutionResult(

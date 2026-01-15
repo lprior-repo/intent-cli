@@ -13,18 +13,25 @@
     {naming_convention, binary(), binary()} |
     {duplicate_behavior, binary(), binary(), binary()}.
 
+-spec extract_keys_from_dynamic(gleam@dynamic:dynamic_()) -> list(binary()).
+extract_keys_from_dynamic(Dyn) ->
+    case (gleam@dynamic:dict(
+        fun gleam@dynamic:string/1,
+        fun gleam@dynamic:dynamic/1
+    ))(Dyn) of
+        {ok, Dict_val} ->
+            gleam@dict:keys(Dict_val);
+
+        {error, _} ->
+            []
+    end.
+
 -spec extract_all_keys(gleam@json:json()) -> list(binary()).
-extract_all_keys(Json) ->
-    Json_str = gleam@json:to_string(Json),
-    case gleam@json:decode(
-        Json_str,
-        gleam@dynamic:dict(
-            fun gleam@dynamic:string/1,
-            fun gleam@dynamic:dynamic/1
-        )
-    ) of
-        {ok, Obj} ->
-            gleam@dict:keys(Obj);
+extract_all_keys(Json_val) ->
+    Json_str = gleam@json:to_string(Json_val),
+    case gleam@json:decode(Json_str, fun gleam@dynamic:dynamic/1) of
+        {ok, Dyn} ->
+            extract_keys_from_dynamic(Dyn);
 
         {error, _} ->
             []

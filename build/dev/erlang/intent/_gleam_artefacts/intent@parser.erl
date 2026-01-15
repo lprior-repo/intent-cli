@@ -1,7 +1,40 @@
 -module(intent@parser).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
 
--export([dynamic_to_json/1, parse_spec/1]).
+-export([dynamic_to_json/1, parse_spec/1, validate_json_safety/1]).
+-export_type([json_validation_error/0]).
+
+-type json_validation_error() :: {payload_too_large, integer(), integer()} |
+    {nesting_too_deep, integer(), integer()}.
+
+-spec count_max_nesting_depth(binary()) -> integer().
+count_max_nesting_depth(Json_str) ->
+    _pipe = Json_str,
+    _pipe@1 = gleam@string:to_utf_codepoints(_pipe),
+    _pipe@2 = gleam@list:fold(
+        _pipe@1,
+        {0, 0},
+        fun(Acc, Codepoint) ->
+            {Current, Max} = Acc,
+            case gleam@string:utf_codepoint_to_int(Codepoint) of
+                123 ->
+                    {Current + 1, gleam@int:max(Max, Current + 1)};
+
+                91 ->
+                    {Current + 1, gleam@int:max(Max, Current + 1)};
+
+                125 ->
+                    {gleam@int:max(Current - 1, 0), Max};
+
+                93 ->
+                    {gleam@int:max(Current - 1, 0), Max};
+
+                _ ->
+                    Acc
+            end
+        end
+    ),
+    gleam@pair:second(_pipe@2).
 
 -spec parse_string_dict(gleam@dynamic:dynamic_()) -> {ok,
         gleam@dict:dict(binary(), binary())} |
@@ -820,3 +853,22 @@ parse_spec(Data) ->
             )
         end
     ).
+
+-spec validate_json_safety(binary()) -> {ok, nil} |
+    {error, json_validation_error()}.
+validate_json_safety(Json_str) ->
+    Size = erlang:byte_size(Json_str),
+    case Size > 10485760 of
+        true ->
+            {error, {payload_too_large, Size, 10485760}};
+
+        false ->
+            Depth = count_max_nesting_depth(Json_str),
+            case Depth > 1000 of
+                true ->
+                    {error, {nesting_too_deep, Depth, 1000}};
+
+                false ->
+                    {ok, nil}
+            end
+    end.

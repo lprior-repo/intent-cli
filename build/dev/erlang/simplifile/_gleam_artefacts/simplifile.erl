@@ -282,7 +282,7 @@ do_read(Filepath) ->
             {error, E}
     end.
 
--spec cast_error({ok, MJB} | {error, file_error()}) -> {ok, MJB} |
+-spec cast_error({ok, FUY} | {error, file_error()}) -> {ok, FUY} |
     {error, file_error()}.
 cast_error(Input) ->
     Input.
@@ -499,7 +499,7 @@ get_files(Directory) ->
                         gleam@list:try_map(Directories, fun get_files/1),
                         fun(Nested_files) ->
                             {ok,
-                                lists:append(
+                                gleam@list:append(
                                     Files,
                                     gleam@list:flatten(Nested_files)
                                 )}

@@ -18,7 +18,7 @@ error(Issue) ->
 layer(Snag, Issue) ->
     {snag, Issue, [erlang:element(2, Snag) | erlang:element(3, Snag)]}.
 
--spec context({ok, KKR} | {error, snag()}, binary()) -> {ok, KKR} |
+-spec context({ok, FNQ} | {error, snag()}, binary()) -> {ok, FNQ} |
     {error, snag()}.
 context(Result, Issue) ->
     case Result of

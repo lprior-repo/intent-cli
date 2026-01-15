@@ -3,7 +3,7 @@
 
 -export([one_of/1, none_of/1, each/1]).
 
--spec one_of(list(KMC)) -> fun((KMC) -> {ok, nil} | {error, snag:snag()}).
+-spec one_of(list(GBH)) -> fun((GBH) -> {ok, nil} | {error, snag:snag()}).
 one_of(Allowed) ->
     Allowed_set = gleam@set:from_list(Allowed),
     fun(Val) -> case gleam@set:contains(Allowed_set, Val) of
@@ -31,7 +31,7 @@ one_of(Allowed) ->
                 )
         end end.
 
--spec none_of(list(KMF)) -> fun((KMF) -> {ok, nil} | {error, snag:snag()}).
+-spec none_of(list(GBK)) -> fun((GBK) -> {ok, nil} | {error, snag:snag()}).
 none_of(Disallowed) ->
     Disallowed_set = gleam@set:from_list(Disallowed),
     fun(Val) -> case gleam@set:contains(Disallowed_set, Val) of
@@ -59,7 +59,7 @@ none_of(Disallowed) ->
                 )
         end end.
 
--spec each(fun((KMI) -> {ok, nil} | {error, snag:snag()})) -> fun((list(KMI)) -> {ok,
+-spec each(fun((GBN) -> {ok, nil} | {error, snag:snag()})) -> fun((list(GBN)) -> {ok,
         nil} |
     {error, snag:snag()}).
 each(Constraint) ->

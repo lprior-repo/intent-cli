@@ -2,9 +2,12 @@
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type DecodeError, type Dynamic}
+import gleam/int
 import gleam/json.{type Json}
 import gleam/list
+import gleam/pair
 import gleam/result
+import gleam/string
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
   type EntityHint, type Feature, type ImplementationHints, type Method,
@@ -12,6 +15,54 @@ import intent/types.{
   type Spec, type When, AIHints, AntiPattern, Behavior, Check, Config, Delete,
   EntityHint, Feature, Get, Head, ImplementationHints, Options, Patch, Post,
   Put, Request, Response, Rule, RuleCheck, SecurityHints, Spec, When,
+}
+
+/// Maximum JSON payload size in bytes (10MB)
+pub const max_json_size_bytes = 10_485_760
+
+/// Maximum JSON nesting depth (prevents stack overflow)
+pub const max_json_depth = 1000
+
+/// JSON validation error types
+pub type JsonValidationError {
+  PayloadTooLarge(size: Int, max: Int)
+  NestingTooDeep(depth: Int, max: Int)
+}
+
+/// Validate JSON string for size and nesting depth to prevent DOS attacks
+/// Returns Ok(Nil) if safe, Error(JsonValidationError) if dangerous
+pub fn validate_json_safety(json_str: String) -> Result(Nil, JsonValidationError) {
+  // 1. Check size (O(1) operation)
+  let size = string.byte_size(json_str)
+  case size > max_json_size_bytes {
+    True -> Error(PayloadTooLarge(size, max_json_size_bytes))
+    False -> {
+      // 2. Check nesting depth (O(n) single pass)
+      let depth = count_max_nesting_depth(json_str)
+      case depth > max_json_depth {
+        True -> Error(NestingTooDeep(depth, max_json_depth))
+        False -> Ok(Nil)
+      }
+    }
+  }
+}
+
+/// Count maximum nesting depth of JSON braces/brackets
+/// Does not account for strings (deliberate simplification for performance)
+/// Uses UTF codepoints for faster iteration over large strings
+fn count_max_nesting_depth(json_str: String) -> Int {
+  json_str
+  |> string.to_utf_codepoints
+  |> list.fold(#(0, 0), fn(acc, codepoint) {
+    let #(current, max) = acc
+    // Check for { [ } ] codepoints
+    case string.utf_codepoint_to_int(codepoint) {
+      123 | 91 -> #(current + 1, int.max(max, current + 1))  // { or [
+      125 | 93 -> #(int.max(current - 1, 0), max)  // } or ]
+      _ -> acc
+    }
+  })
+  |> pair.second
 }
 
 /// Parse a spec from a JSON value

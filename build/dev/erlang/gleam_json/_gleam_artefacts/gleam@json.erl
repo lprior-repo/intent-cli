@@ -13,9 +13,9 @@
 
 -spec decode_bits(
     bitstring(),
-    fun((gleam@dynamic:dynamic_()) -> {ok, FXF} |
+    fun((gleam@dynamic:dynamic_()) -> {ok, FLX} |
         {error, list(gleam@dynamic:decode_error())})
-) -> {ok, FXF} | {error, decode_error()}.
+) -> {ok, FLX} | {error, decode_error()}.
 decode_bits(Json, Decoder) ->
     gleam@result:then(
         gleam_json_ffi:decode(Json),
@@ -28,18 +28,18 @@ decode_bits(Json, Decoder) ->
 
 -spec do_decode(
     binary(),
-    fun((gleam@dynamic:dynamic_()) -> {ok, FXB} |
+    fun((gleam@dynamic:dynamic_()) -> {ok, FLT} |
         {error, list(gleam@dynamic:decode_error())})
-) -> {ok, FXB} | {error, decode_error()}.
+) -> {ok, FLT} | {error, decode_error()}.
 do_decode(Json, Decoder) ->
     Bits = gleam_stdlib:identity(Json),
     decode_bits(Bits, Decoder).
 
 -spec decode(
     binary(),
-    fun((gleam@dynamic:dynamic_()) -> {ok, FWX} |
+    fun((gleam@dynamic:dynamic_()) -> {ok, FLP} |
         {error, list(gleam@dynamic:decode_error())})
-) -> {ok, FWX} | {error, decode_error()}.
+) -> {ok, FLP} | {error, decode_error()}.
 decode(Json, Decoder) ->
     do_decode(Json, Decoder).
 
@@ -71,7 +71,7 @@ float(Input) ->
 null() ->
     gleam_json_ffi:null().
 
--spec nullable(gleam@option:option(FXL), fun((FXL) -> json())) -> json().
+-spec nullable(gleam@option:option(FMD), fun((FMD) -> json())) -> json().
 nullable(Input, Inner_type) ->
     case Input of
         {some, Value} ->
@@ -89,7 +89,7 @@ object(Entries) ->
 preprocessed_array(From) ->
     gleam_json_ffi:array(From).
 
--spec array(list(FXP), fun((FXP) -> json())) -> json().
+-spec array(list(FMH), fun((FMH) -> json())) -> json().
 array(Entries, Inner_type) ->
     _pipe = Entries,
     _pipe@1 = gleam@list:map(_pipe, Inner_type),

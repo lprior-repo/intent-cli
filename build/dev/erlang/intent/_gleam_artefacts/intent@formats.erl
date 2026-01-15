@@ -436,8 +436,7 @@ validate_uri_scheme(Scheme) ->
                             _pipe,
                             fun(C) ->
                                 case gleam_stdlib:contains_string(
-                                    <<"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.
-"/utf8>>,
+                                    <<"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-."/utf8>>,
                                     C
                                 ) of
                                     true ->

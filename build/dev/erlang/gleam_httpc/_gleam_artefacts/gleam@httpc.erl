@@ -23,16 +23,19 @@
 
 -opaque configuration() :: {builder, boolean()}.
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 69).
 -spec charlist_header({binary(), binary()}) -> {charlist(), charlist()}.
 charlist_header(Header) ->
     {K, V} = Header,
     {erlang:binary_to_list(K), erlang:binary_to_list(V)}.
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 74).
 -spec string_header({charlist(), charlist()}) -> {binary(), binary()}.
 string_header(Header) ->
     {K, V} = Header,
     {erlang:list_to_binary(K), erlang:list_to_binary(V)}.
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 92).
 -spec dispatch_bits(configuration(), gleam@http@request:request(bitstring())) -> {ok,
         gleam@http@response:response(bitstring())} |
     {error, gleam@dynamic:dynamic_()}.
@@ -112,10 +115,12 @@ dispatch_bits(Config, Req) ->
                     Resp_body}}
         end).
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 149).
 -spec configure() -> configuration().
 configure() ->
     {builder, true}.
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 84).
 -spec send_bits(gleam@http@request:request(bitstring())) -> {ok,
         gleam@http@response:response(bitstring())} |
     {error, gleam@dynamic:dynamic_()}.
@@ -123,10 +128,12 @@ send_bits(Req) ->
     _pipe = configure(),
     dispatch_bits(_pipe, Req).
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 162).
 -spec verify_tls(configuration(), boolean()) -> configuration().
 verify_tls(_, Which) ->
     {builder, Which}.
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 168).
 -spec dispatch(configuration(), gleam@http@request:request(binary())) -> {ok,
         gleam@http@response:response(binary())} |
     {error, gleam@dynamic:dynamic_()}.
@@ -146,6 +153,7 @@ dispatch(Config, Request) ->
             end end
     ).
 
+-file("/Users/louis/src/gleam/httpc/src/gleam/httpc.gleam", 186).
 -spec send(gleam@http@request:request(binary())) -> {ok,
         gleam@http@response:response(binary())} |
     {error, gleam@dynamic:dynamic_()}.

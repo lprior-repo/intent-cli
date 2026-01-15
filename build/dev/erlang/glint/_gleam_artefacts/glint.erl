@@ -14,12 +14,12 @@
         gleam_community@colour:colour(),
         gleam_community@colour:colour()}.
 
--opaque glint(LBF) :: {glint, config(), command_node(LBF)}.
+-opaque glint(GQK) :: {glint, config(), command_node(GQK)}.
 
 -type args_count() :: {eq_args, integer()} | {min_args, integer()}.
 
--opaque command(LBG) :: {command,
-        fun((command_input()) -> LBG),
+-opaque command(GQL) :: {command,
+        fun((command_input()) -> GQL),
         gleam@dict:dict(binary(), glint@flag:flag()),
         binary(),
         gleam@option:option(args_count()),
@@ -30,12 +30,12 @@
         gleam@dict:dict(binary(), glint@flag:flag()),
         gleam@dict:dict(binary(), binary())}.
 
--type command_node(LBH) :: {command_node,
-        gleam@option:option(command(LBH)),
-        gleam@dict:dict(binary(), command_node(LBH)),
+-type command_node(GQM) :: {command_node,
+        gleam@option:option(command(GQM)),
+        gleam@dict:dict(binary(), command_node(GQM)),
         gleam@dict:dict(binary(), glint@flag:flag())}.
 
--type out(LBI) :: {out, LBI} | {help, binary()}.
+-type out(GQN) :: {out, GQN} | {help, binary()}.
 
 -type metadata() :: {metadata, binary(), binary()}.
 
@@ -48,26 +48,26 @@
         gleam@option:option(args_count()),
         list(binary())}.
 
--spec with_config(glint(LBO), config()) -> glint(LBO).
+-spec with_config(glint(GQT), config()) -> glint(GQT).
 with_config(Glint, Config) ->
     erlang:setelement(2, Glint, Config).
 
--spec with_pretty_help(glint(LBR), pretty_help()) -> glint(LBR).
+-spec with_pretty_help(glint(GQW), pretty_help()) -> glint(GQW).
 with_pretty_help(Glint, Pretty) ->
     _pipe = erlang:setelement(2, erlang:element(2, Glint), {some, Pretty}),
     with_config(Glint, _pipe).
 
--spec without_pretty_help(glint(LBU)) -> glint(LBU).
+-spec without_pretty_help(glint(GQZ)) -> glint(GQZ).
 without_pretty_help(Glint) ->
     _pipe = erlang:setelement(2, erlang:element(2, Glint), none),
     with_config(Glint, _pipe).
 
--spec with_name(glint(LBX), binary()) -> glint(LBX).
+-spec with_name(glint(GRC), binary()) -> glint(GRC).
 with_name(Glint, Name) ->
     _pipe = erlang:setelement(3, erlang:element(2, Glint), {some, Name}),
     with_config(Glint, _pipe).
 
--spec as_gleam_module(glint(LCA)) -> glint(LCA).
+-spec as_gleam_module(glint(GRF)) -> glint(GRF).
 as_gleam_module(Glint) ->
     _pipe = erlang:setelement(4, erlang:element(2, Glint), true),
     with_config(Glint, _pipe).
@@ -76,7 +76,7 @@ as_gleam_module(Glint) ->
 empty_command() ->
     {command_node, none, gleam@dict:new(), gleam@dict:new()}.
 
--spec do_add(command_node(LCK), list(binary()), command(LCK)) -> command_node(LCK).
+-spec do_add(command_node(GRP), list(binary()), command(GRP)) -> command_node(GRP).
 do_add(Root, Path, Contents) ->
     case Path of
         [] ->
@@ -99,23 +99,23 @@ do_add(Root, Path, Contents) ->
             )
     end.
 
--spec command(fun((command_input()) -> LCT)) -> command(LCT).
+-spec command(fun((command_input()) -> GRY)) -> command(GRY).
 command(Runner) ->
     {command, Runner, gleam@dict:new(), <<""/utf8>>, none, []}.
 
--spec description(command(LCW), binary()) -> command(LCW).
+-spec description(command(GSB), binary()) -> command(GSB).
 description(Cmd, Description) ->
     erlang:setelement(4, Cmd, Description).
 
--spec unnamed_args(command(LCZ), args_count()) -> command(LCZ).
+-spec unnamed_args(command(GSE), args_count()) -> command(GSE).
 unnamed_args(Cmd, Count) ->
     erlang:setelement(5, Cmd, {some, Count}).
 
--spec named_args(command(LDC), list(binary())) -> command(LDC).
+-spec named_args(command(GSH), list(binary())) -> command(GSH).
 named_args(Cmd, Args) ->
     erlang:setelement(6, Cmd, Args).
 
--spec flag(command(LDG), binary(), glint@flag:flag_builder(any())) -> command(LDG).
+-spec flag(command(GSL), binary(), glint@flag:flag_builder(any())) -> command(GSL).
 flag(Cmd, Key, Flag) ->
     erlang:setelement(
         3,
@@ -123,11 +123,11 @@ flag(Cmd, Key, Flag) ->
         gleam@dict:insert(erlang:element(3, Cmd), Key, glint@flag:build(Flag))
     ).
 
--spec flag_tuple(command(LDL), {binary(), glint@flag:flag_builder(any())}) -> command(LDL).
+-spec flag_tuple(command(GSQ), {binary(), glint@flag:flag_builder(any())}) -> command(GSQ).
 flag_tuple(Cmd, Tup) ->
     flag(Cmd, erlang:element(1, Tup), erlang:element(2, Tup)).
 
--spec flags(command(LDQ), list({binary(), glint@flag:flag()})) -> command(LDQ).
+-spec flags(command(GSV), list({binary(), glint@flag:flag()})) -> command(GSV).
 flags(Cmd, Flags) ->
     gleam@list:fold(
         Flags,
@@ -143,11 +143,11 @@ flags(Cmd, Flags) ->
     ).
 
 -spec do_group_flag(
-    command_node(LEZ),
+    command_node(GUE),
     list(binary()),
     binary(),
     glint@flag:flag()
-) -> command_node(LEZ).
+) -> command_node(GUE).
 do_group_flag(Node, Path, Name, Flag) ->
     case Path of
         [] ->
@@ -172,10 +172,10 @@ do_group_flag(Node, Path, Name, Flag) ->
     end.
 
 -spec group_flags(
-    glint(LEI),
+    glint(GTN),
     list(binary()),
     list({binary(), glint@flag:flag()})
-) -> glint(LEI).
+) -> glint(GTN).
 group_flags(Glint, Path, Flags) ->
     gleam@list:fold(
         Flags,
@@ -194,16 +194,16 @@ group_flags(Glint, Path, Flags) ->
         end
     ).
 
--spec global_flags(glint(LEE), list({binary(), glint@flag:flag()})) -> glint(LEE).
+-spec global_flags(glint(GTJ), list({binary(), glint@flag:flag()})) -> glint(GTJ).
 global_flags(Glint, Flags) ->
     group_flags(Glint, [], Flags).
 
 -spec group_flag(
-    glint(LEN),
+    glint(GTS),
     list(binary()),
     binary(),
     glint@flag:flag_builder(any())
-) -> glint(LEN).
+) -> glint(GTS).
 group_flag(Glint, Path, Name, Flag) ->
     erlang:setelement(
         3,
@@ -216,19 +216,19 @@ group_flag(Glint, Path, Name, Flag) ->
         )
     ).
 
--spec global_flag(glint(LDU), binary(), glint@flag:flag_builder(any())) -> glint(LDU).
+-spec global_flag(glint(GSZ), binary(), glint@flag:flag_builder(any())) -> glint(GSZ).
 global_flag(Glint, Key, Flag) ->
     group_flag(Glint, [], Key, Flag).
 
--spec global_flag_tuple(glint(LDZ), {binary(), glint@flag:flag_builder(any())}) -> glint(LDZ).
+-spec global_flag_tuple(glint(GTE), {binary(), glint@flag:flag_builder(any())}) -> glint(GTE).
 global_flag_tuple(Glint, Tup) ->
     group_flag(Glint, [], erlang:element(1, Tup), erlang:element(2, Tup)).
 
 -spec group_flag_tuple(
-    glint(LET),
+    glint(GTY),
     list(binary()),
     {binary(), glint@flag:flag_builder(any())}
-) -> glint(LET).
+) -> glint(GTY).
 group_flag_tuple(Glint, Path, Flag) ->
     group_flag(Glint, Path, erlang:element(1, Flag), erlang:element(2, Flag)).
 
@@ -306,7 +306,7 @@ sanitize_path(Path) ->
     _pipe@1 = gleam@list:map(_pipe, fun gleam@string:trim/1),
     gleam@list:filter(_pipe@1, fun is_not_empty/1).
 
--spec add(glint(LCF), list(binary()), command(LCF)) -> glint(LCF).
+-spec add(glint(GRK), list(binary()), command(GRK)) -> glint(GRK).
 add(Glint, Path, Contents) ->
     erlang:setelement(
         3,
@@ -649,10 +649,10 @@ cmd_help(Path, Cmd, Config) ->
 -spec execute_root(
     list(binary()),
     config(),
-    command_node(LFP),
+    command_node(GUU),
     list(binary()),
     list(binary())
-) -> {ok, out(LFP)} | {error, binary()}.
+) -> {ok, out(GUU)} | {error, binary()}.
 execute_root(Path, Config, Cmd, Args, Flag_inputs) ->
     Res = begin
         _pipe@7 = (gleam@option:map(
@@ -768,13 +768,13 @@ execute_root(Path, Config, Cmd, Args, Flag_inputs) ->
     end.
 
 -spec do_execute(
-    command_node(LFH),
+    command_node(GUM),
     config(),
     list(binary()),
     list(binary()),
     boolean(),
     list(binary())
-) -> {ok, out(LFH)} | {error, binary()}.
+) -> {ok, out(GUM)} | {error, binary()}.
 do_execute(Cmd, Config, Args, Flags, Help, Command_path) ->
     case Args of
         [] when Help ->
@@ -817,7 +817,7 @@ do_execute(Cmd, Config, Args, Flags, Help, Command_path) ->
             end
     end.
 
--spec execute(glint(LFD), list(binary())) -> {ok, out(LFD)} | {error, binary()}.
+-spec execute(glint(GUI), list(binary())) -> {ok, out(GUI)} | {error, binary()}.
 execute(Glint, Args) ->
     Help_flag = help_flag(),
     {Help, Args@2} = case gleam@list:pop(Args, fun(S) -> S =:= Help_flag end) of
@@ -840,7 +840,7 @@ execute(Glint, Args) ->
         []
     ).
 
--spec run_and_handle(glint(LFX), list(binary()), fun((LFX) -> any())) -> nil.
+-spec run_and_handle(glint(GVC), list(binary()), fun((GVC) -> any())) -> nil.
 run_and_handle(Glint, Args, Handle) ->
     case execute(Glint, Args) of
         {error, S} ->

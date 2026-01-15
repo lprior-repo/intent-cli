@@ -4,13 +4,13 @@
 -export([size/1, to_list/1, new/0, is_empty/1, get/2, has_key/2, insert/3, from_list/1, keys/1, values/1, take/2, merge/2, delete/2, drop/2, upsert/3, update/3, fold/3, map_values/2, filter/2, each/2, combine/3]).
 -export_type([dict/2]).
 
--type dict(KS, KT) :: any() | {gleam_phantom, KS, KT}.
+-type dict(KG, KH) :: any() | {gleam_phantom, KG, KH}.
 
 -spec size(dict(any(), any())) -> integer().
 size(Dict) ->
     maps:size(Dict).
 
--spec to_list(dict(LC, LD)) -> list({LC, LD}).
+-spec to_list(dict(KQ, KR)) -> list({KQ, KR}).
 to_list(Dict) ->
     maps:to_list(Dict).
 
@@ -22,19 +22,19 @@ new() ->
 is_empty(Dict) ->
     Dict =:= new().
 
--spec get(dict(MJ, MK), MJ) -> {ok, MK} | {error, nil}.
+-spec get(dict(LX, LY), LX) -> {ok, LY} | {error, nil}.
 get(From, Get) ->
     gleam_stdlib:map_get(From, Get).
 
--spec has_key(dict(LT, any()), LT) -> boolean().
+-spec has_key(dict(LH, any()), LH) -> boolean().
 has_key(Dict, Key) ->
     maps:is_key(Key, Dict).
 
--spec insert(dict(MV, MW), MV, MW) -> dict(MV, MW).
+-spec insert(dict(MJ, MK), MJ, MK) -> dict(MJ, MK).
 insert(Dict, Key, Value) ->
     maps:put(Key, Value, Dict).
 
--spec fold_list_of_pair(list({LM, LN}), dict(LM, LN)) -> dict(LM, LN).
+-spec fold_list_of_pair(list({LA, LB}), dict(LA, LB)) -> dict(LA, LB).
 fold_list_of_pair(List, Initial) ->
     case List of
         [] ->
@@ -47,11 +47,11 @@ fold_list_of_pair(List, Initial) ->
             )
     end.
 
--spec from_list(list({LH, LI})) -> dict(LH, LI).
+-spec from_list(list({KV, KW})) -> dict(KV, KW).
 from_list(List) ->
     maps:from_list(List).
 
--spec reverse_and_concat(list(US), list(US)) -> list(US).
+-spec reverse_and_concat(list(UG), list(UG)) -> list(UG).
 reverse_and_concat(Remaining, Accumulator) ->
     case Remaining of
         [] ->
@@ -61,7 +61,7 @@ reverse_and_concat(Remaining, Accumulator) ->
             reverse_and_concat(Rest, [Item | Accumulator])
     end.
 
--spec do_keys_acc(list({OI, any()}), list(OI)) -> list(OI).
+-spec do_keys_acc(list({NW, any()}), list(NW)) -> list(NW).
 do_keys_acc(List, Acc) ->
     case List of
         [] ->
@@ -71,11 +71,11 @@ do_keys_acc(List, Acc) ->
             do_keys_acc(Xs, [erlang:element(1, X) | Acc])
     end.
 
--spec keys(dict(NV, any())) -> list(NV).
+-spec keys(dict(NJ, any())) -> list(NJ).
 keys(Dict) ->
     maps:keys(Dict).
 
--spec do_values_acc(list({any(), OY}), list(OY)) -> list(OY).
+-spec do_values_acc(list({any(), OM}), list(OM)) -> list(OM).
 do_values_acc(List, Acc) ->
     case List of
         [] ->
@@ -85,11 +85,11 @@ do_values_acc(List, Acc) ->
             do_values_acc(Xs, [erlang:element(2, X) | Acc])
     end.
 
--spec values(dict(any(), OO)) -> list(OO).
+-spec values(dict(any(), OC)) -> list(OC).
 values(Dict) ->
     maps:values(Dict).
 
--spec insert_taken(dict(QC, QD), list(QC), dict(QC, QD)) -> dict(QC, QD).
+-spec insert_taken(dict(PQ, PR), list(PQ), dict(PQ, PR)) -> dict(PQ, PR).
 insert_taken(Dict, Desired_keys, Acc) ->
     Insert = fun(Taken, Key) -> case get(Dict, Key) of
             {ok, Value} ->
@@ -106,15 +106,15 @@ insert_taken(Dict, Desired_keys, Acc) ->
             insert_taken(Dict, Xs, Insert(Acc, X))
     end.
 
--spec take(dict(PO, PP), list(PO)) -> dict(PO, PP).
+-spec take(dict(PC, PD), list(PC)) -> dict(PC, PD).
 take(Dict, Desired_keys) ->
     maps:with(Desired_keys, Dict).
 
--spec insert_pair(dict(RB, RC), {RB, RC}) -> dict(RB, RC).
+-spec insert_pair(dict(QP, QQ), {QP, QQ}) -> dict(QP, QQ).
 insert_pair(Dict, Pair) ->
     insert(Dict, erlang:element(1, Pair), erlang:element(2, Pair)).
 
--spec fold_inserts(list({RH, RI}), dict(RH, RI)) -> dict(RH, RI).
+-spec fold_inserts(list({QV, QW}), dict(QV, QW)) -> dict(QV, QW).
 fold_inserts(New_entries, Dict) ->
     case New_entries of
         [] ->
@@ -124,15 +124,15 @@ fold_inserts(New_entries, Dict) ->
             fold_inserts(Xs, insert_pair(Dict, X))
     end.
 
--spec merge(dict(QL, QM), dict(QL, QM)) -> dict(QL, QM).
+-spec merge(dict(PZ, QA), dict(PZ, QA)) -> dict(PZ, QA).
 merge(Dict, New_entries) ->
     maps:merge(Dict, New_entries).
 
--spec delete(dict(RO, RP), RO) -> dict(RO, RP).
+-spec delete(dict(RC, RD), RC) -> dict(RC, RD).
 delete(Dict, Key) ->
     maps:remove(Key, Dict).
 
--spec drop(dict(SA, SB), list(SA)) -> dict(SA, SB).
+-spec drop(dict(RO, RP), list(RO)) -> dict(RO, RP).
 drop(Dict, Disallowed_keys) ->
     case Disallowed_keys of
         [] ->
@@ -142,7 +142,7 @@ drop(Dict, Disallowed_keys) ->
             drop(delete(Dict, X), Xs)
     end.
 
--spec upsert(dict(SH, SI), SH, fun((gleam@option:option(SI)) -> SI)) -> dict(SH, SI).
+-spec upsert(dict(RV, RW), RV, fun((gleam@option:option(RW)) -> RW)) -> dict(RV, RW).
 upsert(Dict, Key, Fun) ->
     _pipe = Dict,
     _pipe@1 = get(_pipe, Key),
@@ -150,11 +150,11 @@ upsert(Dict, Key, Fun) ->
     _pipe@3 = Fun(_pipe@2),
     insert(Dict, Key, _pipe@3).
 
--spec update(dict(SO, SP), SO, fun((gleam@option:option(SP)) -> SP)) -> dict(SO, SP).
+-spec update(dict(SC, SD), SC, fun((gleam@option:option(SD)) -> SD)) -> dict(SC, SD).
 update(Dict, Key, Fun) ->
     upsert(Dict, Key, Fun).
 
--spec do_fold(list({SV, SW}), SY, fun((SY, SV, SW) -> SY)) -> SY.
+-spec do_fold(list({SJ, SK}), SM, fun((SM, SJ, SK) -> SM)) -> SM.
 do_fold(List, Initial, Fun) ->
     case List of
         [] ->
@@ -164,21 +164,21 @@ do_fold(List, Initial, Fun) ->
             do_fold(Rest, Fun(Initial, K, V), Fun)
     end.
 
--spec fold(dict(SZ, TA), TD, fun((TD, SZ, TA) -> TD)) -> TD.
+-spec fold(dict(SN, SO), SR, fun((SR, SN, SO) -> SR)) -> SR.
 fold(Dict, Initial, Fun) ->
     _pipe = Dict,
     _pipe@1 = maps:to_list(_pipe),
     do_fold(_pipe@1, Initial, Fun).
 
--spec map_values(dict(NH, NI), fun((NH, NI) -> NL)) -> dict(NH, NL).
+-spec map_values(dict(MV, MW), fun((MV, MW) -> MZ)) -> dict(MV, MZ).
 map_values(Dict, Fun) ->
     maps:map(Fun, Dict).
 
--spec filter(dict(PC, PD), fun((PC, PD) -> boolean())) -> dict(PC, PD).
+-spec filter(dict(OQ, OR), fun((OQ, OR) -> boolean())) -> dict(OQ, OR).
 filter(Dict, Predicate) ->
     maps:filter(Predicate, Dict).
 
--spec each(dict(TE, TF), fun((TE, TF) -> any())) -> nil.
+-spec each(dict(SS, ST), fun((SS, ST) -> any())) -> nil.
 each(Dict, Fun) ->
     fold(
         Dict,
@@ -189,7 +189,7 @@ each(Dict, Fun) ->
         end
     ).
 
--spec combine(dict(TJ, TK), dict(TJ, TK), fun((TK, TK) -> TK)) -> dict(TJ, TK).
+-spec combine(dict(SX, SY), dict(SX, SY), fun((SY, SY) -> SY)) -> dict(SX, SY).
 combine(Dict, Other, Fun) ->
     fold(Dict, Other, fun(Acc, Key, Value) -> case get(Acc, Key) of
                 {ok, Other_value} ->

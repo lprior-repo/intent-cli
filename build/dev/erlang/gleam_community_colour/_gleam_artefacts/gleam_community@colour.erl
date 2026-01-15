@@ -7,6 +7,7 @@
 -opaque colour() :: {rgba, float(), float(), float(), float()} |
     {hsla, float(), float(), float(), float()}.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 155).
 -spec valid_colour_value(float()) -> {ok, float()} | {error, nil}.
 valid_colour_value(C) ->
     case (C > 1.0) orelse (C < +0.0) of
@@ -17,6 +18,7 @@ valid_colour_value(C) ->
             {ok, C}
     end.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 162).
 -spec hue_to_rgb(float(), float(), float()) -> float().
 hue_to_rgb(Hue, M1, M2) ->
     H = case Hue of
@@ -46,6 +48,7 @@ hue_to_rgb(Hue, M1, M2) ->
             M1
     end.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 181).
 -spec hex_string_to_int(binary()) -> {ok, integer()} | {error, nil}.
 hex_string_to_int(Hex_string) ->
     Hex = case Hex_string of
@@ -105,6 +108,7 @@ hex_string_to_int(Hex_string) ->
             end end
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 212).
 -spec hsla_to_rgba(float(), float(), float(), float()) -> {float(),
     float(),
     float(),
@@ -123,6 +127,7 @@ hsla_to_rgba(H, S, L, A) ->
     B = hue_to_rgb(H - (1.0 / 3.0), M1, M2),
     {R, G, B, A}.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 232).
 -spec rgba_to_hsla(float(), float(), float(), float()) -> {float(),
     float(),
     float(),
@@ -180,6 +185,7 @@ rgba_to_hsla(R, G, B, A) ->
     end,
     {H3, S, L, A}.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 300).
 -spec from_rgb255(integer(), integer(), integer()) -> {ok, colour()} |
     {error, nil}.
 from_rgb255(Red, Green, Blue) ->
@@ -213,6 +219,7 @@ from_rgb255(Red, Green, Blue) ->
         end
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 348).
 -spec from_rgb(float(), float(), float()) -> {ok, colour()} | {error, nil}.
 from_rgb(Red, Green, Blue) ->
     gleam@result:then(
@@ -230,6 +237,7 @@ from_rgb(Red, Green, Blue) ->
         end
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 383).
 -spec from_rgba(float(), float(), float(), float()) -> {ok, colour()} |
     {error, nil}.
 from_rgba(Red, Green, Blue, Alpha) ->
@@ -253,6 +261,7 @@ from_rgba(Red, Green, Blue, Alpha) ->
         end
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 420).
 -spec from_hsla(float(), float(), float(), float()) -> {ok, colour()} |
     {error, nil}.
 from_hsla(Hue, Saturation, Lightness, Alpha) ->
@@ -276,10 +285,12 @@ from_hsla(Hue, Saturation, Lightness, Alpha) ->
         end
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 457).
 -spec from_hsl(float(), float(), float()) -> {ok, colour()} | {error, nil}.
 from_hsl(Hue, Saturation, Lightness) ->
     from_hsla(Hue, Saturation, Lightness, 1.0).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 488).
 -spec from_rgb_hex(integer()) -> {ok, colour()} | {error, nil}.
 from_rgb_hex(Hex) ->
     case (Hex > 16#ffffff) orelse (Hex < 0) of
@@ -299,6 +310,7 @@ from_rgb_hex(Hex) ->
             from_rgb255(R, G, B)
     end.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 527).
 -spec from_rgb_hex_string(binary()) -> {ok, colour()} | {error, nil}.
 from_rgb_hex_string(Hex_string) ->
     gleam@result:then(
@@ -306,6 +318,7 @@ from_rgb_hex_string(Hex_string) ->
         fun(Hex_int) -> from_rgb_hex(Hex_int) end
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 585).
 -spec from_rgba_hex(integer()) -> {ok, colour()} | {error, nil}.
 from_rgba_hex(Hex) ->
     case (Hex > 16#ffffffff) orelse (Hex < 0) of
@@ -323,7 +336,7 @@ from_rgba_hex(Hex) ->
                 {ok, _} -> _assert_subject;
                 _assert_fail ->
                     erlang:error(#{gleam_error => let_assert,
-                                message => <<"Assertion pattern match failed"/utf8>>,
+                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
                                 value => _assert_fail,
                                 module => <<"gleam_community/colour"/utf8>>,
                                 function => <<"from_rgba_hex"/utf8>>,
@@ -339,7 +352,7 @@ from_rgba_hex(Hex) ->
                 {ok, _} -> _assert_subject@1;
                 _assert_fail@1 ->
                     erlang:error(#{gleam_error => let_assert,
-                                message => <<"Assertion pattern match failed"/utf8>>,
+                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
                                 value => _assert_fail@1,
                                 module => <<"gleam_community/colour"/utf8>>,
                                 function => <<"from_rgba_hex"/utf8>>,
@@ -355,7 +368,7 @@ from_rgba_hex(Hex) ->
                 {ok, _} -> _assert_subject@2;
                 _assert_fail@2 ->
                     erlang:error(#{gleam_error => let_assert,
-                                message => <<"Assertion pattern match failed"/utf8>>,
+                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
                                 value => _assert_fail@2,
                                 module => <<"gleam_community/colour"/utf8>>,
                                 function => <<"from_rgba_hex"/utf8>>,
@@ -370,7 +383,7 @@ from_rgba_hex(Hex) ->
                 {ok, _} -> _assert_subject@3;
                 _assert_fail@3 ->
                     erlang:error(#{gleam_error => let_assert,
-                                message => <<"Assertion pattern match failed"/utf8>>,
+                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
                                 value => _assert_fail@3,
                                 module => <<"gleam_community/colour"/utf8>>,
                                 function => <<"from_rgba_hex"/utf8>>,
@@ -379,6 +392,7 @@ from_rgba_hex(Hex) ->
             from_rgba(R, G, B, A)
     end.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 556).
 -spec from_rgba_hex_string(binary()) -> {ok, colour()} | {error, nil}.
 from_rgba_hex_string(Hex_string) ->
     gleam@result:then(
@@ -386,6 +400,7 @@ from_rgba_hex_string(Hex_string) ->
         fun(Hex_int) -> from_rgba_hex(Hex_int) end
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 642).
 -spec to_rgba(colour()) -> {float(), float(), float(), float()}.
 to_rgba(Colour) ->
     case Colour of
@@ -396,6 +411,7 @@ to_rgba(Colour) ->
             hsla_to_rgba(H, S, L, A@1)
     end.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 672).
 -spec to_hsla(colour()) -> {float(), float(), float(), float()}.
 to_hsla(Colour) ->
     case Colour of
@@ -406,6 +422,7 @@ to_hsla(Colour) ->
             rgba_to_hsla(R, G, B, A@1)
     end.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 701).
 -spec to_css_rgba_string(colour()) -> binary().
 to_css_rgba_string(Colour) ->
     {R, G, B, A} = to_rgba(Colour),
@@ -421,7 +438,7 @@ to_css_rgba_string(Colour) ->
             {ok, _} -> _assert_subject;
             _assert_fail ->
                 erlang:error(#{gleam_error => let_assert,
-                            message => <<"Assertion pattern match failed"/utf8>>,
+                            message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
                             value => _assert_fail,
                             module => <<"gleam_community/colour"/utf8>>,
                             function => <<"to_css_rgba_string"/utf8>>,
@@ -441,7 +458,7 @@ to_css_rgba_string(Colour) ->
             {ok, _} -> _assert_subject@1;
             _assert_fail@1 ->
                 erlang:error(#{gleam_error => let_assert,
-                            message => <<"Assertion pattern match failed"/utf8>>,
+                            message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
                             value => _assert_fail@1,
                             module => <<"gleam_community/colour"/utf8>>,
                             function => <<"to_css_rgba_string"/utf8>>,
@@ -459,6 +476,7 @@ to_css_rgba_string(Colour) ->
         <<""/utf8>>
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 817).
 -spec to_rgba_hex(colour()) -> integer().
 to_rgba_hex(Colour) ->
     {R, G, B, A} = to_rgba(Colour),
@@ -483,11 +501,13 @@ to_rgba_hex(Colour) ->
     end,
     ((Red + Green) + Blue) + Alpha.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 763).
 -spec to_rgba_hex_string(colour()) -> binary().
 to_rgba_hex_string(Colour) ->
     _pipe = to_rgba_hex(Colour),
     gleam@int:to_base16(_pipe).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 864).
 -spec to_rgb_hex(colour()) -> integer().
 to_rgb_hex(Colour) ->
     {R, G, B, _} = to_rgba(Colour),
@@ -507,11 +527,13 @@ to_rgb_hex(Colour) ->
     end,
     (Red + Green) + Blue.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 790).
 -spec to_rgb_hex_string(colour()) -> binary().
 to_rgb_hex_string(Colour) ->
     _pipe = to_rgb_hex(Colour),
     gleam@int:to_base16(_pipe).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 906).
 -spec encode_rgba(float(), float(), float(), float()) -> gleam@json:json().
 encode_rgba(R, G, B, A) ->
     gleam@json:object(
@@ -521,6 +543,7 @@ encode_rgba(R, G, B, A) ->
             {<<"a"/utf8>>, gleam@json:float(A)}]
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 915).
 -spec encode_hsla(float(), float(), float(), float()) -> gleam@json:json().
 encode_hsla(H, S, L, A) ->
     gleam@json:object(
@@ -530,6 +553,7 @@ encode_hsla(H, S, L, A) ->
             {<<"a"/utf8>>, gleam@json:float(A)}]
     ).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 899).
 -spec encode(colour()) -> gleam@json:json().
 encode(Colour) ->
     case Colour of
@@ -540,6 +564,7 @@ encode(Colour) ->
             encode_hsla(H, S, L, A@1)
     end.
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 940).
 -spec rgba_decoder(gleam@dynamic:dynamic_()) -> {ok, colour()} |
     {error, list(gleam@dynamic:decode_error())}.
 rgba_decoder(Json) ->
@@ -551,6 +576,7 @@ rgba_decoder(Json) ->
         gleam@dynamic:field(<<"a"/utf8>>, fun gleam@dynamic:float/1)
     ))(Json).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 950).
 -spec hsla_decoder(gleam@dynamic:dynamic_()) -> {ok, colour()} |
     {error, list(gleam@dynamic:decode_error())}.
 hsla_decoder(Json) ->
@@ -562,6 +588,7 @@ hsla_decoder(Json) ->
         gleam@dynamic:field(<<"a"/utf8>>, fun gleam@dynamic:float/1)
     ))(Json).
 
+-file("/home/runner/work/colour/colour/src/gleam_community/colour.gleam", 936).
 -spec decoder(gleam@dynamic:dynamic_()) -> {ok, colour()} |
     {error, list(gleam@dynamic:decode_error())}.
 decoder(Json) ->

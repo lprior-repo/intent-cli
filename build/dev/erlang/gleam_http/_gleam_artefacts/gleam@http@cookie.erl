@@ -14,6 +14,7 @@
         boolean(),
         gleam@option:option(same_site_policy())}.
 
+-file("/Users/louis/src/gleam/http/src/gleam/http/cookie.gleam", 18).
 -spec same_site_to_string(same_site_policy()) -> binary().
 same_site_to_string(Policy) ->
     case Policy of
@@ -27,6 +28,7 @@ same_site_to_string(Policy) ->
             <<"None"/utf8>>
     end.
 
+-file("/Users/louis/src/gleam/http/src/gleam/http/cookie.gleam", 41).
 -spec defaults(gleam@http:scheme()) -> attributes().
 defaults(Scheme) ->
     {attributes,
@@ -37,6 +39,7 @@ defaults(Scheme) ->
         true,
         {some, lax}}.
 
+-file("/Users/louis/src/gleam/http/src/gleam/http/cookie.gleam", 117).
 -spec check_token(binary()) -> {ok, nil} | {error, nil}.
 check_token(Token) ->
     case gleam@string:pop_grapheme(Token) of
@@ -62,6 +65,7 @@ check_token(Token) ->
             check_token(Rest)
     end.
 
+-file("/Users/louis/src/gleam/http/src/gleam/http/cookie.gleam", 99).
 -spec parse(binary()) -> list({binary(), binary()}).
 parse(Cookie_string) ->
     _assert_subject = gleam@regex:from_string(<<"[,;]"/utf8>>),
@@ -69,7 +73,7 @@ parse(Cookie_string) ->
         {ok, _} -> _assert_subject;
         _assert_fail ->
             erlang:error(#{gleam_error => let_assert,
-                        message => <<"Assertion pattern match failed"/utf8>>,
+                        message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
                         value => _assert_fail,
                         module => <<"gleam/http/cookie"/utf8>>,
                         function => <<"parse"/utf8>>,
@@ -102,6 +106,7 @@ parse(Cookie_string) ->
         end
     ).
 
+-file("/Users/louis/src/gleam/http/src/gleam/http/cookie.gleam", 54).
 -spec cookie_attributes_to_list(attributes()) -> list(list(binary())).
 cookie_attributes_to_list(Attributes) ->
     {attributes, Max_age, Domain, Path, Secure, Http_only, Same_site} = Attributes,
@@ -142,6 +147,7 @@ cookie_attributes_to_list(Attributes) ->
         fun(_capture) -> gleam@option:to_result(_capture, nil) end
     ).
 
+-file("/Users/louis/src/gleam/http/src/gleam/http/cookie.gleam", 90).
 -spec set_header(binary(), binary(), attributes()) -> binary().
 set_header(Name, Value, Attributes) ->
     _pipe = [[Name, <<"="/utf8>>, Value] |

@@ -205,7 +205,7 @@ expand_segments(Path, Base) ->
             expand_segments(Path@3, [S | Base]);
 
         {_, []} ->
-            {ok, gleam@string:join(lists:reverse(Base), <<"/"/utf8>>)}
+            {ok, gleam@string:join(gleam@list:reverse(Base), <<"/"/utf8>>)}
     end.
 
 -spec root_slash_to_empty(list(binary())) -> list(binary()).

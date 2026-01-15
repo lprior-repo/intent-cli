@@ -19,7 +19,7 @@ println(String) ->
 println_error(String) ->
     gleam_stdlib:println_error(String).
 
--spec debug(EYI) -> EYI.
+-spec debug(EXW) -> EXW.
 debug(Term) ->
     _pipe = Term,
     _pipe@1 = gleam@string:inspect(_pipe),

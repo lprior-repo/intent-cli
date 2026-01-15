@@ -3380,7 +3380,7 @@ question_loader_file_not_found_test() ->
         <<"/nonexistent/path.cue"/utf8>>
     ),
     case Result of
-        {error, {file_not_found, _}} ->
+        {error, {security_error, _}} ->
             gleeunit@should:be_true(true);
 
         _ ->

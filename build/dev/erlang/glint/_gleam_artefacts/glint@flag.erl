@@ -12,22 +12,22 @@
     {s, internal(binary())} |
     {ls, internal(list(binary()))}.
 
--opaque flag_builder(KNT) :: {flag_builder,
+-opaque flag_builder(GCY) :: {flag_builder,
         binary(),
-        fun((binary()) -> {ok, KNT} | {error, snag:snag()}),
-        fun((internal(KNT)) -> value()),
-        gleam@option:option(KNT)}.
+        fun((binary()) -> {ok, GCY} | {error, snag:snag()}),
+        fun((internal(GCY)) -> value()),
+        gleam@option:option(GCY)}.
 
--opaque internal(KNU) :: {internal,
-        gleam@option:option(KNU),
-        fun((binary()) -> {ok, KNU} | {error, snag:snag()})}.
+-opaque internal(GCZ) :: {internal,
+        gleam@option:option(GCZ),
+        fun((binary()) -> {ok, GCZ} | {error, snag:snag()})}.
 
 -type flag() :: {flag, value(), binary()}.
 
 -spec new(
-    fun((internal(KOL)) -> value()),
-    fun((binary()) -> {ok, KOL} | {error, snag:snag()})
-) -> flag_builder(KOL).
+    fun((internal(GDQ)) -> value()),
+    fun((binary()) -> {ok, GDQ} | {error, snag:snag()})
+) -> flag_builder(GDQ).
 new(Valuer, P) ->
     {flag_builder, <<""/utf8>>, P, Valuer, none}.
 
@@ -50,23 +50,23 @@ build(Fb) ->
         erlang:element(2, Fb)}.
 
 -spec attempt(
-    {ok, KPC} | {error, KPD},
-    fun((KPC) -> {ok, any()} | {error, KPD})
-) -> {ok, KPC} | {error, KPD}.
+    {ok, GEH} | {error, GEI},
+    fun((GEH) -> {ok, any()} | {error, GEI})
+) -> {ok, GEH} | {error, GEI}.
 attempt(Val, F) ->
     gleam@result:'try'(Val, fun(A) -> gleam@result:replace(F(A), A) end).
 
 -spec wrap_with_constraint(
-    fun((binary()) -> {ok, KOW} | {error, snag:snag()}),
-    fun((KOW) -> {ok, nil} | {error, snag:snag()})
-) -> fun((binary()) -> {ok, KOW} | {error, snag:snag()}).
+    fun((binary()) -> {ok, GEB} | {error, snag:snag()}),
+    fun((GEB) -> {ok, nil} | {error, snag:snag()})
+) -> fun((binary()) -> {ok, GEB} | {error, snag:snag()}).
 wrap_with_constraint(P, Constraint) ->
     fun(Input) -> attempt(P(Input), Constraint) end.
 
 -spec constraint(
-    flag_builder(KOS),
-    fun((KOS) -> {ok, nil} | {error, snag:snag()})
-) -> flag_builder(KOS).
+    flag_builder(GDX),
+    fun((GDX) -> {ok, nil} | {error, snag:snag()})
+) -> flag_builder(GDX).
 constraint(Builder, Constraint) ->
     erlang:setelement(
         3,
@@ -74,11 +74,11 @@ constraint(Builder, Constraint) ->
         wrap_with_constraint(erlang:element(3, Builder), Constraint)
     ).
 
--spec description(flag_builder(KPL), binary()) -> flag_builder(KPL).
+-spec description(flag_builder(GEQ), binary()) -> flag_builder(GEQ).
 description(Builder, Description) ->
     erlang:setelement(2, Builder, Description).
 
--spec default(flag_builder(KPO), KPO) -> flag_builder(KPO).
+-spec default(flag_builder(GET), GET) -> flag_builder(GET).
 default(Builder, Default) ->
     erlang:setelement(5, Builder, {some, Default}).
 
@@ -94,7 +94,7 @@ access_type_error(Flag_type) ->
 flag_not_provided_error() ->
     snag:error(<<"no value provided"/utf8>>).
 
--spec construct_value(binary(), internal(KPY), fun((internal(KPY)) -> value())) -> {ok,
+-spec construct_value(binary(), internal(GFD), fun((internal(GFD)) -> value())) -> {ok,
         value()} |
     {error, snag:snag()}.
 construct_value(Input, Internal, Constructor) ->
@@ -326,8 +326,8 @@ attempt_toggle_flag(Flags, Key) ->
 -spec get_value(
     gleam@dict:dict(binary(), flag()),
     binary(),
-    fun((flag()) -> {ok, KQE} | {error, snag:snag()})
-) -> {ok, KQE} | {error, snag:snag()}.
+    fun((flag()) -> {ok, GFJ} | {error, snag:snag()})
+) -> {ok, GFJ} | {error, snag:snag()}.
 get_value(Flags, Key, Kind) ->
     _pipe = access(Flags, Key),
     _pipe@1 = gleam@result:'try'(_pipe, Kind),
