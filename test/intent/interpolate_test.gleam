@@ -534,3 +534,46 @@ pub fn interpolate_string_empty_string_variable_test() {
 
   result |> should.equal(Ok("Value: ."))
 }
+
+// =============================================================================
+// Safety and Limits Tests (intent-cli-f7o)
+// =============================================================================
+
+pub fn interpolate_excessive_variables_test() {
+  // Test that strings with > 100 variable placeholders are rejected
+  let ctx = interpolate.new_context()
+  let ctx = interpolate.set_variable(ctx, "x", json.int(1))
+
+  // Create a string with 101 ${x} placeholders
+  let excessive_string =
+    string.repeat("${x} ", 101)
+
+  let result = interpolate.interpolate_string(ctx, excessive_string)
+
+  case result {
+    Error(msg) -> {
+      msg
+      |> string.contains("Too many variable interpolations")
+      |> should.be_true
+
+      msg
+      |> string.contains("101")
+      |> should.be_true
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
+pub fn interpolate_exactly_100_variables_allowed_test() {
+  // Test that exactly 100 variables is allowed (boundary test)
+  let ctx = interpolate.new_context()
+  let ctx = interpolate.set_variable(ctx, "x", json.int(1))
+
+  // Create a string with exactly 100 ${x} placeholders
+  let max_string = string.repeat("${x} ", 100)
+
+  let result = interpolate.interpolate_string(ctx, max_string)
+
+  // Should succeed
+  result |> should.be_ok
+}

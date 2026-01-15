@@ -3,6 +3,7 @@
 /// Supports array indexing: ${items[0].id}, ${array[-1]}, etc.
 
 import gleam/dict.{type Dict}
+import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -10,6 +11,10 @@ import gleam/regexp
 import gleam/result
 import gleam/string
 import intent/array_indexing
+
+/// Maximum number of variable interpolations allowed in a single string
+/// Prevents potential abuse from strings with thousands of ${...} placeholders
+const max_interpolations = 100
 
 /// Context containing captured variables
 pub type Context {
@@ -48,12 +53,24 @@ pub fn get_variable(ctx: Context, name: String) -> Option(Json) {
 
 /// Interpolate variables in a string
 /// Replaces ${var_name} with the stringified value of the variable
+/// Rejects strings with more than max_interpolations (100) placeholders
 pub fn interpolate_string(ctx: Context, s: String) -> Result(String, String) {
   let pattern = "\\$\\{([^}]+)\\}"
   case regexp.from_string(pattern) {
     Ok(re) -> {
       let matches = regexp.scan(re, s)
-      interpolate_matches(ctx, s, matches)
+      // Safety: Reject strings with excessive interpolations
+      case list.length(matches) > max_interpolations {
+        True ->
+          Error(
+            "Too many variable interpolations ("
+            <> int.to_string(list.length(matches))
+            <> " found, maximum is "
+            <> int.to_string(max_interpolations)
+            <> ")",
+          )
+        False -> interpolate_matches(ctx, s, matches)
+      }
     }
     Error(_) -> Ok(s)
   }
