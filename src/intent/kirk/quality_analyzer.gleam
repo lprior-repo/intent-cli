@@ -1,6 +1,61 @@
-// KIRK Quality Analyzer
-// Calculates quality scores across multiple dimensions
-// Based on empirical research from requirements engineering studies
+/// KIRK Quality Analyzer
+///
+/// Calculates specification quality scores across multiple empirically-validated dimensions.
+///
+/// ## Quality Dimensions
+///
+/// Based on requirements engineering research and industry best practices:
+///
+/// 1. **Completeness** (0-100): Coverage of CRUD operations, error cases, edge cases
+/// 2. **Consistency** (0-100): Naming conventions, response patterns, validation rules
+/// 3. **Testability** (0-100): Concrete examples, specific assertions, measurable criteria
+/// 4. **Clarity** (0-100): Unambiguous language, concrete values, minimal jargon
+/// 5. **Security** (0-100): Auth coverage, input validation, anti-pattern detection
+///
+/// ## Scoring Algorithm
+///
+/// Each dimension uses weighted sub-scores:
+/// ```
+/// Completeness = (
+///   has_create * 20 +
+///   has_read * 20 +
+///   has_update * 15 +
+///   has_delete * 15 +
+///   error_coverage * 15 +
+///   edge_case_coverage * 15
+/// )
+/// ```
+///
+/// **Overall Quality Score**: Weighted average of all dimensions
+///
+/// ## Usage
+///
+/// ```gleam
+/// import intent/kirk/quality_analyzer
+///
+/// let spec = load_spec("api.cue")
+/// let report = quality_analyzer.analyze_quality(spec)
+///
+/// io.println("Overall: " <> int.to_string(report.overall_score) <> "/100")
+/// io.println("Completeness: " <> int.to_string(report.completeness))
+/// io.println("Security: " <> int.to_string(report.security))
+///
+/// list.each(report.recommendations, io.println)
+/// ```
+///
+/// ## Interpretation
+///
+/// - **90-100**: Excellent - production ready
+/// - **75-89**: Good - minor gaps
+/// - **60-74**: Adequate - needs improvement
+/// - **Below 60**: Poor - significant gaps
+///
+/// ## References
+///
+/// - IEEE 830-1998: Recommended Practice for Software Requirements Specifications
+/// - "Software Requirements" - Karl Wiegers & Joy Beatty
+/// - EARS (Easy Approach to Requirements Syntax)
+/// - ISO/IEC/IEEE 29148:2018 Requirements Engineering
 
 import gleam/dict.{type Dict}
 import gleam/float

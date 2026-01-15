@@ -1,6 +1,48 @@
-// KIRK Gap Detector
-// Identifies missing requirements using mental models
-// Based on empirical research: requirements gaps are top 3 cause of project failure
+/// KIRK Gap Detector
+///
+/// Identifies missing requirements and edge cases using systematic mental models.
+/// Part of the KIRK (Knowledge-Intensive Requirements Kibitzing) analysis suite.
+///
+/// ## Purpose
+///
+/// Requirements gaps are a top-3 cause of project failure. This module applies
+/// three complementary analysis techniques to detect missing behavioral coverage:
+///
+/// 1. **Inversion Analysis**: What should NOT happen? (failure modes, error cases)
+/// 2. **Second-Order Effects**: What happens AFTER this action? (cascading changes)
+/// 3. **Checklist Analysis**: Industry-standard coverage (OWASP, WCAG, etc.)
+///
+/// ## Usage
+///
+/// ```gleam
+/// import intent/kirk/gap_detector
+///
+/// let spec = load_spec("api.cue")
+/// let report = gap_detector.detect_gaps(spec)
+///
+/// case list.is_empty(report.inversion_gaps) {
+///   True -> io.println("No inversion gaps found!")
+///   False -> {
+///     io.println("Missing failure scenarios:")
+///     list.each(report.inversion_gaps, fn(gap) {
+///       io.println("  - " <> gap.title)
+///     })
+///   }
+/// }
+/// ```
+///
+/// ## Mental Models
+///
+/// - **Inversion**: "Always invert" (Charlie Munger) - think backwards from failure
+/// - **Second-Order Thinking**: Consider consequences beyond immediate effects
+/// - **Checklists**: Proven patterns from high-reliability organizations (aviation, medicine)
+///
+/// ## References
+///
+/// - EARS Requirements patterns
+/// - OWASP Top 10
+/// - NASA Systems Engineering Handbook
+/// - Atul Gawande's "The Checklist Manifesto"
 
 import gleam/dict
 import gleam/int

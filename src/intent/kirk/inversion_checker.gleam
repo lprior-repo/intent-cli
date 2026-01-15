@@ -1,6 +1,46 @@
-// KIRK Inversion Checker
-// "Invert, always invert" - Charlie Munger/Jacobi
-// Analyzes specs for missing failure cases
+/// KIRK Inversion Checker
+///
+/// "Invert, always invert" - Charlie Munger / Carl Gustav Jacob Jacobi
+///
+/// Analyzes API specifications for missing failure modes and error cases using
+/// inversion thinking - a mental model that asks "what could go wrong?" rather
+/// than just "what should work?"
+///
+/// ## The Inversion Principle
+///
+/// Instead of only testing happy paths, deliberately think through:
+/// - Authentication failures (expired tokens, invalid credentials)
+/// - Authorization denials (insufficient permissions)
+/// - Validation errors (malformed input, missing required fields)
+/// - Rate limiting and quota exhaustion
+/// - Network failures and timeouts
+/// - Database errors and conflicts
+/// - Race conditions and concurrent access
+///
+/// ## Usage
+///
+/// ```gleam
+/// import intent/kirk/inversion_checker
+///
+/// let spec = load_spec("user-api.cue")
+/// let missing = inversion_checker.find_missing_failure_cases(spec)
+///
+/// list.each(missing, fn(failure) {
+///   io.println("Missing: " <> failure.description)
+///   io.println("Add behavior: " <> failure.suggested_name)
+/// })
+/// ```
+///
+/// ## Practical Value
+///
+/// Production systems spend 80% of their complexity handling errors, not happy paths.
+/// This analysis ensures you've thought through failure modes BEFORE they happen in prod.
+///
+/// ## References
+///
+/// - "Poor Charlie's Almanack" - Charles Munger on inversion thinking
+/// - "The Black Swan" - Nassim Taleb on negative knowledge
+/// - Google SRE Book - Error handling and graceful degradation
 
 import gleam/dict
 import gleam/int

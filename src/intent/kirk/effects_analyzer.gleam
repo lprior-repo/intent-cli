@@ -1,6 +1,58 @@
-// KIRK Effects Analyzer
-// Second-Order Thinking: "What happens after the immediate effect?"
-// Traces consequences beyond first-order results
+/// KIRK Effects Analyzer
+///
+/// **Second-Order Thinking**: "What happens AFTER the immediate effect?"
+///
+/// Analyzes cascading consequences and side effects of API operations. Most people
+/// stop thinking at first-order effects (create user → user exists), but this module
+/// identifies second and third-order consequences that impact system behavior.
+///
+/// ## What Are Second-Order Effects?
+///
+/// - **First-order**: Create user → user record exists
+/// - **Second-order**: Create user → welcome email sent, analytics event, cache invalidation
+/// - **Third-order**: Welcome email → user clicks link → session created → rate limit consumed
+///
+/// ## Common Second-Order Effects
+///
+/// ### Data Operations
+/// - **Create**: Triggers notifications, updates counters, invalidates caches
+/// - **Update**: Propagates to denormalized data, audit logs, search indices
+/// - **Delete**: Cascades to related records, orphans relationships, frees quotas
+///
+/// ### State Changes
+/// - **Status transitions**: May trigger workflows, unlock features, send webhooks
+/// - **Permission changes**: Affect access to related resources
+/// - **Quota consumption**: Impacts rate limits, billing, service tiers
+///
+/// ## Usage
+///
+/// ```gleam
+/// import intent/kirk/effects_analyzer
+///
+/// let spec = load_spec("api.cue")
+/// let effects = effects_analyzer.analyze_second_order_effects(spec)
+///
+/// list.each(effects, fn(effect) {
+///   io.println(effect.trigger <> " causes " <> effect.consequence)
+///   io.println("  Missing behavior: " <> effect.suggested_test)
+/// })
+/// ```
+///
+/// ## Why This Matters
+///
+/// Systems fail not because of direct effects (those are obvious), but because of
+/// cascading consequences nobody anticipated. This analysis surfaces hidden dependencies.
+///
+/// ## Mental Model
+///
+/// "Think forwards and backwards - what causes this, and what does this cause?"
+/// - Howard Marks, "The Most Important Thing"
+///
+/// ## References
+///
+/// - "Thinking in Systems" - Donella Meadows on feedback loops
+/// - "The Fifth Discipline" - Peter Senge on systems thinking
+/// - Event Storming - Alberto Brandolini on discovering domain events
 
 import gleam/dict.{type Dict}
 import gleam/int
