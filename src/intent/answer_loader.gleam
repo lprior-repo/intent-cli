@@ -1,6 +1,5 @@
 // Answer loader module - loads pre-filled answers from files
 import gleam/dict.{type Dict}
-import gleam/result
 import simplifile
 
 pub type AnswerLoaderError {

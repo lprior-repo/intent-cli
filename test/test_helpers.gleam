@@ -3,7 +3,6 @@
 
 import gleam/dict
 import gleam/json
-import gleam/option.{None}
 import intent/types.{
   type Behavior, type Config, type Feature, type Request, type Spec, AIHints,
   Behavior, Config, Feature, ImplementationHints, Request, Response,

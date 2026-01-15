@@ -13,7 +13,6 @@ import intent/question_types.{
 }
 import intent/security
 import shellout
-import simplifile
 
 /// Error types for question loading
 pub type QuestionLoadError {

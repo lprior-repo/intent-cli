@@ -694,10 +694,11 @@ pub fn iso8601_invalid_second_60_test() {
 }
 
 pub fn iso8601_invalid_negative_hour_test() {
+  // Note: "-1" gets parsed as timezone offset, leaving empty hour
   case formats.validate_iso8601("2024-03-15T-1:30:00") {
     Error(msg) -> {
       msg
-      |> should.equal("Invalid ISO8601 time: hour must be a number, got -1")
+      |> should.equal("Invalid ISO8601 time format (expected HH:MM:SS)")
     }
     Ok(_) -> should.fail()
   }

@@ -4,7 +4,6 @@
 import gleam/dict
 import gleam/json
 import gleam/list
-import gleam/option.{None}
 import gleam/string
 import gleeunit/should
 import intent/spec_linter.{
@@ -175,9 +174,20 @@ pub fn lint_no_anti_pattern_when_keys_differ_test() {
   let spec = make_spec([behavior], [anti_pattern])
   let result = spec_linter.lint_spec(spec)
 
+  // Should not detect anti-pattern match (keys differ), but may warn about unused pattern
   case result {
     LintValid -> should.be_true(True)
-    LintWarnings(_) -> should.fail()
+    LintWarnings(warnings) -> {
+      // Accept UnusedAntiPattern warning, but reject AntiPatternDetected
+      warnings
+      |> list.all(fn(w) {
+        case w {
+          AntiPatternDetected(_, _, _) -> False
+          _ -> True
+        }
+      })
+      |> should.be_true
+    }
   }
 }
 

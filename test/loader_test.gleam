@@ -6,8 +6,8 @@
 import gleam/string
 import gleeunit/should
 import intent/loader.{
-  CueExportError, CueValidationError, FileNotFound,
-  JsonParseError, SpecParseError,
+  CueExportError, CueValidationError, FileNotFound, JsonParseError,
+  SecurityError, SpecParseError,
 }
 
 // ============================================================================
@@ -16,12 +16,14 @@ import intent/loader.{
 
 pub fn loader_file_not_found_test() {
   // Attempt to load a non-existent file
+  // Now caught by security validation which checks file existence
   let result = loader.load_spec("/nonexistent/path/to/spec.cue")
 
   case result {
-    Error(FileNotFound(path)) -> {
-      path
-      |> should.equal("/nonexistent/path/to/spec.cue")
+    Error(SecurityError(msg)) -> {
+      msg
+      |> string.contains("/nonexistent/path/to/spec.cue")
+      |> should.be_true
     }
     _ -> should.fail()
   }
@@ -29,33 +31,36 @@ pub fn loader_file_not_found_test() {
 
 pub fn loader_file_not_found_relative_path_test() {
   // Relative path that doesn't exist
+  // Now caught by security validation
   let result = loader.load_spec("nonexistent.cue")
 
   case result {
-    Error(FileNotFound(path)) -> {
-      path
-      |> should.equal("nonexistent.cue")
+    Error(SecurityError(msg)) -> {
+      msg
+      |> string.contains("nonexistent.cue")
+      |> should.be_true
     }
     _ -> should.fail()
   }
 }
 
 pub fn loader_file_not_found_empty_path_test() {
-  // Empty path should fail
+  // Empty path should fail with security error (contains no valid characters)
   let result = loader.load_spec("")
 
   case result {
-    Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
+    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
 }
 
 pub fn loader_directory_instead_of_file_test() {
   // Passing a directory instead of a file
+  // Security validation will reject it as "Not a regular file"
   let result = loader.load_spec("/tmp")
 
   case result {
-    Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
+    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
 }
@@ -144,7 +149,7 @@ pub fn loader_format_light_spec_parse_error_test() {
   let formatted = loader.format_error(error)
 
   formatted
-  |> string.contains("Light spec parse error")
+  |> string.contains("Spec parse error")
   |> should.be_true
 
   formatted
@@ -160,9 +165,10 @@ pub fn loader_export_nonexistent_file_test() {
   let result = loader.export_spec_json("/nonexistent/spec.cue")
 
   case result {
-    Error(FileNotFound(path)) -> {
-      path
-      |> should.equal("/nonexistent/spec.cue")
+    Error(SecurityError(msg)) -> {
+      msg
+      |> string.contains("/nonexistent/spec.cue")
+      |> should.be_true
     }
     _ -> should.fail()
   }
@@ -235,12 +241,14 @@ pub fn loader_format_error_path_with_spaces_test() {
 
 pub fn loader_load_spec_quiet_file_not_found_test() {
   // load_spec_quiet should work without spinner UI
+  // Now caught by security validation
   let result = loader.load_spec_quiet("/nonexistent/path/to/spec.cue")
 
   case result {
-    Error(FileNotFound(path)) -> {
-      path
-      |> should.equal("/nonexistent/path/to/spec.cue")
+    Error(SecurityError(msg)) -> {
+      msg
+      |> string.contains("/nonexistent/path/to/spec.cue")
+      |> should.be_true
     }
     _ -> should.fail()
   }
@@ -251,7 +259,7 @@ pub fn loader_load_spec_quiet_empty_path_test() {
   let result = loader.load_spec_quiet("")
 
   case result {
-    Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
+    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
     _ -> should.fail()
   }
 }
@@ -261,7 +269,62 @@ pub fn loader_load_spec_quiet_directory_test() {
   let result = loader.load_spec_quiet("/tmp")
 
   case result {
-    Error(FileNotFound(_)) -> should.be_ok(Ok(Nil))
+    Error(SecurityError(_)) -> should.be_ok(Ok(Nil))
+    _ -> should.fail()
+  }
+}
+
+// ============================================================================
+// SecurityError Tests (intent-cli-n3q)
+// ============================================================================
+
+pub fn loader_format_security_error_test() {
+  let error = SecurityError("Path traversal attempt detected in '../etc/passwd'")
+  let formatted = loader.format_error(error)
+
+  formatted
+  |> string.contains("Path traversal")
+  |> should.be_true
+}
+
+pub fn loader_path_traversal_test() {
+  // Path traversal attempts should be blocked
+  let result = loader.load_spec("../../../etc/passwd")
+
+  case result {
+    Error(SecurityError(msg)) -> {
+      msg
+      |> string.contains("Path traversal")
+      |> should.be_true
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn loader_shell_metacharacters_test() {
+  // Shell metacharacters should be rejected
+  let result = loader.load_spec("; rm -rf /")
+
+  case result {
+    Error(SecurityError(msg)) -> {
+      msg
+      |> string.contains("shell metacharacters")
+      |> should.be_true
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn loader_command_injection_test() {
+  // Command injection attempts should be blocked
+  let result = loader.load_spec("$(whoami).cue")
+
+  case result {
+    Error(SecurityError(msg)) -> {
+      msg
+      |> string.contains("shell metacharacters")
+      |> should.be_true
+    }
     _ -> should.fail()
   }
 }

@@ -1,16 +1,13 @@
 /// CUE spec loader - loads and validates CUE files using the cue command
-import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
-import gleam/option.{None}
 import gleam/string
 import gleam_community/ansi
 import intent/parser
 import intent/security
 import intent/types.{type Spec, Spec}
 import shellout
-import simplifile
 import spinner
 
 /// Error types for loading specs

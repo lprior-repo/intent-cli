@@ -3450,11 +3450,11 @@ pub fn question_loader_merge_common_rounds_test() {
 }
 
 pub fn question_loader_file_not_found_test() {
-  // Loading from non-existent file should return FileNotFound error
+  // Loading from non-existent file should return SecurityError (file not accessible)
   let result = question_loader.load_custom_questions("/nonexistent/path.cue")
 
   case result {
-    Error(question_loader.FileNotFound(_)) -> should.be_true(True)
+    Error(question_loader.SecurityError(_)) -> should.be_true(True)
     _ -> should.fail()
   }
 }

@@ -133,18 +133,31 @@ fn contains_anti_pattern_keys(example: Json, pattern: AntiPattern) -> Bool {
   let bad_keys = extract_all_keys(pattern.bad_example)
   let example_keys = extract_all_keys(example)
 
+  // DEBUG - remove after fixing
+  // io.debug(#("bad_keys", bad_keys, "example_keys", example_keys))
+
   // Check if any bad keys are in the example
   list.any(bad_keys, fn(key) { list.contains(example_keys, key) })
 }
 
 /// Extract all keys from a JSON object (recursively)
-fn extract_all_keys(json: Json) -> List(String) {
-  let json_str = json.to_string(json)
+/// Converts JSON to string, then decodes to extract dictionary keys
+fn extract_all_keys(json_val: Json) -> List(String) {
+  // Convert Json to string representation
+  let json_str = json.to_string(json_val)
 
-  case json.decode(json_str, dynamic.dict(dynamic.string, dynamic.dynamic)) {
-    Ok(obj) -> {
-      dict.keys(obj)
-    }
+  // Parse the JSON string and try to extract as a dictionary
+  case json.decode(json_str, dynamic.dynamic) {
+    Ok(dyn) -> extract_keys_from_dynamic(dyn)
+    Error(_) -> []
+  }
+}
+
+/// Extract keys from a dynamic value
+fn extract_keys_from_dynamic(dyn: dynamic.Dynamic) -> List(String) {
+  // Try to decode as a dictionary
+  case dynamic.dict(dynamic.string, dynamic.dynamic)(dyn) {
+    Ok(dict_val) -> dict.keys(dict_val)
     Error(_) -> []
   }
 }
