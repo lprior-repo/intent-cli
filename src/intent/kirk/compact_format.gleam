@@ -171,21 +171,28 @@ fn body_to_compact(body: option.Option(json.Json)) -> String {
 }
 
 fn rule_to_compact(r: Rule) -> CompactRule {
-  let w = r.when
-  let status_part = case w.status {
-    "" -> ""
-    s -> "status:" <> s
-  }
-  let method_part = types.method_to_string(w.method)
-  let path_part = case w.path {
-    "" -> ""
-    p -> "path:" <> p
-  }
-  let when_str = case [status_part, method_part, path_part]
-    |> list.filter(fn(s) { !string.is_empty(s) })
-  {
-    [] -> "*"
-    parts -> string.join(parts, ",")
+  let when_str = case r.when {
+    Some(w) -> {
+      let status_part = case w.status {
+        "" -> ""
+        s -> "status:" <> s
+      }
+      let method_part = case w.method {
+        Some(m) -> types.method_to_string(m)
+        None -> ""
+      }
+      let path_part = case w.path {
+        Some(p) -> "path:" <> p
+        None -> ""
+      }
+      case [status_part, method_part, path_part]
+        |> list.filter(fn(s) { !string.is_empty(s) })
+      {
+        [] -> "*"
+        parts -> string.join(parts, ",")
+      }
+    }
+    None -> "*"
   }
 
   CompactRule(

@@ -5,6 +5,7 @@ import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
+import gleam/option
 import gleam/regexp
 import gleam/string
 import intent/http_client.{type ExecutionResult}
@@ -44,7 +45,10 @@ pub fn check_rules(
 
 /// Check if a rule applies based on its `when` conditions
 fn rule_applies(rule: Rule, response: ExecutionResult) -> Bool {
-  check_when_conditions(rule.when, response)
+  case rule.when {
+    option.Some(when) -> check_when_conditions(when, response)
+    option.None -> True  // Rule applies to all responses if no 'when' clause
+  }
 }
 
 fn check_when_conditions(when: When, response: ExecutionResult) -> Bool {
@@ -52,11 +56,17 @@ fn check_when_conditions(when: When, response: ExecutionResult) -> Bool {
   let status_ok =
     check_status_condition(when.status, response.status)
 
-  // Check method condition
-  let method_ok = response.request_method == when.method
+  // Check method condition (if specified)
+  let method_ok = case when.method {
+    option.Some(m) -> response.request_method == m
+    option.None -> True
+  }
 
-  // Check path condition
-  let path_ok = check_path_pattern(when.path, response.request_path)
+  // Check path condition (if specified)
+  let path_ok = case when.path {
+    option.Some(p) -> check_path_pattern(p, response.request_path)
+    option.None -> True
+  }
 
   // All conditions must pass
   status_ok && method_ok && path_ok

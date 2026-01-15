@@ -546,10 +546,11 @@ pub fn append_session_to_jsonl(
   session: InterviewSession,
   jsonl_path: String,
 ) -> Result(Nil, String) {
-  use existing <- result.try(
-    simplifile.read(jsonl_path)
-    |> result.map_error(fn(_) { "" }),
-  )
+  // Read existing file or use empty string if file doesn't exist
+  let existing = case simplifile.read(jsonl_path) {
+    Ok(content) -> content
+    Error(_) -> ""
+  }
 
   let lines = case existing {
     "" -> []

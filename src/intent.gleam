@@ -6,7 +6,7 @@ import gleam/dict
 import gleam/io
 import gleam/json
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import glint
@@ -74,6 +74,7 @@ pub fn main() {
   |> glint.add(at: ["compact"], do: kirk_compact_command())
   |> glint.add(at: ["prototext"], do: kirk_prototext_command())
   |> glint.add(at: ["ears"], do: kirk_ears_command())
+  |> glint.add(at: ["parse"], do: parse_command())
   |> glint.add(at: ["effects"], do: kirk_effects_command())
   // Plan commands
   |> glint.add(at: ["plan"], do: plan_command())
@@ -484,29 +485,74 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "strict")
       |> result.unwrap(False)
 
-    case resume_id {
-      // Resume an existing session
-      "" ->
-        case string.lowercase(profile_str) {
-          "api" -> run_interview(interview.Api, answers_file, strict_mode, export_to)
-          "cli" -> run_interview(interview.Cli, answers_file, strict_mode, export_to)
-          "event" -> run_interview(interview.Event, answers_file, strict_mode, export_to)
-          "data" -> run_interview(interview.Data, answers_file, strict_mode, export_to)
-          "workflow" -> run_interview(interview.Workflow, answers_file, strict_mode, export_to)
-          "ui" -> run_interview(interview.UI, answers_file, strict_mode, export_to)
-          _ -> {
-            io.println_error(
-              "Error: unknown profile '" <> profile_str <> "'",
-            )
-            io.println_error(
-              "Valid profiles: api, cli, event, data, workflow, ui",
-            )
+    let cue_mode =
+      flag.get_bool(input.flags, "cue")
+      |> result.unwrap(False)
+
+    let session_flag =
+      flag.get_string(input.flags, "session")
+      |> result.unwrap("")
+
+    let answer_text =
+      flag.get_string(input.flags, "answer")
+      |> result.unwrap("")
+
+    // CUE mode: output CUE directives for AI agents
+    case cue_mode {
+      True -> {
+        // Check if this is answering a question or starting/resuming
+        let has_session = !string.is_empty(session_flag)
+        let has_answer = !string.is_empty(answer_text)
+
+        case has_session, has_answer {
+          // Submitting an answer to an existing session
+          True, True ->
+            run_interview_cue_answer(session_flag, answer_text)
+          // Resume session in CUE mode
+          True, False ->
+            run_interview_cue_resume(session_flag)
+          // Start new session in CUE mode
+          False, False -> {
+            let profile = parse_profile(profile_str)
+            case profile {
+              Ok(p) -> run_interview_cue_start(p)
+              Error(msg) -> {
+                output_cue_error(msg)
+                halt(exit_error)
+              }
+            }
+          }
+          // Invalid: answer without session
+          False, True -> {
+            output_cue_error("--answer requires --session flag")
             halt(exit_error)
           }
         }
-
-      // Resume an existing session
-      id -> run_resume_interview(id, export_to)
+      }
+      False -> {
+        // Regular interactive mode
+        case resume_id {
+          "" ->
+            case string.lowercase(profile_str) {
+              "api" -> run_interview(interview.Api, answers_file, strict_mode, export_to)
+              "cli" -> run_interview(interview.Cli, answers_file, strict_mode, export_to)
+              "event" -> run_interview(interview.Event, answers_file, strict_mode, export_to)
+              "data" -> run_interview(interview.Data, answers_file, strict_mode, export_to)
+              "workflow" -> run_interview(interview.Workflow, answers_file, strict_mode, export_to)
+              "ui" -> run_interview(interview.UI, answers_file, strict_mode, export_to)
+              _ -> {
+                io.println_error(
+                  "Error: unknown profile '" <> profile_str <> "'",
+                )
+                io.println_error(
+                  "Valid profiles: api, cli, event, data, workflow, ui",
+                )
+                halt(exit_error)
+              }
+            }
+          id -> run_resume_interview(id, export_to)
+        }
+      }
     }
   })
   |> glint.description("Guided specification discovery through structured interview")
@@ -541,6 +587,24 @@ fn interview_command() -> glint.Command(Nil) {
     flag.string()
     |> flag.default("")
     |> flag.description("Export completed interview to spec file"),
+  )
+  |> glint.flag(
+    "cue",
+    flag.bool()
+    |> flag.default(False)
+    |> flag.description("Output CUE directives for AI agents (non-interactive)"),
+  )
+  |> glint.flag(
+    "session",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Session ID for CUE mode (use with --cue)"),
+  )
+  |> glint.flag(
+    "answer",
+    flag.string()
+    |> flag.default("")
+    |> flag.description("Submit answer to current question (use with --cue --session)"),
   )
 }
 
@@ -882,6 +946,354 @@ fn profile_to_display_string(profile: interview.Profile) -> String {
     interview.Workflow -> "Workflow"
     interview.UI -> "User Interface"
   }
+}
+
+// =============================================================================
+// CUE MODE INTERVIEW FUNCTIONS
+// =============================================================================
+
+/// Parse profile string to Profile type
+fn parse_profile(profile_str: String) -> Result(interview.Profile, String) {
+  case string.lowercase(profile_str) {
+    "api" -> Ok(interview.Api)
+    "cli" -> Ok(interview.Cli)
+    "event" -> Ok(interview.Event)
+    "data" -> Ok(interview.Data)
+    "workflow" -> Ok(interview.Workflow)
+    "ui" -> Ok(interview.UI)
+    _ -> Error("Unknown profile '" <> profile_str <> "'. Valid profiles: api, cli, event, data, workflow, ui")
+  }
+}
+
+/// Output a CUE error directive
+fn output_cue_error(message: String) -> Nil {
+  io.println("{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \"" <> escape_cue_string(message) <> "\"\n\t\tsuggestion: \"Check your input and try again\"\n\t\tretry_allowed: true\n\t}\n}")
+}
+
+/// Start a new interview session in CUE mode
+fn run_interview_cue_start(profile: interview.Profile) -> Nil {
+  let session_id = "interview-" <> generate_uuid()
+  let timestamp = current_timestamp()
+  let session = interview.create_session(session_id, profile, timestamp)
+
+  // Save session to JSONL
+  let save_result = interview_storage.append_session_to_jsonl(
+    session,
+    ".interview/sessions.jsonl",
+  )
+
+  case save_result {
+    Ok(_) -> {
+      // Get first question
+      case interview.get_first_question_for_round(session, 1) {
+        Ok(question) ->
+          output_cue_question(session, question, 1)
+        Error(_) -> {
+          output_cue_error("No questions available for this profile")
+          halt(exit_error)
+        }
+      }
+    }
+    Error(err) -> {
+      output_cue_error("Failed to save session: " <> err)
+      halt(exit_error)
+    }
+  }
+}
+
+/// Resume an existing interview session in CUE mode
+fn run_interview_cue_resume(session_id: String) -> Nil {
+  case interview_storage.get_session_from_jsonl(".interview/sessions.jsonl", session_id) {
+    Error(err) -> {
+      output_cue_error("Session not found: " <> err)
+      halt(exit_error)
+    }
+    Ok(session) -> {
+      // Check if interview is complete
+      case session.stage {
+        interview.Complete -> {
+          output_cue_complete(session)
+        }
+        _ -> {
+          // Find next unanswered question
+          let next_round = case session.rounds_completed {
+            0 -> 1
+            r if r < 5 -> r + 1
+            _ -> 5
+          }
+          case get_next_unanswered_question(session, next_round) {
+            Some(question) ->
+              output_cue_question(session, question, next_round)
+            None -> {
+              // All questions answered, complete the interview
+              output_cue_complete(session)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/// Get the next unanswered question for a session
+fn get_next_unanswered_question(session: interview.InterviewSession, start_round: Int) -> Option(Question) {
+  let profile_str = profile_to_string(session.profile)
+  let answered_ids = list.map(session.answers, fn(a) { a.question_id })
+
+  // Try each round starting from start_round
+  find_unanswered_in_rounds(profile_str, answered_ids, start_round)
+}
+
+fn find_unanswered_in_rounds(profile_str: String, answered_ids: List(String), round: Int) -> Option(Question) {
+  case round > 5 {
+    True -> None
+    False -> {
+      let questions = interview_questions.get_questions_for_round(profile_str, round)
+      let unanswered = list.filter(questions, fn(q) {
+        !list.contains(answered_ids, q.id)
+      })
+      case unanswered {
+        [first, ..] -> Some(first)
+        [] -> find_unanswered_in_rounds(profile_str, answered_ids, round + 1)
+      }
+    }
+  }
+}
+
+/// Submit an answer to a session in CUE mode
+fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
+  case interview_storage.get_session_from_jsonl(".interview/sessions.jsonl", session_id) {
+    Error(err) -> {
+      output_cue_error("Session not found: " <> err)
+      halt(exit_error)
+    }
+    Ok(session) -> {
+      // Validate answer (basic validation)
+      case string.length(string.trim(answer_text)) < 3 {
+        True -> {
+          output_cue_validation_error("Answer too short", "Please provide a more detailed response")
+          halt(exit_fail)
+        }
+        False -> {
+          // Find the current question being answered
+          let next_round = case session.rounds_completed {
+            0 -> 1
+            r if r < 5 -> r + 1
+            _ -> 5
+          }
+
+          case get_next_unanswered_question(session, next_round) {
+            None -> {
+              // No questions left, interview is complete
+              output_cue_complete(session)
+            }
+            Some(question) -> {
+              // Create answer record
+              let extracted = interview.extract_from_answer(
+                question.id,
+                answer_text,
+                question.extract_into,
+              )
+              let confidence = interview.calculate_confidence(question.id, answer_text, extracted)
+
+              let answer = interview.Answer(
+                question_id: question.id,
+                question_text: question.question,
+                perspective: question.perspective,
+                round: next_round,
+                response: answer_text,
+                extracted: extracted,
+                confidence: confidence,
+                notes: "",
+                timestamp: current_timestamp(),
+              )
+
+              // Add answer to session
+              let updated_session = interview.add_answer(session, answer)
+
+              // Check for gaps and conflicts
+              let #(sess_with_gaps, _gaps) =
+                interview.check_for_gaps(updated_session, question, answer)
+              let #(sess_final, _conflicts) =
+                interview.check_for_conflicts(sess_with_gaps, answer)
+
+              // Save updated session
+              case interview_storage.append_session_to_jsonl(
+                sess_final,
+                ".interview/sessions.jsonl",
+              ) {
+                Error(err) -> {
+                  output_cue_error("Failed to save session: " <> err)
+                  halt(exit_error)
+                }
+                Ok(_) -> {
+                  // Get next question or complete
+                  case get_next_unanswered_question(sess_final, next_round) {
+                    Some(next_q) ->
+                      output_cue_question(sess_final, next_q, next_round)
+                    None -> {
+                      // Check if there are more rounds
+                      case next_round < 5 {
+                        True -> {
+                          case get_next_unanswered_question(sess_final, next_round + 1) {
+                            Some(next_q) ->
+                              output_cue_question(sess_final, next_q, next_round + 1)
+                            None ->
+                              output_cue_complete(sess_final)
+                          }
+                        }
+                        False ->
+                          output_cue_complete(sess_final)
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/// Output a CUE question directive
+fn output_cue_question(session: interview.InterviewSession, question: Question, round: Int) -> Nil {
+  let profile_str = profile_to_string(session.profile)
+  let total_questions = get_total_questions(profile_str)
+  let answered_count = list.length(session.answers)
+  let percent = case total_questions > 0 {
+    True -> { answered_count * 100 } / total_questions
+    False -> 0
+  }
+
+  let pattern = infer_ears_pattern(question)
+  let hint = get_ears_hint(pattern)
+  let examples = get_pattern_examples(pattern)
+
+  let category = case round {
+    1 -> "basic_info"
+    2 -> "behaviors"
+    3 -> "edge_cases"
+    4 -> "security"
+    _ -> "validation"
+  }
+
+  let output =
+    "{\n"
+    <> "\taction: \"ask_question\"\n\n"
+    <> "\tquestion: {\n"
+    <> "\t\ttext: \"" <> escape_cue_string(question.question) <> "\"\n"
+    <> "\t\tpattern: \"" <> pattern <> "\"\n"
+    <> "\t\texamples: [" <> format_cue_string_list(examples) <> "]\n"
+    <> "\t\thint: \"" <> escape_cue_string(hint) <> "\"\n"
+    <> "\t}\n\n"
+    <> "\tprogress: {\n"
+    <> "\t\tcurrent_step: " <> string.inspect(answered_count + 1) <> "\n"
+    <> "\t\ttotal_steps: " <> string.inspect(total_questions) <> "\n"
+    <> "\t\tpercent_complete: " <> string.inspect(percent) <> "\n"
+    <> "\t\tcategory: \"" <> category <> "\"\n"
+    <> "\t}\n\n"
+    <> "\tsession: {\n"
+    <> "\t\tid: \"" <> session.id <> "\"\n"
+    <> "\t\tprofile: \"" <> profile_str <> "\"\n"
+    <> "\t\tstarted_at: \"" <> session.created_at <> "\"\n"
+    <> "\t}\n"
+    <> "}"
+
+  io.println(output)
+  halt(exit_pass)
+}
+
+/// Output a CUE validation error
+fn output_cue_validation_error(message: String, suggestion: String) -> Nil {
+  io.println("{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \"" <> escape_cue_string(message) <> "\"\n\t\tsuggestion: \"" <> escape_cue_string(suggestion) <> "\"\n\t\tretry_allowed: true\n\t}\n}")
+}
+
+/// Output interview complete directive
+fn output_cue_complete(session: interview.InterviewSession) -> Nil {
+  let behaviors_count = list.length(session.answers)
+  let anti_patterns_count = list.length(session.gaps)
+  let spec_path = ".interview/spec-" <> session.id <> ".cue"
+
+  // Generate and save the spec
+  let spec_cue = spec_builder.build_spec_from_session(session)
+  let _ = simplifile.write(spec_path, spec_cue)
+
+  let output =
+    "{\n"
+    <> "\taction: \"interview_complete\"\n\n"
+    <> "\toutput: {\n"
+    <> "\t\tspec_path: \"" <> spec_path <> "\"\n"
+    <> "\t\tbehaviors_count: " <> string.inspect(behaviors_count) <> "\n"
+    <> "\t\tanti_patterns_count: " <> string.inspect(anti_patterns_count) <> "\n"
+    <> "\t\tsummary: \"Interview complete. Generated spec with " <> string.inspect(behaviors_count) <> " behaviors.\"\n"
+    <> "\t}\n\n"
+    <> "\tsession: {\n"
+    <> "\t\tid: \"" <> session.id <> "\"\n"
+    <> "\t\tprofile: \"" <> profile_to_string(session.profile) <> "\"\n"
+    <> "\t\tstarted_at: \"" <> session.created_at <> "\"\n"
+    <> "\t\tcompleted_at: \"" <> current_timestamp() <> "\"\n"
+    <> "\t}\n"
+    <> "}"
+
+  io.println(output)
+  halt(exit_pass)
+}
+
+/// Get total number of questions for a profile
+fn get_total_questions(profile_str: String) -> Int {
+  list.range(1, 5)
+  |> list.map(fn(round) { interview_questions.get_questions_for_round(profile_str, round) })
+  |> list.map(list.length)
+  |> list.fold(0, fn(acc, n) { acc + n })
+}
+
+/// Infer EARS pattern from question context
+fn infer_ears_pattern(question: Question) -> String {
+  let q_lower = string.lowercase(question.question)
+
+  case string.contains(q_lower, "when"), string.contains(q_lower, "while"), string.contains(q_lower, "if"), string.contains(q_lower, "should not"), string.contains(q_lower, "optional") {
+    True, True, _, _, _ -> "complex"
+    True, False, _, _, _ -> "event_driven"
+    False, True, _, _, _ -> "state_driven"
+    _, _, True, True, _ -> "unwanted"
+    _, _, _, _, True -> "optional"
+    _, _, _, _, _ -> "ubiquitous"
+  }
+}
+
+/// Get EARS hint for a pattern
+fn get_ears_hint(pattern: String) -> String {
+  case pattern {
+    "ubiquitous" -> "Use format: THE SYSTEM SHALL [behavior]"
+    "event_driven" -> "Use format: WHEN [trigger] THE SYSTEM SHALL [behavior]"
+    "state_driven" -> "Use format: WHILE [state] THE SYSTEM SHALL [behavior]"
+    "optional" -> "Use format: WHERE [condition] THE SYSTEM SHALL [behavior]"
+    "unwanted" -> "Use format: IF [condition] THE SYSTEM SHALL NOT [behavior]"
+    "complex" -> "Use format: WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]"
+    _ -> "Use EARS format: THE SYSTEM SHALL [behavior]"
+  }
+}
+
+/// Get example answers for a pattern
+fn get_pattern_examples(pattern: String) -> List(String) {
+  case pattern {
+    "ubiquitous" -> ["THE SYSTEM SHALL validate all API inputs", "THE SYSTEM SHALL log all requests"]
+    "event_driven" -> ["WHEN user submits form THE SYSTEM SHALL validate data", "WHEN request times out THE SYSTEM SHALL retry"]
+    "state_driven" -> ["WHILE user is authenticated THE SYSTEM SHALL allow access", "WHILE rate limit exceeded THE SYSTEM SHALL reject requests"]
+    "optional" -> ["WHERE user has admin role THE SYSTEM SHALL allow admin actions"]
+    "unwanted" -> ["IF token is expired THE SYSTEM SHALL NOT authorize requests"]
+    "complex" -> ["WHILE in transaction WHEN error occurs THE SYSTEM SHALL rollback"]
+    _ -> ["THE SYSTEM SHALL [describe behavior]"]
+  }
+}
+
+/// Format a list of strings for CUE output
+fn format_cue_string_list(items: List(String)) -> String {
+  items
+  |> list.map(fn(s) { "\"" <> escape_cue_string(s) <> "\"" })
+  |> string.join(", ")
 }
 
 /// The `beads` command - generate work items from interview session
@@ -2055,6 +2467,185 @@ fn kirk_ears_command() -> glint.Command(Nil) {
 }
 
 import gleam/float
+
+// =============================================================================
+// PARSE COMMAND
+// =============================================================================
+
+/// The `parse` command - parse EARS requirements to spec
+fn parse_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let output_file =
+      flag.get_string(input.flags, "o")
+      |> result.unwrap("")
+
+    case input.args {
+      [requirements_path, ..] -> {
+        case simplifile.read(requirements_path) {
+          Ok(content) -> {
+            let result = ears_parser.parse(content)
+            let req_count = list.length(result.requirements)
+            let err_count = list.length(result.errors)
+
+            // Count by pattern type
+            let #(ubiq, event, state, opt, unwant, complex) =
+              list.fold(result.requirements, #(0, 0, 0, 0, 0, 0), fn(acc, r) {
+                let #(u, e, s, o, w, c) = acc
+                case r.pattern {
+                  ears_parser.Ubiquitous -> #(u + 1, e, s, o, w, c)
+                  ears_parser.EventDriven -> #(u, e + 1, s, o, w, c)
+                  ears_parser.StateDriven -> #(u, e, s + 1, o, w, c)
+                  ears_parser.Optional -> #(u, e, s, o + 1, w, c)
+                  ears_parser.Unwanted -> #(u, e, s, o, w + 1, c)
+                  ears_parser.Complex -> #(u, e, s, o, w, c + 1)
+                }
+              })
+
+            case is_json {
+              True -> {
+                let behaviors = ears_parser.to_behaviors(result)
+                let json_obj = json.object([
+                  #("requirements", json.array(result.requirements, fn(r) {
+                    json.object([
+                      #("id", json.string(r.id)),
+                      #("pattern", json.string(ears_parser.pattern_to_string(r.pattern))),
+                      #("system_shall", json.string(r.system_shall)),
+                      #("raw_text", json.string(r.raw_text)),
+                    ])
+                  })),
+                  #("behaviors", json.array(behaviors, fn(b) {
+                    json.object([
+                      #("name", json.string(b.name)),
+                      #("intent", json.string(b.intent)),
+                      #("method", json.string(b.method)),
+                      #("path", json.string(b.path)),
+                      #("status", json.int(b.status)),
+                    ])
+                  })),
+                  #("errors", json.array(result.errors, fn(e) {
+                    json.object([
+                      #("line", json.int(e.line)),
+                      #("message", json.string(e.message)),
+                      #("suggestion", json.string(e.suggestion)),
+                    ])
+                  })),
+                  #("warnings", json.array(result.warnings, json.string)),
+                  #("count", json.int(req_count)),
+                ])
+                io.println(json.to_string(json_obj))
+              }
+              False -> {
+                // Print parsing progress
+                io.println("Parsing EARS requirements...")
+
+                case ubiq > 0 {
+                  True -> io.println("✓ Parsed " <> string.inspect(ubiq) <> " ubiquitous requirements")
+                  False -> Nil
+                }
+                case event > 0 {
+                  True -> io.println("✓ Parsed " <> string.inspect(event) <> " event-driven requirements")
+                  False -> Nil
+                }
+                case state > 0 {
+                  True -> io.println("✓ Parsed " <> string.inspect(state) <> " state-driven requirements")
+                  False -> Nil
+                }
+                case opt > 0 {
+                  True -> io.println("✓ Parsed " <> string.inspect(opt) <> " optional requirements")
+                  False -> Nil
+                }
+                case unwant > 0 {
+                  True -> io.println("✓ Parsed " <> string.inspect(unwant) <> " unwanted requirements")
+                  False -> Nil
+                }
+                case complex > 0 {
+                  True -> io.println("✓ Parsed " <> string.inspect(complex) <> " complex requirements")
+                  False -> Nil
+                }
+
+                // Print errors
+                case err_count > 0 {
+                  True -> {
+                    io.println("")
+                    list.each(result.errors, fn(e) {
+                      io.println("Error parsing requirements:")
+                      io.println("Line " <> string.inspect(e.line) <> ": " <> e.message)
+                      io.println("  ❌ Does not match any EARS pattern")
+                      io.println("  💡 Suggestion: " <> e.suggestion)
+                    })
+                    io.println("")
+                    io.println("Parsed: " <> string.inspect(req_count) <> " requirements")
+                    io.println("Failed: " <> string.inspect(err_count) <> " requirements")
+                  }
+                  False -> Nil
+                }
+
+                // Write to output file if specified
+                case output_file {
+                  "" -> Nil
+                  path -> {
+                    // Infer spec name from filename
+                    let spec_name = case string.split(path, "/") {
+                      [] -> "GeneratedSpec"
+                      parts -> case list.last(parts) {
+                        Ok(filename) -> case string.split(filename, ".") {
+                          [name, ..] -> name
+                          [] -> "GeneratedSpec"
+                        }
+                        Error(_) -> "GeneratedSpec"
+                      }
+                    }
+                    let cue_output = ears_parser.to_cue(result, spec_name)
+                    case simplifile.write(path, cue_output) {
+                      Ok(_) -> io.println("Written to: " <> path)
+                      Error(e) -> cli_ui.print_error("Failed to write: " <> string.inspect(e))
+                    }
+                  }
+                }
+              }
+            }
+
+            case err_count > 0 {
+              True -> halt(exit_fail)
+              False -> halt(exit_pass)
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read: " <> requirements_path)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("requirements file path required")
+        io.println("Usage: intent parse <requirements.ears.md> [-o spec.cue] [--json]")
+        io.println("")
+        io.println("Parse EARS-formatted requirements and output structured CUE spec.")
+        io.println("")
+        io.println("EARS Patterns:")
+        io.println("  THE SYSTEM SHALL [behavior]                    - Ubiquitous")
+        io.println("  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven")
+        io.println("  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven")
+        io.println("  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional")
+        io.println("  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted")
+        io.println("  WHILE [state] WHEN [trigger] THE SYSTEM SHALL  - Complex")
+        io.println("")
+        io.println("Examples:")
+        io.println("  intent parse examples/requirements.ears.md")
+        io.println("  intent parse requirements.md -o spec.cue")
+        io.println("  intent parse requirements.md --json")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Parse EARS requirements to Intent behaviors")
+  |> glint.flag("o", flag.string() |> flag.default("") |> flag.description("Output spec file path"))
+  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+}
 
 // =============================================================================
 // ANSWER LOADER ERROR FORMATTING

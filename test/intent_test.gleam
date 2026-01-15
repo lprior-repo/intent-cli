@@ -935,7 +935,7 @@ pub fn rules_engine_check_when_status_equals_test() {
   let rule = types.Rule(
     name: "Check 200 OK",
     description: "Verify 200 response",
-    when: types.When(status: "== 200", method: types.Get, path: "/users"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/users"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -964,7 +964,7 @@ pub fn rules_engine_check_when_status_greater_than_test() {
   let rule = types.Rule(
     name: "Check 4xx error",
     description: "Verify error status",
-    when: types.When(status: "> 399", method: types.Post, path: "/create"),
+    when: Some(types.When(status: "> 399", method: Some(types.Post), path: Some("/create"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -993,7 +993,7 @@ pub fn rules_engine_check_when_status_less_than_test() {
   let rule = types.Rule(
     name: "Check success range",
     description: "Verify 2xx status",
-    when: types.When(status: "< 300", method: types.Get, path: "/data"),
+    when: Some(types.When(status: "< 300", method: Some(types.Get), path: Some("/data"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1019,7 +1019,7 @@ pub fn rules_engine_check_when_method_mismatch_test() {
   let rule = types.Rule(
     name: "POST rule",
     description: "Only for POST",
-    when: types.When(status: "== 200", method: types.Post, path: "/create"),
+    when: Some(types.When(status: "== 200", method: Some(types.Post), path: Some("/create"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1044,7 +1044,7 @@ pub fn rules_engine_check_when_path_exact_match_test() {
   let rule = types.Rule(
     name: "Exact path rule",
     description: "Check exact path",
-    when: types.When(status: "== 200", method: types.Get, path: "/exact/path"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/exact/path"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1070,7 +1070,7 @@ pub fn rules_engine_check_when_path_regex_match_test() {
   let rule = types.Rule(
     name: "Regex path rule",
     description: "Check regex path",
-    when: types.When(status: "== 200", method: types.Get, path: "^/users/.*"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("^/users/.*"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1096,7 +1096,7 @@ pub fn rules_engine_check_body_must_contain_test() {
   let rule = types.Rule(
     name: "Body content rule",
     description: "Verify body contains text",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/test"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: ["success"],
@@ -1122,7 +1122,7 @@ pub fn rules_engine_check_body_must_not_contain_test() {
   let rule = types.Rule(
     name: "No error rule",
     description: "Verify no error in body",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/test"))),
     check: types.RuleCheck(
       body_must_not_contain: ["error"],
       body_must_contain: [],
@@ -1148,7 +1148,7 @@ pub fn rules_engine_check_body_must_not_contain_violation_test() {
   let rule = types.Rule(
     name: "No error rule",
     description: "Verify no error in body",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/test"))),
     check: types.RuleCheck(
       body_must_not_contain: ["error"],
       body_must_contain: [],
@@ -1178,7 +1178,7 @@ pub fn rules_engine_check_body_must_contain_violation_test() {
   let rule = types.Rule(
     name: "Required text rule",
     description: "Verify required text",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/test"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: ["required"],
@@ -1206,7 +1206,7 @@ pub fn rules_engine_check_multiple_rules_test() {
   let rule1 = types.Rule(
     name: "Rule 1",
     description: "First rule",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/test"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1221,7 +1221,7 @@ pub fn rules_engine_check_multiple_rules_test() {
   let rule2 = types.Rule(
     name: "Rule 2",
     description: "Second rule",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/test"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1358,7 +1358,7 @@ pub fn rules_engine_empty_body_test() {
   let rule = types.Rule(
     name: "Empty body rule",
     description: "Handle empty response",
-    when: types.When(status: "== 204", method: types.Delete, path: "/resource"),
+    when: Some(types.When(status: "== 204", method: Some(types.Delete), path: Some("/resource"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1392,7 +1392,7 @@ pub fn rules_engine_null_json_value_test() {
   let rule = types.Rule(
     name: "Null handling rule",
     description: "Handle null values",
-    when: types.When(status: "== 200", method: types.Get, path: "/nullable"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/nullable"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1426,7 +1426,7 @@ pub fn rules_engine_whitespace_body_test() {
   let rule = types.Rule(
     name: "Whitespace rule",
     description: "Handle whitespace body",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/test"))),
     check: types.RuleCheck(
       body_must_not_contain: ["error"],
       body_must_contain: [],
@@ -1460,7 +1460,7 @@ pub fn rules_engine_nested_null_field_test() {
   let rule = types.Rule(
     name: "Nested null rule",
     description: "Check nested fields",
-    when: types.When(status: "== 200", method: types.Get, path: "/nested"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/nested"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1494,7 +1494,7 @@ pub fn rules_engine_empty_object_test() {
   let rule = types.Rule(
     name: "Empty object rule",
     description: "Handle empty objects",
-    when: types.When(status: "== 200", method: types.Get, path: "/data"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/data"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
@@ -1558,7 +1558,7 @@ pub fn rules_engine_unicode_body_content_test() {
   let rule = types.Rule(
     name: "Unicode content rule",
     description: "Check for Unicode in response",
-    when: types.When(status: "== 200", method: types.Get, path: "/message"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/message"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: ["✓"],
@@ -1592,7 +1592,7 @@ pub fn rules_engine_emoji_in_description_test() {
   let rule = types.Rule(
     name: "emoji_test",
     description: "Check emoji support 🚀 in descriptions",
-    when: types.When(status: "== 200", method: types.Get, path: "/status"),
+    when: Some(types.When(status: "== 200", method: Some(types.Get), path: Some("/status"))),
     check: types.RuleCheck(
       body_must_not_contain: [],
       body_must_contain: [],
