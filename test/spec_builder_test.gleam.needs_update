@@ -1,0 +1,845 @@
+import gleam/dict
+import gleam/int
+import gleam/json
+import gleam/list
+import gleam/string
+import gleeunit/should
+import intent/interview.{Answer}
+import intent/question_types.{Critical}
+import intent/spec_builder
+
+// Test: extract_features_from_answers with matching feature questions
+pub fn extract_features_finds_feature_questions_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What are the main features?",
+      perspective: Critical,
+      round: 1,
+      response: "User authentication",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What capabilities does it need?",
+      perspective: Critical,
+      round: 1,
+      response: "Data export",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let features = spec_builder.extract_features_from_answers(answers)
+
+  list.length(features)
+  |> should.equal(2)
+
+  list.contains(features, "User authentication")
+  |> should.be_true()
+
+  list.contains(features, "Data export")
+  |> should.be_true()
+}
+
+// Test: extract_features_from_answers ignores non-feature questions
+pub fn extract_features_ignores_non_feature_questions_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What is the API endpoint?",
+      perspective: Critical,
+      round: 1,
+      response: "/api/users",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let features = spec_builder.extract_features_from_answers(answers)
+
+  list.length(features)
+  |> should.equal(0)
+}
+
+// Test: extract_features_from_answers filters empty responses
+pub fn extract_features_filters_empty_responses_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What features do you need?",
+      perspective: Critical,
+      round: 1,
+      response: "",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What capabilities?",
+      perspective: Critical,
+      round: 1,
+      response: "   ",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q3",
+      question_text: "What features matter?",
+      perspective: Critical,
+      round: 1,
+      response: "Logging",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let features = spec_builder.extract_features_from_answers(answers)
+
+  list.length(features)
+  |> should.equal(1)
+
+  list.contains(features, "Logging")
+  |> should.be_true()
+}
+
+// Test: extract_features_from_answers with case insensitive matching
+pub fn extract_features_case_insensitive_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What are the FEATURES?",
+      perspective: Critical,
+      round: 1,
+      response: "Auth",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What CAPABILITY do you need?",
+      perspective: Critical,
+      round: 1,
+      response: "Caching",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let features = spec_builder.extract_features_from_answers(answers)
+
+  list.length(features)
+  |> should.equal(2)
+}
+
+// Test: extract_behaviors_from_answers with endpoint/path/method questions
+pub fn extract_behaviors_finds_api_questions_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What endpoints do you need?",
+      perspective: Critical,
+      round: 1,
+      response: "GET /api/users",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What HTTP methods?",
+      perspective: Critical,
+      round: 1,
+      response: "POST, PUT, DELETE",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let behaviors = spec_builder.extract_behaviors_from_answers(answers, interview.Api)
+
+  // Should contain behavior comment header
+  string.contains(behaviors, "behaviors:")
+  |> should.be_true()
+
+  // Should include the question text
+  string.contains(behaviors, "What endpoints do you need?")
+  |> should.be_true()
+}
+
+// Test: extract_behaviors_from_answers with empty answers
+pub fn extract_behaviors_empty_answers_test() {
+  let behaviors = spec_builder.extract_behaviors_from_answers([], interview.Api)
+
+  // Should return default behaviors section
+  string.contains(behaviors, "behaviors:")
+  |> should.be_true()
+
+  string.contains(behaviors, "Add endpoint definitions")
+  |> should.be_true()
+}
+
+// Test: extract_constraints_from_answers
+pub fn extract_constraints_from_answers_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What constraints exist?",
+      perspective: Critical,
+      round: 1,
+      response: "Max 100 requests per minute",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What limits do we have?",
+      perspective: Critical,
+      round: 1,
+      response: "Request size < 1MB",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let constraints = spec_builder.extract_constraints_from_answers(answers)
+
+  list.length(constraints)
+  |> should.equal(2)
+
+  list.contains(constraints, "Max 100 requests per minute")
+  |> should.be_true()
+}
+
+// Test: extract_constraints_from_answers filters empty
+pub fn extract_constraints_filters_empty_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What is the requirement?",
+      perspective: Critical,
+      round: 1,
+      response: "   ",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What is the constraint?",
+      perspective: Critical,
+      round: 1,
+      response: "Timeout after 30s",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let constraints = spec_builder.extract_constraints_from_answers(answers)
+
+  list.length(constraints)
+  |> should.equal(1)
+}
+
+// Test: extract_security_requirements with auth/security/permission questions
+pub fn extract_security_requirements_finds_security_questions_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What authentication method?",
+      perspective: Critical,
+      round: 1,
+      response: "OAuth 2.0",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What security requirements?",
+      perspective: Critical,
+      round: 1,
+      response: "HTTPS only",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let security = spec_builder.extract_security_requirements(answers)
+
+  string.contains(security, "security:")
+  |> should.be_true()
+
+  string.contains(security, "requirement:")
+  |> should.be_true()
+}
+
+// Test: extract_security_requirements with empty answers
+pub fn extract_security_requirements_empty_test() {
+  let security = spec_builder.extract_security_requirements([])
+
+  string.contains(security, "authentication: \"todo\"")
+  |> should.be_true()
+
+  string.contains(security, "authorization: \"todo\"")
+  |> should.be_true()
+}
+
+// Test: extract_non_functional_requirements
+pub fn extract_non_functional_requirements_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What SLA do you need?",
+      perspective: Critical,
+      round: 1,
+      response: "99.9% uptime",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What performance requirements?",
+      perspective: Critical,
+      round: 1,
+      response: "< 100ms latency",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q3",
+      question_text: "What monitoring?",
+      perspective: Critical,
+      round: 1,
+      response: "Prometheus metrics",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let nf_reqs = spec_builder.extract_non_functional_requirements(answers)
+
+  list.length(nf_reqs)
+  |> should.equal(3)
+
+  list.contains(nf_reqs, "99.9% uptime")
+  |> should.be_true()
+
+  list.contains(nf_reqs, "< 100ms latency")
+  |> should.be_true()
+
+  list.contains(nf_reqs, "Prometheus metrics")
+  |> should.be_true()
+}
+
+// Test: extract_non_functional_requirements filters empty
+pub fn extract_non_functional_requirements_filters_empty_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What about scale?",
+      perspective: Critical,
+      round: 1,
+      response: "",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What latency requirements?",
+      perspective: Critical,
+      round: 1,
+      response: "50ms p99",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let nf_reqs = spec_builder.extract_non_functional_requirements(answers)
+
+  list.length(nf_reqs)
+  |> should.equal(1)
+}
+
+// Test: build_spec_from_session generates valid CUE output
+pub fn build_spec_from_session_generates_cue_test() {
+  let session =
+    interview.InterviewSession(
+      id: "test-1",
+      profile: interview.Api,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      completed_at: "2024-01-01T00:00:00Z",
+      stage: interview.Complete,
+      rounds_completed: 1,
+      answers: [
+        Answer(
+          question_id: "q1",
+          question_text: "What features?",
+          perspective: Critical,
+          round: 1,
+          response: "User Management",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+    )
+
+  let cue = spec_builder.build_spec_from_session(session)
+
+  // Should start with package declaration
+  string.contains(cue, "package api")
+  |> should.be_true()
+
+  // Should contain features section
+  string.contains(cue, "features:")
+  |> should.be_true()
+
+  // Should contain behaviors section
+  string.contains(cue, "behaviors:")
+  |> should.be_true()
+
+  // Should contain security section
+  string.contains(cue, "security:")
+  |> should.be_true()
+}
+
+// Test: build_spec_from_session with multiple features
+pub fn build_spec_from_session_multiple_features_test() {
+  let session =
+    interview.InterviewSession(
+      id: "test-2",
+      profile: interview.Api,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      completed_at: "2024-01-01T00:00:00Z",
+      stage: interview.Complete,
+      rounds_completed: 1,
+      answers: [
+        Answer(
+          question_id: "q1",
+          question_text: "What features?",
+          perspective: Critical,
+          round: 1,
+          response: "Authentication",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+        Answer(
+          question_id: "q2",
+          question_text: "What capability?",
+          perspective: Critical,
+          round: 1,
+          response: "Authorization",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+    )
+
+  let cue = spec_builder.build_spec_from_session(session)
+
+  string.contains(cue, "Authentication")
+  |> should.be_true()
+
+  string.contains(cue, "Authorization")
+  |> should.be_true()
+}
+
+// Test: build_spec_from_session includes constraints
+pub fn build_spec_from_session_includes_constraints_test() {
+  let session =
+    interview.InterviewSession(
+      id: "test-3",
+      profile: interview.Api,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      completed_at: "2024-01-01T00:00:00Z",
+      stage: interview.Complete,
+      rounds_completed: 1,
+      answers: [
+        Answer(
+          question_id: "q1",
+          question_text: "What constraint?",
+          perspective: Critical,
+          round: 1,
+          response: "Max 1000 requests/min",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+    )
+
+  let cue = spec_builder.build_spec_from_session(session)
+
+  string.contains(cue, "constraints:")
+  |> should.be_true()
+
+  string.contains(cue, "Max 1000 requests/min")
+  |> should.be_true()
+}
+
+// Test: build_spec_from_session includes non-functional requirements
+pub fn build_spec_from_session_includes_non_functional_test() {
+  let session =
+    interview.InterviewSession(
+      id: "test-4",
+      profile: interview.Api,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      completed_at: "2024-01-01T00:00:00Z",
+      stage: interview.Complete,
+      rounds_completed: 1,
+      answers: [
+        Answer(
+          question_id: "q1",
+          question_text: "What SLA?",
+          perspective: Critical,
+          round: 1,
+          response: "99.99% availability",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+    )
+
+  let cue = spec_builder.build_spec_from_session(session)
+
+  string.contains(cue, "nonFunctional:")
+  |> should.be_true()
+
+  string.contains(cue, "99.99% availability")
+  |> should.be_true()
+}
+
+// Test: create_test_spec generates correct number of behaviors
+pub fn create_test_spec_generates_correct_behaviors_test() {
+  let spec = spec_builder.create_test_spec(10)
+
+  list.length(spec.features)
+  |> should.equal(1)
+
+  let assert [feature] = spec.features
+
+  list.length(feature.behaviors)
+  |> should.equal(10)
+}
+
+// Test: create_test_spec with zero behaviors
+pub fn create_test_spec_zero_behaviors_test() {
+  let spec = spec_builder.create_test_spec(0)
+
+  list.length(spec.features)
+  |> should.equal(1)
+
+  let assert [feature] = spec.features
+
+  list.length(feature.behaviors)
+  |> should.equal(0)
+}
+
+// Test: create_test_spec with large number of behaviors
+pub fn create_test_spec_large_number_test() {
+  let spec = spec_builder.create_test_spec(100)
+
+  let assert [feature] = spec.features
+
+  list.length(feature.behaviors)
+  |> should.equal(100)
+}
+
+// Test: create_test_spec behavior naming
+pub fn create_test_spec_behavior_naming_test() {
+  let spec = spec_builder.create_test_spec(5)
+
+  let assert [feature] = spec.features
+
+  let behavior_names =
+    feature.behaviors
+    |> list.map(fn(b) { b.name })
+
+  list.contains(behavior_names, "b1")
+  |> should.be_true()
+
+  list.contains(behavior_names, "b5")
+  |> should.be_true()
+}
+
+// Test: create_test_spec deterministic (same input = same output)
+pub fn create_test_spec_deterministic_test() {
+  let spec1 = spec_builder.create_test_spec(25)
+  let spec2 = spec_builder.create_test_spec(25)
+
+  spec1.name
+  |> should.equal(spec2.name)
+
+  let assert [feature1] = spec1.features
+  let assert [feature2] = spec2.features
+
+  list.length(feature1.behaviors)
+  |> should.equal(list.length(feature2.behaviors))
+}
+
+// Test: create_test_spec returns valid Spec
+pub fn create_test_spec_valid_spec_test() {
+  let spec = spec_builder.create_test_spec(3)
+
+  spec.name
+  |> should.equal("test")
+
+  spec.version
+  |> should.equal("1.0.0")
+
+  spec.description
+  |> should.equal("test")
+
+  spec.audience
+  |> should.equal("test")
+}
+
+// Test: create_test_spec config is correct
+pub fn create_test_spec_config_test() {
+  let spec = spec_builder.create_test_spec(5)
+
+  spec.config.base_url
+  |> should.equal("http://test")
+
+  spec.config.timeout_ms
+  |> should.equal(1000)
+}
+
+// Test: check_many validates multiple behaviors
+pub fn check_many_validates_behaviors_test() {
+  let spec = spec_builder.create_test_spec(2)
+  let assert [feature] = spec.features
+  let behaviors = feature.behaviors
+
+  let results = [
+    http_client.ExecutionResult(
+      behavior_name: "b1",
+      status: 200,
+      body: json.null(),
+      headers: dict.new(),
+      duration_ms: 100,
+    ),
+    http_client.ExecutionResult(
+      behavior_name: "b2",
+      status: 200,
+      body: json.null(),
+      headers: dict.new(),
+      duration_ms: 100,
+    ),
+  ]
+
+  let ctx = interpolate.new_context(dict.new(), dict.new())
+
+  let check_results = spec_builder.check_many(behaviors, results, ctx)
+
+  list.length(check_results)
+  |> should.equal(2)
+}
+
+// Test: check_many with single behavior
+pub fn check_many_single_behavior_test() {
+  let spec = spec_builder.create_test_spec(1)
+  let assert [feature] = spec.features
+  let behaviors = feature.behaviors
+
+  let results = [
+    http_client.ExecutionResult(
+      behavior_name: "b1",
+      status: 200,
+      body: json.null(),
+      headers: dict.new(),
+      duration_ms: 50,
+    ),
+  ]
+
+  let ctx = interpolate.new_context(dict.new(), dict.new())
+
+  let check_results = spec_builder.check_many(behaviors, results, ctx)
+
+  list.length(check_results)
+  |> should.equal(1)
+}
+
+// Test: extract_features with special characters in response
+pub fn extract_features_special_characters_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What features?",
+      perspective: Critical,
+      round: 1,
+      response: "OAuth2.0 + JWT",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let features = spec_builder.extract_features_from_answers(answers)
+
+  list.contains(features, "OAuth2.0 + JWT")
+  |> should.be_true()
+}
+
+// Test: extract_constraints case insensitive matching
+pub fn extract_constraints_case_insensitive_test() {
+  let answers = [
+    Answer(
+      question_id: "q1",
+      question_text: "What are the CONSTRAINTS?",
+      perspective: Critical,
+      round: 1,
+      response: "High availability",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+    Answer(
+      question_id: "q2",
+      question_text: "What LIMIT do we have?",
+      perspective: Critical,
+      round: 1,
+      response: "10 concurrent users",
+      extracted: dict.new(),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2024-01-01T00:00:00Z",
+    ),
+  ]
+
+  let constraints = spec_builder.extract_constraints_from_answers(answers)
+
+  list.length(constraints)
+  |> should.equal(2)
+}
+
+// Test: build_spec_body composition
+pub fn build_spec_from_session_body_composition_test() {
+  let session =
+    interview.InterviewSession(
+      id: "test-5",
+      profile: interview.Cli,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      completed_at: "2024-01-01T00:00:00Z",
+      stage: interview.Complete,
+      rounds_completed: 1,
+      answers: [
+        Answer(
+          question_id: "q1",
+          question_text: "What feature?",
+          perspective: Critical,
+          round: 1,
+          response: "File upload",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+        Answer(
+          question_id: "q2",
+          question_text: "What endpoint?",
+          perspective: Critical,
+          round: 1,
+          response: "POST /upload",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+        Answer(
+          question_id: "q3",
+          question_text: "What security?",
+          perspective: Critical,
+          round: 1,
+          response: "API key required",
+          extracted: dict.new(),
+          confidence: 0.9,
+          notes: "",
+          timestamp: "2024-01-01T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+    )
+
+  let cue = spec_builder.build_spec_from_session(session)
+
+  // Verify structure contains all sections
+  string.contains(cue, "features:")
+  |> should.be_true()
+
+  string.contains(cue, "behaviors:")
+  |> should.be_true()
+
+  string.contains(cue, "security:")
+  |> should.be_true()
+}
