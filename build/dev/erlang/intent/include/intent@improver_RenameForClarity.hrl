@@ -1,0 +1,1 @@
+-record(rename_for_clarity, {old_name :: binary(), new_name :: binary()}).
