@@ -136,14 +136,27 @@ fn build_http_request(
   headers: Dict(String, String),
   body: Json,
 ) -> Result(HttpRequest(String), ExecutionError) {
-  // Get host from URI - path is now a String, not Option(String) in older API
-  let host = option.unwrap(parsed_uri.host, "localhost")
+  // Validate host - should be guaranteed by validate_safe_url
+  use host <- result.try(case parsed_uri.host {
+    Some(h) -> Ok(h)
+    None -> Error(SSRFBlocked("URL missing hostname"))
+  })
+
+  // Validate and extract scheme - should be guaranteed by validate_scheme
+  use scheme <- result.try(case parsed_uri.scheme {
+    Some("https") -> Ok(http.Https)
+    Some("http") -> Ok(http.Http)
+    Some(other) ->
+      Error(SSRFBlocked(
+        "Invalid scheme: "
+        <> other
+        <> ". Only http:// and https:// are allowed.",
+      ))
+    None -> Error(SSRFBlocked("URL missing scheme"))
+  })
+
   let path = ensure_leading_slash(parsed_uri.path)
   let port = parsed_uri.port
-  let scheme = case parsed_uri.scheme {
-    Some("https") -> http.Https
-    _ -> http.Http
-  }
 
   // Start building request
   let req =
@@ -316,6 +329,12 @@ fn validate_safe_url(parsed_uri: uri.Uri) -> Result(Nil, ExecutionError) {
 
 /// Validate that a hostname is not a private/internal address
 fn validate_host(host: String) -> Result(Nil, ExecutionError) {
+  // Reject empty hostnames (URLs like "http:///path")
+  use _ <- result.try(case string.is_empty(host) {
+    True -> Error(SSRFBlocked("URL missing hostname"))
+    False -> Ok(Nil)
+  })
+
   let lowercase_host = string.lowercase(host)
 
   // Check for localhost variants
@@ -428,7 +447,10 @@ fn validate_scheme(parsed_uri: uri.Uri) -> Result(Nil, ExecutionError) {
         <> scheme
         <> ". Only http:// and https:// are allowed.",
       ))
-    None -> Ok(Nil)
+    None ->
+      Error(SSRFBlocked(
+        "URL missing scheme. Only http:// and https:// URLs are allowed.",
+      ))
   }
 }
 

@@ -1,1 +1,0 @@
--record(file_not_found, {path :: binary()}).
