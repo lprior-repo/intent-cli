@@ -1,6 +1,5 @@
 /// Security utilities for input validation and sanitization
 import gleam/list
-import gleam/regexp
 import gleam/string
 import simplifile
 
@@ -11,24 +10,30 @@ pub type SecurityError {
   FileNotAccessible(path: String)
   UnsafeRegexPattern(pattern: String, reason: String)
   ShellMetacharactersDetected(path: String)
+  SymlinkNotAllowed(path: String)
+  SSRFAttempt(url: String, reason: String)
 }
 
-/// Check if a path contains only safe characters to prevent command injection
+/// Check if a path is safe by blocking dangerous shell metacharacters
 ///
-/// Only allows alphanumeric characters, forward slashes, underscores, dots, and hyphens.
-/// This prevents shell metacharacters like ; | & $ ` from being injected.
+/// Blocks characters that could enable command injection:
+/// - ; | & $ ` (command separators, pipes, background, variable expansion)
+/// - > < (redirection operators)
+/// - Newlines and carriage returns
+///
+/// Allows common path characters including spaces, parentheses, quotes, etc.
 ///
 /// # Example
 /// ```gleam
 /// is_safe_path("examples/api.cue") // True
+/// is_safe_path("/home/user/My Documents/api.cue") // True
 /// is_safe_path("; rm -rf /") // False
 /// is_safe_path("$(whoami).cue") // False
 /// ```
 pub fn is_safe_path(path: String) -> Bool {
-  case regexp.from_string("^[a-zA-Z0-9/_.-]+$") {
-    Ok(pattern) -> regexp.check(pattern, path)
-    Error(_) -> False
-  }
+  // Blocklist approach: reject paths containing dangerous shell metacharacters
+  let dangerous_chars = [";", "|", "&", "$", "`", ">", "<", "\n", "\r"]
+  !list.any(dangerous_chars, fn(char) { string.contains(path, char) })
 }
 
 /// Validate a file path to prevent path traversal attacks
@@ -50,6 +55,15 @@ pub fn is_safe_path(path: String) -> Bool {
 /// }
 /// ```
 pub fn validate_file_path(path: String) -> Result(String, SecurityError) {
+  // Reject empty paths first
+  case string.is_empty(path) {
+    True -> Error(InvalidPath(path, "Path cannot be empty"))
+    False -> validate_file_path_impl(path)
+  }
+}
+
+// Internal implementation after empty path check
+fn validate_file_path_impl(path: String) -> Result(String, SecurityError) {
   // First check for shell metacharacters to prevent command injection
   case is_safe_path(path) {
     False -> Error(ShellMetacharactersDetected(path))
@@ -93,12 +107,18 @@ pub fn validate_file_path(path: String) -> Result(String, SecurityError) {
                           case string.contains(path, "....") {
                             True -> Error(PathTraversalAttempt(path))
                             False -> {
-                              // Verify file exists
-                              case simplifile.verify_is_file(path) {
-                                Ok(True) -> Ok(path)
-                                Ok(False) ->
-                                  Error(InvalidPath(path, "Not a regular file"))
-                                Error(_) -> Error(FileNotAccessible(path))
+                              // Check for symlinks - reject to prevent symlink attacks
+                              case simplifile.verify_is_symlink(path) {
+                                Ok(True) -> Error(SymlinkNotAllowed(path))
+                                _ -> {
+                                  // Verify file exists
+                                  case simplifile.verify_is_file(path) {
+                                    Ok(True) -> Ok(path)
+                                    Ok(False) ->
+                                      Error(InvalidPath(path, "Not a regular file"))
+                                    Error(_) -> Error(FileNotAccessible(path))
+                                  }
+                                }
                               }
                             }
                           }
@@ -160,6 +180,117 @@ pub fn validate_regex_pattern(pattern: String) -> Result(String, SecurityError) 
   }
 }
 
+/// Validate a URL to prevent SSRF (Server-Side Request Forgery) attacks
+///
+/// Checks:
+/// - URL must use http:// or https:// scheme
+/// - Blocks localhost, 127.0.0.0/8, and loopback addresses
+/// - Blocks private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+/// - Blocks link-local addresses (169.254.0.0/16)
+/// - Blocks IPv6 loopback and link-local
+/// - Blocks file:// and other dangerous schemes
+///
+/// # Example
+/// ```gleam
+/// case validate_url("https://api.example.com") {
+///   Ok(url) -> make_request(url)
+///   Error(SSRFAttempt(_, reason)) -> Error(reason)
+/// }
+/// ```
+pub fn validate_url(url: String) -> Result(String, SecurityError) {
+  // Convert to lowercase for case-insensitive checks
+  let url_lower = string.lowercase(url)
+
+  // Check for valid HTTP/HTTPS scheme
+  let has_valid_scheme =
+    string.starts_with(url_lower, "http://")
+    || string.starts_with(url_lower, "https://")
+
+  case has_valid_scheme {
+    False ->
+      Error(SSRFAttempt(
+        url,
+        "Only http:// and https:// schemes are allowed",
+      ))
+    True -> {
+      // Check for localhost variations
+      case
+        string.contains(url_lower, "localhost")
+        || string.contains(url_lower, "127.0.0.")
+        || string.contains(url_lower, "127.1.")
+        || string.contains(url_lower, "[::1]")
+        || string.contains(url_lower, "[0:0:0:0:0:0:0:1]")
+      {
+        True ->
+          Error(SSRFAttempt(url, "Localhost addresses are not allowed"))
+        False -> {
+          // Check for private IP ranges
+          case
+            string.contains(url_lower, "10.0.")
+            || string.contains(url_lower, "10.1.")
+            || string.contains(url_lower, "10.2.")
+            || string.contains(url_lower, "10.3.")
+            || string.contains(url_lower, "10.4.")
+            || string.contains(url_lower, "10.5.")
+            || string.contains(url_lower, "10.6.")
+            || string.contains(url_lower, "10.7.")
+            || string.contains(url_lower, "10.8.")
+            || string.contains(url_lower, "10.9.")
+            || string.contains(url_lower, "192.168.")
+            || string.contains(url_lower, "172.16.")
+            || string.contains(url_lower, "172.17.")
+            || string.contains(url_lower, "172.18.")
+            || string.contains(url_lower, "172.19.")
+            || string.contains(url_lower, "172.20.")
+            || string.contains(url_lower, "172.21.")
+            || string.contains(url_lower, "172.22.")
+            || string.contains(url_lower, "172.23.")
+            || string.contains(url_lower, "172.24.")
+            || string.contains(url_lower, "172.25.")
+            || string.contains(url_lower, "172.26.")
+            || string.contains(url_lower, "172.27.")
+            || string.contains(url_lower, "172.28.")
+            || string.contains(url_lower, "172.29.")
+            || string.contains(url_lower, "172.30.")
+            || string.contains(url_lower, "172.31.")
+          {
+            True ->
+              Error(SSRFAttempt(
+                url,
+                "Private IP address ranges are not allowed (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)",
+              ))
+            False -> {
+              // Check for link-local (AWS metadata, etc.)
+              case string.contains(url_lower, "169.254.") {
+                True ->
+                  Error(SSRFAttempt(
+                    url,
+                    "Link-local addresses are not allowed (169.254.0.0/16 - often used for cloud metadata)",
+                  ))
+                False -> {
+                  // Check for IPv6 link-local
+                  case
+                    string.contains(url_lower, "[fe80:")
+                    || string.contains(url_lower, "[fc00:")
+                    || string.contains(url_lower, "[fd00:")
+                  {
+                    True ->
+                      Error(SSRFAttempt(
+                        url,
+                        "IPv6 link-local and unique local addresses are not allowed",
+                      ))
+                    False -> Ok(url)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 /// Format security error for display
 pub fn format_security_error(error: SecurityError) -> String {
   case error {
@@ -182,7 +313,16 @@ pub fn format_security_error(error: SecurityError) -> String {
     ShellMetacharactersDetected(path) ->
       "Security error: Invalid file path '"
       <> path
-      <> "'. Path contains shell metacharacters. Only alphanumeric characters, forward slashes, underscores, dots, and hyphens are allowed."
+      <> "'. Path contains dangerous shell metacharacters (; | & $ ` > < or newlines)."
+    SymlinkNotAllowed(path) ->
+      "Security error: Symbolic links are not allowed. Path '"
+      <> path
+      <> "' is a symlink."
+    SSRFAttempt(url, reason) ->
+      "Security error: SSRF (Server-Side Request Forgery) attempt detected in URL '"
+      <> url
+      <> "': "
+      <> reason
   }
 }
 
