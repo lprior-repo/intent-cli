@@ -306,9 +306,40 @@ fn execute_single_behavior(
           case passed {
             True -> {
               // Capture values
-              let new_ctx = apply_captures(ctx, rb.behavior, execution)
-              let result = BehaviorPassed(execution)
-              #(result, new_ctx, failed_set)
+              case apply_captures(ctx, rb.behavior, execution) {
+                Ok(new_ctx) -> {
+                  let result = BehaviorPassed(execution)
+                  #(result, new_ctx, failed_set)
+                }
+                Error(capture_error) -> {
+                  // Capture extraction failed - treat as test failure
+                  let capture_check_failure =
+                    checker.CheckFailed(
+                      field: "capture",
+                      rule: "extract",
+                      expected: "successful capture extraction",
+                      actual: capture_error,
+                      explanation: "Capture extraction failed during test execution",
+                    )
+                  let check_result_with_capture_error =
+                    checker.ResponseCheckResult(
+                      ..check_result,
+                      failed: list.append(check_result.failed, [
+                        capture_check_failure,
+                      ]),
+                    )
+                  let failure =
+                    output.create_failure(
+                      rb.feature_name,
+                      rb.behavior,
+                      check_result_with_capture_error,
+                      execution,
+                      config.base_url,
+                    )
+                  let result = BehaviorFailed(failure, execution)
+                  #(result, ctx, set.insert(failed_set, rb.behavior.name))
+                }
+              }
             }
             False -> {
               let failure =
@@ -333,11 +364,24 @@ fn apply_captures(
   ctx: Context,
   behavior: Behavior,
   _execution: ExecutionResult,
-) -> Context {
-  dict.fold(behavior.captures, ctx, fn(acc_ctx, name, path) {
-    case interpolate.extract_capture(acc_ctx, path) {
-      Ok(value) -> interpolate.set_variable(acc_ctx, name, value)
-      Error(_) -> acc_ctx
+) -> Result(Context, String) {
+  // Try to extract all captures, failing on first error
+  dict.fold(behavior.captures, Ok(ctx), fn(result_ctx, name, path) {
+    case result_ctx {
+      Error(e) -> Error(e)
+      Ok(acc_ctx) ->
+        case interpolate.extract_capture(acc_ctx, path) {
+          Ok(value) -> Ok(interpolate.set_variable(acc_ctx, name, value))
+          Error(e) ->
+            Error(
+              "Failed to capture '"
+              <> name
+              <> "' from path '"
+              <> path
+              <> "': "
+              <> e,
+            )
+        }
     }
   })
 }
