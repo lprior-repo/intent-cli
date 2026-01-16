@@ -1,6 +1,5 @@
 /// Output formatters for Intent results
 /// Generates JSON and human-readable output
-
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/json.{type Json}
@@ -152,10 +151,7 @@ fn request_summary_to_json(req: RequestSummary) -> Json {
 }
 
 fn response_summary_to_json(resp: ResponseSummary) -> Json {
-  json.object([
-    #("status", json.int(resp.status)),
-    #("body", resp.body),
-  ])
+  json.object([#("status", json.int(resp.status)), #("body", resp.body)])
 }
 
 fn blocked_behavior_to_json(blocked: BlockedBehavior) -> Json {
@@ -216,7 +212,8 @@ pub fn spec_result_to_text(result: SpecResult) -> String {
   let failures_text = case result.failures {
     [] -> ""
     failures ->
-      "\n\nFAILURES:\n" <> string.join(list.map(failures, format_failure), "\n\n")
+      "\n\nFAILURES:\n"
+      <> string.join(list.map(failures, format_failure), "\n\n")
   }
 
   let blocked_text = case result.blocked_behaviors {
@@ -328,9 +325,8 @@ pub fn create_failure(
       case check {
         checker.CheckFailed(field, rule, expected, actual, explanation) ->
           Problem(field, rule, expected, actual, explanation)
-        checker.CheckPassed(_, _) ->
-          Problem("", "", "", "", "")
-          // Shouldn't happen
+        checker.CheckPassed(_, _) -> Problem("", "", "", "", "")
+        // Shouldn't happen
       }
     })
 
@@ -377,9 +373,12 @@ fn generate_hint(
   case check_result.status_ok {
     False ->
       case check_result.status_actual {
-        404 -> "The resource might not exist. Check that prerequisite behaviors ran successfully."
-        401 -> "Authentication may be required. Check that the auth token is being passed correctly."
-        403 -> "Access denied. Check permissions and that the correct user is authenticated."
+        404 ->
+          "The resource might not exist. Check that prerequisite behaviors ran successfully."
+        401 ->
+          "Authentication may be required. Check that the auth token is being passed correctly."
+        403 ->
+          "Access denied. Check permissions and that the correct user is authenticated."
         500 -> "Server error. Check server logs for details."
         _ -> ""
       }
@@ -401,4 +400,306 @@ pub fn create_blocked(
     reason: "Requires '" <> failed_dependency <> "' which failed",
     hint: "Fix '" <> failed_dependency <> "' first, then this will run",
   )
+}
+
+/// Convert SpecResult to JUnit XML format for CI integration
+pub fn spec_result_to_junit_xml(result: SpecResult, spec_name: String) -> String {
+  let testsuite_attrs =
+    "name=\""
+    <> xml_escape(spec_name)
+    <> "\" tests=\""
+    <> int.to_string(result.total)
+    <> "\" failures=\""
+    <> int.to_string(result.failed)
+    <> "\" errors=\"0\" skipped=\""
+    <> int.to_string(result.blocked)
+    <> "\""
+
+  let testcases =
+    list.map(result.failures, fn(failure) {
+      let failure_msg = failure_to_junit_message(failure)
+      "<testcase classname=\""
+      <> xml_escape(failure.feature)
+      <> "\" name=\""
+      <> xml_escape(failure.behavior)
+      <> "\">"
+      <> "<failure message=\""
+      <> xml_escape(failure_msg)
+      <> "\"><![CDATA["
+      <> failure_to_junit_detail(failure)
+      <> "]]></failure>"
+      <> "</testcase>"
+    })
+
+  let blocked_cases =
+    list.map(result.blocked_behaviors, fn(blocked) {
+      "<testcase classname=\"blocked\" name=\""
+      <> xml_escape(blocked.behavior)
+      <> "\">"
+      <> "<skipped message=\""
+      <> xml_escape(blocked.reason)
+      <> "\"/>"
+      <> "</testcase>"
+    })
+
+  // Count passed tests by excluding failures and blocked
+  let passed_count = result.passed
+  let passed_cases = case passed_count > 0 {
+    True ->
+      list.repeat(
+        "<testcase classname=\"passed\" name=\"behavior-passed\"/>",
+        passed_count,
+      )
+    False -> []
+  }
+
+  let all_cases =
+    list.append(testcases, list.append(blocked_cases, passed_cases))
+    |> string.join("\n")
+
+  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+  <> "<testsuites>\n"
+  <> "<testsuite "
+  <> testsuite_attrs
+  <> ">\n"
+  <> all_cases
+  <> "\n</testsuite>\n"
+  <> "</testsuites>"
+}
+
+fn failure_to_junit_message(failure: BehaviorFailure) -> String {
+  case list.first(failure.problems) {
+    Ok(problem) ->
+      problem.field
+      <> ": expected "
+      <> problem.expected
+      <> ", got "
+      <> problem.actual
+    Error(_) -> "Behavior failed"
+  }
+}
+
+fn failure_to_junit_detail(failure: BehaviorFailure) -> String {
+  let problems_text =
+    list.map(failure.problems, fn(p) {
+      p.field
+      <> ": "
+      <> p.rule
+      <> "\n  Expected: "
+      <> p.expected
+      <> "\n  Actual: "
+      <> p.actual
+    })
+    |> string.join("\n\n")
+
+  "Feature: "
+  <> failure.feature
+  <> "\nBehavior: "
+  <> failure.behavior
+  <> "\nIntent: "
+  <> failure.intent
+  <> "\n\nProblems:\n"
+  <> problems_text
+  <> "\n\nRequest:\n  "
+  <> failure.request_sent.method
+  <> " "
+  <> failure.request_sent.url
+  <> "\n\nResponse:\n  Status: "
+  <> int.to_string(failure.response_received.status)
+}
+
+fn xml_escape(text: String) -> String {
+  text
+  |> string.replace("&", "&amp;")
+  |> string.replace("<", "&lt;")
+  |> string.replace(">", "&gt;")
+  |> string.replace("\"", "&quot;")
+  |> string.replace("'", "&apos;")
+}
+
+/// Convert SpecResult to TAP (Test Anything Protocol) format
+/// TAP is a simple text-based interface between testing modules
+pub fn spec_result_to_tap(result: SpecResult, spec_name: String) -> String {
+  let total = result.total
+  let plan = "1.." <> int.to_string(total)
+
+  // Add failure test cases
+  let failure_lines =
+    list.index_map(result.failures, fn(failure, idx) {
+      let test_num = idx + 1
+      let test_name = failure.feature <> " - " <> failure.behavior
+      let diag = case list.first(failure.problems) {
+        Ok(problem) ->
+          "# Expected: " <> problem.expected <> "\n# Got: " <> problem.actual
+        Error(_) -> "# Test failed"
+      }
+      "not ok " <> int.to_string(test_num) <> " - " <> test_name <> "\n" <> diag
+    })
+
+  // Add blocked test cases (as skipped)
+  let blocked_offset = list.length(result.failures)
+  let blocked_lines =
+    list.index_map(result.blocked_behaviors, fn(blocked, idx) {
+      let test_num = blocked_offset + idx + 1
+      "ok "
+      <> int.to_string(test_num)
+      <> " - "
+      <> blocked.behavior
+      <> " # SKIP "
+      <> blocked.reason
+    })
+
+  // Add passing test cases
+  let passed_offset = blocked_offset + list.length(result.blocked_behaviors)
+  let passed_lines =
+    list.range(1, result.passed)
+    |> list.map(fn(idx) {
+      let test_num = passed_offset + idx
+      "ok " <> int.to_string(test_num) <> " - behavior passed"
+    })
+
+  // Combine all lines
+  let all_test_lines =
+    list.append(failure_lines, list.append(blocked_lines, passed_lines))
+
+  // Build output
+  let tests_output = string.join(all_test_lines, "\n")
+
+  // Add header comment
+  let header = "# TAP version 14\n# Spec: " <> spec_name
+
+  header <> "\n" <> plan <> "\n" <> tests_output
+}
+
+/// Convert SpecResult to SARIF (Static Analysis Results Interchange Format)
+/// SARIF is a standard format for security and static analysis tools
+pub fn spec_result_to_sarif(result: SpecResult, spec_name: String) -> String {
+  // Build SARIF results from failures and rule violations
+  let failure_results =
+    list.map(result.failures, fn(failure) {
+      let message_text = case list.first(failure.problems) {
+        Ok(problem) ->
+          problem.field
+          <> ": Expected "
+          <> problem.expected
+          <> ", got "
+          <> problem.actual
+        Error(_) -> "Test failed"
+      }
+
+      "{"
+      <> "\"ruleId\":\"behavior-check\","
+      <> "\"level\":\"error\","
+      <> "\"message\":{\"text\":\""
+      <> json_escape(message_text)
+      <> "\"},"
+      <> "\"locations\":[{"
+      <> "\"physicalLocation\":{"
+      <> "\"artifactLocation\":{\"uri\":\""
+      <> json_escape(spec_name)
+      <> "\"},"
+      <> "\"region\":{"
+      <> "\"snippet\":{\"text\":\""
+      <> json_escape(failure.behavior)
+      <> "\"}"
+      <> "}"
+      <> "}"
+      <> "}]"
+      <> "}"
+    })
+
+  let rule_violation_results =
+    list.flat_map(result.rule_violations, fn(group) {
+      list.map(group.violations, fn(violation) {
+        "{"
+        <> "\"ruleId\":\""
+        <> json_escape(group.rule)
+        <> "\","
+        <> "\"level\":\"warning\","
+        <> "\"message\":{\"text\":\""
+        <> json_escape(group.description)
+        <> "\"},"
+        <> "\"locations\":[{"
+        <> "\"physicalLocation\":{"
+        <> "\"artifactLocation\":{\"uri\":\""
+        <> json_escape(spec_name)
+        <> "\"},"
+        <> "\"region\":{"
+        <> "\"snippet\":{\"text\":\""
+        <> json_escape(violation.behavior)
+        <> "\"}"
+        <> "}"
+        <> "}"
+        <> "}]"
+        <> "}"
+      })
+    })
+
+  let anti_pattern_results =
+    list.filter_map(result.anti_patterns_detected, fn(pattern) {
+      case pattern {
+        anti_patterns.AntiPatternDetected(
+          pattern_name,
+          description,
+          found,
+          _,
+          _,
+        ) ->
+          Ok(
+            "{"
+            <> "\"ruleId\":\""
+            <> json_escape(pattern_name)
+            <> "\","
+            <> "\"level\":\"warning\","
+            <> "\"message\":{\"text\":\""
+            <> json_escape(description <> ": " <> found)
+            <> "\"},"
+            <> "\"locations\":[{"
+            <> "\"physicalLocation\":{"
+            <> "\"artifactLocation\":{\"uri\":\""
+            <> json_escape(spec_name)
+            <> "\"}"
+            <> "}"
+            <> "}]"
+            <> "}",
+          )
+        anti_patterns.NoAntiPatterns -> Error(Nil)
+      }
+    })
+
+  let all_results =
+    list.append(
+      failure_results,
+      list.append(rule_violation_results, anti_pattern_results),
+    )
+
+  let results_json = case list.is_empty(all_results) {
+    True -> "[]"
+    False -> "[" <> string.join(all_results, ",") <> "]"
+  }
+
+  "{"
+  <> "\"version\":\"2.1.0\","
+  <> "\"$schema\":\"https://json.schemastore.org/sarif-2.1.0.json\","
+  <> "\"runs\":[{"
+  <> "\"tool\":{"
+  <> "\"driver\":{"
+  <> "\"name\":\"Intent\","
+  <> "\"version\":\"1.0.0\","
+  <> "\"informationUri\":\"https://github.com/lprior-repo/intent-cli\""
+  <> "}"
+  <> "},"
+  <> "\"results\":"
+  <> results_json
+  <> "}]"
+  <> "}"
+}
+
+fn json_escape(text: String) -> String {
+  text
+  |> string.replace("\\", "\\\\")
+  |> string.replace("\"", "\\\"")
+  |> string.replace("\n", "\\n")
+  |> string.replace("\r", "\\r")
+  |> string.replace("\t", "\\t")
 }
