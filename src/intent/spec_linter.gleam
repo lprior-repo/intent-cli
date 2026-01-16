@@ -133,31 +133,18 @@ fn contains_anti_pattern_keys(example: Json, pattern: AntiPattern) -> Bool {
   let bad_keys = extract_all_keys(pattern.bad_example)
   let example_keys = extract_all_keys(example)
 
-  // DEBUG - remove after fixing
-  // io.debug(#("bad_keys", bad_keys, "example_keys", example_keys))
-
   // Check if any bad keys are in the example
   list.any(bad_keys, fn(key) { list.contains(example_keys, key) })
 }
 
 /// Extract all keys from a JSON object (recursively)
-/// Converts JSON to string, then decodes to extract dictionary keys
-fn extract_all_keys(json_val: Json) -> List(String) {
-  // Convert Json to string representation
-  let json_str = json.to_string(json_val)
+fn extract_all_keys(json: Json) -> List(String) {
+  let json_str = json.to_string(json)
 
-  // Parse the JSON string and try to extract as a dictionary
-  case json.decode(json_str, dynamic.dynamic) {
-    Ok(dyn) -> extract_keys_from_dynamic(dyn)
-    Error(_) -> []
-  }
-}
-
-/// Extract keys from a dynamic value
-fn extract_keys_from_dynamic(dyn: dynamic.Dynamic) -> List(String) {
-  // Try to decode as a dictionary
-  case dynamic.dict(dynamic.string, dynamic.dynamic)(dyn) {
-    Ok(dict_val) -> dict.keys(dict_val)
+  case json.decode(json_str, dynamic.dict(dynamic.string, dynamic.dynamic)) {
+    Ok(obj) -> {
+      dict.keys(obj)
+    }
     Error(_) -> []
   }
 }
@@ -239,24 +226,17 @@ fn check_for_duplicate_behaviors(behaviors: List(Behavior)) -> List(LintWarning)
     behaviors
     |> list.drop(idx + 1)
     |> list.filter_map(fn(other) {
-      // Only flag as duplicate if response status codes match
-      // Different status codes mean different test scenarios (success vs error cases)
-      case behavior.response.status == other.response.status {
+      let similarity = calculate_behavior_similarity(behavior, other)
+      case similarity >. 0.7 {
+        True ->
+          Ok(DuplicateBehavior(
+            behavior.name,
+            other.name,
+            "Similar request path and method (similarity: "
+            <> string.trim(float_to_string(similarity, 2))
+            <> ")",
+          ))
         False -> Error(Nil)
-        True -> {
-          let similarity = calculate_behavior_similarity(behavior, other)
-          case similarity >. 0.7 {
-            True ->
-              Ok(DuplicateBehavior(
-                behavior.name,
-                other.name,
-                "Similar request path and method with same status code (similarity: "
-                <> string.trim(float_to_string(similarity, 2))
-                <> ")",
-              ))
-            False -> Error(Nil)
-          }
-        }
       }
     })
   })

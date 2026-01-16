@@ -1,48 +1,6 @@
-/// KIRK Gap Detector
-///
-/// Identifies missing requirements and edge cases using systematic mental models.
-/// Part of the KIRK (Knowledge-Intensive Requirements Kibitzing) analysis suite.
-///
-/// ## Purpose
-///
-/// Requirements gaps are a top-3 cause of project failure. This module applies
-/// three complementary analysis techniques to detect missing behavioral coverage:
-///
-/// 1. **Inversion Analysis**: What should NOT happen? (failure modes, error cases)
-/// 2. **Second-Order Effects**: What happens AFTER this action? (cascading changes)
-/// 3. **Checklist Analysis**: Industry-standard coverage (OWASP, WCAG, etc.)
-///
-/// ## Usage
-///
-/// ```gleam
-/// import intent/kirk/gap_detector
-///
-/// let spec = load_spec("api.cue")
-/// let report = gap_detector.detect_gaps(spec)
-///
-/// case list.is_empty(report.inversion_gaps) {
-///   True -> io.println("No inversion gaps found!")
-///   False -> {
-///     io.println("Missing failure scenarios:")
-///     list.each(report.inversion_gaps, fn(gap) {
-///       io.println("  - " <> gap.title)
-///     })
-///   }
-/// }
-/// ```
-///
-/// ## Mental Models
-///
-/// - **Inversion**: "Always invert" (Charlie Munger) - think backwards from failure
-/// - **Second-Order Thinking**: Consider consequences beyond immediate effects
-/// - **Checklists**: Proven patterns from high-reliability organizations (aviation, medicine)
-///
-/// ## References
-///
-/// - EARS Requirements patterns
-/// - OWASP Top 10
-/// - NASA Systems Engineering Handbook
-/// - Atul Gawande's "The Checklist Manifesto"
+// KIRK Gap Detector
+// Identifies missing requirements using mental models
+// Based on empirical research: requirements gaps are top 3 cause of project failure
 
 import gleam/dict
 import gleam/int
@@ -209,11 +167,12 @@ fn find_inversion_gaps(behaviors: List(Behavior), spec: Spec) -> List(Gap) {
         suggestion: "Add more error case behaviors (aim for 30%+ coverage)",
         mental_model: "Inversion",
       )]
-    False -> []
+    _ -> []
   }
 
   // Check anti-patterns
-  let anti_pattern_gaps = case list.length(spec.anti_patterns) {
+  let ap_count = list.length(spec.anti_patterns)
+  let anti_pattern_gaps = case ap_count {
     0 -> [Gap(
       gap_type: InversionGap,
       description: "No anti-patterns defined",
@@ -221,9 +180,9 @@ fn find_inversion_gaps(behaviors: List(Behavior), spec: Spec) -> List(Gap) {
       suggestion: "Add anti-patterns to document what NOT to do",
       mental_model: "Inversion",
     )]
-    n if n < 3 -> [Gap(
+    _ if ap_count < 3 -> [Gap(
       gap_type: InversionGap,
-      description: "Only " <> int.to_string(n) <> " anti-patterns defined",
+      description: "Only " <> int.to_string(ap_count) <> " anti-patterns defined",
       severity: Low,
       suggestion: "Consider adding more anti-patterns for common mistakes",
       mental_model: "Inversion",
@@ -245,17 +204,12 @@ fn find_second_order_gaps(behaviors: List(Behavior)) -> List(Gap) {
     behaviors
     |> list.filter(fn(b) {
       case b.request.method {
-        types.Post -> True
-        types.Put -> True
-        types.Patch -> True
-        types.Delete -> True
+        types.Post | types.Put | types.Patch | types.Delete -> True
         _ -> False
       }
     })
 
   // Check if mutations have follow-up verification behaviors
-  let _behavior_names = behaviors |> list.map(fn(b) { b.name })
-
   mutations
   |> list.filter_map(fn(m) {
     // Look for behaviors that depend on this mutation
@@ -335,11 +289,8 @@ fn find_checklist_gaps(behaviors: List(Behavior)) -> List(Gap) {
         False -> {
           // Only flag important error codes as high severity
           let severity = case status {
-            400 -> High
-            401 -> High
-            404 -> High
-            403 -> Medium
-            409 -> Medium
+            400 | 401 | 404 -> High
+            403 | 409 -> Medium
             _ -> Low
           }
           Ok(Gap(
@@ -431,8 +382,7 @@ fn find_security_gaps(spec: Spec) -> List(Gap) {
       True -> Error(Nil)
       False -> {
         let severity = case category {
-          "authentication" -> Critical
-          "authorization" -> Critical
+          "authentication" | "authorization" -> Critical
           "sensitive-data" -> High
           _ -> Medium
         }
