@@ -34,6 +34,24 @@ pub type SessionRecord {
 }
 
 // =============================================================================
+// File Error Formatting
+// =============================================================================
+
+/// Format simplifile errors with user-friendly messages instead of raw Erlang atoms
+fn format_file_error(err: simplifile.FileError, context: String) -> String {
+  case err {
+    simplifile.Enoent -> context <> " - file not found"
+    simplifile.Eacces -> context <> " - permission denied"
+    simplifile.Eisdir -> context <> " - path is a directory"
+    simplifile.Enospc -> context <> " - no space left on device"
+    simplifile.Enotdir -> context <> " - not a directory"
+    simplifile.Eexist -> context <> " - file already exists"
+    simplifile.Eio -> context <> " - I/O error"
+    _ -> context <> " - " <> string.inspect(err)
+  }
+}
+
+// =============================================================================
 // Answer History Tracking
 // =============================================================================
 
@@ -176,7 +194,7 @@ pub fn diff_sessions(
       Error(_) -> Ok(AnswerDiff(
         question_id: answer.question_id,
         question_text: answer.question_text,
-        old_response: option.None,
+        old_response: None,
         new_response: answer.response,
         change_type: Added,
       ))
@@ -192,7 +210,7 @@ pub fn diff_sessions(
           False -> Ok(AnswerDiff(
             question_id: answer.question_id,
             question_text: answer.question_text,
-            old_response: option.Some(old_answer.response),
+            old_response: Some(old_answer.response),
             new_response: answer.response,
             change_type: Modified,
           ))
@@ -210,29 +228,11 @@ pub fn diff_sessions(
     }
   })
 
-  // Build lookup maps for gaps
-  let from_gaps_dict = list.fold(from_session.gaps, dict.new(), fn(acc, g) {
-    dict.insert(acc, g.id, g)
-  })
-  let _to_gaps_dict = list.fold(to_session.gaps, dict.new(), fn(acc, g) {
-    dict.insert(acc, g.id, g)
-  })
-
-  // Count gaps resolved: in both sessions, from.resolved=False, to.resolved=True
-  let gaps_resolved = list.filter(to_session.gaps, fn(gap) {
-    case dict.get(from_gaps_dict, gap.id) {
-      Ok(from_gap) -> !from_gap.resolved && gap.resolved
-      Error(_) -> False
-    }
-  }) |> list.length()
-
-  // Count gaps added: in to but not in from, and unresolved
-  let gaps_added = list.filter(to_session.gaps, fn(gap) {
-    case dict.get(from_gaps_dict, gap.id) {
-      Ok(_) -> False
-      Error(_) -> !gap.resolved
-    }
-  }) |> list.length()
+  // Count gap changes
+  let from_unresolved_gaps = list.filter(from_session.gaps, fn(g) { !g.resolved })
+  let to_unresolved_gaps = list.filter(to_session.gaps, fn(g) { !g.resolved })
+  let gaps_added = list.length(to_unresolved_gaps) - list.length(from_unresolved_gaps)
+  let gaps_resolved = case gaps_added < 0 { True -> -gaps_added False -> 0 }
 
   // Count conflict changes
   let from_unresolved_conflicts = list.filter(from_session.conflicts, fn(c) { c.chosen < 0 })
@@ -242,8 +242,8 @@ pub fn diff_sessions(
 
   // Check stage change
   let stage_changed = case from_session.stage == to_session.stage {
-    True -> option.None
-    False -> option.Some(#(stage_to_string(from_session.stage), stage_to_string(to_session.stage)))
+    True -> None
+    False -> Some(#(stage_to_string(from_session.stage), stage_to_string(to_session.stage)))
   }
 
   SessionDiff(
@@ -254,7 +254,7 @@ pub fn diff_sessions(
     answers_added: added,
     answers_modified: modified,
     answers_removed: removed,
-    gaps_added: gaps_added,
+    gaps_added: case gaps_added > 0 { True -> gaps_added False -> 0 },
     gaps_resolved: gaps_resolved,
     conflicts_added: case conflicts_added > 0 { True -> conflicts_added False -> 0 },
     conflicts_resolved: conflicts_resolved,
@@ -275,8 +275,8 @@ pub fn format_diff(diff: SessionDiff) -> String {
 
   // Stage change
   let lines = case diff.stage_changed {
-    option.Some(#(from, to)) -> list.append(lines, ["Stage: " <> from <> " → " <> to, ""])
-    option.None -> lines
+    Some(#(from, to)) -> list.append(lines, ["Stage: " <> from <> " → " <> to, ""])
+    None -> lines
   }
 
   // Answers added
@@ -298,8 +298,8 @@ pub fn format_diff(diff: SessionDiff) -> String {
       let header = ["Answers Modified (" <> string.inspect(n) <> "):"]
       let answer_lines = list.flat_map(diff.answers_modified, fn(a) {
         let old = case a.old_response {
-          option.Some(r) -> truncate(r, 40)
-          option.None -> "(none)"
+          Some(r) -> truncate(r, 40)
+          None -> "(none)"
         }
         [
           "  ~ [" <> a.question_id <> "]",
@@ -376,7 +376,7 @@ pub fn append_to_history(
   }
 
   simplifile.write(history_path, content)
-  |> result.map_error(fn(err) { "Failed to write history: " <> string.inspect(err) })
+  |> result.map_error(fn(err) { format_file_error(err, "Failed to write history") })
 }
 
 fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
@@ -403,7 +403,7 @@ pub fn list_session_history(
 ) -> Result(List(SessionSnapshot), String) {
   use content <- result.try(
     simplifile.read(history_path)
-    |> result.map_error(fn(err) { "Failed to read history: " <> string.inspect(err) })
+    |> result.map_error(fn(err) { format_file_error(err, "Failed to read history") })
   )
 
   case string.length(string.trim(content)) {
@@ -558,38 +558,17 @@ pub fn session_to_jsonl_line(session: InterviewSession) -> String {
   |> json.to_string
 }
 
-/// Ensure parent directory exists for a file path
-pub fn ensure_parent_directory(file_path: String) -> Result(Nil, String) {
-  let parts = string.split(file_path, "/")
-  let dir_parts = list.take(parts, list.length(parts) - 1)
-  case list.length(dir_parts) {
-    0 -> Ok(Nil)
-    _ -> {
-      let dir_path = string.join(dir_parts, "/")
-      simplifile.create_directory_all(dir_path)
-      |> result.map_error(fn(err) {
-        let err_msg = case err {
-          simplifile.Enoent -> "Parent directory not found"
-          simplifile.Eacces -> "Permission denied"
-          simplifile.Enospc -> "No space left on device"
-          simplifile.Eio -> "I/O error"
-          _ -> "Unknown error"
-        }
-        "Failed to create directory '" <> dir_path <> "': " <> err_msg
-      })
-    }
-  }
-}
-
 /// Write session to .interview/sessions.jsonl
 /// Each session ID appears once, most recent last (for efficient updates)
 pub fn append_session_to_jsonl(
   session: InterviewSession,
   jsonl_path: String,
 ) -> Result(Nil, String) {
-  let existing =
-    simplifile.read(jsonl_path)
-    |> result.unwrap("")
+  // Read existing file or use empty string if file doesn't exist
+  let existing = case simplifile.read(jsonl_path) {
+    Ok(content) -> content
+    Error(_) -> ""
+  }
 
   let lines = case existing {
     "" -> []
@@ -608,25 +587,15 @@ pub fn append_session_to_jsonl(
   let all_lines = list.append(filtered, [new_line])
   let content = string.join(all_lines, "\n")
 
-  use _ <- result.try(ensure_parent_directory(jsonl_path))
   simplifile.write(jsonl_path, content)
-  |> result.map_error(fn(err) {
-    let err_msg = case err {
-      simplifile.Enoent -> "File or directory not found"
-      simplifile.Eacces -> "Permission denied"
-      simplifile.Enospc -> "No space left on device"
-      simplifile.Eio -> "I/O error"
-      _ -> "Unknown error"
-    }
-    "Failed to write JSONL to '" <> jsonl_path <> "': " <> err_msg
-  })
+  |> result.map_error(fn(err) { format_file_error(err, "Failed to write JSONL") })
 }
 
 /// List all sessions from JSONL file
 pub fn list_sessions_from_jsonl(jsonl_path: String) -> Result(List(InterviewSession), String) {
   use content <- result.try(
     simplifile.read(jsonl_path)
-    |> result.map_error(fn(err) { "Failed to read JSONL: " <> string.inspect(err) }),
+    |> result.map_error(fn(err) { format_file_error(err, "Failed to read JSONL") }),
   )
 
   case string.length(string.trim(content)) {
@@ -789,12 +758,13 @@ fn session_decoder(json_value: dynamic.Dynamic) -> Result(InterviewSession, dyna
   )
   use stage_str <- result.try(dynamic.field("stage", dynamic.string)(json_value))
   use stage <- result.try(
-    case stage_str {
-      "Discovery" -> Ok(interview.Discovery)
-      "Refinement" -> Ok(interview.Refinement)
-      "Validation" -> Ok(interview.Validation)
-      "Complete" -> Ok(interview.Complete)
-      "Paused" -> Ok(interview.Paused)
+    // Normalize to lowercase to handle both "Discovery" and "discovery"
+    case string.lowercase(stage_str) {
+      "discovery" -> Ok(interview.Discovery)
+      "refinement" -> Ok(interview.Refinement)
+      "validation" -> Ok(interview.Validation)
+      "complete" -> Ok(interview.Complete)
+      "paused" -> Ok(interview.Paused)
       _ -> Error([dynamic.DecodeError("stage", "invalid stage", [])])
     },
   )
