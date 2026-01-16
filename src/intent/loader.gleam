@@ -96,18 +96,38 @@ fn export_and_parse(path: String) -> Result(Spec, LoadError) {
 }
 
 fn parse_json_spec(json_str: String) -> Result(Spec, LoadError) {
-  case json.decode(json_str, dynamic.dynamic) {
-    Ok(data) ->
-      case parser.parse_spec(data) {
-        Ok(spec) -> Ok(spec)
-        Error(errors) -> {
-          let msg =
-            errors
-            |> format_decode_errors
-          Error(SpecParseError(msg))
-        }
+  // Validate JSON safety before parsing (prevents DOS attacks)
+  case parser.validate_json_safety(json_str) {
+    Error(parser.PayloadTooLarge(size, max)) ->
+      Error(SecurityError(
+        "JSON payload too large: "
+        <> string.inspect(size)
+        <> " bytes (maximum: "
+        <> string.inspect(max)
+        <> " bytes). This protects against memory exhaustion attacks.",
+      ))
+    Error(parser.NestingTooDeep(depth, max)) ->
+      Error(SecurityError(
+        "JSON nesting too deep: "
+        <> string.inspect(depth)
+        <> " levels (maximum: "
+        <> string.inspect(max)
+        <> " levels). This protects against stack overflow attacks.",
+      ))
+    Ok(_) ->
+      case json.decode(json_str, dynamic.dynamic) {
+        Ok(data) ->
+          case parser.parse_spec(data) {
+            Ok(spec) -> Ok(spec)
+            Error(errors) -> {
+              let msg =
+                errors
+                |> format_decode_errors
+              Error(SpecParseError(msg))
+            }
+          }
+        Error(e) -> Error(JsonParseError(format_json_error(e)))
       }
-    Error(e) -> Error(JsonParseError(format_json_error(e)))
   }
 }
 
