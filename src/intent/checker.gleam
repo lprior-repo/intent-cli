@@ -6,12 +6,13 @@
 /// - checker/json: JSON field access and helpers
 /// - checker/headers: HTTP header checking
 /// - checker/rules: Rule expression evaluation
+
 import gleam/dict
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{None, Some}
-import intent/checker/headers as header_validation
 import intent/checker/json as field_validation
+import intent/checker/headers as header_validation
 import intent/checker/rules as rule_evaluation
 import intent/checker/types as checker_types
 import intent/http_client.{type ExecutionResult}
@@ -74,11 +75,7 @@ pub fn check_response(
     |> dict.to_list
     |> list.map(fn(pair) {
       let #(header_name, expected_value) = pair
-      header_validation.check_header(
-        header_name,
-        expected_value,
-        actual.headers,
-      )
+      header_validation.check_header(header_name, expected_value, actual.headers)
     })
     |> list.partition(fn(result) {
       case result {
