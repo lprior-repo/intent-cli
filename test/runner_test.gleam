@@ -187,16 +187,13 @@ pub fn runner_custom_target_url_test() {
   let spec = make_test_spec([make_test_feature("API", [b])])
 
   let result =
-    runner.run_spec(
-      spec,
-      "http://nonexistent.invalid:9999",
-      runner.default_options(),
-    )
+    runner.run_spec(spec, "http://nonexistent.invalid:9999", runner.default_options())
 
   // Should attempt to run against the custom URL (1 behavior)
   // Verify the runner attempted to execute (total should be 1)
   result.total
   |> should.equal(1)
+
   // Note: Network errors may be classified as BehaviorError (not BehaviorFailed)
   // which means failed count might be 0 even though execution didn't succeed.
   // The important thing is that the behavior was attempted.
