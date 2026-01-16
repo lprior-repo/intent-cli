@@ -5,6 +5,7 @@ import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/string
+import intent/rule
 import intent/types.{type Spec, type Behavior}
 
 /// Result of pre-execution validation
@@ -95,13 +96,25 @@ fn validate_behavior(
 
 /// Validate rule syntax by attempting to parse it
 fn validate_rule_syntax(
-  _behavior_name: String,
-  _field: String,
-  _rule_str: String,
+  behavior_name: String,
+  field: String,
+  rule_str: String,
 ) -> List(ValidationIssue) {
-  // The rule parser always succeeds (returns Raw if unparseable)
-  // So we don't have validation errors here - just return empty list
-  []
+  // Try to parse the rule
+  let parsed = rule.parse(rule_str)
+
+  // If it parses to Raw(), it means the rule syntax is unrecognized
+  case parsed {
+    rule.Raw(_) -> [
+      RuleSyntaxError(
+        behavior: behavior_name,
+        field: field,
+        rule: rule_str,
+        error: "Unrecognized rule syntax. See documentation for valid rule formats (e.g., 'equals value', 'string', 'integer >= 5').",
+      ),
+    ]
+    _ -> []
+  }
 }
 
 /// Validate variable references in behavior

@@ -32,8 +32,8 @@ pub fn check_anti_patterns(
   patterns
   |> list.filter_map(fn(pattern) {
     case detect_pattern(pattern, response) {
-      option.Some(result) -> Ok(result)
-      option.None -> Error(Nil)
+      Some(result) -> Ok(result)
+      None -> Error(Nil)
     }
   })
 }

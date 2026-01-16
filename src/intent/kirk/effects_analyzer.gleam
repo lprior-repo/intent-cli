@@ -1,13 +1,67 @@
-// KIRK Effects Analyzer
-// Second-Order Thinking: "What happens after the immediate effect?"
-// Traces consequences beyond first-order results
+/// KIRK Effects Analyzer
+///
+/// **Second-Order Thinking**: "What happens AFTER the immediate effect?"
+///
+/// Analyzes cascading consequences and side effects of API operations. Most people
+/// stop thinking at first-order effects (create user → user exists), but this module
+/// identifies second and third-order consequences that impact system behavior.
+///
+/// ## What Are Second-Order Effects?
+///
+/// - **First-order**: Create user → user record exists
+/// - **Second-order**: Create user → welcome email sent, analytics event, cache invalidation
+/// - **Third-order**: Welcome email → user clicks link → session created → rate limit consumed
+///
+/// ## Common Second-Order Effects
+///
+/// ### Data Operations
+/// - **Create**: Triggers notifications, updates counters, invalidates caches
+/// - **Update**: Propagates to denormalized data, audit logs, search indices
+/// - **Delete**: Cascades to related records, orphans relationships, frees quotas
+///
+/// ### State Changes
+/// - **Status transitions**: May trigger workflows, unlock features, send webhooks
+/// - **Permission changes**: Affect access to related resources
+/// - **Quota consumption**: Impacts rate limits, billing, service tiers
+///
+/// ## Usage
+///
+/// ```gleam
+/// import intent/kirk/effects_analyzer
+///
+/// let spec = load_spec("api.cue")
+/// let effects = effects_analyzer.analyze_second_order_effects(spec)
+///
+/// list.each(effects, fn(effect) {
+///   io.println(effect.trigger <> " causes " <> effect.consequence)
+///   io.println("  Missing behavior: " <> effect.suggested_test)
+/// })
+/// ```
+///
+/// ## Why This Matters
+///
+/// Systems fail not because of direct effects (those are obvious), but because of
+/// cascading consequences nobody anticipated. This analysis surfaces hidden dependencies.
+///
+/// ## Mental Model
+///
+/// "Think forwards and backwards - what causes this, and what does this cause?"
+/// - Howard Marks, "The Most Important Thing"
+///
+/// ## References
+///
+/// - "Thinking in Systems" - Donella Meadows on feedback loops
+/// - "The Fifth Discipline" - Peter Senge on systems thinking
+/// - Event Storming - Alberto Brandolini on discovering domain events
 
+import gleam/float
 import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
 import intent/types.{
-  type Behavior, type Spec, Delete, Get, Head, Options, Patch, Post, Put,
+  type Behavior, type Spec, Delete, Get, Head,
+  Options, Patch, Post, Put,
 }
 
 // =============================================================================
@@ -170,7 +224,7 @@ fn describe_first_order_effect(behavior: Behavior) -> String {
       "Resource is created (status "
       <> int.to_string(behavior.response.status)
       <> ")"
-    Get ->
+    Get | Head ->
       "Resource is retrieved (status "
       <> int.to_string(behavior.response.status)
       <> ")"
@@ -182,8 +236,8 @@ fn describe_first_order_effect(behavior: Behavior) -> String {
       "Resource is deleted (status "
       <> int.to_string(behavior.response.status)
       <> ")"
-    Head | Options ->
-      "Resource metadata/options checked (status "
+    Options ->
+      "Resource options are retrieved (status "
       <> int.to_string(behavior.response.status)
       <> ")"
   }
@@ -447,6 +501,8 @@ fn detect_orphan_patterns(
   behavior: Behavior,
   resource_type: String,
 ) -> List(OrphanedResource) {
+  let _name_lower = string.lowercase(behavior.name)
+
   case resource_type {
     "user" | "users" | "account" | "accounts" -> [
       OrphanedResource(
@@ -746,30 +802,8 @@ fn float_to_int_safe(f: Float) -> Int {
 }
 
 fn float_floor(f: Float) -> Int {
-  // Simple floor implementation
-  let str = float_to_string(f)
-  case string.split(str, ".") {
-    [int_str, ..] ->
-      case int.parse(int_str) {
-        Ok(i) -> i
-        Error(_) -> 0
-      }
-    _ -> 0
-  }
-}
-
-fn float_to_string(f: Float) -> String {
-  // This is a workaround - Gleam doesn't have direct float to string
-  // We'll use string interpolation trick
-  let result = f *. 1.0
-  case result {
-    _ ->
-      int.to_string(float_floor(result))
-      <> "."
-      <> int.to_string(float_floor(
-        { result -. int.to_float(float_floor(result)) } *. 10.0,
-      ))
-  }
+  // Use Gleam's standard library truncate (toward zero, good enough for positive numbers)
+  float.truncate(f)
 }
 
 // =============================================================================
