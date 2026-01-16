@@ -34,7 +34,6 @@ pub fn runner_custom_options_verbose_test() {
       feature_filter: Some("auth"),
       behavior_filter: Some("login"),
       output_level: runner.Verbose,
-      show_spinner: True,
     )
 
   options.feature_filter
@@ -59,7 +58,6 @@ pub fn runner_custom_options_quiet_test() {
       feature_filter: None,
       behavior_filter: None,
       output_level: runner.Quiet,
-      show_spinner: True,
     )
 
   options.output_level
@@ -78,7 +76,6 @@ pub fn runner_output_level_normal_test() {
       feature_filter: None,
       behavior_filter: None,
       output_level: runner.Normal,
-      show_spinner: True,
     )
 
   runner.is_verbose(options)
@@ -190,16 +187,13 @@ pub fn runner_custom_target_url_test() {
   let spec = make_test_spec([make_test_feature("API", [b])])
 
   let result =
-    runner.run_spec(
-      spec,
-      "http://nonexistent.invalid:9999",
-      runner.default_options(),
-    )
+    runner.run_spec(spec, "http://nonexistent.invalid:9999", runner.default_options())
 
   // Should attempt to run against the custom URL (1 behavior)
   // Verify the runner attempted to execute (total should be 1)
   result.total
   |> should.equal(1)
+
   // Note: Network errors may be classified as BehaviorError (not BehaviorFailed)
   // which means failed count might be 0 even though execution didn't succeed.
   // The important thing is that the behavior was attempted.
