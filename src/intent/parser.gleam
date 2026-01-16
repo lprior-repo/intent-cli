@@ -2,13 +2,9 @@
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type DecodeError, type Dynamic}
-import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option
-import gleam/pair
 import gleam/result
-import gleam/string
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
   type EntityHint, type Feature, type ImplementationHints, type Method,
@@ -16,54 +12,6 @@ import intent/types.{
   type Spec, type When, AIHints, AntiPattern, Behavior, Check, Config, Delete,
   EntityHint, Feature, Get, Head, ImplementationHints, Options, Patch, Post,
   Put, Request, Response, Rule, RuleCheck, SecurityHints, Spec, When,
-}
-
-/// Maximum JSON payload size in bytes (10MB)
-pub const max_json_size_bytes = 10_485_760
-
-/// Maximum JSON nesting depth (prevents stack overflow)
-pub const max_json_depth = 1000
-
-/// JSON validation error types
-pub type JsonValidationError {
-  PayloadTooLarge(size: Int, max: Int)
-  NestingTooDeep(depth: Int, max: Int)
-}
-
-/// Validate JSON string for size and nesting depth to prevent DOS attacks
-/// Returns Ok(Nil) if safe, Error(JsonValidationError) if dangerous
-pub fn validate_json_safety(json_str: String) -> Result(Nil, JsonValidationError) {
-  // 1. Check size (O(1) operation)
-  let size = string.byte_size(json_str)
-  case size > max_json_size_bytes {
-    True -> Error(PayloadTooLarge(size, max_json_size_bytes))
-    False -> {
-      // 2. Check nesting depth (O(n) single pass)
-      let depth = count_max_nesting_depth(json_str)
-      case depth > max_json_depth {
-        True -> Error(NestingTooDeep(depth, max_json_depth))
-        False -> Ok(Nil)
-      }
-    }
-  }
-}
-
-/// Count maximum nesting depth of JSON braces/brackets
-/// Does not account for strings (deliberate simplification for performance)
-/// Uses UTF codepoints for faster iteration over large strings
-fn count_max_nesting_depth(json_str: String) -> Int {
-  json_str
-  |> string.to_utf_codepoints
-  |> list.fold(#(0, 0), fn(acc, codepoint) {
-    let #(current, max) = acc
-    // Check for { [ } ] codepoints
-    case string.utf_codepoint_to_int(codepoint) {
-      123 | 91 -> #(current + 1, int.max(max, current + 1))  // { or [
-      125 | 93 -> #(int.max(current - 1, 0), max)  // } or ]
-      _ -> acc
-    }
-  })
-  |> pair.second
 }
 
 /// Parse a spec from a JSON value
@@ -267,56 +215,44 @@ fn parse_rule(data: Dynamic) -> Result(Rule, List(DecodeError)) {
   use description <- result.try(
     dynamic.field("description", dynamic.string)(data)
   )
-  let when = case dynamic.field("when", parse_when)(data) {
-    Ok(w) -> option.Some(w)
-    Error(_) -> option.None
-  }
+  use when <- result.try(dynamic.field("when", parse_when)(data))
   use check <- result.try(dynamic.field("check", parse_rule_check)(data))
-  let example = case dynamic.field("example", parse_json_value)(data) {
-    Ok(e) -> e
-    Error(_) -> json.null()
-  }
+  use example <- result.try(dynamic.field("example", parse_json_value)(data))
   Ok(Rule(name, description, when, check, example))
 }
 
 fn parse_when(data: Dynamic) -> Result(When, List(DecodeError)) {
   use status <- result.try(dynamic.field("status", dynamic.string)(data))
-  let method = case dynamic.field("method", parse_method)(data) {
-    Ok(m) -> option.Some(m)
-    Error(_) -> option.None
-  }
-  let path = case dynamic.field("path", dynamic.string)(data) {
-    Ok(p) -> option.Some(p)
-    Error(_) -> option.None
-  }
+  use method <- result.try(dynamic.field("method", parse_method)(data))
+  use path <- result.try(dynamic.field("path", dynamic.string)(data))
   Ok(When(status, method, path))
 }
 
 fn parse_rule_check(data: Dynamic) -> Result(RuleCheck, List(DecodeError)) {
-  let body_must_not_contain = case dynamic.field("body_must_not_contain", dynamic.list(dynamic.string))(data) {
-    Ok(v) -> v
-    Error(_) -> []
-  }
-  let body_must_contain = case dynamic.field("body_must_contain", dynamic.list(dynamic.string))(data) {
-    Ok(v) -> v
-    Error(_) -> []
-  }
-  let fields_must_exist = case dynamic.field("fields_must_exist", dynamic.list(dynamic.string))(data) {
-    Ok(v) -> v
-    Error(_) -> []
-  }
-  let fields_must_not_exist = case dynamic.field("fields_must_not_exist", dynamic.list(dynamic.string))(data) {
-    Ok(v) -> v
-    Error(_) -> []
-  }
-  let header_must_exist = case dynamic.field("header_must_exist", dynamic.string)(data) {
-    Ok(v) -> v
-    Error(_) -> ""
-  }
-  let header_must_not_exist = case dynamic.field("header_must_not_exist", dynamic.string)(data) {
-    Ok(v) -> v
-    Error(_) -> ""
-  }
+  use body_must_not_contain <- result.try(
+    dynamic.field(
+      "body_must_not_contain",
+      dynamic.list(dynamic.string),
+    )(data)
+  )
+  use body_must_contain <- result.try(
+    dynamic.field("body_must_contain", dynamic.list(dynamic.string))(data)
+  )
+  use fields_must_exist <- result.try(
+    dynamic.field("fields_must_exist", dynamic.list(dynamic.string))(data)
+  )
+  use fields_must_not_exist <- result.try(
+    dynamic.field(
+      "fields_must_not_exist",
+      dynamic.list(dynamic.string),
+    )(data)
+  )
+  use header_must_exist <- result.try(
+    dynamic.field("header_must_exist", dynamic.string)(data)
+  )
+  use header_must_not_exist <- result.try(
+    dynamic.field("header_must_not_exist", dynamic.string)(data)
+  )
   Ok(RuleCheck(
     body_must_not_contain,
     body_must_contain,

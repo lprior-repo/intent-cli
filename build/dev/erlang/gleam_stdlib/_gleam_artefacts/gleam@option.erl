@@ -4,9 +4,9 @@
 -export([all/1, is_some/1, is_none/1, to_result/2, from_result/1, unwrap/2, lazy_unwrap/2, map/2, flatten/1, then/2, 'or'/2, lazy_or/2, values/1]).
 -export_type([option/1]).
 
--type option(FP) :: {some, FP} | none.
+-type option(GB) :: {some, GB} | none.
 
--spec do_all(list(option(FQ)), list(FQ)) -> option(list(FQ)).
+-spec do_all(list(option(GC)), list(GC)) -> option(list(GC)).
 do_all(List, Acc) ->
     case List of
         [] ->
@@ -23,7 +23,7 @@ do_all(List, Acc) ->
             Accumulate(do_all(Rest, Acc), X)
     end.
 
--spec all(list(option(FW))) -> option(list(FW)).
+-spec all(list(option(GI))) -> option(list(GI)).
 all(List) ->
     do_all(List, []).
 
@@ -35,7 +35,7 @@ is_some(Option) ->
 is_none(Option) ->
     Option =:= none.
 
--spec to_result(option(GF), GI) -> {ok, GF} | {error, GI}.
+-spec to_result(option(GR), GU) -> {ok, GR} | {error, GU}.
 to_result(Option, E) ->
     case Option of
         {some, A} ->
@@ -45,7 +45,7 @@ to_result(Option, E) ->
             {error, E}
     end.
 
--spec from_result({ok, GL} | {error, any()}) -> option(GL).
+-spec from_result({ok, GX} | {error, any()}) -> option(GX).
 from_result(Result) ->
     case Result of
         {ok, A} ->
@@ -55,7 +55,7 @@ from_result(Result) ->
             none
     end.
 
--spec unwrap(option(GQ), GQ) -> GQ.
+-spec unwrap(option(HC), HC) -> HC.
 unwrap(Option, Default) ->
     case Option of
         {some, X} ->
@@ -65,7 +65,7 @@ unwrap(Option, Default) ->
             Default
     end.
 
--spec lazy_unwrap(option(GS), fun(() -> GS)) -> GS.
+-spec lazy_unwrap(option(HE), fun(() -> HE)) -> HE.
 lazy_unwrap(Option, Default) ->
     case Option of
         {some, X} ->
@@ -75,7 +75,7 @@ lazy_unwrap(Option, Default) ->
             Default()
     end.
 
--spec map(option(GU), fun((GU) -> GW)) -> option(GW).
+-spec map(option(HG), fun((HG) -> HI)) -> option(HI).
 map(Option, Fun) ->
     case Option of
         {some, X} ->
@@ -85,7 +85,7 @@ map(Option, Fun) ->
             none
     end.
 
--spec flatten(option(option(GY))) -> option(GY).
+-spec flatten(option(option(HK))) -> option(HK).
 flatten(Option) ->
     case Option of
         {some, X} ->
@@ -95,7 +95,7 @@ flatten(Option) ->
             none
     end.
 
--spec then(option(HC), fun((HC) -> option(HE))) -> option(HE).
+-spec then(option(HO), fun((HO) -> option(HQ))) -> option(HQ).
 then(Option, Fun) ->
     case Option of
         {some, X} ->
@@ -105,7 +105,7 @@ then(Option, Fun) ->
             none
     end.
 
--spec 'or'(option(HH), option(HH)) -> option(HH).
+-spec 'or'(option(HT), option(HT)) -> option(HT).
 'or'(First, Second) ->
     case First of
         {some, _} ->
@@ -115,7 +115,7 @@ then(Option, Fun) ->
             Second
     end.
 
--spec lazy_or(option(HL), fun(() -> option(HL))) -> option(HL).
+-spec lazy_or(option(HX), fun(() -> option(HX))) -> option(HX).
 lazy_or(First, Second) ->
     case First of
         {some, _} ->
@@ -125,7 +125,7 @@ lazy_or(First, Second) ->
             Second()
     end.
 
--spec do_values(list(option(HP)), list(HP)) -> list(HP).
+-spec do_values(list(option(IB)), list(IB)) -> list(IB).
 do_values(List, Acc) ->
     case List of
         [] ->
@@ -142,6 +142,6 @@ do_values(List, Acc) ->
             Accumulate(do_values(Xs, Acc), X)
     end.
 
--spec values(list(option(HU))) -> list(HU).
+-spec values(list(option(IG))) -> list(IG).
 values(Options) ->
     do_values(Options, []).

@@ -28,16 +28,26 @@
     intent@quality_analyzer:quality_report(),
     list(intent@types:behavior())
 ) -> list(improvement_suggestion()).
-append_coverage_suggestions(Suggestions, _, Behaviors) ->
+append_coverage_suggestions(Suggestions, Report, Behaviors) ->
+    Has_missing_error_tests = gleam@list:any(
+        erlang:element(7, Report),
+        fun(Issue) -> case Issue of
+                missing_error_tests ->
+                    true;
+
+                _ ->
+                    false
+            end end
+    ),
     Has_error_tests = gleam@list:any(
         Behaviors,
         fun(B) -> erlang:element(2, erlang:element(8, B)) >= 400 end
     ),
-    case Has_error_tests of
-        true ->
+    case Has_missing_error_tests andalso not Has_error_tests of
+        false ->
             Suggestions;
 
-        false ->
+        true ->
             lists:append(
                 Suggestions,
                 [{improvement_suggestion,
@@ -56,16 +66,24 @@ append_coverage_suggestions(Suggestions, _, Behaviors) ->
     intent@quality_analyzer:quality_report(),
     list(intent@types:behavior())
 ) -> list(improvement_suggestion()).
-append_clarity_suggestions(Suggestions, _, Behaviors) ->
-    Missing_intent = begin
+append_clarity_suggestions(Suggestions, Report, Behaviors) ->
+    Has_clarity_issues = erlang:element(3, Report) < 100,
+    Behaviors_missing_intent = begin
         _pipe = Behaviors,
-        _pipe@1 = gleam@list:filter(
+        gleam@list:filter(
             _pipe,
             fun(B) -> gleam@string:is_empty(erlang:element(3, B)) end
-        ),
-        erlang:length(_pipe@1)
+        )
     end,
-    case Missing_intent > 0 of
+    Missing_count = erlang:length(Behaviors_missing_intent),
+    First_behavior_name = case gleam@list:first(Behaviors_missing_intent) of
+        {ok, B@1} ->
+            erlang:element(2, B@1);
+
+        {error, _} ->
+            <<"test-success"/utf8>>
+    end,
+    case Has_clarity_issues andalso (Missing_count > 0) of
         false ->
             Suggestions;
 
@@ -74,12 +92,12 @@ append_clarity_suggestions(Suggestions, _, Behaviors) ->
                 Suggestions,
                 [{improvement_suggestion,
                         <<"Add intent descriptions"/utf8>>,
-                        <<(gleam@int:to_string(Missing_intent))/binary,
+                        <<(gleam@int:to_string(Missing_count))/binary,
                             " behavior(s) lack intent descriptions"/utf8>>,
                         <<"Intent descriptions explain WHY a test exists, helping both humans and AI understand the business logic"/utf8>>,
                         15,
                         {add_explanation,
-                            <<"test-success"/utf8>>,
+                            First_behavior_name,
                             <<"intent"/utf8>>,
                             <<"Verify successful operation with valid input"/utf8>>}}]
             )
@@ -90,18 +108,35 @@ append_clarity_suggestions(Suggestions, _, Behaviors) ->
     intent@quality_analyzer:quality_report(),
     list(intent@types:behavior())
 ) -> list(improvement_suggestion()).
-append_testability_suggestions(Suggestions, _, Behaviors) ->
-    Missing_examples = begin
+append_testability_suggestions(Suggestions, Report, Behaviors) ->
+    Has_no_examples_issue = gleam@list:any(
+        erlang:element(7, Report),
+        fun(Issue) -> case Issue of
+                no_examples ->
+                    true;
+
+                _ ->
+                    false
+            end end
+    ),
+    Behaviors_missing_examples = begin
         _pipe = Behaviors,
-        _pipe@1 = gleam@list:filter(
+        gleam@list:filter(
             _pipe,
             fun(B) ->
                 erlang:element(3, erlang:element(8, B)) =:= gleam@json:null()
             end
-        ),
-        erlang:length(_pipe@1)
+        )
     end,
-    case Missing_examples > 0 of
+    Missing_count = erlang:length(Behaviors_missing_examples),
+    First_behavior_name = case gleam@list:first(Behaviors_missing_examples) of
+        {ok, B@1} ->
+            erlang:element(2, B@1);
+
+        {error, _} ->
+            <<"test-success"/utf8>>
+    end,
+    case Has_no_examples_issue andalso (Missing_count > 0) of
         false ->
             Suggestions;
 
@@ -110,11 +145,11 @@ append_testability_suggestions(Suggestions, _, Behaviors) ->
                 Suggestions,
                 [{improvement_suggestion,
                         <<"Add response examples"/utf8>>,
-                        <<(gleam@int:to_string(Missing_examples))/binary,
+                        <<(gleam@int:to_string(Missing_count))/binary,
                             " behavior(s) lack response examples"/utf8>>,
                         <<"Examples make the spec executable and give AI concrete data structures to work with"/utf8>>,
                         20,
-                        {add_response_example, <<"test-success"/utf8>>}}]
+                        {add_response_example, First_behavior_name}}]
             )
     end.
 
@@ -123,8 +158,18 @@ append_testability_suggestions(Suggestions, _, Behaviors) ->
     intent@quality_analyzer:quality_report(),
     list(intent@types:behavior())
 ) -> list(improvement_suggestion()).
-append_ai_readiness_suggestions(Suggestions, _, Behaviors) ->
-    Missing_why = begin
+append_ai_readiness_suggestions(Suggestions, Report, Behaviors) ->
+    Has_missing_explanations = gleam@list:any(
+        erlang:element(7, Report),
+        fun(Issue) -> case Issue of
+                missing_explanations ->
+                    true;
+
+                _ ->
+                    false
+            end end
+    ),
+    Missing_why_count = begin
         _pipe = Behaviors,
         _pipe@1 = gleam@list:flat_map(
             _pipe,
@@ -138,7 +183,29 @@ append_ai_readiness_suggestions(Suggestions, _, Behaviors) ->
         ),
         erlang:length(_pipe@2)
     end,
-    case Missing_why > 0 of
+    First_behavior_name = begin
+        _pipe@3 = Behaviors,
+        _pipe@5 = gleam@list:find(
+            _pipe@3,
+            fun(B@1) ->
+                _pipe@4 = gleam@dict:values(
+                    erlang:element(4, erlang:element(8, B@1))
+                ),
+                gleam@list:any(
+                    _pipe@4,
+                    fun(C@1) ->
+                        gleam@string:is_empty(erlang:element(3, C@1))
+                    end
+                )
+            end
+        ),
+        _pipe@6 = gleam@result:map(
+            _pipe@5,
+            fun(B@2) -> erlang:element(2, B@2) end
+        ),
+        gleam@result:unwrap(_pipe@6, <<"test-success"/utf8>>)
+    end,
+    case Has_missing_explanations andalso (Missing_why_count > 0) of
         false ->
             Suggestions;
 
@@ -147,12 +214,12 @@ append_ai_readiness_suggestions(Suggestions, _, Behaviors) ->
                 Suggestions,
                 [{improvement_suggestion,
                         <<"Add validation explanations"/utf8>>,
-                        <<(gleam@int:to_string(Missing_why))/binary,
+                        <<(gleam@int:to_string(Missing_why_count))/binary,
                             " validation rule(s) lack 'why' explanations"/utf8>>,
                         <<"Explanations help AI understand the business logic behind each validation check"/utf8>>,
                         18,
                         {add_explanation,
-                            <<"test-success"/utf8>>,
+                            First_behavior_name,
                             <<"why"/utf8>>,
                             <<"Ensures email field contains valid RFC 5322 compliant email address"/utf8>>}}]
             )

@@ -1,63 +1,6 @@
-/// KIRK Coverage Analyzer
-///
-/// Measures API test coverage across multiple critical dimensions, with special
-/// focus on OWASP Top 10 security vulnerabilities.
-///
-/// ## Coverage Dimensions
-///
-/// ### HTTP Methods (CRUD Operations)
-/// - GET (Read)
-/// - POST (Create)
-/// - PUT/PATCH (Update)
-/// - DELETE (Delete)
-/// - HEAD, OPTIONS (Metadata)
-///
-/// ### Response Codes
-/// - **2xx Success**: 200 OK, 201 Created, 204 No Content
-/// - **4xx Client Errors**: 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
-/// - **5xx Server Errors**: 500 Internal Error, 503 Service Unavailable
-///
-/// ### OWASP Top 10 Security Coverage
-/// 1. **Broken Access Control**: Authorization checks, role-based access
-/// 2. **Cryptographic Failures**: Sensitive data in responses, secure headers
-/// 3. **Injection**: SQL injection, XSS, command injection prevention
-/// 4. **Insecure Design**: Rate limiting, input validation, error handling
-/// 5. **Security Misconfiguration**: Security headers, verbose errors
-/// 6. **Vulnerable Components**: Dependency checks (external)
-/// 7. **Authentication Failures**: Login flows, session management
-/// 8. **Data Integrity**: CSRF tokens, request signing
-/// 9. **Logging Failures**: Audit trails for sensitive operations
-/// 10. **SSRF**: Localhost/private IP protection
-///
-/// ## Usage
-///
-/// ```gleam
-/// import intent/kirk/coverage_analyzer
-///
-/// let spec = load_spec("api.cue")
-/// let report = coverage_analyzer.analyze_coverage(spec)
-///
-/// io.println("HTTP Method Coverage: " <> float.to_string(report.method_coverage) <> "%")
-/// io.println("Error Code Coverage: " <> float.to_string(report.error_coverage) <> "%")
-/// io.println("OWASP Coverage: " <> int.to_string(report.owasp_coverage) <> "/10")
-///
-/// list.each(report.missing_owasp_checks, fn(item) {
-///   io.println("Missing: " <> item.category)
-///   io.println("  Add: " <> item.suggested_behavior)
-/// })
-/// ```
-///
-/// ## Coverage Thresholds
-///
-/// - **Method Coverage**: Aim for 100% (all CRUD operations tested)
-/// - **Response Coverage**: Minimum 80% (both success and error paths)
-/// - **OWASP Coverage**: Minimum 7/10 (critical security vulnerabilities)
-///
-/// ## References
-///
-/// - OWASP Top 10 2021: https://owasp.org/www-project-top-ten/
-/// - OWASP API Security Top 10
-/// - REST API Testing Best Practices
+// KIRK Coverage Analyzer
+// Measures test coverage across multiple dimensions
+// Includes OWASP Top 10 security coverage
 
 import gleam/dict.{type Dict}
 import gleam/float

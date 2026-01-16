@@ -34,6 +34,79 @@ get_variable(Ctx, Name) ->
     _pipe = gleam@dict:get(erlang:element(2, Ctx), Name),
     gleam@option:from_result(_pipe).
 
+-spec get_array_element_from_json(gleam@json:json(), integer()) -> {ok,
+        gleam@json:json()} |
+    {error, binary()}.
+get_array_element_from_json(Json, Index) ->
+    Json_str = gleam@json:to_string(Json),
+    case gleam@json:decode(
+        Json_str,
+        gleam@dynamic:list(fun gleam@dynamic:dynamic/1)
+    ) of
+        {ok, Lst} ->
+            case begin
+                _pipe = gleam@list:drop(Lst, Index),
+                gleam@list:first(_pipe)
+            end of
+                {ok, Elem} ->
+                    Json_val = intent@parser:dynamic_to_json(Elem),
+                    {ok, Json_val};
+
+                {error, _} ->
+                    {error,
+                        <<<<<<<<"Array index "/utf8,
+                                        (gleam@int:to_string(Index))/binary>>/binary,
+                                    " out of bounds (length: "/utf8>>/binary,
+                                (gleam@int:to_string(erlang:length(Lst)))/binary>>/binary,
+                            ")"/utf8>>}
+            end;
+
+        {error, _} ->
+            {error,
+                <<<<"Cannot index non-array with ["/utf8,
+                        (gleam@int:to_string(Index))/binary>>/binary,
+                    "]"/utf8>>}
+    end.
+
+-spec get_array_element_last_from_json(gleam@json:json(), integer()) -> {ok,
+        gleam@json:json()} |
+    {error, binary()}.
+get_array_element_last_from_json(Json, From_end) ->
+    Json_str = gleam@json:to_string(Json),
+    case gleam@json:decode(
+        Json_str,
+        gleam@dynamic:list(fun gleam@dynamic:dynamic/1)
+    ) of
+        {ok, Lst} ->
+            Length = erlang:length(Lst),
+            Actual_index = Length - From_end,
+            case (Actual_index >= 0) andalso (Actual_index < Length) of
+                false ->
+                    {error,
+                        <<<<<<<<"Array index -"/utf8,
+                                        (gleam@int:to_string(From_end))/binary>>/binary,
+                                    " out of bounds (length: "/utf8>>/binary,
+                                (gleam@int:to_string(Length))/binary>>/binary,
+                            ")"/utf8>>};
+
+                true ->
+                    case begin
+                        _pipe = gleam@list:drop(Lst, Actual_index),
+                        gleam@list:first(_pipe)
+                    end of
+                        {ok, Elem} ->
+                            Json_val = intent@parser:dynamic_to_json(Elem),
+                            {ok, Json_val};
+
+                        {error, _} ->
+                            {error, <<"Failed to access array element"/utf8>>}
+                    end
+            end;
+
+        {error, _} ->
+            {error, <<"Cannot index non-array with negative index"/utf8>>}
+    end.
+
 -spec navigate_json(gleam@json:json(), list(binary())) -> {ok,
         gleam@json:json()} |
     {error, binary()}.
@@ -69,22 +142,69 @@ resolve_path(Ctx, Path) ->
                     {error, <<"No response body in context"/utf8>>}
             end;
 
-        [Var_name] ->
-            case get_variable(Ctx, Var_name) of
-                {some, Value} ->
-                    {ok, Value};
+        [First_part | Rest@2] ->
+            case intent@array_indexing:parse_path_component(First_part) of
+                {ok, {Var_name, Array_spec}} ->
+                    case get_variable(Ctx, Var_name) of
+                        {some, Value} ->
+                            case Array_spec of
+                                no_array ->
+                                    case Rest@2 of
+                                        [] ->
+                                            {ok, Value};
 
-                none ->
-                    {error, <<"Variable not found: "/utf8, Var_name/binary>>}
-            end;
+                                        _ ->
+                                            navigate_json(Value, Rest@2)
+                                    end;
 
-        [Var_name@1 | Rest@2] ->
-            case get_variable(Ctx, Var_name@1) of
-                {some, Value@1} ->
-                    navigate_json(Value@1, Rest@2);
+                                {index, Idx} ->
+                                    case get_array_element_from_json(Value, Idx) of
+                                        {ok, Elem} ->
+                                            case Rest@2 of
+                                                [] ->
+                                                    {ok, Elem};
 
-                none ->
-                    {error, <<"Variable not found: "/utf8, Var_name@1/binary>>}
+                                                _ ->
+                                                    navigate_json(Elem, Rest@2)
+                                            end;
+
+                                        {error, E} ->
+                                            {error, E}
+                                    end;
+
+                                {last_n, N} ->
+                                    case get_array_element_last_from_json(
+                                        Value,
+                                        N
+                                    ) of
+                                        {ok, Elem@1} ->
+                                            case Rest@2 of
+                                                [] ->
+                                                    {ok, Elem@1};
+
+                                                _ ->
+                                                    navigate_json(
+                                                        Elem@1,
+                                                        Rest@2
+                                                    )
+                                            end;
+
+                                        {error, E@1} ->
+                                            {error, E@1}
+                                    end;
+
+                                all ->
+                                    {error,
+                                        <<"Array wildcard [*] not supported in variable paths"/utf8>>}
+                            end;
+
+                        none ->
+                            {error,
+                                <<"Variable not found: "/utf8, Var_name/binary>>}
+                    end;
+
+                {error, E@2} ->
+                    {error, E@2}
             end;
 
         [] ->
@@ -107,10 +227,86 @@ json_to_string(Value) ->
             Encoded
     end.
 
--spec interpolate_matches(context(), binary(), list(gleam@regexp:match())) -> {ok,
-        binary()} |
+-spec extract_capture(context(), binary()) -> {ok, gleam@json:json()} |
     {error, binary()}.
-interpolate_matches(Ctx, S, Matches) ->
+extract_capture(Ctx, Capture_path) ->
+    resolve_path(Ctx, Capture_path).
+
+-spec resolve_path_with_depth(context(), binary(), integer(), list(binary())) -> {ok,
+        gleam@json:json()} |
+    {error, binary()}.
+resolve_path_with_depth(Ctx, Path, Depth, Visited) ->
+    case resolve_path(Ctx, Path) of
+        {ok, Value} ->
+            Value_str = gleam@json:to_string(Value),
+            case gleam@string:starts_with(Value_str, <<"\""/utf8>>) andalso gleam_stdlib:contains_string(
+                Value_str,
+                <<"${"/utf8>>
+            ) of
+                true ->
+                    Unquoted = begin
+                        _pipe = Value_str,
+                        _pipe@1 = gleam@string:drop_left(_pipe, 1),
+                        gleam@string:drop_right(_pipe@1, 1)
+                    end,
+                    case interpolate_string_with_depth(
+                        Ctx,
+                        Unquoted,
+                        Depth,
+                        Visited
+                    ) of
+                        {ok, Interpolated} ->
+                            {ok, gleam@json:string(Interpolated)};
+
+                        {error, E} ->
+                            {error, E}
+                    end;
+
+                false ->
+                    {ok, Value}
+            end;
+
+        {error, E@1} ->
+            {error, E@1}
+    end.
+
+-spec interpolate_string_with_depth(
+    context(),
+    binary(),
+    integer(),
+    list(binary())
+) -> {ok, binary()} | {error, binary()}.
+interpolate_string_with_depth(Ctx, S, Depth, Visited) ->
+    case Depth > 10 of
+        true ->
+            {error, <<"Variable interpolation depth limit exceeded"/utf8>>};
+
+        false ->
+            Pattern = <<"\\$\\{([^}]+)\\}"/utf8>>,
+            case gleam@regexp:from_string(Pattern) of
+                {ok, Re} ->
+                    Matches = gleam@regexp:scan(Re, S),
+                    interpolate_matches_with_depth(
+                        Ctx,
+                        S,
+                        Matches,
+                        Depth,
+                        Visited
+                    );
+
+                {error, _} ->
+                    {ok, S}
+            end
+    end.
+
+-spec interpolate_matches_with_depth(
+    context(),
+    binary(),
+    list(gleam@regexp:match()),
+    integer(),
+    list(binary())
+) -> {ok, binary()} | {error, binary()}.
+interpolate_matches_with_depth(Ctx, S, Matches, Depth, Visited) ->
     case Matches of
         [] ->
             {ok, S};
@@ -118,55 +314,48 @@ interpolate_matches(Ctx, S, Matches) ->
         [Match | Rest] ->
             case erlang:element(3, Match) of
                 [{some, Var_path}] ->
-                    case resolve_path(Ctx, Var_path) of
-                        {ok, Value} ->
-                            Value_str = json_to_string(Value),
-                            New_s = gleam@string:replace(
-                                S,
-                                erlang:element(2, Match),
-                                Value_str
-                            ),
-                            interpolate_matches(Ctx, New_s, Rest);
+                    case gleam@list:contains(Visited, Var_path) of
+                        true ->
+                            {error,
+                                <<"Circular variable reference detected: "/utf8,
+                                    Var_path/binary>>};
 
-                        {error, E} ->
-                            {error, E}
+                        false ->
+                            case resolve_path_with_depth(
+                                Ctx,
+                                Var_path,
+                                Depth + 1,
+                                [Var_path | Visited]
+                            ) of
+                                {ok, Value} ->
+                                    Value_str = json_to_string(Value),
+                                    New_s = gleam@string:replace(
+                                        S,
+                                        erlang:element(2, Match),
+                                        Value_str
+                                    ),
+                                    interpolate_matches_with_depth(
+                                        Ctx,
+                                        New_s,
+                                        Rest,
+                                        Depth,
+                                        Visited
+                                    );
+
+                                {error, E} ->
+                                    {error, E}
+                            end
                     end;
 
                 _ ->
-                    interpolate_matches(Ctx, S, Rest)
+                    interpolate_matches_with_depth(Ctx, S, Rest, Depth, Visited)
             end
     end.
-
--spec extract_capture(context(), binary()) -> {ok, gleam@json:json()} |
-    {error, binary()}.
-extract_capture(Ctx, Capture_path) ->
-    resolve_path(Ctx, Capture_path).
 
 -spec interpolate_string(context(), binary()) -> {ok, binary()} |
     {error, binary()}.
 interpolate_string(Ctx, S) ->
-    Pattern = <<"\\$\\{([^}]+)\\}"/utf8>>,
-    case gleam@regexp:from_string(Pattern) of
-        {ok, Re} ->
-            Matches = gleam@regexp:scan(Re, S),
-            case erlang:length(Matches) > 100 of
-                true ->
-                    {error,
-                        <<<<<<<<"Too many variable interpolations ("/utf8,
-                                        (gleam@int:to_string(
-                                            erlang:length(Matches)
-                                        ))/binary>>/binary,
-                                    " found, maximum is "/utf8>>/binary,
-                                (gleam@int:to_string(100))/binary>>/binary,
-                            ")"/utf8>>};
-
-                false ->
-                    interpolate_matches(Ctx, S, Matches)
-            end;
-
-        {error, _} ->
-            {ok, S}
-    end.
+    interpolate_string_with_depth(Ctx, S, 0, []).
 
 -spec interpolate_headers(context(), gleam@dict:dict(binary(), binary())) -> {ok,
         gleam@dict:dict(binary(), binary())} |

@@ -182,24 +182,15 @@ parse_response(Resp, Elapsed_ms, Method, Path) ->
             gleam@json:null();
 
         false ->
-            case intent@parser:validate_json_safety(erlang:element(4, Resp)) of
-                {error, {payload_too_large, _, _}} ->
-                    gleam@json:null();
+            case gleam@json:decode(
+                erlang:element(4, Resp),
+                fun gleam@dynamic:dynamic/1
+            ) of
+                {ok, Data} ->
+                    intent@parser:dynamic_to_json(Data);
 
-                {error, {nesting_too_deep, _, _}} ->
-                    gleam@json:null();
-
-                {ok, _} ->
-                    case gleam@json:decode(
-                        erlang:element(4, Resp),
-                        fun gleam@dynamic:dynamic/1
-                    ) of
-                        {ok, Data} ->
-                            intent@parser:dynamic_to_json(Data);
-
-                        {error, _} ->
-                            gleam@json:null()
-                    end
+                {error, _} ->
+                    gleam@json:null()
             end
     end,
     {execution_result,
@@ -217,62 +208,83 @@ format_httpc_error(Error) ->
         _pipe = gleam@string:inspect(Error),
         gleam@string:lowercase(_pipe)
     end,
-    Error_patterns = [{[<<"timeout"/utf8>>],
+    Check_patterns = fun(Patterns) ->
+        gleam@list:any(
+            Patterns,
+            fun(P) -> gleam_stdlib:contains_string(Error_str, P) end
+        )
+    end,
+    Message = case Check_patterns([<<"timeout"/utf8>>]) of
+        true ->
             <<<<<<"Connection timeout: The request took too long to complete.\n"/utf8,
                         "  • Check if the target API is responding slowly\n"/utf8>>/binary,
                     "  • Try increasing the timeout_ms in your config\n"/utf8>>/binary,
-                "  • Verify the base_url is correct and accessible"/utf8>>},
-        {[<<"econnrefused"/utf8>>, <<"connection_refused"/utf8>>],
-            <<<<<<"Connection refused: Cannot connect to the target server.\n"/utf8,
-                        "  • Check if the base_url is correct\n"/utf8>>/binary,
-                    "  • Verify the server is running and listening on the specified port\n"/utf8>>/binary,
-                "  • Ensure your network firewall allows connections to this server"/utf8>>},
-        {[<<"nxdomain"/utf8>>, <<"enotfound"/utf8>>],
-            <<<<<<"DNS resolution failed: Cannot find the hostname.\n"/utf8,
-                        "  • Check if the base_url hostname is spelled correctly\n"/utf8>>/binary,
-                    "  • Verify your network connection\n"/utf8>>/binary,
-                "  • Try pinging the hostname to test DNS resolution"/utf8>>},
-        {[<<"ssl"/utf8>>, <<"certificate"/utf8>>],
-            <<<<<<"SSL/TLS certificate error: Cannot verify the server's certificate.\n"/utf8,
-                        "  • The server may have an invalid or expired certificate\n"/utf8>>/binary,
-                    "  • Check if your system's certificate store is up to date\n"/utf8>>/binary,
-                "  • For development, ensure you're using the correct base_url scheme (http vs https)"/utf8>>},
-        {[<<"eacces"/utf8>>],
-            <<<<"Permission denied: No access to the specified resource.\n"/utf8,
-                    "  • Check if you have permission to access the target URL\n"/utf8>>/binary,
-                "  • Verify the base_url and path are correct"/utf8>>},
-        {[<<"ehostunreach"/utf8>>, <<"enetunreach"/utf8>>],
-            <<<<<<"Network unreachable: Cannot reach the target host.\n"/utf8,
-                        "  • Check your network connection\n"/utf8>>/binary,
-                    "  • Verify the host is accessible from your location\n"/utf8>>/binary,
-                "  • Check for firewall or VPN restrictions"/utf8>>}],
-    _pipe@1 = Error_patterns,
-    _pipe@2 = gleam@list:find_map(
-        _pipe@1,
-        fun(Pattern_pair) ->
-            {Patterns, Message} = Pattern_pair,
-            Matches = gleam@list:any(
-                Patterns,
-                fun(P) -> gleam_stdlib:contains_string(Error_str, P) end
-            ),
-            case Matches of
+                "  • Verify the base_url is correct and accessible"/utf8>>;
+
+        false ->
+            case Check_patterns(
+                [<<"econnrefused"/utf8>>, <<"connection_refused"/utf8>>]
+            ) of
                 true ->
-                    {ok, Message};
+                    <<<<<<"Connection refused: Cannot connect to the target server.\n"/utf8,
+                                "  • Check if the base_url is correct\n"/utf8>>/binary,
+                            "  • Verify the server is running and listening on the specified port\n"/utf8>>/binary,
+                        "  • Ensure your network firewall allows connections to this server"/utf8>>;
 
                 false ->
-                    {error, nil}
+                    case Check_patterns(
+                        [<<"nxdomain"/utf8>>, <<"enotfound"/utf8>>]
+                    ) of
+                        true ->
+                            <<<<<<"DNS resolution failed: Cannot find the hostname.\n"/utf8,
+                                        "  • Check if the base_url hostname is spelled correctly\n"/utf8>>/binary,
+                                    "  • Verify your network connection\n"/utf8>>/binary,
+                                "  • Try pinging the hostname to test DNS resolution"/utf8>>;
+
+                        false ->
+                            case Check_patterns(
+                                [<<"ssl"/utf8>>, <<"certificate"/utf8>>]
+                            ) of
+                                true ->
+                                    <<<<<<"SSL/TLS certificate error: Cannot verify the server's certificate.\n"/utf8,
+                                                "  • The server may have an invalid or expired certificate\n"/utf8>>/binary,
+                                            "  • Check if your system's certificate store is up to date\n"/utf8>>/binary,
+                                        "  • For development, ensure you're using the correct base_url scheme (http vs https)"/utf8>>;
+
+                                false ->
+                                    case Check_patterns([<<"eacces"/utf8>>]) of
+                                        true ->
+                                            <<<<"Permission denied: No access to the specified resource.\n"/utf8,
+                                                    "  • Check if you have permission to access the target URL\n"/utf8>>/binary,
+                                                "  • Verify the base_url and path are correct"/utf8>>;
+
+                                        false ->
+                                            case Check_patterns(
+                                                [<<"ehostunreach"/utf8>>,
+                                                    <<"enetunreach"/utf8>>]
+                                            ) of
+                                                true ->
+                                                    <<<<<<"Network unreachable: Cannot reach the target host.\n"/utf8,
+                                                                "  • Check your network connection\n"/utf8>>/binary,
+                                                            "  • Verify the host is accessible from your location\n"/utf8>>/binary,
+                                                        "  • Check for firewall or VPN restrictions"/utf8>>;
+
+                                                false ->
+                                                    <<<<<<<<<<"HTTP request failed: "/utf8,
+                                                                        (gleam@string:inspect(
+                                                                            Error
+                                                                        ))/binary>>/binary,
+                                                                    "\n"/utf8>>/binary,
+                                                                "  • Check the base_url and ensure the target server is reachable\n"/utf8>>/binary,
+                                                            "  • Verify the request path and headers are correct\n"/utf8>>/binary,
+                                                        "  • Try running with a simpler request to isolate the issue"/utf8>>
+                                            end
+                                    end
+                            end
+                    end
             end
-        end
-    ),
-    gleam@result:unwrap(
-        _pipe@2,
-        <<<<<<<<<<"HTTP request failed: "/utf8,
-                            (gleam@string:inspect(Error))/binary>>/binary,
-                        "\n"/utf8>>/binary,
-                    "  • Check the base_url and ensure the target server is reachable\n"/utf8>>/binary,
-                "  • Verify the request path and headers are correct\n"/utf8>>/binary,
-            "  • Try running with a simpler request to isolate the issue"/utf8>>
-    ).
+    end,
+    Message.
 
 -spec is_private_ipv4(binary()) -> boolean().
 is_private_ipv4(Host) ->

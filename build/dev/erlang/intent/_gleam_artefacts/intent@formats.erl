@@ -436,7 +436,8 @@ validate_uri_scheme(Scheme) ->
                             _pipe,
                             fun(C) ->
                                 case gleam_stdlib:contains_string(
-                                    <<"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-."/utf8>>,
+                                    <<"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.
+"/utf8>>,
                                     C
                                 ) of
                                     true ->
@@ -518,18 +519,33 @@ validate_iso8601_time(Time_str) ->
             T;
 
         {error, _} ->
-            case gleam@string:split_once(Time_str, <<"+"/utf8>>) of
-                {ok, {T@1, _}} ->
-                    T@1;
-
-                {error, _} ->
-                    case gleam@string:split_once(Time_str, <<"-"/utf8>>) of
-                        {ok, {T@2, _}} ->
-                            T@2;
+            case gleam_stdlib:contains_string(Time_str, <<":"/utf8>>) of
+                true ->
+                    case gleam@string:split_once(Time_str, <<"+"/utf8>>) of
+                        {ok, {T@1, _}} ->
+                            T@1;
 
                         {error, _} ->
-                            Time_str
-                    end
+                            case gleam@string:split_once(Time_str, <<"-"/utf8>>) of
+                                {ok, {T@2, _}} ->
+                                    case gleam_stdlib:contains_string(
+                                        T@2,
+                                        <<":"/utf8>>
+                                    ) of
+                                        true ->
+                                            T@2;
+
+                                        false ->
+                                            Time_str
+                                    end;
+
+                                {error, _} ->
+                                    Time_str
+                            end
+                    end;
+
+                false ->
+                    Time_str
             end
     end,
     Parts = gleam@string:split(Time_without_tz, <<":"/utf8>>),

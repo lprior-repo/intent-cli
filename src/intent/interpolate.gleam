@@ -3,6 +3,7 @@
 /// Supports array indexing: ${items[0].id}, ${array[-1]}, etc.
 
 import gleam/dict.{type Dict}
+import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
@@ -11,10 +12,7 @@ import gleam/regexp
 import gleam/result
 import gleam/string
 import intent/array_indexing
-
-/// Maximum number of variable interpolations allowed in a single string
-/// Prevents potential abuse from strings with thousands of ${...} placeholders
-const max_interpolations = 100
+import intent/parser
 
 /// Context containing captured variables
 pub type Context {
@@ -53,55 +51,98 @@ pub fn get_variable(ctx: Context, name: String) -> Option(Json) {
 
 /// Interpolate variables in a string
 /// Replaces ${var_name} with the stringified value of the variable
-/// Rejects strings with more than max_interpolations (100) placeholders
 pub fn interpolate_string(ctx: Context, s: String) -> Result(String, String) {
-  let pattern = "\\$\\{([^}]+)\\}"
-  case regexp.from_string(pattern) {
-    Ok(re) -> {
-      let matches = regexp.scan(re, s)
-      // Safety: Reject strings with excessive interpolations
-      case list.length(matches) > max_interpolations {
-        True ->
-          Error(
-            "Too many variable interpolations ("
-            <> int.to_string(list.length(matches))
-            <> " found, maximum is "
-            <> int.to_string(max_interpolations)
-            <> ")",
-          )
-        False -> interpolate_matches(ctx, s, matches)
+  interpolate_string_with_depth(ctx, s, 0, [])
+}
+
+fn interpolate_string_with_depth(
+  ctx: Context,
+  s: String,
+  depth: Int,
+  visited: List(String),
+) -> Result(String, String) {
+  // Check depth limit to prevent infinite recursion
+  case depth > 10 {
+    True -> Error("Variable interpolation depth limit exceeded")
+    False -> {
+      let pattern = "\\$\\{([^}]+)\\}"
+      case regexp.from_string(pattern) {
+        Ok(re) -> {
+          let matches = regexp.scan(re, s)
+          interpolate_matches_with_depth(ctx, s, matches, depth, visited)
+        }
+        Error(_) -> Ok(s)
       }
     }
-    Error(_) -> Ok(s)
   }
 }
 
-fn interpolate_matches(
+fn interpolate_matches_with_depth(
   ctx: Context,
   s: String,
   matches: List(regexp.Match),
+  depth: Int,
+  visited: List(String),
 ) -> Result(String, String) {
   case matches {
     [] -> Ok(s)
     [match, ..rest] -> {
       case match.submatches {
         [Some(var_path)] -> {
-          case resolve_path(ctx, var_path) {
-            Ok(value) -> {
-              let value_str = json_to_string(value)
-              let new_s = string.replace(s, match.content, value_str)
-              interpolate_matches(ctx, new_s, rest)
+          // Check for circular reference
+          case list.contains(visited, var_path) {
+            True -> Error("Circular variable reference detected: " <> var_path)
+            False -> {
+              case resolve_path_with_depth(ctx, var_path, depth + 1, [var_path, ..visited]) {
+                Ok(value) -> {
+                  let value_str = json_to_string(value)
+                  let new_s = string.replace(s, match.content, value_str)
+                  interpolate_matches_with_depth(ctx, new_s, rest, depth, visited)
+                }
+                Error(e) -> Error(e)
+              }
             }
-            Error(e) -> Error(e)
           }
         }
-        _ -> interpolate_matches(ctx, s, rest)
+        _ -> interpolate_matches_with_depth(ctx, s, rest, depth, visited)
       }
     }
   }
 }
 
-/// Resolve a variable path like "response.body.id" or "user_id"
+/// Resolve a path with depth tracking for cycle detection
+fn resolve_path_with_depth(
+  ctx: Context,
+  path: String,
+  depth: Int,
+  visited: List(String),
+) -> Result(Json, String) {
+  case resolve_path(ctx, path) {
+    Ok(value) -> {
+      // If the value is a string, try to interpolate it recursively
+      let value_str = json.to_string(value)
+      case string.starts_with(value_str, "\"") && string.contains(value_str, "${") {
+        True -> {
+          // It's a JSON string that might contain variables
+          // Remove quotes and interpolate
+          let unquoted =
+            value_str
+            |> string.drop_left(1)
+            |> string.drop_right(1)
+
+          case interpolate_string_with_depth(ctx, unquoted, depth, visited) {
+            Ok(interpolated) -> Ok(json.string(interpolated))
+            Error(e) -> Error(e)
+          }
+        }
+        False -> Ok(value)
+      }
+    }
+    Error(e) -> Error(e)
+  }
+}
+
+/// Resolve a variable path like "response.body.id" or "user_id" or "items[0].name"
 fn resolve_path(ctx: Context, path: String) -> Result(Json, String) {
   let parts = string.split(path, ".")
 
@@ -116,17 +157,104 @@ fn resolve_path(ctx: Context, path: String) -> Result(Json, String) {
         Some(body) -> navigate_json(body, rest)
         None -> Error("No response body in context")
       }
-    [var_name] ->
-      case get_variable(ctx, var_name) {
-        Some(value) -> Ok(value)
-        None -> Error("Variable not found: " <> var_name)
+    [first_part, ..rest] -> {
+      // Parse the first part to check for array indexing
+      case array_indexing.parse_path_component(first_part) {
+        Ok(#(var_name, array_spec)) -> {
+          case get_variable(ctx, var_name) {
+            Some(value) -> {
+              // Apply array indexing if present
+              case array_spec {
+                array_indexing.NoArray -> {
+                  // No array index, just navigate the rest
+                  case rest {
+                    [] -> Ok(value)
+                    _ -> navigate_json(value, rest)
+                  }
+                }
+                array_indexing.Index(idx) -> {
+                  // Apply positive array index
+                  case get_array_element_from_json(value, idx) {
+                    Ok(elem) -> {
+                      case rest {
+                        [] -> Ok(elem)
+                        _ -> navigate_json(elem, rest)
+                      }
+                    }
+                    Error(e) -> Error(e)
+                  }
+                }
+                array_indexing.LastN(n) -> {
+                  // Apply negative array index
+                  case get_array_element_last_from_json(value, n) {
+                    Ok(elem) -> {
+                      case rest {
+                        [] -> Ok(elem)
+                        _ -> navigate_json(elem, rest)
+                      }
+                    }
+                    Error(e) -> Error(e)
+                  }
+                }
+                array_indexing.All -> {
+                  Error("Array wildcard [*] not supported in variable paths")
+                }
+              }
+            }
+            None -> Error("Variable not found: " <> var_name)
+          }
+        }
+        Error(e) -> Error(e)
       }
-    [var_name, ..rest] ->
-      case get_variable(ctx, var_name) {
-        Some(value) -> navigate_json(value, rest)
-        None -> Error("Variable not found: " <> var_name)
-      }
+    }
     [] -> Error("Empty variable path")
+  }
+}
+
+/// Get array element by positive index from JSON
+fn get_array_element_from_json(json: Json, index: Int) -> Result(Json, String) {
+  let json_str = json.to_string(json)
+  case json.decode(json_str, dynamic.list(dynamic.dynamic)) {
+    Ok(lst) -> {
+      case list.drop(lst, index) |> list.first {
+        Ok(elem) -> {
+          let json_val = parser.dynamic_to_json(elem)
+          Ok(json_val)
+        }
+        Error(_) ->
+          Error(
+            "Array index " <> int.to_string(index) <> " out of bounds (length: " <> int.to_string(list.length(lst)) <> ")",
+          )
+      }
+    }
+    Error(_) -> Error("Cannot index non-array with [" <> int.to_string(index) <> "]")
+  }
+}
+
+/// Get array element by negative index from JSON
+fn get_array_element_last_from_json(json: Json, from_end: Int) -> Result(Json, String) {
+  let json_str = json.to_string(json)
+  case json.decode(json_str, dynamic.list(dynamic.dynamic)) {
+    Ok(lst) -> {
+      let length = list.length(lst)
+      let actual_index = length - from_end
+      case actual_index >= 0 && actual_index < length {
+        False ->
+          Error(
+            "Array index -" <> int.to_string(from_end) <> " out of bounds (length: " <> int.to_string(length) <> ")",
+          )
+        True -> {
+          case list.drop(lst, actual_index) |> list.first {
+            Ok(elem) -> {
+              let json_val = parser.dynamic_to_json(elem)
+              Ok(json_val)
+            }
+            Error(_) -> Error("Failed to access array element")
+          }
+        }
+      }
+    }
+    Error(_) -> Error("Cannot index non-array with negative index")
   }
 }
 

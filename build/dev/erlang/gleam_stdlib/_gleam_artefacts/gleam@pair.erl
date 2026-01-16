@@ -3,31 +3,31 @@
 
 -export([first/1, second/1, swap/1, map_first/2, map_second/2, new/2]).
 
--spec first({AAD, any()}) -> AAD.
+-spec first({AAP, any()}) -> AAP.
 first(Pair) ->
     {A, _} = Pair,
     A.
 
--spec second({any(), AAG}) -> AAG.
+-spec second({any(), AAS}) -> AAS.
 second(Pair) ->
     {_, A} = Pair,
     A.
 
--spec swap({AAH, AAI}) -> {AAI, AAH}.
+-spec swap({AAT, AAU}) -> {AAU, AAT}.
 swap(Pair) ->
     {A, B} = Pair,
     {B, A}.
 
--spec map_first({AAJ, AAK}, fun((AAJ) -> AAL)) -> {AAL, AAK}.
+-spec map_first({AAV, AAW}, fun((AAV) -> AAX)) -> {AAX, AAW}.
 map_first(Pair, Fun) ->
     {A, B} = Pair,
     {Fun(A), B}.
 
--spec map_second({AAM, AAN}, fun((AAN) -> AAO)) -> {AAM, AAO}.
+-spec map_second({AAY, AAZ}, fun((AAZ) -> ABA)) -> {AAY, ABA}.
 map_second(Pair, Fun) ->
     {A, B} = Pair,
     {A, Fun(B)}.
 
--spec new(AAP, AAQ) -> {AAP, AAQ}.
+-spec new(ABB, ABC) -> {ABB, ABC}.
 new(First, Second) ->
     {First, Second}.

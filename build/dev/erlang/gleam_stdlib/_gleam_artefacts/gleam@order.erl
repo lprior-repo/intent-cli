@@ -74,7 +74,7 @@ min(A, B) ->
             B
     end.
 
--spec reverse(fun((I, I) -> order())) -> fun((I, I) -> order()).
+-spec reverse(fun((U, U) -> order())) -> fun((U, U) -> order()).
 reverse(Orderer) ->
     fun(A, B) -> Orderer(B, A) end.
 

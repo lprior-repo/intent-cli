@@ -1,5 +1,6 @@
 /// Security utilities for input validation and sanitization
 import gleam/list
+import gleam/regexp
 import gleam/string
 import simplifile
 
@@ -10,29 +11,24 @@ pub type SecurityError {
   FileNotAccessible(path: String)
   UnsafeRegexPattern(pattern: String, reason: String)
   ShellMetacharactersDetected(path: String)
-  SymlinkNotAllowed(path: String)
 }
 
-/// Check if a path is safe by blocking dangerous shell metacharacters
+/// Check if a path contains only safe characters to prevent command injection
 ///
-/// Blocks characters that could enable command injection:
-/// - ; | & $ ` (command separators, pipes, background, variable expansion)
-/// - > < (redirection operators)
-/// - Newlines and carriage returns
-///
-/// Allows common path characters including spaces, parentheses, quotes, etc.
+/// Only allows alphanumeric characters, forward slashes, underscores, dots, and hyphens.
+/// This prevents shell metacharacters like ; | & $ ` from being injected.
 ///
 /// # Example
 /// ```gleam
 /// is_safe_path("examples/api.cue") // True
-/// is_safe_path("/home/user/My Documents/api.cue") // True
 /// is_safe_path("; rm -rf /") // False
 /// is_safe_path("$(whoami).cue") // False
 /// ```
 pub fn is_safe_path(path: String) -> Bool {
-  // Blocklist approach: reject paths containing dangerous shell metacharacters
-  let dangerous_chars = [";", "|", "&", "$", "`", ">", "<", "\n", "\r"]
-  !list.any(dangerous_chars, fn(char) { string.contains(path, char) })
+  case regexp.from_string("^[a-zA-Z0-9/_.-]+$") {
+    Ok(pattern) -> regexp.check(pattern, path)
+    Error(_) -> False
+  }
 }
 
 /// Validate a file path to prevent path traversal attacks
@@ -54,15 +50,6 @@ pub fn is_safe_path(path: String) -> Bool {
 /// }
 /// ```
 pub fn validate_file_path(path: String) -> Result(String, SecurityError) {
-  // Reject empty paths first
-  case string.is_empty(path) {
-    True -> Error(InvalidPath(path, "Path cannot be empty"))
-    False -> validate_file_path_impl(path)
-  }
-}
-
-// Internal implementation after empty path check
-fn validate_file_path_impl(path: String) -> Result(String, SecurityError) {
   // First check for shell metacharacters to prevent command injection
   case is_safe_path(path) {
     False -> Error(ShellMetacharactersDetected(path))
@@ -106,18 +93,12 @@ fn validate_file_path_impl(path: String) -> Result(String, SecurityError) {
                           case string.contains(path, "....") {
                             True -> Error(PathTraversalAttempt(path))
                             False -> {
-                              // Check for symlinks - reject to prevent symlink attacks
-                              case simplifile.verify_is_symlink(path) {
-                                Ok(True) -> Error(SymlinkNotAllowed(path))
-                                _ -> {
-                                  // Verify file exists
-                                  case simplifile.verify_is_file(path) {
-                                    Ok(True) -> Ok(path)
-                                    Ok(False) ->
-                                      Error(InvalidPath(path, "Not a regular file"))
-                                    Error(_) -> Error(FileNotAccessible(path))
-                                  }
-                                }
+                              // Verify file exists
+                              case simplifile.verify_is_file(path) {
+                                Ok(True) -> Ok(path)
+                                Ok(False) ->
+                                  Error(InvalidPath(path, "Not a regular file"))
+                                Error(_) -> Error(FileNotAccessible(path))
                               }
                             }
                           }
@@ -201,11 +182,7 @@ pub fn format_security_error(error: SecurityError) -> String {
     ShellMetacharactersDetected(path) ->
       "Security error: Invalid file path '"
       <> path
-      <> "'. Path contains dangerous shell metacharacters (; | & $ ` > < or newlines)."
-    SymlinkNotAllowed(path) ->
-      "Security error: Symbolic links are not allowed. Path '"
-      <> path
-      <> "' is a symlink."
+      <> "'. Path contains shell metacharacters. Only alphanumeric characters, forward slashes, underscores, dots, and hyphens are allowed."
   }
 }
 

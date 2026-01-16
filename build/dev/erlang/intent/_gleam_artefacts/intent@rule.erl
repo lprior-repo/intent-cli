@@ -89,7 +89,13 @@ try_parse_equals(Rule) ->
             end;
 
         false ->
-            none
+            case Rule =:= <<"equals"/utf8>> of
+                true ->
+                    {some, {equals, <<""/utf8>>}};
+
+                false ->
+                    none
+            end
     end.
 
 -spec try_parse_type(binary()) -> gleam@option:option(rule_expr()).
@@ -140,6 +146,9 @@ try_parse_string_pattern(Rule) ->
 
         <<"iso8601 datetime"/utf8>> ->
             {some, is_iso8601};
+
+        <<"string starting with"/utf8>> ->
+            {some, {string_starting_with, <<""/utf8>>}};
 
         _ ->
             case gleam@string:starts_with(Rule, <<"string matching "/utf8>>) of
@@ -672,45 +681,52 @@ try_parse_array(Rule) ->
 
 -spec parse(binary()) -> rule_expr().
 parse(Rule) ->
-    Rule@1 = gleam@string:trim(Rule),
-    case try_parse_equals(Rule@1) of
-        {some, Expr} ->
-            Expr;
+    case gleam_stdlib:contains_string(Rule, <<"\n"/utf8>>) of
+        true ->
+            {raw, Rule};
 
-        none ->
-            case try_parse_type(Rule@1) of
-                {some, Expr@1} ->
-                    Expr@1;
+        false ->
+            Rule@1 = gleam@string:trim(Rule),
+            case try_parse_equals(Rule@1) of
+                {some, Expr} ->
+                    Expr;
 
                 none ->
-                    case try_parse_string_pattern(Rule@1) of
-                        {some, Expr@2} ->
-                            Expr@2;
+                    case try_parse_type(Rule@1) of
+                        {some, Expr@1} ->
+                            Expr@1;
 
                         none ->
-                            case try_parse_number(Rule@1) of
-                                {some, Expr@3} ->
-                                    Expr@3;
+                            case try_parse_string_pattern(Rule@1) of
+                                {some, Expr@2} ->
+                                    Expr@2;
 
                                 none ->
-                                    case try_parse_presence(Rule@1) of
-                                        {some, Expr@4} ->
-                                            Expr@4;
+                                    case try_parse_number(Rule@1) of
+                                        {some, Expr@3} ->
+                                            Expr@3;
 
                                         none ->
-                                            case try_parse_array(Rule@1) of
-                                                {some, Expr@5} ->
-                                                    Expr@5;
+                                            case try_parse_presence(Rule@1) of
+                                                {some, Expr@4} ->
+                                                    Expr@4;
 
                                                 none ->
-                                                    case try_parse_compound(
-                                                        Rule@1
-                                                    ) of
-                                                        {some, Expr@6} ->
-                                                            Expr@6;
+                                                    case try_parse_array(Rule@1) of
+                                                        {some, Expr@5} ->
+                                                            Expr@5;
 
                                                         none ->
-                                                            {raw, Rule@1}
+                                                            case try_parse_compound(
+                                                                Rule@1
+                                                            ) of
+                                                                {some, Expr@6} ->
+                                                                    Expr@6;
+
+                                                                none ->
+                                                                    {raw,
+                                                                        Rule@1}
+                                                            end
                                                     end
                                             end
                                     end

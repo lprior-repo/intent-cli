@@ -68,7 +68,7 @@ extra_required(List, Remaining) ->
             extra_required(Xs, Remaining - 1)
     end.
 
--spec pad_list(list(gleam@option:option(FKC)), integer()) -> list(gleam@option:option(FKC)).
+-spec pad_list(list(gleam@option:option(FKO)), integer()) -> list(gleam@option:option(FKO)).
 pad_list(List, Size) ->
     _pipe = List,
     lists:append(_pipe, gleam@list:repeat(none, extra_required(List, Size))).
@@ -251,7 +251,7 @@ origin(Uri) ->
             {error, nil}
     end.
 
--spec drop_last(list(FLC)) -> list(FLC).
+-spec drop_last(list(FLO)) -> list(FLO).
 drop_last(Elements) ->
     gleam@list:take(Elements, erlang:length(Elements) - 1).
 

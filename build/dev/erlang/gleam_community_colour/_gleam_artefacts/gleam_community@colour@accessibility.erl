@@ -3,7 +3,6 @@
 
 -export([luminance/1, contrast_ratio/2, maximum_contrast/2]).
 
--file("/home/runner/work/colour/colour/src/gleam_community/colour/accessibility.gleam", 56).
 -spec intensity(float()) -> float().
 intensity(Colour_value) ->
     case true of
@@ -19,7 +18,7 @@ intensity(Colour_value) ->
                 {ok, _} -> _assert_subject;
                 _assert_fail ->
                     erlang:error(#{gleam_error => let_assert,
-                                message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
+                                message => <<"Assertion pattern match failed"/utf8>>,
                                 value => _assert_fail,
                                 module => <<"gleam_community/colour/accessibility"/utf8>>,
                                 function => <<"intensity"/utf8>>,
@@ -28,7 +27,6 @@ intensity(Colour_value) ->
             I
     end.
 
--file("/home/runner/work/colour/colour/src/gleam_community/colour/accessibility.gleam", 92).
 -spec luminance(gleam_community@colour:colour()) -> float().
 luminance(Colour) ->
     {R, G, B, _} = gleam_community@colour:to_rgba(Colour),
@@ -37,7 +35,6 @@ luminance(Colour) ->
     B_intensity = intensity(B),
     ((0.2126 * R_intensity) + (0.7152 * G_intensity)) + (0.0722 * B_intensity).
 
--file("/home/runner/work/colour/colour/src/gleam_community/colour/accessibility.gleam", 125).
 -spec contrast_ratio(
     gleam_community@colour:colour(),
     gleam_community@colour:colour()
@@ -61,7 +58,6 @@ contrast_ratio(Colour_a, Colour_b) ->
             end
     end.
 
--file("/home/runner/work/colour/colour/src/gleam_community/colour/accessibility.gleam", 161).
 -spec maximum_contrast(
     gleam_community@colour:colour(),
     list(gleam_community@colour:colour())

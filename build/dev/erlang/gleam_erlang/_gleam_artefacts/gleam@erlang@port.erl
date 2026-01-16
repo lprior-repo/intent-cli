@@ -6,7 +6,6 @@
 
 -type port_() :: any().
 
--file("/Users/louis/src/gleam/erlang/src/gleam/erlang/port.gleam", 26).
 -spec port_from_dynamic(gleam@dynamic:dynamic_()) -> {ok, port_()} |
     {error, list(gleam@dynamic:decode_error())}.
 port_from_dynamic(From) ->

@@ -1,7 +1,7 @@
 -module(intent@interview_storage).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
 
--export([answer_to_version/3, format_diff/1, list_session_history/2, create_snapshot/2, diff_sessions/2, append_to_history/3, session_to_json/1, session_to_jsonl_line/1, init_database/1, save_session_to_db/2, query_sessions_by_profile/2, query_ready_sessions/1, append_session_to_jsonl/2, sync_to_jsonl/3, list_sessions_from_jsonl/1, get_session_from_jsonl/2, sync_from_jsonl/2]).
+-export([answer_to_version/3, format_diff/1, list_session_history/2, create_snapshot/2, diff_sessions/2, append_to_history/3, session_to_json/1, session_to_jsonl_line/1, ensure_parent_directory/1, init_database/1, save_session_to_db/2, query_sessions_by_profile/2, query_ready_sessions/1, append_session_to_jsonl/2, sync_to_jsonl/3, list_sessions_from_jsonl/1, get_session_from_jsonl/2, sync_from_jsonl/2]).
 -export_type([session_record/0, answer_version/0, answer_with_history/0, session_snapshot/0, session_diff/0, answer_diff/0, answer_change_type/0]).
 
 -type session_record() :: {session_record,
@@ -534,23 +534,50 @@ diff_sessions(From_session, To_session) ->
             end
         end
     ),
-    From_unresolved_gaps = gleam@list:filter(
+    From_gaps_dict = gleam@list:fold(
         erlang:element(10, From_session),
-        fun(G) -> not erlang:element(9, G) end
+        gleam@dict:new(),
+        fun(Acc@2, G) -> gleam@dict:insert(Acc@2, erlang:element(2, G), G) end
     ),
-    To_unresolved_gaps = gleam@list:filter(
+    _ = gleam@list:fold(
         erlang:element(10, To_session),
-        fun(G@1) -> not erlang:element(9, G@1) end
+        gleam@dict:new(),
+        fun(Acc@3, G@1) ->
+            gleam@dict:insert(Acc@3, erlang:element(2, G@1), G@1)
+        end
     ),
-    Gaps_added = erlang:length(To_unresolved_gaps) - erlang:length(
-        From_unresolved_gaps
-    ),
-    Gaps_resolved = case Gaps_added < 0 of
-        true ->
-            - Gaps_added;
+    Gaps_resolved = begin
+        _pipe = gleam@list:filter(
+            erlang:element(10, To_session),
+            fun(Gap) ->
+                case gleam@dict:get(From_gaps_dict, erlang:element(2, Gap)) of
+                    {ok, From_gap} ->
+                        not erlang:element(9, From_gap) andalso erlang:element(
+                            9,
+                            Gap
+                        );
 
-        false ->
-            0
+                    {error, _} ->
+                        false
+                end
+            end
+        ),
+        erlang:length(_pipe)
+    end,
+    Gaps_added = begin
+        _pipe@1 = gleam@list:filter(
+            erlang:element(10, To_session),
+            fun(Gap@1) ->
+                case gleam@dict:get(From_gaps_dict, erlang:element(2, Gap@1)) of
+                    {ok, _} ->
+                        false;
+
+                    {error, _} ->
+                        not erlang:element(9, Gap@1)
+                end
+            end
+        ),
+        erlang:length(_pipe@1)
     end,
     From_unresolved_conflicts = gleam@list:filter(
         erlang:element(11, From_session),
@@ -590,13 +617,7 @@ diff_sessions(From_session, To_session) ->
         Added,
         Modified,
         Removed,
-        case Gaps_added > 0 of
-            true ->
-                Gaps_added;
-
-            false ->
-                0
-        end,
+        Gaps_added,
         Gaps_resolved,
         case Conflicts_added > 0 of
             true ->
@@ -775,6 +796,43 @@ session_to_jsonl_line(Session) ->
     _pipe@1 = session_to_json(_pipe),
     gleam@json:to_string(_pipe@1).
 
+-spec ensure_parent_directory(binary()) -> {ok, nil} | {error, binary()}.
+ensure_parent_directory(File_path) ->
+    Parts = gleam@string:split(File_path, <<"/"/utf8>>),
+    Dir_parts = gleam@list:take(Parts, erlang:length(Parts) - 1),
+    case erlang:length(Dir_parts) of
+        0 ->
+            {ok, nil};
+
+        _ ->
+            Dir_path = gleam@string:join(Dir_parts, <<"/"/utf8>>),
+            _pipe = simplifile:create_directory_all(Dir_path),
+            gleam@result:map_error(
+                _pipe,
+                fun(Err) ->
+                    Err_msg = case Err of
+                        enoent ->
+                            <<"Parent directory not found"/utf8>>;
+
+                        eacces ->
+                            <<"Permission denied"/utf8>>;
+
+                        enospc ->
+                            <<"No space left on device"/utf8>>;
+
+                        eio ->
+                            <<"I/O error"/utf8>>;
+
+                        _ ->
+                            <<"Unknown error"/utf8>>
+                    end,
+                    <<<<<<"Failed to create directory '"/utf8, Dir_path/binary>>/binary,
+                            "': "/utf8>>/binary,
+                        Err_msg/binary>>
+                end
+            )
+    end.
+
 -spec init_database(binary()) -> {ok, nil} | {error, binary()}.
 init_database(_) ->
     {ok, nil}.
@@ -805,43 +863,57 @@ session_id_decoder(Json_value) ->
         nil} |
     {error, binary()}.
 append_session_to_jsonl(Session, Jsonl_path) ->
+    Existing = begin
+        _pipe = simplifile:read(Jsonl_path),
+        gleam@result:unwrap(_pipe, <<""/utf8>>)
+    end,
+    Lines = case Existing of
+        <<""/utf8>> ->
+            [];
+
+        Content ->
+            gleam@string:split(Content, <<"\n"/utf8>>)
+    end,
+    Filtered = gleam@list:filter(
+        Lines,
+        fun(Line) -> case gleam@json:decode(Line, fun session_id_decoder/1) of
+                {ok, Id} ->
+                    Id /= erlang:element(2, Session);
+
+                {error, _} ->
+                    true
+            end end
+    ),
+    New_line = session_to_jsonl_line(Session),
+    All_lines = lists:append(Filtered, [New_line]),
+    Content@1 = gleam@string:join(All_lines, <<"\n"/utf8>>),
     gleam@result:'try'(
-        begin
-            _pipe = simplifile:read(Jsonl_path),
-            gleam@result:map_error(_pipe, fun(_) -> <<""/utf8>> end)
-        end,
-        fun(Existing) ->
-            Lines = case Existing of
-                <<""/utf8>> ->
-                    [];
-
-                Content ->
-                    gleam@string:split(Content, <<"\n"/utf8>>)
-            end,
-            Filtered = gleam@list:filter(
-                Lines,
-                fun(Line) ->
-                    case gleam@json:decode(Line, fun session_id_decoder/1) of
-                        {ok, Id} ->
-                            Id /= erlang:element(2, Session);
-
-                        {error, _} ->
-                            true
-                    end
-                end
-            ),
-            New_line = session_to_jsonl_line(Session),
-            All_lines = lists:append(Filtered, [New_line]),
-            Content@1 = gleam@string:join(All_lines, <<"\n"/utf8>>),
-            _pipe@1 = simplifile:write(Jsonl_path, Content@1),
+        ensure_parent_directory(Jsonl_path),
+        fun(_) -> _pipe@1 = simplifile:write(Jsonl_path, Content@1),
             gleam@result:map_error(
                 _pipe@1,
                 fun(Err) ->
-                    <<"Failed to write JSONL: "/utf8,
-                        (gleam@string:inspect(Err))/binary>>
+                    Err_msg = case Err of
+                        enoent ->
+                            <<"File or directory not found"/utf8>>;
+
+                        eacces ->
+                            <<"Permission denied"/utf8>>;
+
+                        enospc ->
+                            <<"No space left on device"/utf8>>;
+
+                        eio ->
+                            <<"I/O error"/utf8>>;
+
+                        _ ->
+                            <<"Unknown error"/utf8>>
+                    end,
+                    <<<<<<"Failed to write JSONL to '"/utf8, Jsonl_path/binary>>/binary,
+                            "': "/utf8>>/binary,
+                        Err_msg/binary>>
                 end
-            )
-        end
+            ) end
     ).
 
 -spec sync_to_jsonl(intent@interview:interview_session(), binary(), binary()) -> {ok,

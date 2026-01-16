@@ -318,26 +318,6 @@ detected_gap_to_json(Gap) ->
             {<<"mental_model"/utf8>>, gleam@json:string(erlang:element(6, Gap))}]
     ).
 
--spec answer_loader_error_to_string(intent@answer_loader:answer_loader_error()) -> binary().
-answer_loader_error_to_string(Err) ->
-    case Err of
-        {file_not_found, Path} ->
-            <<"File not found: "/utf8, Path/binary>>;
-
-        {permission_denied, Path@1} ->
-            <<"Permission denied reading: "/utf8, Path@1/binary>>;
-
-        {parse_error, Path@2, Msg} ->
-            <<<<<<"Parse error in "/utf8, Path@2/binary>>/binary, ": "/utf8>>/binary,
-                Msg/binary>>;
-
-        {schema_error, Msg@1} ->
-            <<"Schema validation failed: "/utf8, Msg@1/binary>>;
-
-        {io_error, Msg@2} ->
-            <<"I/O error: "/utf8, Msg@2/binary>>
-    end.
-
 -spec ask_single_question(
     intent@interview:interview_session(),
     intent@question_types:question(),
@@ -498,6 +478,112 @@ interview_loop(Session, Round) ->
                     end
             end
     end.
+
+-spec run_interview(intent@interview:profile(), binary(), boolean(), binary()) -> nil.
+run_interview(Profile, Answers_file, _, Export_to) ->
+    Session_id = <<"interview-"/utf8, (intent_ffi:generate_uuid())/binary>>,
+    Timestamp = intent_ffi:current_timestamp(),
+    Session = intent@interview:create_session(Session_id, Profile, Timestamp),
+    Answers_dict = case gleam@string:is_empty(Answers_file) of
+        true ->
+            none;
+
+        false ->
+            gleam@io:println(
+                <<"⚠ Answer file loading not yet implemented"/utf8>>
+            ),
+            gleam@io:println(<<"  Continuing in interactive mode..."/utf8>>),
+            none
+    end,
+    gleam@io:println(<<""/utf8>>),
+    gleam@io:println(
+        <<"═══════════════════════════════════════════════════════════════════"/utf8>>
+    ),
+    gleam@io:println(<<"                    INTENT INTERVIEW"/utf8>>),
+    gleam@io:println(
+        <<"═══════════════════════════════════════════════════════════════════"/utf8>>
+    ),
+    gleam@io:println(<<""/utf8>>),
+    gleam@io:println(
+        <<"Profile: "/utf8, (profile_to_display_string(Profile))/binary>>
+    ),
+    gleam@io:println(<<"Session: "/utf8, Session_id/binary>>),
+    case Answers_dict of
+        none ->
+            nil;
+
+        {some, _} ->
+            gleam@io:println(
+                <<"Mode: Non-interactive (answers from file)"/utf8>>
+            )
+    end,
+    gleam@io:println(<<""/utf8>>),
+    gleam@io:println(
+        <<"This guided interview will help us discover and refine your"/utf8>>
+    ),
+    gleam@io:println(<<"specification through structured questioning."/utf8>>),
+    gleam@io:println(<<""/utf8>>),
+    gleam@io:println(
+        <<"We'll ask questions across 5 rounds × multiple perspectives:"/utf8>>
+    ),
+    gleam@io:println(
+        <<"  • Round 1: Core Intent (what are you building?)"/utf8>>
+    ),
+    gleam@io:println(
+        <<"  • Round 2: Scope & Boundaries (what's in/out?)"/utf8>>
+    ),
+    gleam@io:println(<<"  • Round 3: Error Cases (what can go wrong?)"/utf8>>),
+    gleam@io:println(
+        <<"  • Round 4: Security & Compliance (how do we keep it safe?)"/utf8>>
+    ),
+    gleam@io:println(
+        <<"  • Round 5: Operations (how does it run in production?)"/utf8>>
+    ),
+    gleam@io:println(<<""/utf8>>),
+    gleam@io:println(<<"Press Ctrl+C to save and exit at any time."/utf8>>),
+    gleam@io:println(
+        <<"Session will be saved to: .interview/sessions.jsonl"/utf8>>
+    ),
+    gleam@io:println(<<""/utf8>>),
+    gleam@io:println(<<"Ready? Let's begin."/utf8>>),
+    gleam@io:println(<<""/utf8>>),
+    Final_session = interview_loop(Session, 1),
+    Save_result = intent@interview_storage:append_session_to_jsonl(
+        Final_session,
+        <<".interview/sessions.jsonl"/utf8>>
+    ),
+    case Save_result of
+        {ok, nil} ->
+            gleam@io:println(<<""/utf8>>),
+            gleam@io:println(<<"✓ Session saved: "/utf8, Session_id/binary>>);
+
+        {error, Err} ->
+            gleam@io:println_error(
+                <<"✗ Failed to save session: "/utf8, Err/binary>>
+            )
+    end,
+    case Export_to of
+        <<""/utf8>> ->
+            nil;
+
+        Path ->
+            Spec_cue = intent@spec_builder:build_spec_from_session(
+                Final_session
+            ),
+            case simplifile:write(Path, Spec_cue) of
+                {ok, nil} ->
+                    gleam@io:println(
+                        <<"✓ Spec exported to: "/utf8, Path/binary>>
+                    );
+
+                {error, Err@1} ->
+                    gleam@io:println_error(
+                        <<"✗ Failed to export spec: "/utf8,
+                            (gleam@string:inspect(Err@1))/binary>>
+                    )
+            end
+    end,
+    intent_ffi:halt(0).
 
 -spec sessions_command() -> glint:command(nil).
 sessions_command() ->
@@ -1121,139 +1207,6 @@ improve_command() ->
         _pipe,
         <<"Suggest improvements based on quality analysis and linting"/utf8>>
     ).
-
--spec run_interview(intent@interview:profile(), binary(), boolean(), binary()) -> nil.
-run_interview(Profile, Answers_file, Strict_mode, Export_to) ->
-    Session_id = <<"interview-"/utf8, (intent_ffi:generate_uuid())/binary>>,
-    Timestamp = intent_ffi:current_timestamp(),
-    Session = intent@interview:create_session(Session_id, Profile, Timestamp),
-    Answers_dict = case gleam@string:is_empty(Answers_file) of
-        true ->
-            none;
-
-        false ->
-            case intent@answer_loader:load_from_file(Answers_file) of
-                {ok, Dict} ->
-                    gleam@io:println(<<""/utf8>>),
-                    gleam@io:println(
-                        <<<<<<"✓ Loaded "/utf8,
-                                    (gleam@string:inspect(maps:size(Dict)))/binary>>/binary,
-                                " pre-filled answers from: "/utf8>>/binary,
-                            Answers_file/binary>>
-                    ),
-                    {some, Dict};
-
-                {error, Err} ->
-                    case Strict_mode of
-                        true ->
-                            gleam@io:println_error(
-                                <<"✗ Failed to load answers file: "/utf8,
-                                    (answer_loader_error_to_string(Err))/binary>>
-                            ),
-                            intent_ffi:halt(4),
-                            none;
-
-                        false ->
-                            gleam@io:println(
-                                <<"⚠ Failed to load answers file: "/utf8,
-                                    (answer_loader_error_to_string(Err))/binary>>
-                            ),
-                            gleam@io:println(
-                                <<"  Continuing in interactive mode..."/utf8>>
-                            ),
-                            none
-                    end
-            end
-    end,
-    gleam@io:println(<<""/utf8>>),
-    gleam@io:println(
-        <<"═══════════════════════════════════════════════════════════════════"/utf8>>
-    ),
-    gleam@io:println(<<"                    INTENT INTERVIEW"/utf8>>),
-    gleam@io:println(
-        <<"═══════════════════════════════════════════════════════════════════"/utf8>>
-    ),
-    gleam@io:println(<<""/utf8>>),
-    gleam@io:println(
-        <<"Profile: "/utf8, (profile_to_display_string(Profile))/binary>>
-    ),
-    gleam@io:println(<<"Session: "/utf8, Session_id/binary>>),
-    case Answers_dict of
-        none ->
-            nil;
-
-        {some, _} ->
-            gleam@io:println(
-                <<"Mode: Non-interactive (answers from file)"/utf8>>
-            )
-    end,
-    gleam@io:println(<<""/utf8>>),
-    gleam@io:println(
-        <<"This guided interview will help us discover and refine your"/utf8>>
-    ),
-    gleam@io:println(<<"specification through structured questioning."/utf8>>),
-    gleam@io:println(<<""/utf8>>),
-    gleam@io:println(
-        <<"We'll ask questions across 5 rounds × multiple perspectives:"/utf8>>
-    ),
-    gleam@io:println(
-        <<"  • Round 1: Core Intent (what are you building?)"/utf8>>
-    ),
-    gleam@io:println(
-        <<"  • Round 2: Scope & Boundaries (what's in/out?)"/utf8>>
-    ),
-    gleam@io:println(<<"  • Round 3: Error Cases (what can go wrong?)"/utf8>>),
-    gleam@io:println(
-        <<"  • Round 4: Security & Compliance (how do we keep it safe?)"/utf8>>
-    ),
-    gleam@io:println(
-        <<"  • Round 5: Operations (how does it run in production?)"/utf8>>
-    ),
-    gleam@io:println(<<""/utf8>>),
-    gleam@io:println(<<"Press Ctrl+C to save and exit at any time."/utf8>>),
-    gleam@io:println(
-        <<"Session will be saved to: .interview/sessions.jsonl"/utf8>>
-    ),
-    gleam@io:println(<<""/utf8>>),
-    gleam@io:println(<<"Ready? Let's begin."/utf8>>),
-    gleam@io:println(<<""/utf8>>),
-    Final_session = interview_loop(Session, 1),
-    Save_result = intent@interview_storage:append_session_to_jsonl(
-        Final_session,
-        <<".interview/sessions.jsonl"/utf8>>
-    ),
-    case Save_result of
-        {ok, nil} ->
-            gleam@io:println(<<""/utf8>>),
-            gleam@io:println(<<"✓ Session saved: "/utf8, Session_id/binary>>);
-
-        {error, Err@1} ->
-            gleam@io:println_error(
-                <<"✗ Failed to save session: "/utf8, Err@1/binary>>
-            )
-    end,
-    case Export_to of
-        <<""/utf8>> ->
-            nil;
-
-        Path ->
-            Spec_cue = intent@spec_builder:build_spec_from_session(
-                Final_session
-            ),
-            case simplifile:write(Path, Spec_cue) of
-                {ok, nil} ->
-                    gleam@io:println(
-                        <<"✓ Spec exported to: "/utf8, Path/binary>>
-                    );
-
-                {error, Err@2} ->
-                    gleam@io:println_error(
-                        <<"✗ Failed to export spec: "/utf8,
-                            (gleam@string:inspect(Err@2))/binary>>
-                    )
-            end
-    end,
-    intent_ffi:halt(0).
 
 -spec run_resume_interview(binary(), binary()) -> nil.
 run_resume_interview(Session_id, Export_to) ->
@@ -3108,125 +3061,6 @@ kirk_effects_command() ->
         <<"KIRK: Analyze second-order effects (consequence tracing)"/utf8>>
     ).
 
--spec kirk_compact_command() -> glint:command(nil).
-kirk_compact_command() ->
-    _pipe@1 = glint:command(
-        fun(Input) ->
-            Show_tokens = begin
-                _pipe = glint@flag:get_bool(
-                    erlang:element(3, Input),
-                    <<"tokens"/utf8>>
-                ),
-                gleam@result:unwrap(_pipe, false)
-            end,
-            case erlang:element(2, Input) of
-                [Spec_path | _] ->
-                    case intent@loader:load_spec(Spec_path) of
-                        {ok, Spec} ->
-                            Compact = intent@kirk@compact_format:spec_to_compact(
-                                Spec
-                            ),
-                            Output = intent@kirk@compact_format:format_compact(
-                                Compact
-                            ),
-                            gleam@io:println(Output),
-                            case Show_tokens of
-                                true ->
-                                    {Full, Compact_tokens, Savings} = intent@kirk@compact_format:compare_token_usage(
-                                        Spec
-                                    ),
-                                    gleam@io:println(<<""/utf8>>),
-                                    gleam@io:println(
-                                        <<"─────────────────────────────────────"/utf8>>
-                                    ),
-                                    gleam@io:println(<<"Token Analysis:"/utf8>>),
-                                    gleam@io:println(
-                                        <<<<"  Full JSON:    ~"/utf8,
-                                                (gleam@string:inspect(Full))/binary>>/binary,
-                                            " tokens"/utf8>>
-                                    ),
-                                    gleam@io:println(
-                                        <<<<"  Compact CIN:  ~"/utf8,
-                                                (gleam@string:inspect(
-                                                    Compact_tokens
-                                                ))/binary>>/binary,
-                                            " tokens"/utf8>>
-                                    ),
-                                    gleam@io:println(
-                                        <<<<"  Savings:      "/utf8,
-                                                (gleam@string:inspect(
-                                                    gleam@float:round(Savings)
-                                                ))/binary>>/binary,
-                                            "%"/utf8>>
-                                    );
-
-                                false ->
-                                    nil
-                            end,
-                            intent_ffi:halt(0);
-
-                        {error, E} ->
-                            intent@cli_ui:print_error(
-                                intent@loader:format_error(E)
-                            ),
-                            intent_ffi:halt(3)
-                    end;
-
-                [] ->
-                    intent@cli_ui:print_error(
-                        <<"spec file path required"/utf8>>
-                    ),
-                    gleam@io:println(
-                        <<"Usage: intent compact <spec.cue> [--tokens]"/utf8>>
-                    ),
-                    intent_ffi:halt(4)
-            end
-        end
-    ),
-    _pipe@2 = glint:description(
-        _pipe@1,
-        <<"KIRK: Convert to Compact Intent Notation (token-efficient)"/utf8>>
-    ),
-    glint:flag(
-        _pipe@2,
-        <<"tokens"/utf8>>,
-        begin
-            _pipe@3 = glint@flag:bool(),
-            _pipe@4 = glint@flag:default(_pipe@3, false),
-            glint@flag:description(_pipe@4, <<"Show token comparison"/utf8>>)
-        end
-    ).
-
--spec kirk_prototext_command() -> glint:command(nil).
-kirk_prototext_command() ->
-    _pipe = glint:command(fun(Input) -> case erlang:element(2, Input) of
-                [Spec_path | _] ->
-                    case intent@loader:load_spec(Spec_path) of
-                        {ok, Spec} ->
-                            Output = intent@kirk@compact_format:spec_to_prototext(
-                                Spec
-                            ),
-                            gleam@io:println(Output),
-                            intent_ffi:halt(0);
-
-                        {error, E} ->
-                            intent@cli_ui:print_error(
-                                intent@loader:format_error(E)
-                            ),
-                            intent_ffi:halt(3)
-                    end;
-
-                [] ->
-                    intent@cli_ui:print_error(
-                        <<"spec file path required"/utf8>>
-                    ),
-                    gleam@io:println(
-                        <<"Usage: intent prototext <spec.cue>"/utf8>>
-                    ),
-                    intent_ffi:halt(4)
-            end end),
-    glint:description(_pipe, <<"KIRK: Export to Protobuf text format"/utf8>>).
-
 -spec kirk_ears_command() -> glint:command(nil).
 kirk_ears_command() ->
     _pipe@2 = glint:command(
@@ -3520,23 +3354,17 @@ main() ->
         kirk_coverage_command()
     ),
     _pipe@19 = glint:add(_pipe@18, [<<"gaps"/utf8>>], kirk_gaps_command()),
-    _pipe@20 = glint:add(_pipe@19, [<<"compact"/utf8>>], kirk_compact_command()),
-    _pipe@21 = glint:add(
-        _pipe@20,
-        [<<"prototext"/utf8>>],
-        kirk_prototext_command()
-    ),
-    _pipe@22 = glint:add(_pipe@21, [<<"ears"/utf8>>], kirk_ears_command()),
-    _pipe@23 = glint:add(_pipe@22, [<<"effects"/utf8>>], kirk_effects_command()),
-    _pipe@24 = glint:add(_pipe@23, [<<"plan"/utf8>>], plan_command()),
-    _pipe@25 = glint:add(
-        _pipe@24,
+    _pipe@20 = glint:add(_pipe@19, [<<"ears"/utf8>>], kirk_ears_command()),
+    _pipe@21 = glint:add(_pipe@20, [<<"effects"/utf8>>], kirk_effects_command()),
+    _pipe@22 = glint:add(_pipe@21, [<<"plan"/utf8>>], plan_command()),
+    _pipe@23 = glint:add(
+        _pipe@22,
         [<<"plan-approve"/utf8>>],
         plan_approve_command()
     ),
-    _pipe@26 = glint:add(
-        _pipe@25,
+    _pipe@24 = glint:add(
+        _pipe@23,
         [<<"beads-regenerate"/utf8>>],
         beads_regenerate_command()
     ),
-    glint:run(_pipe@26, erlang:element(4, argv:load())).
+    glint:run(_pipe@24, erlang:element(4, argv:load())).
