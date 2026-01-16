@@ -1,0 +1,942 @@
+//// Comprehensive tests for intent/validator.gleam
+//// Tests validation of specs, behaviors, dependencies, variables, and circular dependencies
+
+import gleam/dict
+import gleam/json
+import gleam/list
+import gleeunit/should
+import intent/types.{
+  type Behavior, type Check, type Config, type Feature, type Method, type Request, type Response, type Spec,
+  Behavior, Check, Config, Feature, Get, Post, Request, Response, Spec,
+}
+import intent/validator.{
+  type ValidationIssue, type ValidationResult,
+  CircularDependency, MissingCapture, MissingDependency,
+  format_issues, validate_spec,
+}
+
+// ============================================================================
+// Helper Functions for Building Test Data
+// ============================================================================
+
+fn empty_dict() -> dict.Dict(String, String) {
+  dict.new()
+}
+
+fn empty_json_dict() -> dict.Dict(String, json.Json) {
+  dict.new()
+}
+
+fn empty_check_dict() -> dict.Dict(String, Check) {
+  dict.new()
+}
+
+fn simple_config() -> Config {
+  Config(
+    base_url: "http://localhost:8080",
+    timeout_ms: 5000,
+    headers: empty_dict(),
+  )
+}
+
+fn simple_request(path: String) -> Request {
+  Request(
+    method: Get,
+    path: path,
+    headers: empty_dict(),
+    query: empty_json_dict(),
+    body: json.null(),
+  )
+}
+
+fn simple_response() -> Response {
+  Response(
+    status: 200,
+    example: json.null(),
+    checks: empty_check_dict(),
+    headers: empty_dict(),
+  )
+}
+
+fn simple_behavior(name: String) -> Behavior {
+  Behavior(
+    name: name,
+    intent: "Test behavior",
+    notes: "",
+    requires: [],
+    tags: [],
+    request: simple_request("/test"),
+    response: simple_response(),
+    captures: empty_dict(),
+  )
+}
+
+fn simple_feature(name: String, behaviors: List(Behavior)) -> Feature {
+  Feature(name: name, description: "Test feature", behaviors: behaviors)
+}
+
+fn simple_spec(features: List(Feature)) -> Spec {
+  Spec(
+    name: "test_spec",
+    description: "Test specification",
+    audience: "developers",
+    version: "1.0.0",
+    success_criteria: [],
+    config: simple_config(),
+    features: features,
+    rules: [],
+    anti_patterns: [],
+    ai_hints: intent
+      / types.AIHints(
+      implementation: intent / types.ImplementationHints(suggested_stack: []),
+      entities: empty_dict(),
+      security: intent
+        / types.SecurityHints(
+        password_hashing: "bcrypt",
+        jwt_algorithm: "HS256",
+        jwt_expiry: "24h",
+        rate_limiting: "1000/hour",
+      ),
+      pitfalls: [],
+    ),
+  )
+}
+
+// ============================================================================
+// ValidationResult Tests
+// ============================================================================
+
+pub fn validate_spec_with_no_issues_returns_valid_test() {
+  let behavior = simple_behavior("get_user")
+  let feature = simple_feature("users", [behavior])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_with_multiple_behaviors_returns_valid_test() {
+  let behavior1 = simple_behavior("get_user")
+  let behavior2 = simple_behavior("list_users")
+  let feature = simple_feature("users", [behavior1, behavior2])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_with_multiple_features_returns_valid_test() {
+  let user_behavior = simple_behavior("get_user")
+  let user_feature = simple_feature("users", [user_behavior])
+
+  let post_behavior = simple_behavior("create_post")
+  let post_feature = simple_feature("posts", [post_behavior])
+
+  let spec = simple_spec([user_feature, post_feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+// ============================================================================
+// Missing Dependency Tests
+// ============================================================================
+
+pub fn validate_spec_detects_missing_dependency_test() {
+  let behavior =
+    Behavior(
+      name: "get_user_posts",
+      intent: "Get user posts",
+      notes: "",
+      requires: ["nonexistent_behavior"],
+      tags: [],
+      request: simple_request("/user/1/posts"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("posts", [behavior])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          MissingDependency("get_user_posts", "nonexistent_behavior") -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid")
+  }
+}
+
+pub fn validate_spec_allows_valid_dependency_test() {
+  let get_user = simple_behavior("get_user")
+  let get_posts =
+    Behavior(
+      name: "get_user_posts",
+      intent: "Get user posts",
+      notes: "",
+      requires: ["get_user"],
+      tags: [],
+      request: simple_request("/user/1/posts"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("users", [get_user, get_posts])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_detects_multiple_missing_dependencies_test() {
+  let behavior =
+    Behavior(
+      name: "complex_behavior",
+      intent: "Complex behavior",
+      notes: "",
+      requires: ["missing1", "missing2"],
+      tags: [],
+      request: simple_request("/test"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      let missing_dep_issues =
+        issues
+        |> list.filter(fn(issue) {
+          case issue {
+            MissingDependency(_, _) -> True
+            _ -> False
+          }
+        })
+
+      missing_dep_issues
+      |> list.length
+      |> should.equal(2)
+    }
+    _ -> should.fail("Expected ValidationInvalid")
+  }
+}
+
+// ============================================================================
+// Circular Dependency Tests
+// ============================================================================
+
+pub fn validate_spec_detects_direct_self_dependency_test() {
+  let behavior =
+    Behavior(
+      name: "self_loop",
+      intent: "Self loop",
+      notes: "",
+      requires: ["self_loop"],
+      tags: [],
+      request: simple_request("/test"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          CircularDependency(_) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid with circular dependency")
+  }
+}
+
+pub fn validate_spec_detects_two_node_circular_dependency_test() {
+  let behavior_a =
+    Behavior(
+      name: "behavior_a",
+      intent: "Behavior A",
+      notes: "",
+      requires: ["behavior_b"],
+      tags: [],
+      request: simple_request("/a"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let behavior_b =
+    Behavior(
+      name: "behavior_b",
+      intent: "Behavior B",
+      notes: "",
+      requires: ["behavior_a"],
+      tags: [],
+      request: simple_request("/b"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior_a, behavior_b])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          CircularDependency(_) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid with circular dependency")
+  }
+}
+
+pub fn validate_spec_detects_three_node_circular_dependency_test() {
+  let behavior_a =
+    Behavior(
+      name: "behavior_a",
+      intent: "Behavior A",
+      notes: "",
+      requires: ["behavior_b"],
+      tags: [],
+      request: simple_request("/a"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let behavior_b =
+    Behavior(
+      name: "behavior_b",
+      intent: "Behavior B",
+      notes: "",
+      requires: ["behavior_c"],
+      tags: [],
+      request: simple_request("/b"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let behavior_c =
+    Behavior(
+      name: "behavior_c",
+      intent: "Behavior C",
+      notes: "",
+      requires: ["behavior_a"],
+      tags: [],
+      request: simple_request("/c"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior_a, behavior_b, behavior_c])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          CircularDependency(_) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid with circular dependency")
+  }
+}
+
+// ============================================================================
+// Variable Reference Tests (Path)
+// ============================================================================
+
+pub fn validate_spec_detects_undefined_variable_in_path_test() {
+  let behavior =
+    Behavior(
+      name: "get_user_posts",
+      intent: "Get user posts",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/users/${user_id}/posts"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("posts", [behavior])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          MissingCapture("get_user_posts", "request.path", "user_id", _) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid with missing capture")
+  }
+}
+
+pub fn validate_spec_accepts_variable_in_path_from_previous_behavior_test() {
+  let get_user =
+    Behavior(
+      name: "create_user",
+      intent: "Create user",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/users"),
+      response: simple_response(),
+      captures: dict.from_list([#("user_id", "123")]),
+    )
+
+  let get_posts =
+    Behavior(
+      name: "get_user_posts",
+      intent: "Get user posts",
+      notes: "",
+      requires: ["create_user"],
+      tags: [],
+      request: simple_request("/users/${user_id}/posts"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("posts", [get_user, get_posts])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_detects_multiple_undefined_variables_in_path_test() {
+  let behavior =
+    Behavior(
+      name: "complex_request",
+      intent: "Complex request",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/users/${user_id}/posts/${post_id}/comments"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      let missing_captures =
+        issues
+        |> list.filter(fn(issue) {
+          case issue {
+            MissingCapture("complex_request", "request.path", _, _) -> True
+            _ -> False
+          }
+        })
+
+      missing_captures
+      |> list.length
+      |> should.equal(2)
+    }
+    _ -> should.fail("Expected ValidationInvalid")
+  }
+}
+
+// ============================================================================
+// Variable Reference Tests (Headers)
+// ============================================================================
+
+pub fn validate_spec_detects_undefined_variable_in_header_test() {
+  let request =
+    Request(
+      method: Get,
+      path: "/users",
+      headers: dict.from_list([#("Authorization", "Bearer ${token}")]),
+      query: empty_json_dict(),
+      body: json.null(),
+    )
+
+  let behavior =
+    Behavior(
+      name: "get_user_with_auth",
+      intent: "Get user with auth",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: request,
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("users", [behavior])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          MissingCapture("get_user_with_auth", "request.headers", "token", _) ->
+            True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ ->
+      should.fail("Expected ValidationInvalid with missing capture in header")
+  }
+}
+
+pub fn validate_spec_accepts_variable_in_header_from_previous_behavior_test() {
+  let login =
+    Behavior(
+      name: "login",
+      intent: "Login",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/login"),
+      response: simple_response(),
+      captures: dict.from_list([#("token", "abc123")]),
+    )
+
+  let request =
+    Request(
+      method: Get,
+      path: "/users",
+      headers: dict.from_list([#("Authorization", "Bearer ${token}")]),
+      query: empty_json_dict(),
+      body: json.null(),
+    )
+
+  let get_user =
+    Behavior(
+      name: "get_user",
+      intent: "Get user",
+      notes: "",
+      requires: ["login"],
+      tags: [],
+      request: request,
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("users", [login, get_user])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_detects_multiple_undefined_variables_in_header_test() {
+  let request =
+    Request(
+      method: Get,
+      path: "/users",
+      headers: dict.from_list([
+        #("Authorization", "Bearer ${token}"),
+        #("X-Request-ID", "${request_id}"),
+      ]),
+      query: empty_json_dict(),
+      body: json.null(),
+    )
+
+  let behavior =
+    Behavior(
+      name: "get_with_headers",
+      intent: "Get with headers",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: request,
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      let missing_captures =
+        issues
+        |> list.filter(fn(issue) {
+          case issue {
+            MissingCapture("get_with_headers", "request.headers", _, _) -> True
+            _ -> False
+          }
+        })
+
+      missing_captures
+      |> list.length
+      |> should.equal(2)
+    }
+    _ -> should.fail("Expected ValidationInvalid")
+  }
+}
+
+// ============================================================================
+// Format Issues Tests
+// ============================================================================
+
+pub fn format_issues_with_empty_list_test() {
+  let formatted = format_issues([])
+
+  formatted
+  |> should.equal("Validation failed with 0 issue(s):\n\n")
+}
+
+pub fn format_issues_with_single_missing_dependency_test() {
+  let issue = MissingDependency("get_user", "create_user")
+  let formatted = format_issues([issue])
+
+  formatted
+  |> should.contain("Validation failed with 1 issue(s):")
+  |> should.contain("Behavior 'get_user'")
+  |> should.contain("create_user")
+}
+
+pub fn format_issues_with_single_circular_dependency_test() {
+  let issue = CircularDependency(["behavior_a"])
+  let formatted = format_issues([issue])
+
+  formatted
+  |> should.contain("Validation failed with 1 issue(s):")
+  |> should.contain("Circular dependency")
+}
+
+pub fn format_issues_with_multiple_issues_test() {
+  let issue1 = MissingDependency("behavior_a", "missing_behavior")
+  let issue2 = CircularDependency(["behavior_b"])
+  let formatted = format_issues([issue1, issue2])
+
+  formatted
+  |> should.contain("Validation failed with 2 issue(s):")
+}
+
+pub fn format_issues_with_missing_capture_test() {
+  let issue = MissingCapture("get_user", "request.path", "user_id", [])
+  let formatted = format_issues([issue])
+
+  formatted
+  |> should.contain("Behavior 'get_user'")
+  |> should.contain("request.path")
+  |> should.contain("user_id")
+  |> should.contain("No behavior captures this variable")
+}
+
+pub fn format_issues_with_missing_capture_with_suggestions_test() {
+  let issue =
+    MissingCapture("get_user", "request.path", "user_id", [
+      "create_user", "login",
+    ])
+  let formatted = format_issues([issue])
+
+  formatted
+  |> should.contain("Behavior 'get_user'")
+  |> should.contain("request.path")
+  |> should.contain("user_id")
+  |> should.contain("create_user")
+  |> should.contain("login")
+}
+
+// ============================================================================
+// Edge Cases and Integration Tests
+// ============================================================================
+
+pub fn validate_spec_with_behavior_depending_on_itself_indirectly_test() {
+  let behavior_a =
+    Behavior(
+      name: "behavior_a",
+      intent: "Behavior A",
+      notes: "",
+      requires: ["behavior_b"],
+      tags: [],
+      request: simple_request("/a"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let behavior_b =
+    Behavior(
+      name: "behavior_b",
+      intent: "Behavior B",
+      notes: "",
+      requires: ["behavior_a"],
+      tags: [],
+      request: simple_request("/b"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let behavior_c =
+    Behavior(
+      name: "behavior_c",
+      intent: "Behavior C",
+      notes: "",
+      requires: ["behavior_a"],
+      tags: [],
+      request: simple_request("/c"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior_a, behavior_b, behavior_c])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          CircularDependency(_) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid with circular dependency")
+  }
+}
+
+pub fn validate_spec_with_valid_dependency_chain_test() {
+  let behavior_a =
+    Behavior(
+      name: "create_user",
+      intent: "Create user",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/users"),
+      response: simple_response(),
+      captures: dict.from_list([#("user_id", "123")]),
+    )
+
+  let behavior_b =
+    Behavior(
+      name: "get_user",
+      intent: "Get user",
+      notes: "",
+      requires: ["create_user"],
+      tags: [],
+      request: simple_request("/users/${user_id}"),
+      response: simple_response(),
+      captures: dict.from_list([#("email", "user@example.com")]),
+    )
+
+  let behavior_c =
+    Behavior(
+      name: "update_user",
+      intent: "Update user",
+      notes: "",
+      requires: ["get_user"],
+      tags: [],
+      request: simple_request("/users/${user_id}"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("users", [behavior_a, behavior_b, behavior_c])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_allows_capture_from_any_earlier_behavior_test() {
+  let behavior_a =
+    Behavior(
+      name: "setup",
+      intent: "Setup",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/setup"),
+      response: simple_response(),
+      captures: dict.from_list([#("setup_id", "xyz")]),
+    )
+
+  let behavior_b =
+    Behavior(
+      name: "step_one",
+      intent: "Step one",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/step1"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let behavior_c =
+    Behavior(
+      name: "step_two",
+      intent: "Step two",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/steps/${setup_id}"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior_a, behavior_b, behavior_c])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_rejects_capture_from_later_behavior_test() {
+  let behavior_a =
+    Behavior(
+      name: "step_one",
+      intent: "Step one",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/step1/${future_id}"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let behavior_b =
+    Behavior(
+      name: "step_two",
+      intent: "Step two",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/step2"),
+      response: simple_response(),
+      captures: dict.from_list([#("future_id", "abc")]),
+    )
+
+  let feature = simple_feature("test", [behavior_a, behavior_b])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.any(fn(issue) {
+        case issue {
+          MissingCapture("step_one", "request.path", "future_id", _) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid")
+  }
+}
+
+pub fn validate_spec_with_mixed_valid_and_invalid_issues_test() {
+  let behavior_a =
+    Behavior(
+      name: "behavior_a",
+      intent: "Behavior A",
+      notes: "",
+      requires: ["nonexistent"],
+      tags: [],
+      request: simple_request("/a/${missing_var}"),
+      response: simple_response(),
+      captures: empty_dict(),
+    )
+
+  let feature = simple_feature("test", [behavior_a])
+  let spec = simple_spec([feature])
+
+  let result = validate_spec(spec)
+  case result {
+    ValidationInvalid(issues) -> {
+      issues
+      |> list.length
+      |> should.be_true()
+    }
+    _ -> should.fail("Expected ValidationInvalid")
+  }
+}
+
+// ============================================================================
+// Variable Extraction Tests
+// ============================================================================
+
+pub fn validate_spec_ignores_malformed_variables_test() {
+  let behavior =
+    Behavior(
+      name: "test_behavior",
+      intent: "Test",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request("/path/${var1}/middle/malformed${/path"),
+      response: simple_response(),
+      captures: dict.from_list([#("var1", "value1")]),
+    )
+
+  let feature = simple_feature("test", [behavior])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
+
+pub fn validate_spec_extracts_multiple_variables_from_single_string_test() {
+  let behavior =
+    Behavior(
+      name: "test_behavior",
+      intent: "Test",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: simple_request(
+        "/api/${version}/users/${user_id}/posts/${post_id}",
+      ),
+      response: simple_response(),
+      captures: dict.from_list([
+        #("version", "v1"),
+        #("user_id", "123"),
+        #("post_id", "456"),
+      ]),
+    )
+
+  let feature = simple_feature("test", [behavior])
+  let spec = simple_spec([feature])
+
+  validate_spec(spec)
+  |> should.equal(ValidationValid)
+}
