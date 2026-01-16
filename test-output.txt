@@ -1,0 +1,8 @@
+error: Syntax error
+    ┌─ /home/lewis/src/intent-cli/test/quality_analyzer_test.gleam:383:5
+    │
+383 │     (report.coverage_score
+    │     ^ This parenthesis cannot be understood here
+
+Hint: To group expressions in gleam use "{" and "}".
+
