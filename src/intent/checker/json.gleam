@@ -1,5 +1,4 @@
 /// Field validation - extracts and validates field values from JSON responses
-
 import gleam/dict
 import gleam/dynamic
 import gleam/json.{type Json}
@@ -19,7 +18,9 @@ fn navigate_json_path(value: Json, path: List(String)) -> Option(Json) {
     [key, ..rest] -> {
       // Need to decode the JSON to navigate it
       let json_str = json.to_string(value)
-      case json.decode(json_str, dynamic.dict(dynamic.string, dynamic.dynamic)) {
+      case
+        json.decode(json_str, dynamic.dict(dynamic.string, dynamic.dynamic))
+      {
         Ok(obj) ->
           case dict.get(obj, key) {
             Ok(next) -> {
