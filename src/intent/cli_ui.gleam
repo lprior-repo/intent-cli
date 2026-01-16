@@ -4,7 +4,7 @@
 import gleam/io
 import gleam_community/ansi
 
-@external(erlang, "os", "getenv")
+@external(erlang, "intent_ffi", "get_env")
 fn get_env_ffi(key: String) -> Result(String, Nil)
 
 /// Check if colors should be disabled (NO_COLOR environment variable)

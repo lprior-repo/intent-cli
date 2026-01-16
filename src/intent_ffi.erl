@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, set_env/2, get_home_dir/0]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, set_env/2, get_home_dir/0, get_env/1]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -56,4 +56,11 @@ get_home_dir() ->
     case os:getenv("HOME") of
         false -> {error, nil};
         Home -> {ok, list_to_binary(Home)}
+    end.
+
+%% Get environment variable (handles binary to list conversion)
+get_env(Key) when is_binary(Key) ->
+    case os:getenv(binary_to_list(Key)) of
+        false -> {error, nil};
+        Value -> {ok, list_to_binary(Value)}
     end.
