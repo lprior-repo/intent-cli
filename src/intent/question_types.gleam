@@ -1,7 +1,6 @@
 /// Question Types
 /// Core types for interview questions
 /// Used by both interview_questions.gleam and question_loader.gleam
-
 pub type Perspective {
   User
   Developer
