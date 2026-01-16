@@ -1,1 +1,0 @@
--record(check, {rule :: binary(), why :: binary()}).
