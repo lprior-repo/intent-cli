@@ -1,0 +1,572 @@
+//// Comprehensive tests for intent/interview.gleam
+//// Tests cover interview state machine, answer recording, gap detection,
+//// conflict detection, profile handling, and session orchestration
+//// This is a critical module (722 lines) that powers the interactive interview system
+
+import gleam/dict
+import gleam/list
+import gleeunit
+import gleeunit/should
+import intent/interview.{
+  type Answer, type Conflict, type ConflictResolution, type Gap,
+  type InterviewSession, type InterviewStage, type Profile, Answer, Api, Cli,
+  Complete, Conflict, ConflictResolution, Data, Discovery, Event, Gap, Paused,
+  Refinement, UI, Validation, Workflow,
+}
+import intent/question_types.{
+  type Perspective, type Question, Critical, Developer, HappyPath, Important,
+  NiceTohave, Ops, Question, User,
+}
+
+pub fn main() {
+  gleeunit.main()
+}
+
+// ============================================================================
+// Test Factories
+// ============================================================================
+
+/// Create a minimal valid Answer
+fn make_answer(
+  question_id: String,
+  response: String,
+  round: Int,
+) -> Answer {
+  Answer(
+    question_id: question_id,
+    question_text: "Test question",
+    perspective: User,
+    round: round,
+    response: response,
+    extracted: dict.new(),
+    confidence: 0.0,
+    notes: "",
+    timestamp: "2025-01-01T00:00:00Z",
+  )
+}
+
+/// Create an answer with extracted fields
+fn make_answer_with_extraction(
+  question_id: String,
+  response: String,
+  extracted: dict.Dict(String, String),
+) -> Answer {
+  Answer(
+    ..make_answer(question_id, response, 1),
+    extracted: extracted,
+  )
+}
+
+/// Create an answer with specific perspective
+fn make_answer_with_perspective(
+  question_id: String,
+  response: String,
+  perspective: Perspective,
+) -> Answer {
+  Answer(
+    ..make_answer(question_id, response, 1),
+    perspective: perspective,
+  )
+}
+
+/// Create a minimal valid Question
+fn make_question(id: String, question_text: String) -> Question {
+  Question(
+    id: id,
+    round: 1,
+    perspective: User,
+    category: HappyPath,
+    priority: Important,
+    question: question_text,
+    context: "",
+    example: "",
+    expected_type: "text",
+    extract_into: [],
+    depends_on: [],
+    blocks: [],
+  )
+}
+
+/// Create a critical priority question
+fn make_critical_question(id: String, question_text: String) -> Question {
+  Question(
+    ..make_question(id, question_text),
+    priority: Critical,
+  )
+}
+
+/// Create a gap
+fn make_gap(
+  id: String,
+  field: String,
+  blocking: Bool,
+  resolved: Bool,
+) -> Gap {
+  Gap(
+    id: id,
+    field: field,
+    description: "Missing: " <> field,
+    blocking: blocking,
+    suggested_default: "",
+    why_needed: "Required for spec",
+    round: 1,
+    resolved: resolved,
+    resolution: "",
+  )
+}
+
+/// Create a conflict
+fn make_conflict(
+  id: String,
+  between: #(String, String),
+  chosen: Int,
+) -> Conflict {
+  Conflict(
+    id: id,
+    between: between,
+    description: "Test conflict",
+    impact: "Test impact",
+    options: [
+      ConflictResolution(
+        option: "Option 1",
+        description: "First option",
+        tradeoffs: "Some tradeoffs",
+        recommendation: "Recommended",
+      ),
+      ConflictResolution(
+        option: "Option 2",
+        description: "Second option",
+        tradeoffs: "Other tradeoffs",
+        recommendation: "Alternative",
+      ),
+    ],
+    chosen: chosen,
+  )
+}
+
+// ============================================================================
+// Profile Conversion Tests
+// ============================================================================
+
+pub fn profile_to_string_api_test() {
+  interview.profile_to_string(Api)
+  |> should.equal("api")
+}
+
+pub fn profile_to_string_cli_test() {
+  interview.profile_to_string(Cli)
+  |> should.equal("cli")
+}
+
+pub fn string_to_profile_api_test() {
+  interview.string_to_profile("api")
+  |> should.be_ok
+  |> should.equal(Api)
+}
+
+pub fn string_to_profile_invalid_test() {
+  interview.string_to_profile("invalid")
+  |> should.be_error
+  |> should.equal("Unknown profile: invalid")
+}
+
+// ============================================================================
+// Session Creation Tests
+// ============================================================================
+
+pub fn create_session_api_profile_test() {
+  let session = interview.create_session("test-1", Api, "2025-01-01T00:00:00Z")
+
+  session.id
+  |> should.equal("test-1")
+  session.profile
+  |> should.equal(Api)
+  session.stage
+  |> should.equal(Discovery)
+  session.rounds_completed
+  |> should.equal(0)
+  session.answers
+  |> should.equal([])
+}
+
+// ============================================================================
+// Answer Management Tests
+// ============================================================================
+
+pub fn add_answer_to_empty_session_test() {
+  let session = interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+  let answer = make_answer("q1", "Test response", 1)
+
+  let updated = interview.add_answer(session, answer)
+
+  updated.answers
+  |> list.length
+  |> should.equal(1)
+}
+
+// ============================================================================
+// Extract From Answer Tests
+// ============================================================================
+
+pub fn extract_from_answer_auth_method_jwt_test() {
+  let response = "We use JWT tokens for authentication"
+  let result = interview.extract_from_answer("q1", response, ["auth_method"])
+
+  result
+  |> dict.get("auth_method")
+  |> should.be_ok
+  |> should.equal("jwt")
+}
+
+pub fn extract_from_answer_auth_method_oauth_test() {
+  let response = "OAuth 2.0 is our auth mechanism"
+  let result = interview.extract_from_answer("q1", response, ["auth_method"])
+
+  result
+  |> dict.get("auth_method")
+  |> should.be_ok
+  |> should.equal("oauth")
+}
+
+// ============================================================================
+// Confidence Calculation Tests
+// ============================================================================
+
+pub fn calculate_confidence_high_test() {
+  let response = "This is a detailed response with more than fifty characters to trigger high confidence"
+  let extracted =
+    dict.new()
+    |> dict.insert("field1", "value1")
+
+  let confidence = interview.calculate_confidence("q1", response, extracted)
+
+  confidence
+  |> should.equal(0.85)
+}
+
+// ============================================================================
+// Gap Detection Tests
+// ============================================================================
+
+pub fn detect_gaps_api_profile_empty_answers_test() {
+  let gaps = interview.detect_gaps(Api, [])
+
+  // API profile requires: base_url, auth_method, happy_path, error_cases, response_format
+  gaps
+  |> list.length
+  |> should.equal(5)
+}
+
+pub fn detect_gaps_api_profile_with_base_url_test() {
+  let answer =
+    make_answer_with_extraction(
+      "q1",
+      "Base URL is https://api.example.com",
+      dict.new()
+      |> dict.insert("base_url", "https://api.example.com"),
+    )
+
+  let gaps = interview.detect_gaps(Api, [answer])
+
+  // Should have 4 gaps (missing auth_method, happy_path, error_cases, response_format)
+  gaps
+  |> list.length
+  |> should.equal(4)
+}
+
+// ============================================================================
+// Conflict Detection Tests
+// ============================================================================
+
+pub fn detect_conflicts_empty_answers_test() {
+  let conflicts = interview.detect_conflicts([])
+
+  conflicts
+  |> list.length
+  |> should.equal(0)
+}
+
+pub fn detect_conflicts_cap_theorem_test() {
+  let answers = [
+    make_answer("q1", "We need fast response times and low latency", 1),
+    make_answer("q2", "Strong consistency is critical for our data", 1),
+  ]
+
+  let conflicts = interview.detect_conflicts(answers)
+
+  // Should detect CAP theorem conflict
+  conflicts
+  |> list.length
+  |> should.equal(1)
+
+  conflicts
+  |> list.first
+  |> should.be_ok
+  |> fn(c) { c.id }
+  |> should.equal("conflict-cap")
+}
+
+// ============================================================================
+// Format Question Tests
+// ============================================================================
+
+pub fn format_question_critical_priority_test() {
+  let question = make_critical_question("q1", "What is the base URL?")
+
+  let formatted = interview.format_question(question)
+
+  formatted
+  |> should.equal("[CRITICAL] What is the base URL?")
+}
+
+pub fn format_question_important_priority_test() {
+  let question = make_question("q1", "What is the timeout?")
+
+  let formatted = interview.format_question(question)
+
+  formatted
+  |> should.equal("[IMPORTANT] What is the timeout?")
+}
+
+// ============================================================================
+// Round Management Tests
+// ============================================================================
+
+pub fn complete_round_first_round_test() {
+  let session = interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+
+  let updated = interview.complete_round(session)
+
+  updated.rounds_completed
+  |> should.equal(1)
+  updated.stage
+  |> should.equal(Discovery)
+}
+
+pub fn complete_round_third_round_test() {
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> interview.complete_round
+    |> interview.complete_round
+
+  let updated = interview.complete_round(session)
+
+  updated.rounds_completed
+  |> should.equal(3)
+  updated.stage
+  |> should.equal(Refinement)
+}
+
+pub fn complete_round_fifth_round_test() {
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> interview.complete_round
+    |> interview.complete_round
+    |> interview.complete_round
+    |> interview.complete_round
+
+  let updated = interview.complete_round(session)
+
+  updated.rounds_completed
+  |> should.equal(5)
+  updated.stage
+  |> should.equal(Complete)
+}
+
+// ============================================================================
+// Get Current Round Tests
+// ============================================================================
+
+pub fn get_current_round_no_answers_test() {
+  let session = interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+
+  interview.get_current_round(session)
+  |> should.equal(1)
+}
+
+// ============================================================================
+// Gap Management Tests
+// ============================================================================
+
+pub fn check_for_gaps_critical_short_answer_test() {
+  let session = interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+  let question = make_critical_question("q1", "What is the base URL?")
+  let answer = make_answer("q1", "Yes", 1)
+
+  let #(updated, gaps) =
+    interview.check_for_gaps(session, question, answer)
+
+  gaps
+  |> list.length
+  |> should.equal(1)
+
+  updated.gaps
+  |> list.length
+  |> should.equal(1)
+}
+
+pub fn resolve_gap_test() {
+  let gap = make_gap("gap1", "base_url", True, False)
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> fn(s) {
+      interview.InterviewSession(..s, gaps: [gap])
+    }
+
+  let updated =
+    interview.resolve_gap(session, "gap1", "https://api.example.com")
+
+  updated.gaps
+  |> list.first
+  |> should.be_ok
+  |> fn(g) { g.resolved }
+  |> should.be_true
+
+  updated.gaps
+  |> list.first
+  |> should.be_ok
+  |> fn(g) { g.resolution }
+  |> should.equal("https://api.example.com")
+}
+
+pub fn get_blocking_gaps_test() {
+  let gap1 = make_gap("gap1", "field1", True, False)
+  let gap2 = make_gap("gap2", "field2", False, False)
+  let gap3 = make_gap("gap3", "field3", True, True)
+
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> fn(s) {
+      interview.InterviewSession(..s, gaps: [gap1, gap2, gap3])
+    }
+
+  let blocking = interview.get_blocking_gaps(session)
+
+  // Only gap1 is blocking and unresolved
+  blocking
+  |> list.length
+  |> should.equal(1)
+
+  blocking
+  |> list.first
+  |> should.be_ok
+  |> fn(g) { g.id }
+  |> should.equal("gap1")
+}
+
+// ============================================================================
+// Conflict Management Tests
+// ============================================================================
+
+pub fn check_for_conflicts_developer_ops_test() {
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> interview.add_answer(make_answer_with_perspective(
+      "q1",
+      "We need strong consistency",
+      Developer,
+    ))
+
+  let new_answer =
+    make_answer_with_perspective("q2", "High latency is acceptable", Ops)
+
+  let #(updated, conflicts) =
+    interview.check_for_conflicts(session, new_answer)
+
+  conflicts
+  |> list.length
+  |> should.equal(1)
+
+  updated.conflicts
+  |> list.length
+  |> should.equal(1)
+}
+
+pub fn resolve_conflict_test() {
+  let conflict = make_conflict("conflict1", #("q1", "q2"), -1)
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> fn(s) {
+      interview.InterviewSession(..s, conflicts: [conflict])
+    }
+
+  let result = interview.resolve_conflict(session, "conflict1", 0)
+
+  result
+  |> should.be_ok
+  |> fn(s) { s.conflicts }
+  |> list.first
+  |> should.be_ok
+  |> fn(c) { c.chosen }
+  |> should.equal(0)
+}
+
+pub fn get_unresolved_conflicts_test() {
+  let conflict1 = make_conflict("c1", #("q1", "q2"), -1)
+  let conflict2 = make_conflict("c2", #("q3", "q4"), 0)
+  let conflict3 = make_conflict("c3", #("q5", "q6"), -1)
+
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> fn(s) {
+      interview.InterviewSession(..s, conflicts: [conflict1, conflict2, conflict3])
+    }
+
+  let unresolved = interview.get_unresolved_conflicts(session)
+
+  // conflict1 and conflict3 are unresolved
+  unresolved
+  |> list.length
+  |> should.equal(2)
+}
+
+// ============================================================================
+// Session Validation Tests
+// ============================================================================
+
+pub fn can_proceed_no_gaps_test() {
+  let session = interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+
+  interview.can_proceed(session)
+  |> should.be_ok
+}
+
+pub fn can_proceed_blocking_gap_test() {
+  let gap = make_gap("gap1", "field1", True, False)
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> fn(s) {
+      interview.InterviewSession(..s, gaps: [gap])
+    }
+
+  interview.can_proceed(session)
+  |> should.be_error
+}
+
+// ============================================================================
+// Format Progress Tests
+// ============================================================================
+
+pub fn format_progress_discovery_stage_test() {
+  let session = interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+
+  let progress = interview.format_progress(session)
+
+  progress
+  |> should.equal("Profile: api | Stage: Discovery | Answers: 0 | Gaps: 0 | Conflicts: 0")
+}
+
+pub fn format_progress_complete_stage_test() {
+  let session =
+    interview.create_session("test", Api, "2025-01-01T00:00:00Z")
+    |> interview.complete_round
+    |> interview.complete_round
+    |> interview.complete_round
+    |> interview.complete_round
+    |> interview.complete_round
+
+  let progress = interview.format_progress(session)
+
+  progress
+  |> should.equal("Profile: api | Stage: Complete | Answers: 0 | Gaps: 0 | Conflicts: 0")
+}

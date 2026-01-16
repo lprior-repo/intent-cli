@@ -1,8 +1,8 @@
 /// Core types for the Intent specification
 /// These types mirror the CUE schema definitions
+
 import gleam/dict.{type Dict}
 import gleam/json.{type Json}
-import gleam/option.{type Option}
 
 /// The main specification type - all fields required
 pub type Spec {
@@ -113,7 +113,7 @@ pub type Rule {
   Rule(
     name: String,
     description: String,
-    when: Option(When),
+    when: When,
     check: RuleCheck,
     example: Json,
   )
@@ -121,7 +121,7 @@ pub type Rule {
 
 /// Conditions for when a rule applies - all fields required
 pub type When {
-  When(status: String, method: Option(Method), path: Option(String))
+  When(status: String, method: Method, path: String)
 }
 
 /// Rule checks for global rules - all fields required
