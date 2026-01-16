@@ -5,6 +5,7 @@ import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/result
 import gleam/string
 import intent/quality_analyzer.{type QualityReport}
 import intent/spec_linter.{type LintResult}
@@ -81,15 +82,23 @@ fn suggest_from_quality_issues(
 /// Add suggestions for improving coverage
 fn append_coverage_suggestions(
   suggestions: List(ImprovementSuggestion),
-  _report: QualityReport,
+  report: QualityReport,
   behaviors: List(Behavior),
 ) -> List(ImprovementSuggestion) {
+  let has_missing_error_tests =
+    list.any(report.issues, fn(issue) {
+      case issue {
+        quality_analyzer.MissingErrorTests -> True
+        _ -> False
+      }
+    })
+
   let has_error_tests =
     list.any(behaviors, fn(b) { b.response.status >= 400 })
 
-  case has_error_tests {
-    True -> suggestions
-    False -> {
+  case has_missing_error_tests && !has_error_tests {
+    False -> suggestions
+    True -> {
       list.append(
         suggestions,
         [
@@ -112,15 +121,25 @@ fn append_coverage_suggestions(
 /// Add suggestions for improving clarity
 fn append_clarity_suggestions(
   suggestions: List(ImprovementSuggestion),
-  _report: QualityReport,
+  report: QualityReport,
   behaviors: List(Behavior),
 ) -> List(ImprovementSuggestion) {
-  let missing_intent =
+  // Check if clarity score is low (this would indicate clarity issues)
+  let has_clarity_issues = report.clarity_score < 100
+
+  let behaviors_missing_intent =
     behaviors
     |> list.filter(fn(b) { string.is_empty(b.intent) })
-    |> list.length
 
-  case missing_intent > 0 {
+  let missing_count = list.length(behaviors_missing_intent)
+
+  // Get first behavior name for proposed change
+  let first_behavior_name = case list.first(behaviors_missing_intent) {
+    Ok(b) -> b.name
+    Error(_) -> "test-success"
+  }
+
+  case has_clarity_issues && missing_count > 0 {
     False -> suggestions
     True -> {
       list.append(
@@ -128,11 +147,11 @@ fn append_clarity_suggestions(
         [
           ImprovementSuggestion(
             title: "Add intent descriptions",
-            description: int.to_string(missing_intent) <> " behavior(s) lack intent descriptions",
+            description: int.to_string(missing_count) <> " behavior(s) lack intent descriptions",
             reasoning: "Intent descriptions explain WHY a test exists, helping both humans and AI understand the business logic",
             impact_score: 15,
             proposed_change: AddExplanation(
-              "test-success",
+              first_behavior_name,
               "intent",
               "Verify successful operation with valid input",
             ),
@@ -146,17 +165,32 @@ fn append_clarity_suggestions(
 /// Add suggestions for improving testability
 fn append_testability_suggestions(
   suggestions: List(ImprovementSuggestion),
-  _report: QualityReport,
+  report: QualityReport,
   behaviors: List(Behavior),
 ) -> List(ImprovementSuggestion) {
-  let missing_examples =
+  let has_no_examples_issue =
+    list.any(report.issues, fn(issue) {
+      case issue {
+        quality_analyzer.NoExamples -> True
+        _ -> False
+      }
+    })
+
+  let behaviors_missing_examples =
     behaviors
     |> list.filter(fn(b) {
       b.response.example == json.null()
     })
-    |> list.length
 
-  case missing_examples > 0 {
+  let missing_count = list.length(behaviors_missing_examples)
+
+  // Get first behavior name for proposed change
+  let first_behavior_name = case list.first(behaviors_missing_examples) {
+    Ok(b) -> b.name
+    Error(_) -> "test-success"
+  }
+
+  case has_no_examples_issue && missing_count > 0 {
     False -> suggestions
     True -> {
       list.append(
@@ -164,10 +198,10 @@ fn append_testability_suggestions(
         [
           ImprovementSuggestion(
             title: "Add response examples",
-            description: int.to_string(missing_examples) <> " behavior(s) lack response examples",
+            description: int.to_string(missing_count) <> " behavior(s) lack response examples",
             reasoning: "Examples make the spec executable and give AI concrete data structures to work with",
             impact_score: 20,
-            proposed_change: AddResponseExample("test-success"),
+            proposed_change: AddResponseExample(first_behavior_name),
           ),
         ],
       )
@@ -178,16 +212,34 @@ fn append_testability_suggestions(
 /// Add suggestions for improving AI readiness
 fn append_ai_readiness_suggestions(
   suggestions: List(ImprovementSuggestion),
-  _report: QualityReport,
+  report: QualityReport,
   behaviors: List(Behavior),
 ) -> List(ImprovementSuggestion) {
-  let missing_why =
+  let has_missing_explanations =
+    list.any(report.issues, fn(issue) {
+      case issue {
+        quality_analyzer.MissingExplanations -> True
+        _ -> False
+      }
+    })
+
+  let missing_why_count =
     behaviors
     |> list.flat_map(fn(b) { dict.values(b.response.checks) })
     |> list.filter(fn(c) { string.is_empty(c.why) })
     |> list.length
 
-  case missing_why > 0 {
+  // Get first behavior with missing why for proposed change
+  let first_behavior_name =
+    behaviors
+    |> list.find(fn(b) {
+      dict.values(b.response.checks)
+      |> list.any(fn(c) { string.is_empty(c.why) })
+    })
+    |> result.map(fn(b) { b.name })
+    |> result.unwrap("test-success")
+
+  case has_missing_explanations && missing_why_count > 0 {
     False -> suggestions
     True -> {
       list.append(
@@ -195,11 +247,11 @@ fn append_ai_readiness_suggestions(
         [
           ImprovementSuggestion(
             title: "Add validation explanations",
-            description: int.to_string(missing_why) <> " validation rule(s) lack 'why' explanations",
+            description: int.to_string(missing_why_count) <> " validation rule(s) lack 'why' explanations",
             reasoning: "Explanations help AI understand the business logic behind each validation check",
             impact_score: 18,
             proposed_change: AddExplanation(
-              "test-success",
+              first_behavior_name,
               "why",
               "Ensures email field contains valid RFC 5322 compliant email address",
             ),

@@ -1,46 +1,6 @@
-/// KIRK Inversion Checker
-///
-/// "Invert, always invert" - Charlie Munger / Carl Gustav Jacob Jacobi
-///
-/// Analyzes API specifications for missing failure modes and error cases using
-/// inversion thinking - a mental model that asks "what could go wrong?" rather
-/// than just "what should work?"
-///
-/// ## The Inversion Principle
-///
-/// Instead of only testing happy paths, deliberately think through:
-/// - Authentication failures (expired tokens, invalid credentials)
-/// - Authorization denials (insufficient permissions)
-/// - Validation errors (malformed input, missing required fields)
-/// - Rate limiting and quota exhaustion
-/// - Network failures and timeouts
-/// - Database errors and conflicts
-/// - Race conditions and concurrent access
-///
-/// ## Usage
-///
-/// ```gleam
-/// import intent/kirk/inversion_checker
-///
-/// let spec = load_spec("user-api.cue")
-/// let missing = inversion_checker.find_missing_failure_cases(spec)
-///
-/// list.each(missing, fn(failure) {
-///   io.println("Missing: " <> failure.description)
-///   io.println("Add behavior: " <> failure.suggested_name)
-/// })
-/// ```
-///
-/// ## Practical Value
-///
-/// Production systems spend 80% of their complexity handling errors, not happy paths.
-/// This analysis ensures you've thought through failure modes BEFORE they happen in prod.
-///
-/// ## References
-///
-/// - "Poor Charlie's Almanack" - Charles Munger on inversion thinking
-/// - "The Black Swan" - Nassim Taleb on negative knowledge
-/// - Google SRE Book - Error handling and graceful degradation
+// KIRK Inversion Checker
+// "Invert, always invert" - Charlie Munger/Jacobi
+// Analyzes specs for missing failure cases
 
 import gleam/int
 import gleam/list
@@ -444,57 +404,35 @@ fn gap_to_name(gap: InversionGap) -> String {
 
 fn gap_to_method_status(description: String) -> #(Method, Int) {
   let desc = string.lowercase(description)
-  case string.contains(desc, "authentication") {
-    True -> #(Get, 401)
-    False ->
-      case string.contains(desc, "token") {
-        True -> #(Get, 401)
-        False ->
-          case string.contains(desc, "access") {
-            True -> #(Get, 403)
-            False ->
-              case string.contains(desc, "admin") {
-                True -> #(Post, 403)
-                False ->
-                  case string.contains(desc, "injection") {
-                    True -> #(Post, 400)
-                    False ->
-                      case string.contains(desc, "xss") {
-                        True -> #(Post, 400)
-                        False ->
-                          case string.contains(desc, "not-found") {
-                            True -> #(Get, 404)
-                            False ->
-                              case string.contains(desc, "non-existent") {
-                                True -> #(Get, 404)
-                                False ->
-                                  case string.contains(desc, "malformed") {
-                                    True -> #(Post, 400)
-                                    False ->
-                                      case string.contains(desc, "required") {
-                                        True -> #(Post, 400)
-                                        False ->
-                                          case string.contains(desc, "duplicate") {
-                                            True -> #(Post, 409)
-                                            False ->
-                                              case string.contains(desc, "rate") {
-                                                True -> #(Get, 429)
-                                                False ->
-                                                  case string.contains(desc, "timeout") {
-                                                    True -> #(Get, 504)
-                                                    False -> #(Get, 400)
-                                                  }
-                                              }
-                                          }
-                                      }
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
-          }
-      }
+  let has_auth = string.contains(desc, "authentication")
+  let has_token = string.contains(desc, "token")
+  let has_access = string.contains(desc, "access")
+  let has_admin = string.contains(desc, "admin")
+  let has_injection = string.contains(desc, "injection")
+  let has_xss = string.contains(desc, "xss")
+  let has_not_found = string.contains(desc, "not-found")
+  let has_non_existent = string.contains(desc, "non-existent")
+  let has_malformed = string.contains(desc, "malformed")
+  let has_required = string.contains(desc, "required")
+  let has_duplicate = string.contains(desc, "duplicate")
+  let has_rate = string.contains(desc, "rate")
+  let has_timeout = string.contains(desc, "timeout")
+
+  case True {
+    _ if has_auth -> #(Get, 401)
+    _ if has_token -> #(Get, 401)
+    _ if has_access -> #(Get, 403)
+    _ if has_admin -> #(Post, 403)
+    _ if has_injection -> #(Post, 400)
+    _ if has_xss -> #(Post, 400)
+    _ if has_not_found -> #(Get, 404)
+    _ if has_non_existent -> #(Get, 404)
+    _ if has_malformed -> #(Post, 400)
+    _ if has_required -> #(Post, 400)
+    _ if has_duplicate -> #(Post, 409)
+    _ if has_rate -> #(Get, 429)
+    _ if has_timeout -> #(Get, 504)
+    _ -> #(Get, 400)
   }
 }
 
