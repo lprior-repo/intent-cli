@@ -202,6 +202,31 @@ moon run :escript
 
 The binary requires Erlang/OTP installed on the target system.
 
+### Installing Binary to PATH
+
+To use `intent` from anywhere on your system:
+
+```bash
+# Build and install the binary
+moon run :escript
+mkdir -p ~/.local/bin
+cp dist/intent/intent ~/.local/bin/intent
+chmod +x ~/.local/bin/intent
+
+# Add to PATH (if not already present)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+
+# Reload shell or source config
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+Verify installation:
+
+```bash
+intent --help
+```
+
 ### Configuration Files
 
 - **`.moon/workspace.yml`**: Workspace-level configuration
