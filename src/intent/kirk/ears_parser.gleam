@@ -106,7 +106,6 @@ fn parse_line(line: String, line_num: Int) -> Result(EarsRequirement, EarsError)
   let upper = string.uppercase(line)
   let id = "REQ-" <> int.to_string(line_num)
 
-  // Pre-compute all string checks
   let has_while = string.contains(upper, "WHILE")
   let has_when = string.contains(upper, "WHEN")
   let has_if = string.contains(upper, "IF")
@@ -116,15 +115,23 @@ fn parse_line(line: String, line_num: Int) -> Result(EarsRequirement, EarsError)
   let has_system_shall = string.contains(upper, "THE SYSTEM SHALL")
 
   // Try patterns in order of specificity
-  case True {
-    _ if has_while && has_when -> parse_complex(line, id)
-    _ if has_if && has_shall_not -> parse_unwanted(line, id)
-    _ if has_when && has_shall -> parse_event_driven(line, id)
-    _ if has_while && has_shall -> parse_state_driven(line, id)
-    _ if has_where && has_shall -> parse_optional(line, id)
-    _ if has_system_shall -> parse_ubiquitous(line, id)
-    _ if has_shall -> parse_ubiquitous(line, id)
-    _ ->
+  case
+    has_while,
+    has_when,
+    has_if,
+    has_shall_not,
+    has_where,
+    has_shall,
+    has_system_shall
+  {
+    True, True, _, _, _, _, _ -> parse_complex(line, id)
+    _, _, True, True, _, _, _ -> parse_unwanted(line, id)
+    _, True, _, _, _, True, _ -> parse_event_driven(line, id)
+    True, _, _, _, _, True, _ -> parse_state_driven(line, id)
+    _, _, _, _, True, True, _ -> parse_optional(line, id)
+    _, _, _, _, _, _, True -> parse_ubiquitous(line, id)
+    _, _, _, _, _, True, _ -> parse_ubiquitous(line, id)
+    _, _, _, _, _, _, _ ->
       Error(EarsError(
         line: line_num,
         message: "Line doesn't match any EARS pattern",
@@ -134,7 +141,10 @@ fn parse_line(line: String, line_num: Int) -> Result(EarsRequirement, EarsError)
 }
 
 /// Pattern: "THE SYSTEM SHALL [behavior]"
-fn parse_ubiquitous(line: String, id: String) -> Result(EarsRequirement, EarsError) {
+fn parse_ubiquitous(
+  line: String,
+  id: String,
+) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)(?:the\\s+)?system\\s+shall\\s+(.+)"
 
   case regex.from_string(pattern_str) {
@@ -153,16 +163,26 @@ fn parse_ubiquitous(line: String, id: String) -> Result(EarsRequirement, EarsErr
                 system_shall_not: None,
                 raw_text: line,
               ))
-            _ -> Error(EarsError(line: 0, message: "Failed to extract behavior", suggestion: ""))
+            _ ->
+              Error(EarsError(
+                line: 0,
+                message: "Failed to extract behavior",
+                suggestion: "",
+              ))
           }
-        [] -> Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+        [] ->
+          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
       }
-    Error(_) -> Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+    Error(_) ->
+      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
   }
 }
 
 /// Pattern: "WHEN [trigger] THE SYSTEM SHALL [behavior]"
-fn parse_event_driven(line: String, id: String) -> Result(EarsRequirement, EarsError) {
+fn parse_event_driven(
+  line: String,
+  id: String,
+) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)when\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
   case regex.from_string(pattern_str) {
@@ -181,16 +201,26 @@ fn parse_event_driven(line: String, id: String) -> Result(EarsRequirement, EarsE
                 system_shall_not: None,
                 raw_text: line,
               ))
-            _ -> Error(EarsError(line: 0, message: "Failed to extract trigger/behavior", suggestion: ""))
+            _ ->
+              Error(EarsError(
+                line: 0,
+                message: "Failed to extract trigger/behavior",
+                suggestion: "",
+              ))
           }
-        [] -> Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+        [] ->
+          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
       }
-    Error(_) -> Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+    Error(_) ->
+      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
   }
 }
 
 /// Pattern: "WHILE [state] THE SYSTEM SHALL [behavior]"
-fn parse_state_driven(line: String, id: String) -> Result(EarsRequirement, EarsError) {
+fn parse_state_driven(
+  line: String,
+  id: String,
+) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)while\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
   case regex.from_string(pattern_str) {
@@ -209,16 +239,26 @@ fn parse_state_driven(line: String, id: String) -> Result(EarsRequirement, EarsE
                 system_shall_not: None,
                 raw_text: line,
               ))
-            _ -> Error(EarsError(line: 0, message: "Failed to extract state/behavior", suggestion: ""))
+            _ ->
+              Error(EarsError(
+                line: 0,
+                message: "Failed to extract state/behavior",
+                suggestion: "",
+              ))
           }
-        [] -> Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+        [] ->
+          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
       }
-    Error(_) -> Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+    Error(_) ->
+      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
   }
 }
 
 /// Pattern: "WHERE [condition] THE SYSTEM SHALL [behavior]"
-fn parse_optional(line: String, id: String) -> Result(EarsRequirement, EarsError) {
+fn parse_optional(
+  line: String,
+  id: String,
+) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)where\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
   case regex.from_string(pattern_str) {
@@ -237,17 +277,28 @@ fn parse_optional(line: String, id: String) -> Result(EarsRequirement, EarsError
                 system_shall_not: None,
                 raw_text: line,
               ))
-            _ -> Error(EarsError(line: 0, message: "Failed to extract condition/behavior", suggestion: ""))
+            _ ->
+              Error(EarsError(
+                line: 0,
+                message: "Failed to extract condition/behavior",
+                suggestion: "",
+              ))
           }
-        [] -> Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+        [] ->
+          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
       }
-    Error(_) -> Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+    Error(_) ->
+      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
   }
 }
 
 /// Pattern: "IF [condition] THEN THE SYSTEM SHALL NOT [behavior]"
-fn parse_unwanted(line: String, id: String) -> Result(EarsRequirement, EarsError) {
-  let pattern_str = "(?i)if\\s+(.+?)\\s+(?:then\\s+)?(?:the\\s+)?system\\s+shall\\s+not\\s+(.+)"
+fn parse_unwanted(
+  line: String,
+  id: String,
+) -> Result(EarsRequirement, EarsError) {
+  let pattern_str =
+    "(?i)if\\s+(.+?)\\s+(?:then\\s+)?(?:the\\s+)?system\\s+shall\\s+not\\s+(.+)"
 
   case regex.from_string(pattern_str) {
     Ok(re) ->
@@ -265,17 +316,25 @@ fn parse_unwanted(line: String, id: String) -> Result(EarsRequirement, EarsError
                 system_shall_not: Some(string.trim(behavior)),
                 raw_text: line,
               ))
-            _ -> Error(EarsError(line: 0, message: "Failed to extract condition/behavior", suggestion: ""))
+            _ ->
+              Error(EarsError(
+                line: 0,
+                message: "Failed to extract condition/behavior",
+                suggestion: "",
+              ))
           }
-        [] -> Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+        [] ->
+          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
       }
-    Error(_) -> Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+    Error(_) ->
+      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
   }
 }
 
 /// Pattern: "WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]"
 fn parse_complex(line: String, id: String) -> Result(EarsRequirement, EarsError) {
-  let pattern_str = "(?i)while\\s+(.+?)\\s+when\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
+  let pattern_str =
+    "(?i)while\\s+(.+?)\\s+when\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
   case regex.from_string(pattern_str) {
     Ok(re) ->
@@ -293,11 +352,18 @@ fn parse_complex(line: String, id: String) -> Result(EarsRequirement, EarsError)
                 system_shall_not: None,
                 raw_text: line,
               ))
-            _ -> Error(EarsError(line: 0, message: "Failed to extract components", suggestion: ""))
+            _ ->
+              Error(EarsError(
+                line: 0,
+                message: "Failed to extract components",
+                suggestion: "",
+              ))
           }
-        [] -> Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+        [] ->
+          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
       }
-    Error(_) -> Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+    Error(_) ->
+      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
   }
 }
 
@@ -307,7 +373,10 @@ fn generate_warnings(requirements: List(EarsRequirement)) -> List(String) {
   // Check for missing negative cases
   let has_unwanted = list.any(requirements, fn(r) { r.pattern == Unwanted })
   let warnings = case has_unwanted {
-    False -> ["Consider adding IF...SHALL NOT patterns for unwanted behaviors", ..warnings]
+    False -> [
+      "Consider adding IF...SHALL NOT patterns for unwanted behaviors",
+      ..warnings
+    ]
     True -> warnings
   }
 
@@ -316,8 +385,8 @@ fn generate_warnings(requirements: List(EarsRequirement)) -> List(String) {
     requirements
     |> list.any(fn(r) {
       string.contains(string.lowercase(r.system_shall), "error")
-        || string.contains(string.lowercase(r.system_shall), "fail")
-        || string.contains(string.lowercase(r.system_shall), "reject")
+      || string.contains(string.lowercase(r.system_shall), "fail")
+      || string.contains(string.lowercase(r.system_shall), "reject")
     })
   let warnings = case mentions_error {
     False -> ["No requirements mention error handling", ..warnings]
@@ -357,7 +426,7 @@ fn requirement_to_behavior(req: EarsRequirement) -> IntentBehavior {
 fn generate_behavior_name(req: EarsRequirement) -> String {
   let behavior = string.lowercase(req.system_shall)
 
-  // Pre-compute string checks
+  // Extract key verbs and nouns
   let has_create = string.contains(behavior, "create")
   let has_validate = string.contains(behavior, "validate")
   let has_return = string.contains(behavior, "return")
@@ -367,17 +436,25 @@ fn generate_behavior_name(req: EarsRequirement) -> String {
   let has_delete = string.contains(behavior, "delete")
   let has_update = string.contains(behavior, "update")
 
-  // Extract key verbs and nouns
-  let name = case True {
-    _ if has_create -> "create"
-    _ if has_validate -> "validate"
-    _ if has_return -> "return"
-    _ if has_reject -> "reject"
-    _ if has_authenticate -> "authenticate"
-    _ if has_authorize -> "authorize"
-    _ if has_delete -> "delete"
-    _ if has_update -> "update"
-    _ -> "handle"
+  let name = case
+    has_create,
+    has_validate,
+    has_return,
+    has_reject,
+    has_authenticate,
+    has_authorize,
+    has_delete,
+    has_update
+  {
+    True, _, _, _, _, _, _, _ -> "create"
+    _, True, _, _, _, _, _, _ -> "validate"
+    _, _, True, _, _, _, _, _ -> "return"
+    _, _, _, True, _, _, _, _ -> "reject"
+    _, _, _, _, True, _, _, _ -> "authenticate"
+    _, _, _, _, _, True, _, _ -> "authorize"
+    _, _, _, _, _, _, True, _ -> "delete"
+    _, _, _, _, _, _, _, True -> "update"
+    _, _, _, _, _, _, _, _ -> "handle"
   }
 
   // Add context from trigger/state/condition
@@ -419,7 +496,6 @@ fn slugify(text: String) -> String {
 fn infer_http_details(req: EarsRequirement) -> #(String, String, Int) {
   let behavior = string.lowercase(req.system_shall)
 
-  // Pre-compute string checks
   let has_create = string.contains(behavior, "create")
   let has_delete = string.contains(behavior, "delete")
   let has_update = string.contains(behavior, "update")
@@ -432,19 +508,31 @@ fn infer_http_details(req: EarsRequirement) -> #(String, String, Int) {
   let has_403 = string.contains(behavior, "403")
   let has_404 = string.contains(behavior, "404")
 
-  case True {
-    _ if has_create -> #("POST", "/resource", 201)
-    _ if has_delete -> #("DELETE", "/resource/{id}", 204)
-    _ if has_update -> #("PUT", "/resource/{id}", 200)
-    _ if has_return && has_list -> #("GET", "/resources", 200)
-    _ if has_return -> #("GET", "/resource/{id}", 200)
-    _ if has_reject -> #("POST", "/resource", 400)
-    _ if has_authenticate -> #("POST", "/auth/login", 200)
-    _ if has_authorize -> #("GET", "/protected", 403)
-    _ if has_401 -> #("GET", "/protected", 401)
-    _ if has_403 -> #("GET", "/protected", 403)
-    _ if has_404 -> #("GET", "/resource/{id}", 404)
-    _ -> #("GET", "/endpoint", 200)
+  case
+    has_create,
+    has_delete,
+    has_update,
+    has_return,
+    has_list,
+    has_reject,
+    has_authenticate,
+    has_authorize,
+    has_401,
+    has_403,
+    has_404
+  {
+    True, _, _, _, _, _, _, _, _, _, _ -> #("POST", "/resource", 201)
+    _, True, _, _, _, _, _, _, _, _, _ -> #("DELETE", "/resource/{id}", 204)
+    _, _, True, _, _, _, _, _, _, _, _ -> #("PUT", "/resource/{id}", 200)
+    _, _, _, True, True, _, _, _, _, _, _ -> #("GET", "/resources", 200)
+    _, _, _, True, _, _, _, _, _, _, _ -> #("GET", "/resource/{id}", 200)
+    _, _, _, _, _, True, _, _, _, _, _ -> #("POST", "/resource", 400)
+    _, _, _, _, _, _, True, _, _, _, _ -> #("POST", "/auth/login", 200)
+    _, _, _, _, _, _, _, True, _, _, _ -> #("GET", "/protected", 403)
+    _, _, _, _, _, _, _, _, True, _, _ -> #("GET", "/protected", 401)
+    _, _, _, _, _, _, _, _, _, True, _ -> #("GET", "/protected", 403)
+    _, _, _, _, _, _, _, _, _, _, True -> #("GET", "/resource/{id}", 404)
+    _, _, _, _, _, _, _, _, _, _, _ -> #("GET", "/endpoint", 200)
   }
 }
 
@@ -460,14 +548,14 @@ fn extract_preconditions(req: EarsRequirement) -> List(String) {
   // Trigger context becomes precondition
   let preconditions = case req.trigger {
     Some(t) -> {
-      let t_lower = string.lowercase(t)
-      case string.contains(t_lower, "authenticated") {
-        True -> ["user is authenticated", ..preconditions]
-        False ->
-          case string.contains(t_lower, "valid") {
-            True -> ["input is valid", ..preconditions]
-            False -> preconditions
-          }
+      let lower_t = string.lowercase(t)
+      let has_authenticated = string.contains(lower_t, "authenticated")
+      let has_valid = string.contains(lower_t, "valid")
+
+      case has_authenticated, has_valid {
+        True, _ -> ["user is authenticated", ..preconditions]
+        _, True -> ["input is valid", ..preconditions]
+        _, _ -> preconditions
       }
     }
     None -> preconditions
@@ -486,20 +574,31 @@ fn extract_postconditions(req: EarsRequirement) -> List(String) {
 // =============================================================================
 
 pub fn format_result(result: EarsParseResult) -> String {
-  let header = "╔══════════════════════════════════════╗\n"
+  let header =
+    "╔══════════════════════════════════════╗\n"
     <> "║         EARS Parser Results          ║\n"
     <> "╚══════════════════════════════════════╝\n\n"
 
   let summary =
-    "Parsed: " <> int.to_string(list.length(result.requirements)) <> " requirements\n"
-    <> "Errors: " <> int.to_string(list.length(result.errors)) <> "\n"
-    <> "Warnings: " <> int.to_string(list.length(result.warnings)) <> "\n\n"
+    "Parsed: "
+    <> int.to_string(list.length(result.requirements))
+    <> " requirements\n"
+    <> "Errors: "
+    <> int.to_string(list.length(result.errors))
+    <> "\n"
+    <> "Warnings: "
+    <> int.to_string(list.length(result.warnings))
+    <> "\n\n"
 
   let requirements_section = format_requirements(result.requirements)
   let errors_section = format_errors(result.errors)
   let warnings_section = format_warnings(result.warnings)
 
-  header <> summary <> requirements_section <> errors_section <> warnings_section
+  header
+  <> summary
+  <> requirements_section
+  <> errors_section
+  <> warnings_section
 }
 
 fn format_requirements(requirements: List(EarsRequirement)) -> String {
@@ -528,8 +627,16 @@ fn format_requirement(req: EarsRequirement) -> String {
 
   let pattern_name = pattern_to_string(req.pattern)
 
-  "  " <> pattern_icon <> " [" <> req.id <> "] " <> pattern_name <> "\n"
-  <> "    SHALL: " <> req.system_shall <> "\n"
+  "  "
+  <> pattern_icon
+  <> " ["
+  <> req.id
+  <> "] "
+  <> pattern_name
+  <> "\n"
+  <> "    SHALL: "
+  <> req.system_shall
+  <> "\n"
   <> case req.trigger {
     Some(t) -> "    TRIGGER: " <> t <> "\n"
     None -> ""
@@ -552,8 +659,13 @@ fn format_errors(errors: List(EarsError)) -> String {
       <> {
         errors
         |> list.map(fn(e) {
-          "  ❌ Line " <> int.to_string(e.line) <> ": " <> e.message <> "\n"
-          <> "     💡 " <> e.suggestion
+          "  ❌ Line "
+          <> int.to_string(e.line)
+          <> ": "
+          <> e.message
+          <> "\n"
+          <> "     💡 "
+          <> e.suggestion
         })
         |> string.join("\n")
       }
@@ -597,10 +709,14 @@ pub fn to_cue(result: EarsParseResult, spec_name: String) -> String {
   let header =
     "// Generated from EARS requirements\n"
     <> "// Source of truth: requirements.md\n"
-    <> "package " <> slugify(spec_name) <> "\n\n"
+    <> "package "
+    <> slugify(spec_name)
+    <> "\n\n"
     <> "import \"github.com/intent-cli/intent/schema:intent\"\n\n"
     <> "spec: intent.#Spec & {\n"
-    <> "  name: \"" <> spec_name <> "\"\n"
+    <> "  name: \""
+    <> spec_name
+    <> "\"\n"
     <> "  description: \"Generated from EARS requirements\"\n"
     <> "  audience: \"API consumers\"\n"
     <> "  version: \"1.0.0\"\n\n"
@@ -628,30 +744,37 @@ pub fn to_cue(result: EarsParseResult, spec_name: String) -> String {
     <> "  ]\n\n"
 
   let footer =
-    "  rules: []\n"
-    <> "  anti_patterns: []\n"
-    <> "  ai_hints: {}\n"
-    <> "}\n"
+    "  rules: []\n" <> "  anti_patterns: []\n" <> "  ai_hints: {}\n" <> "}\n"
 
   header <> features_section <> footer
 }
 
 fn behavior_to_cue(b: IntentBehavior) -> String {
   "        {\n"
-  <> "          name: \"" <> b.name <> "\"\n"
-  <> "          intent: \"" <> escape_string(b.intent) <> "\"\n"
+  <> "          name: \""
+  <> b.name
+  <> "\"\n"
+  <> "          intent: \""
+  <> escape_string(b.intent)
+  <> "\"\n"
   <> "          notes: \"\"\n"
   <> "          requires: []\n"
   <> "          tags: []\n\n"
   <> "          request: {\n"
-  <> "            method: \"" <> b.method <> "\"\n"
-  <> "            path: \"" <> b.path <> "\"\n"
+  <> "            method: \""
+  <> b.method
+  <> "\"\n"
+  <> "            path: \""
+  <> b.path
+  <> "\"\n"
   <> "            headers: {}\n"
   <> "            query: {}\n"
   <> "            body: {}\n"
   <> "          }\n\n"
   <> "          response: {\n"
-  <> "            status: " <> int.to_string(b.status) <> "\n"
+  <> "            status: "
+  <> int.to_string(b.status)
+  <> "\n"
   <> "            example: {}\n"
   <> "            checks: {}\n"
   <> "            headers: {}\n"

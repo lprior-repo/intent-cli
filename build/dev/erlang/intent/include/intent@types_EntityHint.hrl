@@ -1,1 +1,0 @@
--record(entity_hint, {fields :: gleam@dict:dict(binary(), binary())}).
