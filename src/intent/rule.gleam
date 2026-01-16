@@ -1,6 +1,5 @@
 /// Rule expression parser and types
 /// Parses human-friendly rule strings like "equals foo" or "integer >= 5"
-
 import gleam/float
 import gleam/int
 import gleam/list
@@ -71,13 +70,9 @@ pub type RuleExpr {
 
 /// Parse a rule string into a RuleExpr
 pub fn parse(rule: String) -> RuleExpr {
-  // If rule contains newline, don't trim and return as Raw
-  case string.contains(rule, "\n") {
-    True -> Raw(rule)
-    False -> {
-      let rule = string.trim(rule)
+  let rule = string.trim(rule)
 
-      // Try each parser in order
+  // Try each parser in order
   case try_parse_equals(rule) {
     Some(expr) -> expr
     None ->
@@ -105,8 +100,6 @@ pub fn parse(rule: String) -> RuleExpr {
               }
           }
       }
-  }
-    }
   }
 }
 
@@ -138,12 +131,7 @@ fn try_parse_equals(rule: String) -> Option(RuleExpr) {
           }
       }
     }
-    False ->
-      // Handle "equals" with no argument (after trimming)
-      case rule == "equals" {
-        True -> Some(Equals(""))
-        False -> None
-      }
+    False -> None
   }
 }
 
@@ -168,7 +156,6 @@ fn try_parse_string_pattern(rule: String) -> Option(RuleExpr) {
     "uri" -> Some(IsUri)
     "jwt" -> Some(IsJwt)
     "iso8601 datetime" -> Some(IsIso8601)
-    "string starting with" -> Some(StringStartingWith(""))
     _ -> {
       case string.starts_with(rule, "string matching ") {
         True -> Some(StringMatching(string.drop_left(rule, 16)))
@@ -337,7 +324,8 @@ fn try_parse_array(rule: String) -> Option(RuleExpr) {
                         True -> string.drop_left(inner, 3)
                         False ->
                           case string.starts_with(inner, "matches ") {
-                            True -> "string matching " <> string.drop_left(inner, 8)
+                            True ->
+                              "string matching " <> string.drop_left(inner, 8)
                             False -> inner
                           }
                       }

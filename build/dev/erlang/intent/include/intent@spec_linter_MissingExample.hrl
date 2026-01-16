@@ -1,1 +1,0 @@
--record(missing_example, {behavior :: binary()}).
