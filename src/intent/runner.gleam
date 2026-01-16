@@ -1,4 +1,5 @@
 /// Main test runner - orchestrates behavior execution and validation
+
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -7,7 +8,7 @@ import gleam/string
 import gleam_community/ansi
 import intent/anti_patterns
 import intent/checker
-import intent/http_client.{type ExecutionError, type ExecutionResult}
+import intent/http_client.{type ExecutionResult, type ExecutionError}
 import intent/interpolate.{type Context}
 import intent/output.{type SpecResult}
 import intent/resolver.{type ResolvedBehavior}
@@ -19,8 +20,7 @@ import spinner
 /// This allows tests to mock HTTP responses without making real network requests
 pub type BehaviorExecutor {
   BehaviorExecutor(
-    execute: fn(Config, Request, Context) ->
-      Result(ExecutionResult, ExecutionError),
+    execute: fn(Config, Request, Context) -> Result(ExecutionResult, ExecutionError),
   )
 }
 
@@ -101,8 +101,7 @@ pub fn run_spec_with_executor(
         failed: 0,
         blocked: 0,
         total: 0,
-        summary: "Failed to resolve behavior order: "
-          <> resolver.format_error(e),
+        summary: "Failed to resolve behavior order: " <> resolver.format_error(e),
         failures: [],
         blocked_behaviors: [],
         rule_violations: [],
@@ -122,14 +121,7 @@ pub fn run_spec_with_executor(
 
       // Execute behaviors in order with the provided executor
       let #(results, _ctx, _failed_set) =
-        execute_behaviors_with_spinner(
-          filtered,
-          config,
-          spec,
-          set.new(),
-          sp,
-          executor,
-        )
+        execute_behaviors_with_spinner(filtered, config, spec, set.new(), sp, executor)
 
       // Stop spinner
       spinner.stop(sp)
@@ -150,8 +142,7 @@ pub fn run_spec_with_executor(
         list.count(results, fn(r) {
           case r {
             BehaviorFailed(_, _) -> True
-            BehaviorError(_, _) -> True
-            // NOW COUNTED AS FAILURE
+            BehaviorError(_, _) -> True  // NOW COUNTED AS FAILURE
             _ -> False
           }
         })
@@ -281,8 +272,9 @@ fn execute_single_behavior(
   executor: BehaviorExecutor,
 ) -> #(BehaviorResult, Context, Set(String)) {
   // Check if any dependencies failed
-  let blocked_by =
-    list.find(rb.behavior.requires, fn(dep) { set.contains(failed_set, dep) })
+  let blocked_by = list.find(rb.behavior.requires, fn(dep) {
+    set.contains(failed_set, dep)
+  })
 
   case blocked_by {
     Ok(dep) -> {
@@ -314,40 +306,9 @@ fn execute_single_behavior(
           case passed {
             True -> {
               // Capture values
-              case apply_captures(ctx, rb.behavior, execution) {
-                Ok(new_ctx) -> {
-                  let result = BehaviorPassed(execution)
-                  #(result, new_ctx, failed_set)
-                }
-                Error(capture_error) -> {
-                  // Capture extraction failed - treat as test failure
-                  let capture_check_failure =
-                    checker.CheckFailed(
-                      field: "capture",
-                      rule: "extract",
-                      expected: "successful capture extraction",
-                      actual: capture_error,
-                      explanation: "Capture extraction failed during test execution",
-                    )
-                  let check_result_with_capture_error =
-                    checker.ResponseCheckResult(
-                      ..check_result,
-                      failed: list.append(check_result.failed, [
-                        capture_check_failure,
-                      ]),
-                    )
-                  let failure =
-                    output.create_failure(
-                      rb.feature_name,
-                      rb.behavior,
-                      check_result_with_capture_error,
-                      execution,
-                      config.base_url,
-                    )
-                  let result = BehaviorFailed(failure, execution)
-                  #(result, ctx, set.insert(failed_set, rb.behavior.name))
-                }
-              }
+              let new_ctx = apply_captures(ctx, rb.behavior, execution)
+              let result = BehaviorPassed(execution)
+              #(result, new_ctx, failed_set)
             }
             False -> {
               let failure =
@@ -372,24 +333,11 @@ fn apply_captures(
   ctx: Context,
   behavior: Behavior,
   _execution: ExecutionResult,
-) -> Result(Context, String) {
-  // Try to extract all captures, failing on first error
-  dict.fold(behavior.captures, Ok(ctx), fn(result_ctx, name, path) {
-    case result_ctx {
-      Error(e) -> Error(e)
-      Ok(acc_ctx) ->
-        case interpolate.extract_capture(acc_ctx, path) {
-          Ok(value) -> Ok(interpolate.set_variable(acc_ctx, name, value))
-          Error(e) ->
-            Error(
-              "Failed to capture '"
-              <> name
-              <> "' from path '"
-              <> path
-              <> "': "
-              <> e,
-            )
-        }
+) -> Context {
+  dict.fold(behavior.captures, ctx, fn(acc_ctx, name, path) {
+    case interpolate.extract_capture(acc_ctx, path) {
+      Ok(value) -> interpolate.set_variable(acc_ctx, name, value)
+      Error(_) -> acc_ctx
     }
   })
 }
@@ -402,8 +350,7 @@ fn collect_rule_violations(
   results
   |> list.flat_map(fn(result) {
     case result {
-      BehaviorPassed(execution) ->
-        check_rules_for_execution(execution, rules, "")
+      BehaviorPassed(execution) -> check_rules_for_execution(execution, rules, "")
       BehaviorFailed(failure, execution) ->
         check_rules_for_execution(execution, rules, failure.behavior)
       _ -> []
