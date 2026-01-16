@@ -578,16 +578,11 @@ fn check_array_where_each(
             }
           }
           case result {
-            Ok(_) -> None
-            Error(msg) -> Some(#(idx, msg))
+            Ok(_) -> Error(Nil)
+            Error(msg) -> Ok(#(idx, msg))
           }
         })
-        |> list.filter_map(fn(opt) {
-          case opt {
-            Some(pair) -> Ok(pair)
-            None -> Error(Nil)
-          }
-        })
+        |> list.filter_map(fn(r) { r })
 
       case failures {
         [] -> Ok(Nil)
