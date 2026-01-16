@@ -1,1 +1,0 @@
--record(json_parse_error, {message :: binary()}).
