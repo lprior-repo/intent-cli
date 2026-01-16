@@ -1,0 +1,1 @@
+-record(missing_dependency, {behavior :: binary(), depends_on :: binary()}).
