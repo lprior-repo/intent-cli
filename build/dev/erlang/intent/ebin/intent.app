@@ -1,0 +1,20 @@
+{application, intent, [
+    {vsn, "0.1.0"},
+    {applications, [argv,
+                    gleam_community_ansi,
+                    gleam_erlang,
+                    gleam_http,
+                    gleam_httpc,
+                    gleam_json,
+                    gleam_otp,
+                    gleam_regexp,
+                    gleam_stdlib,
+                    gleeunit,
+                    glint,
+                    shellout,
+                    simplifile,
+                    spinner]},
+    {description, "Contract-driven API testing CLI - human-writes, AI-verifies, AI-implements behavior specifications"},
+    {modules, []},
+    {registered, []}
+]}.
