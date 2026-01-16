@@ -1,0 +1,1 @@
+-record(add_response_example, {behavior_name :: binary()}).

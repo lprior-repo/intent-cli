@@ -1,5 +1,6 @@
 /// Array indexing support for JSON path navigation
 /// Enables validation of specific array elements: items[0], items[-1], items[*]
+
 import gleam/dict
 import gleam/dynamic
 import gleam/int
@@ -23,9 +24,7 @@ pub type ArraySpec {
   All
 }
 
-pub fn parse_path_component(
-  component: String,
-) -> Result(#(String, ArraySpec), String) {
+pub fn parse_path_component(component: String) -> Result(#(String, ArraySpec), String) {
   case string.contains(component, "[") {
     False -> Ok(#(component, NoArray))
     True -> {
@@ -42,13 +41,7 @@ pub fn parse_path_component(
                   // Check if it's a negative index
                   case string.starts_with(index_str, "-") {
                     True -> {
-                      case
-                        parse_index(string.slice(
-                          index_str,
-                          1,
-                          string.length(index_str),
-                        ))
-                      {
+                      case parse_index(string.slice(index_str, 1, string.length(index_str))) {
                         Error(e) -> Error(e)
                         Ok(n) -> Ok(#(field_name, LastN(n)))
                       }
@@ -119,49 +112,9 @@ pub fn navigate_path(
                   }
                 }
                 All -> {
-                  // For [*] wildcard, get all array elements
-                  case get_all_array_elements(next_json) {
-                    Error(e) -> Error(e)
-                    Ok(elements) -> {
-                      case rest {
-                        // If [*] is the last component, return all elements as JSON array
-                        [] -> {
-                          // Convert list of Json to a Json array
-                          let json_array = list_to_json_array(elements)
-                          Ok(json_array)
-                        }
-                        // If there are more path components, navigate each element
-                        // and return array of results
-                        _ -> {
-                          // Navigate each element through remaining path
-                          let results =
-                            list.map(elements, fn(elem) {
-                              navigate_path(elem, rest)
-                            })
-                          // Check if any failed
-                          case list.all(results, result.is_ok) {
-                            True -> {
-                              let extracted =
-                                results
-                                |> list.filter_map(fn(r) { r })
-                              let json_array = list_to_json_array(extracted)
-                              Ok(json_array)
-                            }
-                            False -> {
-                              // Return first error
-                              case list.find(results, result.is_error) {
-                                Ok(Error(e)) -> Error(e)
-                                _ ->
-                                  Error(
-                                    "Failed to navigate path through array elements",
-                                  )
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
+                  // For All, we need special handling - return all elements
+                  // This returns a special marker for collection validation
+                  Error("Array wildcard [*] requires special handling in rules")
                 }
               }
             }
@@ -188,8 +141,7 @@ fn navigate_field(json: Json, field: String) -> Result(Option(Json), String) {
         Error(_) -> Ok(None)
       }
     }
-    Error(_) ->
-      Error("Cannot navigate field '" <> field <> "' in non-object JSON")
+    Error(_) -> Error("Cannot navigate field '" <> field <> "' in non-object JSON")
   }
 }
 
@@ -208,25 +160,16 @@ fn get_array_element(json: Json, index: Int) -> Result(Json, String) {
         Ok(elem) -> {
           case dynamic_to_json(elem) {
             Ok(j) -> Ok(j)
-            Error(_) ->
-              Error(
-                "Cannot convert array element to JSON at index "
-                <> int.to_string(index),
-              )
+            Error(_) -> Error("Cannot convert array element to JSON at index " <> int.to_string(index))
           }
         }
         Error(_) ->
           Error(
-            "Array index "
-            <> int.to_string(index)
-            <> " out of bounds (length: "
-            <> int.to_string(list.length(lst))
-            <> ")",
+            "Array index " <> int.to_string(index) <> " out of bounds (length: " <> int.to_string(list.length(lst)) <> ")",
           )
       }
     }
-    Error(_) ->
-      Error("Cannot index non-array JSON with [" <> int.to_string(index) <> "]")
+    Error(_) -> Error("Cannot index non-array JSON with [" <> int.to_string(index) <> "]")
   }
 }
 
@@ -240,11 +183,7 @@ fn get_array_element_last(json: Json, from_end: Int) -> Result(Json, String) {
       case actual_index >= 0 && actual_index < length {
         False ->
           Error(
-            "Array index -"
-            <> int.to_string(from_end)
-            <> " out of bounds (length: "
-            <> int.to_string(length)
-            <> ")",
+            "Array index -" <> int.to_string(from_end) <> " out of bounds (length: " <> int.to_string(length) <> ")",
           )
         True -> {
           // Get element at actual_index using drop and first
@@ -257,11 +196,7 @@ fn get_array_element_last(json: Json, from_end: Int) -> Result(Json, String) {
             Ok(elem) -> {
               case dynamic_to_json(elem) {
                 Ok(j) -> Ok(j)
-                Error(_) ->
-                  Error(
-                    "Cannot convert array element to JSON at index -"
-                    <> int.to_string(from_end),
-                  )
+                Error(_) -> Error("Cannot convert array element to JSON at index -" <> int.to_string(from_end))
               }
             }
             Error(_) -> Error("Failed to access array element")
@@ -297,32 +232,6 @@ fn dynamic_to_json(dyn: dynamic.Dynamic) -> Result(Json, String) {
   Ok(json_val)
 }
 
-/// Convert a list of Json values into a Json array
-fn list_to_json_array(elements: List(Json)) -> Json {
-  // Create a JSON array from the list of JSON values
-  // We need to convert to dynamic list first
-  let dynamics = list.map(elements, json_to_dynamic)
-  dynamic_list_to_json(dynamics)
-}
-
-/// Convert Json to dynamic (for array construction)
-fn json_to_dynamic(j: Json) -> dynamic.Dynamic {
-  // Convert JSON to string then back through dynamic
-  // This is a bit roundabout but works with Gleam's type system
-  let json_str = json.to_string(j)
-  // Parse as generic dynamic
-  case json.decode(json_str, dynamic.dynamic) {
-    Ok(dyn) -> dyn
-    Error(_) -> dynamic.from(Nil)
-  }
-}
-
-/// Convert list of dynamics to JSON array
-fn dynamic_list_to_json(dynamics: List(dynamic.Dynamic)) -> Json {
-  // Convert the list to JSON array format
-  json.array(dynamics, fn(d) { parser.dynamic_to_json(d) })
-}
-
 /// Split a path string into components
 /// Handles nested paths like "user.profile.emails[0].address"
 pub fn split_path(path: String) -> List(String) {
@@ -345,7 +254,7 @@ pub fn validate_path(path: String) -> Result(Nil, String) {
             Ok(_) -> Ok(Nil)
             Error(e) -> Error(e)
           }
-        }),
+        })
       )
       |> result.map(fn(_) { Nil })
     }
