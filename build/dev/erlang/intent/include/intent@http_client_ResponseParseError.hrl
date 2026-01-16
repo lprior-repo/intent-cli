@@ -1,1 +1,0 @@
--record(response_parse_error, {message :: binary()}).
