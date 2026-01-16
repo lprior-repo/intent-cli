@@ -1,1 +1,0 @@
--record(unused_anti_pattern, {pattern_name :: binary()}).
