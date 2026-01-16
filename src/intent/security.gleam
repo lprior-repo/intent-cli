@@ -98,9 +98,7 @@ fn validate_file_path_impl(path: String) -> Result(String, SecurityError) {
                   // Gleam doesn't have \0 escape, so we check for the actual null character
                   let has_null_byte =
                     string.to_utf_codepoints(path)
-                    |> list.any(fn(cp) {
-                      string.utf_codepoint_to_int(cp) == 0
-                    })
+                    |> list.any(fn(cp) { string.utf_codepoint_to_int(cp) == 0 })
 
                   case has_null_byte || string.contains(path_lower, "%00") {
                     True -> Error(PathTraversalAttempt(path))
@@ -123,7 +121,10 @@ fn validate_file_path_impl(path: String) -> Result(String, SecurityError) {
                                   case simplifile.verify_is_file(path) {
                                     Ok(True) -> Ok(path)
                                     Ok(False) ->
-                                      Error(InvalidPath(path, "Not a regular file"))
+                                      Error(InvalidPath(
+                                        path,
+                                        "Not a regular file",
+                                      ))
                                     Error(_) -> Error(FileNotAccessible(path))
                                   }
                                 }
@@ -216,10 +217,7 @@ pub fn validate_url(url: String) -> Result(String, SecurityError) {
 
   case has_valid_scheme {
     False ->
-      Error(SSRFAttempt(
-        url,
-        "Only http:// and https:// schemes are allowed",
-      ))
+      Error(SSRFAttempt(url, "Only http:// and https:// schemes are allowed"))
     True -> {
       // Check for localhost variations
       case
@@ -229,8 +227,7 @@ pub fn validate_url(url: String) -> Result(String, SecurityError) {
         || string.contains(url_lower, "[::1]")
         || string.contains(url_lower, "[0:0:0:0:0:0:0:1]")
       {
-        True ->
-          Error(SSRFAttempt(url, "Localhost addresses are not allowed"))
+        True -> Error(SSRFAttempt(url, "Localhost addresses are not allowed"))
         False -> {
           // Check for private IP ranges
           case
