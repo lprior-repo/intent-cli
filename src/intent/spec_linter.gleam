@@ -1,6 +1,5 @@
 /// Spec linting - proactive detection of anti-patterns and quality issues
 /// Checks response examples for anti-patterns before execution
-
 import gleam/dict
 import gleam/dynamic
 import gleam/float
@@ -8,7 +7,7 @@ import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/string
-import intent/types.{type Spec, type AntiPattern, type Behavior}
+import intent/types.{type AntiPattern, type Behavior, type Spec}
 
 /// Linting result
 pub type LintResult {
@@ -116,13 +115,12 @@ fn check_anti_patterns(
         case contains_anti_pattern_keys(behavior.response.example, pattern) {
           False -> Error(Nil)
           True ->
-            Ok(
-              AntiPatternDetected(
-                behavior.name,
-                pattern.name,
-                "Response example contains keys from anti-pattern: " <> pattern.description,
-              ),
-            )
+            Ok(AntiPatternDetected(
+              behavior.name,
+              pattern.name,
+              "Response example contains keys from anti-pattern: "
+                <> pattern.description,
+            ))
         }
       })
   }
@@ -133,18 +131,31 @@ fn contains_anti_pattern_keys(example: Json, pattern: AntiPattern) -> Bool {
   let bad_keys = extract_all_keys(pattern.bad_example)
   let example_keys = extract_all_keys(example)
 
+  // DEBUG - remove after fixing
+  // io.debug(#("bad_keys", bad_keys, "example_keys", example_keys))
+
   // Check if any bad keys are in the example
   list.any(bad_keys, fn(key) { list.contains(example_keys, key) })
 }
 
 /// Extract all keys from a JSON object (recursively)
-fn extract_all_keys(json: Json) -> List(String) {
-  let json_str = json.to_string(json)
+/// Converts JSON to string, then decodes to extract dictionary keys
+fn extract_all_keys(json_val: Json) -> List(String) {
+  // Convert Json to string representation
+  let json_str = json.to_string(json_val)
 
-  case json.decode(json_str, dynamic.dict(dynamic.string, dynamic.dynamic)) {
-    Ok(obj) -> {
-      dict.keys(obj)
-    }
+  // Parse the JSON string and try to extract as a dictionary
+  case json.decode(json_str, dynamic.dynamic) {
+    Ok(dyn) -> extract_keys_from_dynamic(dyn)
+    Error(_) -> []
+  }
+}
+
+/// Extract keys from a dynamic value
+fn extract_keys_from_dynamic(dyn: dynamic.Dynamic) -> List(String) {
+  // Try to decode as a dictionary
+  case dynamic.dict(dynamic.string, dynamic.dynamic)(dyn) {
+    Ok(dict_val) -> dict.keys(dict_val)
     Error(_) -> []
   }
 }
@@ -181,13 +192,11 @@ fn check_for_vague_rules(behavior: Behavior) -> List(LintWarning) {
     case is_vague {
       False -> Error(Nil)
       True ->
-        Ok(
-          VagueRule(
-            behavior.name,
-            field,
-            check.rule <> " (too vague - be specific)",
-          ),
-        )
+        Ok(VagueRule(
+          behavior.name,
+          field,
+          check.rule <> " (too vague - be specific)",
+        ))
     }
   })
 }
@@ -198,12 +207,10 @@ fn check_naming_convention(behavior: Behavior) -> Result(LintWarning, Nil) {
   case has_invalid_name_chars(behavior.name) {
     False -> Error(Nil)
     True ->
-      Ok(
-        NamingConvention(
-          behavior.name,
-          "Use kebab-case for behavior names (e.g., 'get-user-by-id')",
-        ),
-      )
+      Ok(NamingConvention(
+        behavior.name,
+        "Use kebab-case for behavior names (e.g., 'get-user-by-id')",
+      ))
   }
 }
 
@@ -226,17 +233,24 @@ fn check_for_duplicate_behaviors(behaviors: List(Behavior)) -> List(LintWarning)
     behaviors
     |> list.drop(idx + 1)
     |> list.filter_map(fn(other) {
-      let similarity = calculate_behavior_similarity(behavior, other)
-      case similarity >. 0.7 {
-        True ->
-          Ok(DuplicateBehavior(
-            behavior.name,
-            other.name,
-            "Similar request path and method (similarity: "
-            <> string.trim(float_to_string(similarity, 2))
-            <> ")",
-          ))
+      // Only flag as duplicate if response status codes match
+      // Different status codes mean different test scenarios (success vs error cases)
+      case behavior.response.status == other.response.status {
         False -> Error(Nil)
+        True -> {
+          let similarity = calculate_behavior_similarity(behavior, other)
+          case similarity >. 0.7 {
+            True ->
+              Ok(DuplicateBehavior(
+                behavior.name,
+                other.name,
+                "Similar request path and method with same status code (similarity: "
+                  <> string.trim(float_to_string(similarity, 2))
+                  <> ")",
+              ))
+            False -> Error(Nil)
+          }
+        }
       }
     })
   })
@@ -252,16 +266,15 @@ fn calculate_behavior_similarity(b1: Behavior, b2: Behavior) -> Float {
   }
 
   // Check path similarity
-  let path_similarity = calculate_string_similarity(
-    b1.request.path,
-    b2.request.path,
-  )
+  let path_similarity =
+    calculate_string_similarity(b1.request.path, b2.request.path)
 
   // Check intent similarity
-  let intent_similarity = calculate_string_similarity(
-    string.lowercase(b1.intent),
-    string.lowercase(b2.intent),
-  )
+  let intent_similarity =
+    calculate_string_similarity(
+      string.lowercase(b1.intent),
+      string.lowercase(b2.intent),
+    )
 
   method_match +. path_similarity *. 0.35 +. intent_similarity *. 0.15
 }
@@ -312,20 +325,39 @@ pub fn format_warnings(warnings: List(LintWarning)) -> String {
     |> list.map(format_warning)
     |> string.join("\n")
 
-  "Linting found " <> int.to_string(list.length(warnings)) <> " warning(s):\n\n" <> warning_lines
+  "Linting found "
+  <> int.to_string(list.length(warnings))
+  <> " warning(s):\n\n"
+  <> warning_lines
 }
 
 /// Format a single lint warning
 fn format_warning(warning: LintWarning) -> String {
   case warning {
     AntiPatternDetected(behavior, pattern, details) ->
-      "Behavior '" <> behavior <> "':\n" <> "  Anti-pattern: " <> pattern <> "\n" <> "  " <> details
+      "Behavior '"
+      <> behavior
+      <> "':\n"
+      <> "  Anti-pattern: "
+      <> pattern
+      <> "\n"
+      <> "  "
+      <> details
 
     VagueRule(behavior, field, rule) ->
-      "Behavior '" <> behavior <> "', field '" <> field <> "':\n" <> "  " <> rule
+      "Behavior '"
+      <> behavior
+      <> "', field '"
+      <> field
+      <> "':\n"
+      <> "  "
+      <> rule
 
     MissingExample(behavior) ->
-      "Behavior '" <> behavior <> "':\n" <> "  Missing response example (helps AI understand intent)"
+      "Behavior '"
+      <> behavior
+      <> "':\n"
+      <> "  Missing response example (helps AI understand intent)"
 
     UnusedAntiPattern(pattern) ->
       "Anti-pattern '" <> pattern <> "' is not tested by any behavior"
@@ -334,6 +366,13 @@ fn format_warning(warning: LintWarning) -> String {
       "Behavior '" <> behavior <> "':\n" <> "  " <> suggestion
 
     DuplicateBehavior(behavior1, behavior2, similarity) ->
-      "Behaviors '" <> behavior1 <> "' and '" <> behavior2 <> "' may be duplicates:\n" <> "  " <> similarity <> " - consider consolidating"
+      "Behaviors '"
+      <> behavior1
+      <> "' and '"
+      <> behavior2
+      <> "' may be duplicates:\n"
+      <> "  "
+      <> similarity
+      <> " - consider consolidating"
   }
 }
