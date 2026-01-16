@@ -1,6 +1,5 @@
 /// Module for reading user input from standard input
 /// Provides functions for interactive command-line prompts
-
 @external(erlang, "intent_ffi_stdin", "read_line")
 pub fn read_line() -> Result(String, String)
 
@@ -21,8 +20,12 @@ pub fn read_non_empty_line() -> Result(String, String) {
   }
 }
 
+/// Maximum number of lines to prevent memory exhaustion
+const max_lines: Int = 10_000
+
 /// Read multiple lines until user enters a blank line
 /// Useful for collecting multi-line responses
+/// Returns error if more than max_lines are read without blank line
 pub fn read_until_blank() -> Result(String, String) {
   read_until_blank_helper([], 0)
 }
@@ -31,27 +34,36 @@ fn read_until_blank_helper(
   lines: List(String),
   line_count: Int,
 ) -> Result(String, String) {
-  case read_line_trimmed() {
-    Error(_reason) -> {
-      case line_count {
-        0 -> Error("Failed to read input")
-        _ -> Ok(string.join(list.reverse(lines), "\n"))
-      }
-    }
-    Ok(line) -> {
-      case string.is_empty(line) {
-        // User entered blank line - stop collecting
-        True -> {
+  // Safety check: prevent memory exhaustion
+  case line_count >= max_lines {
+    True ->
+      Error(
+        "Input exceeds maximum line limit ("
+        <> int.to_string(max_lines)
+        <> " lines)",
+      )
+    False ->
+      case read_line_trimmed() {
+        Error(_reason) -> {
           case line_count {
-            0 -> Error("No input provided")
+            0 -> Error("Failed to read input")
             _ -> Ok(string.join(list.reverse(lines), "\n"))
           }
         }
-        // Continue collecting
-        False ->
-          read_until_blank_helper([line, ..lines], line_count + 1)
+        Ok(line) -> {
+          case string.is_empty(line) {
+            // User entered blank line - stop collecting
+            True -> {
+              case line_count {
+                0 -> Error("No input provided")
+                _ -> Ok(string.join(list.reverse(lines), "\n"))
+              }
+            }
+            // Continue collecting
+            False -> read_until_blank_helper([line, ..lines], line_count + 1)
+          }
+        }
       }
-    }
   }
 }
 
@@ -78,6 +90,7 @@ pub fn prompt_yes_no(prompt_text: String) -> Result(Bool, String) {
 }
 
 // Required imports
-import gleam/string
-import gleam/list
+import gleam/int
 import gleam/io
+import gleam/list
+import gleam/string
