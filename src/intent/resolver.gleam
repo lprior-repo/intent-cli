@@ -1,6 +1,5 @@
 /// Behavior dependency resolver
 /// Topologically sorts behaviors based on their `requires` dependencies
-
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/result
@@ -187,13 +186,7 @@ fn kahn_loop(
           // Add newly ready nodes to queue
           let updated_queue = list.append(rest_queue, new_ready)
 
-          kahn_loop(
-            updated_queue,
-            new_degrees,
-            graph,
-            by_name,
-            [rb, ..result],
-          )
+          kahn_loop(updated_queue, new_degrees, graph, by_name, [rb, ..result])
         }
         Error(_) -> {
           // This shouldn't happen, skip

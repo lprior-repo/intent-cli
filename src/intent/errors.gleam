@@ -1,6 +1,5 @@
 /// Rich error reporting with context and suggestions
 /// Provides detailed feedback to help users understand and fix validation failures
-
 import gleam/dict
 import gleam/dynamic
 import gleam/int
@@ -43,10 +42,7 @@ pub fn field_not_found(
 
 /// Suggest similar field names based on Levenshtein distance
 /// Helps users catch typos in field paths
-fn suggest_field_names(
-  target: String,
-  available: List(String),
-) -> List(String) {
+fn suggest_field_names(target: String, available: List(String)) -> List(String) {
   available
   |> list.map(fn(field) { #(field, levenshtein_distance(target, field)) })
   |> list.filter(fn(pair) {
@@ -66,60 +62,122 @@ fn suggest_field_names(
 }
 
 /// Calculate Levenshtein distance between two strings
-/// Used for suggesting similar field names
+/// Uses the Wagner-Fischer algorithm (dynamic programming)
+/// Returns the minimum number of single-character edits (insertions, deletions, substitutions)
 fn levenshtein_distance(s1: String, s2: String) -> Int {
-  let len1 = string.length(s1)
-  let len2 = string.length(s2)
+  let chars1 = string.to_graphemes(s1)
+  let chars2 = string.to_graphemes(s2)
+  let len1 = list.length(chars1)
+  let len2 = list.length(chars2)
 
   case len1, len2 {
     0, _ -> len2
     _, 0 -> len1
     _, _ -> {
-      // For simplicity, use character-level comparison
-      // This is a basic approximation
-      let chars1 = string.to_graphemes(s1)
-      let chars2 = string.to_graphemes(s2)
+      // Initialize first row: distances from empty string to prefixes of s2
+      let initial_row = list.range(0, len2)
 
-      let common =
-        list.filter(chars1, fn(c1) { list.contains(chars2, c1) })
-        |> list.length
+      // Compute each row iteratively
+      let final_row =
+        list.index_fold(chars1, initial_row, fn(prev_row, char1, i) {
+          // Start new row with distance from s1[0..i+1] to empty string
+          compute_row(char1, chars2, prev_row, i + 1)
+        })
 
-      len1 + len2 - 2 * common
+      // The last element of the final row is the Levenshtein distance
+      case list.last(final_row) {
+        Ok(dist) -> dist
+        Error(_) -> len1 + len2
+        // Fallback (shouldn't happen)
+      }
     }
   }
+}
+
+/// Compute one row of the Levenshtein distance matrix
+fn compute_row(
+  char1: String,
+  chars2: List(String),
+  prev_row: List(Int),
+  row_start: Int,
+) -> List(Int) {
+  // Start row with distance from prefix of s1 to empty string
+  let initial = #([row_start], row_start)
+
+  let #(result, _) =
+    list.index_fold(chars2, initial, fn(acc, char2, j) {
+      let #(new_row, left_val) = acc
+
+      // Get values from previous positions using drop and first
+      let above = case list.drop(prev_row, j + 1) |> list.first {
+        Ok(v) -> v
+        Error(_) -> row_start + j + 1
+      }
+      let diag = case list.drop(prev_row, j) |> list.first {
+        Ok(v) -> v
+        Error(_) -> row_start + j
+      }
+
+      // Calculate cost
+      let cost = case char1 == char2 {
+        True -> diag
+        // No change needed
+        False -> {
+          // Take minimum of: substitute, delete, insert
+          let substitute = diag + 1
+          let delete = above + 1
+          let insert = left_val + 1
+          int.min(substitute, int.min(delete, insert))
+        }
+      }
+
+      #(list.append(new_row, [cost]), cost)
+    })
+
+  result
 }
 
 /// Format contextual error for display
 pub fn format_error(error: ContextualError) -> String {
   let field_info = "Field: '" <> error.field_path <> "'"
 
-  let rule_info = "Rule: " <> error.rule <> "\n  Expected: " <> error.expected <> "\n  Actual: " <> error.actual
+  let rule_info =
+    "Rule: "
+    <> error.rule
+    <> "\n  Expected: "
+    <> error.expected
+    <> "\n  Actual: "
+    <> error.actual
 
   let available_info = case error.available_fields {
     [] -> ""
     fields -> {
-      "\n\nAvailable fields in response:\n  "
-      <> string.join(fields, "\n  ")
+      "\n\nAvailable fields in response:\n  " <> string.join(fields, "\n  ")
     }
   }
 
   let suggestions_info = case error.suggestions {
     [] -> ""
     sugg -> {
-      "\n\nDid you mean:\n  "
-      <> string.join(sugg, "\n  ")
+      "\n\nDid you mean:\n  " <> string.join(sugg, "\n  ")
     }
   }
 
-  "Behavior '" <> error.behavior <> "' validation failed:\n  " <> field_info <> "\n\n  " <> rule_info <> available_info <> suggestions_info <> "\n\n" <> error.explanation
+  "Behavior '"
+  <> error.behavior
+  <> "' validation failed:\n  "
+  <> field_info
+  <> "\n\n  "
+  <> rule_info
+  <> available_info
+  <> suggestions_info
+  <> "\n\n"
+  <> error.explanation
 }
 
 /// Error type for validation results that collect all failures
 pub type ValidationError {
-  ValidationError(
-    behavior: String,
-    failures: List(FieldFailure),
-  )
+  ValidationError(behavior: String, failures: List(FieldFailure))
 }
 
 pub type FieldFailure {
@@ -144,16 +202,30 @@ pub fn format_validation_error(error: ValidationError) -> String {
     error.failures
     |> list.index_map(fn(failure, i) {
       let idx = i + 1
-      "  " <> int.to_string(idx) <> ". Field '" <> failure.field <> "':\n"
-      <> "     Rule: " <> failure.rule <> "\n"
-      <> "     Expected: " <> failure.expected <> "\n"
-      <> "     Actual: " <> failure.actual
+      "  "
+      <> int.to_string(idx)
+      <> ". Field '"
+      <> failure.field
+      <> "':\n"
+      <> "     Rule: "
+      <> failure.rule
+      <> "\n"
+      <> "     Expected: "
+      <> failure.expected
+      <> "\n"
+      <> "     Actual: "
+      <> failure.actual
     })
     |> string.join("\n\n")
 
-  "Behavior '" <> error.behavior <> "' failed with " <> int.to_string(
-    count,
-  ) <> " " <> plural <> ":\n\n" <> failure_lines
+  "Behavior '"
+  <> error.behavior
+  <> "' failed with "
+  <> int.to_string(count)
+  <> " "
+  <> plural
+  <> ":\n\n"
+  <> failure_lines
 }
 
 /// Extract available fields from JSON object for suggestions
@@ -175,7 +247,14 @@ pub fn format_format_error(
   value: String,
   reason: String,
 ) -> String {
-  "Field '" <> field <> "':\n  Expected valid " <> format_name <> "\n  Got: " <> value <> "\n  Problem: " <> reason
+  "Field '"
+  <> field
+  <> "':\n  Expected valid "
+  <> format_name
+  <> "\n  Got: "
+  <> value
+  <> "\n  Problem: "
+  <> reason
 }
 
 /// Suggest next validation steps based on error pattern
@@ -199,6 +278,9 @@ pub fn suggest_next_steps(error_type: String) -> List(String) {
       "Review behavior 'requires' declarations for cycles",
       "Break circular dependencies by removing one requires link",
     ]
-    _ -> ["Check the specification for ambiguities", "Run 'intent analyze' to improve spec quality"]
+    _ -> [
+      "Check the specification for ambiguities",
+      "Run 'intent analyze' to improve spec quality",
+    ]
   }
 }
