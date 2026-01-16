@@ -1,0 +1,1 @@
+-record(url_parse_error, {message :: binary()}).
