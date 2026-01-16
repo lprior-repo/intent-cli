@@ -1,8 +1,33 @@
 # Intent CLI
 
-**Contract-driven API testing with AI-powered planning.**
+**Pure planning system that transforms requirements into trackable work items.**
 
-Intent transforms vague requirements into crystal-clear, atomic work items that an AI can execute deterministically.
+Intent CLI provides a systematic workflow from requirements capture to bead generation, combining formal methods (EARS, KIRK contracts, mental lattices) with practical planning tools.
+
+## Quick Start
+
+**New to Intent?** See [QUICKSTART.md](QUICKSTART.md) for a 5-minute getting started guide.
+
+**Complete reference**: See [PLANNING_WORKFLOW.md](PLANNING_WORKFLOW.md) for the full planning workflow documentation.
+
+**Example requirements**: Try [example-requirements.txt](example-requirements.txt) to see EARS syntax in action.
+
+## Planning Workflow
+
+```
+EARS Requirements → Mental Lattice Analysis → KIRK Contracts →
+Structure Planning → Bead Generation
+```
+
+Intent transforms informal requirements into formal specifications, then organizes them into dependency-ordered work items in the bd issue tracker:
+
+1. **EARS Interview**: Capture requirements using 6 structured patterns
+2. **Mental Lattice**: Apply 5 thinking models to validate and refine
+3. **KIRK Contracts**: Generate Design-by-Contract specifications
+4. **Structure Planning**: Organize into epic/feature/task hierarchy with wave-based dependencies
+5. **Bead Generation**: Create trackable work items in bd database
+
+Each stage includes review gates and checkpoints for iteration.
 
 ## The Vision
 
@@ -105,25 +130,51 @@ Five thinking tools catch what humans miss:
 
 ## Commands
 
+### Planning Workflow Commands
+
 ```bash
-# Core
-intent check <spec.cue> --target <url>   # Run tests against API
-intent validate <spec.cue>                # Validate spec syntax
+# EARS Requirements
+gleam run -- ears <file>                          # Parse EARS requirements
+gleam run -- ears-interview                       # Interactive EARS interview
+gleam run -- review-requirements <file> --checkpoint  # Review with validation
 
-# Interview (AI-driven)
-intent interview --profile api --cue      # Start interview, output CUE
-intent interview --session X --answer Y   # Submit answer, get next directive
-intent beads <session> --cue              # Generate beads as CUE
+# Mental Lattice Analysis
+gleam run -- lattice-analyze <file>               # Apply all 5 thinking models
+gleam run -- lattice-analyze <file> --model=inversion  # Apply specific model
 
-# KIRK Analysis
-intent quality <spec.cue>     # Quality scores (5 dimensions)
-intent invert <spec.cue>      # What failure cases are missing?
-intent coverage <spec.cue>    # HTTP method/status coverage
-intent gaps <spec.cue>        # Gap detection via mental models
+# KIRK Contracts
+gleam run -- generate-contract <file>             # Generate Design-by-Contract specs
+gleam run -- review-contracts <file> --checkpoint # Review contracts
 
-# EARS
-intent ears <requirements.md> --output cue   # Parse EARS to CUE
+# Structure Planning
+gleam run -- plan-structure <file> --project=<name>  # Plan epic/feature/task hierarchy
+gleam run -- review-structure <file> --project=<name> --checkpoint  # Review structure
+
+# Bead Generation
+gleam run -- generate-beads <file> --project=<name>  # Create beads in bd database
+gleam run -- review-beads                         # Review bead generation guidance
 ```
+
+### bd Commands (Work with Generated Beads)
+
+```bash
+bd ready              # Show ready work (no blockers)
+bd list --status=open # List all open beads
+bd show <id>          # View bead details
+bd update <id> --status=in_progress  # Claim work
+bd close <id> --reason="..."         # Complete work
+```
+
+### Legacy API Testing Commands
+
+```bash
+# These commands work with CUE specification files
+gleam run -- check <spec.cue> --target <url>  # Run tests against API
+gleam run -- validate <spec.cue>              # Validate spec syntax
+gleam run -- quality <spec.cue>               # Quality analysis
+```
+
+See [PLANNING_WORKFLOW.md](PLANNING_WORKFLOW.md) for complete command reference and examples.
 
 ## Installation
 
@@ -139,22 +190,21 @@ gleam run -- check examples/user-api.cue --target http://localhost:8080
 
 ```
 src/intent/
-├── interview.gleam        # Interview engine (722 lines)
-├── bead_templates.gleam   # Bead generation
+├── intent.gleam              # CLI entry point (glint commands)
 ├── kirk/
-│   ├── ears_parser.gleam      # EARS → behaviors
-│   ├── quality_analyzer.gleam # 5-dimension scoring
-│   ├── inversion_checker.gleam # What could fail?
-│   └── coverage_analyzer.gleam # Test coverage
+│   └── ears_parser.gleam     # EARS requirements parser
+├── kirk_contract.gleam       # KIRK contract generator
+├── structure_planner.gleam   # Epic/feature/task planning with wave dependencies
+├── bead_generator.gleam      # bd bead creation
+├── review_gates.gleam        # Review checkpoints and validation
+├── mental_lattice.gleam      # 5 thinking models
+├── checker.gleam             # API response validation (legacy)
 └── ...
 
-schema/
-├── questions.cue          # Interview questions database
-├── ai_protocol.cue        # AI directive schemas (coming)
-├── kirk.cue              # KIRK contract types
-└── intent.cue            # Core spec schema
-
 docs/
+├── PLANNING_WORKFLOW.md      # Complete planning workflow guide
+├── QUICKSTART.md             # 5-minute getting started guide
+├── example-requirements.txt  # Example EARS requirements
 ├── MENTAL_LATTICE_FRAMEWORK.md   # Theory
 ├── EARS_KIRK_WORKFLOW.md         # Workflow
 └── INTERACTIVE_QUESTIONING.md    # Question system
@@ -168,12 +218,21 @@ docs/
 
 ## Status
 
-- Core CLI: Working
-- Interview Engine: Working
-- KIRK Analysis: Working
-- EARS Parser: Working
-- AI-CUE Protocol: In Progress (see beads)
+**Planning Workflow (v1.0)**:
+- ✅ EARS Requirements Parser: Complete
+- ✅ Mental Lattice Analysis: Complete (5 models)
+- ✅ KIRK Contract Generator: Complete
+- ✅ Structure Planner: Complete (epic/feature/task + wave dependencies)
+- ✅ Bead Generator: Complete (creates beads in bd database)
+- ✅ Review Gates: Complete (checkpoints at each stage)
+- ✅ Documentation: Complete (PLANNING_WORKFLOW.md, QUICKSTART.md)
+
+**Legacy API Testing**:
+- ✅ Core CLI: Working
+- ✅ CUE Spec Validation: Working
+- ✅ HTTP Request Execution: Working
+- ✅ Response Checking: Working
 
 ## License
 
-Apache 2.0
+MIT

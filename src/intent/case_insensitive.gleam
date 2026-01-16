@@ -1,6 +1,5 @@
 /// Case-insensitive string operations
 /// Optimized helpers that avoid repeated lowercase conversions
-
 import gleam/list
 import gleam/string
 

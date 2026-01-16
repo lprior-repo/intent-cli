@@ -27,10 +27,14 @@ base64_url_decode(Input) when is_binary(Input) ->
         _:_ -> {error, invalid_base64}
     end.
 
-%% Generate UUID v4 (simple implementation)
+%% Generate UUID v4 (RFC 4122 compliant)
 generate_uuid() ->
     <<A:32, B:16, C:16, D:16, E:48>> = crypto:strong_rand_bytes(16),
-    Parts = [to_hex(A, 8), "-", to_hex(B, 4), "-", to_hex(C, 4), "-", to_hex(D, 4), "-", to_hex(E, 12)],
+    %% Set version bits (bits 48-51) to 0100 (4)
+    C1 = (C band 16#0FFF) bor 16#4000,
+    %% Set variant bits (bits 64-65) to 10
+    D1 = (D band 16#3FFF) bor 16#8000,
+    Parts = [to_hex(A, 8), "-", to_hex(B, 4), "-", to_hex(C1, 4), "-", to_hex(D1, 4), "-", to_hex(E, 12)],
     list_to_binary(Parts).
 
 to_hex(N, Width) ->
@@ -40,4 +44,4 @@ to_hex(N, Width) ->
 %% Get current timestamp in ISO 8601 format
 current_timestamp() ->
     Now = erlang:system_time(millisecond),
-    calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]).
+    list_to_binary(calendar:system_time_to_rfc3339(Now, [{unit, millisecond}])).

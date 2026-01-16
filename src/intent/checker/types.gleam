@@ -1,5 +1,4 @@
 /// Shared types for the checker module
-
 /// Result of checking a single field
 pub type CheckResult {
   CheckPassed(field: String, rule: String)
