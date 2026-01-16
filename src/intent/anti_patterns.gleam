@@ -1,5 +1,6 @@
 /// Anti-pattern detection engine
 /// Checks responses for known anti-patterns defined in the spec
+
 import gleam/dict
 import gleam/dynamic
 import gleam/json.{type Json}
@@ -31,8 +32,8 @@ pub fn check_anti_patterns(
   patterns
   |> list.filter_map(fn(pattern) {
     case detect_pattern(pattern, response) {
-      Some(result) -> Ok(result)
-      None -> Error(Nil)
+      option.Some(result) -> Ok(result)
+      option.None -> Error(Nil)
     }
   })
 }
