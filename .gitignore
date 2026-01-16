@@ -120,6 +120,7 @@ debug/
 # Git & VCS
 # --------------------------------------------
 .git/
+.jj/
 .gitattributes
 *.orig
 *.rej
