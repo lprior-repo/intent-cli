@@ -5,6 +5,7 @@ import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
+import gleam/option
 import gleam/regexp
 import gleam/string
 import intent/http_client.{type ExecutionResult}
@@ -44,7 +45,10 @@ pub fn check_rules(
 
 /// Check if a rule applies based on its `when` conditions
 fn rule_applies(rule: Rule, response: ExecutionResult) -> Bool {
-  check_when_conditions(rule.when, response)
+  case rule.when {
+    option.Some(when) -> check_when_conditions(when, response)
+    option.None -> True  // Rule applies to all responses if no 'when' clause
+  }
 }
 
 fn check_when_conditions(when: When, response: ExecutionResult) -> Bool {
@@ -52,11 +56,17 @@ fn check_when_conditions(when: When, response: ExecutionResult) -> Bool {
   let status_ok =
     check_status_condition(when.status, response.status)
 
-  // Check method condition
-  let method_ok = response.request_method == when.method
+  // Check method condition (if specified)
+  let method_ok = case when.method {
+    option.Some(m) -> response.request_method == m
+    option.None -> True
+  }
 
-  // Check path condition
-  let path_ok = check_path_pattern(when.path, response.request_path)
+  // Check path condition (if specified)
+  let path_ok = case when.path {
+    option.Some(p) -> check_path_pattern(p, response.request_path)
+    option.None -> True
+  }
 
   // All conditions must pass
   status_ok && method_ok && path_ok
@@ -261,11 +271,18 @@ fn navigate_and_check(value: Json, path: List(String)) -> Bool {
   }
 }
 
-fn header_exists(headers: Dict(String, String), header_name: String) -> Bool {
-  let lower_name = string.lowercase(header_name)
+/// Build a lowercase header index for O(1) lookups
+fn build_header_index(headers: Dict(String, String)) -> Dict(String, String) {
   headers
   |> dict.to_list
-  |> list.any(fn(pair) { string.lowercase(pair.0) == lower_name })
+  |> list.map(fn(pair) { #(string.lowercase(pair.0), pair.1) })
+  |> dict.from_list
+}
+
+fn header_exists(headers: Dict(String, String), header_name: String) -> Bool {
+  let lower_name = string.lowercase(header_name)
+  let index = build_header_index(headers)
+  dict.has_key(index, lower_name)
 }
 
 /// Format a rule violation as a human-readable string

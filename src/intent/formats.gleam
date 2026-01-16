@@ -266,8 +266,7 @@ fn validate_uri_scheme(scheme: String) -> Result(Nil, String) {
             |> list.all(fn(c) {
               case
                 string.contains(
-                  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.
-",
+                  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.",
                   c,
                 )
               {
@@ -385,26 +384,16 @@ fn validate_iso8601_date(date_str: String) -> Result(Nil, String) {
 /// Validate ISO8601 time part (HH:MM:SS with optional fractional seconds and timezone)
 fn validate_iso8601_time(time_str: String) -> Result(Nil, String) {
   // Remove timezone part if present (Z, +HH:MM, -HH:MM)
-  // Note: Only split on +/- if they appear after at least one colon (to avoid splitting "-1" as timezone)
   let time_without_tz = case string.split_once(time_str, "Z") {
     Ok(#(t, _)) -> t
     Error(_) ->
-      case string.contains(time_str, ":") {
-        True ->
-          case string.split_once(time_str, "+") {
+      case string.split_once(time_str, "+") {
+        Ok(#(t, _)) -> t
+        Error(_) ->
+          case string.split_once(time_str, "-") {
             Ok(#(t, _)) -> t
-            Error(_) ->
-              // Only split on - if there's a colon before it (avoid "-1:30:00" being split as timezone)
-              case string.split_once(time_str, "-") {
-                Ok(#(t, _rest)) ->
-                  case string.contains(t, ":") {
-                    True -> t  // Has colon before -, so it's a timezone
-                    False -> time_str  // No colon before -, so - is part of the hour
-                  }
-                Error(_) -> time_str
-              }
+            Error(_) -> time_str
           }
-        False -> time_str
       }
   }
 
