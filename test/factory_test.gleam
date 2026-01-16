@@ -23,7 +23,6 @@ import intent/types
 ///
 /// DISCOMFORT: "How do I build N behaviors without for-loops?"
 /// Answer forces functional thinking: list.range |> list.map(builder_fn)
-
 pub fn spec_with_many_behaviors_composes_functionally_test() {
   // Must exist: src/intent/spec_builder.gleam with create_test_spec
   let spec = spec_builder.create_test_spec(50)
@@ -133,7 +132,6 @@ pub fn regex_cache_avoids_recompilation_with_ets_test_skip() {
   check_results
   |> list.all(fn(r) { r.status_ok && list.is_empty(r.failed) })
   |> should.be_true
-
   // CRITICAL: If this test is SLOW (>500ms), cache isn't working
   // Compiling 1000 regexes takes ~2-3 seconds
   // Compiling 1 regex + 999 lookups should take ~200ms
