@@ -1,0 +1,1 @@
+-record(check_passed, {field :: binary(), rule :: binary()}).
