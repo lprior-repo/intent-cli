@@ -1,8 +1,8 @@
 /// Intent CLI - Human-writes, AI-verifies, AI-implements
 /// Contract-driven API testing tool
-
 import argv
 import gleam/dict
+import gleam/float
 import gleam/io
 import gleam/json
 import gleam/list
@@ -11,32 +11,39 @@ import gleam/result
 import gleam/string
 import glint
 import glint/flag
-import intent/loader
-import intent/output
-import intent/runner
-import intent/types
-import intent/quality_analyzer
-import intent/spec_linter
-import intent/improver
 import intent/answer_loader
+import intent/bd_integration
 import intent/bead_feedback
-import intent/interview
-import intent/interview_storage
-import intent/interview_questions
-import intent/question_types.{type Question}
-import intent/spec_builder
+import intent/bead_generator
 import intent/bead_templates
-import intent/stdin
 import intent/cli_ui
-import intent/security
-import intent/kirk/quality_analyzer as kirk_quality
-import intent/kirk/inversion_checker
-import intent/kirk/coverage_analyzer
-import intent/kirk/gap_detector
+import intent/ears_interview
+import intent/improver
+import intent/interview
+import intent/interview_questions
+import intent/interview_storage
 import intent/kirk/compact_format
+import intent/kirk/coverage_analyzer
 import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
+import intent/kirk/gap_detector
+import intent/kirk/inversion_checker
+import intent/kirk/quality_analyzer as kirk_quality
+import intent/kirk_contract
+import intent/loader
+import intent/mental_lattice
+import intent/output
 import intent/plan_mode
+import intent/quality_analyzer
+import intent/question_types.{type Question}
+import intent/review_gates
+import intent/runner
+import intent/security
+import intent/spec_builder
+import intent/spec_linter
+import intent/stdin
+import intent/structure_planner
+import intent/types
 import simplifile
 
 /// Exit codes
@@ -51,18 +58,31 @@ const exit_invalid = 3
 const exit_error = 4
 
 pub fn main() {
+  // Check for --no-color flag and set NO_COLOR environment variable
+  let args = argv.load().arguments
+  case list.any(args, fn(arg) { arg == "--no-color" }) {
+    True -> {
+      // Set NO_COLOR environment variable
+      set_no_color_env()
+      Nil
+    }
+    False -> Nil
+  }
+
   glint.new()
   |> glint.with_name("intent")
   |> glint.with_pretty_help(glint.default_pretty_help())
   |> glint.add(at: ["check"], do: check_command())
   |> glint.add(at: ["validate"], do: validate_command())
   |> glint.add(at: ["show"], do: show_command())
+  |> glint.add(at: ["version"], do: version_command())
   |> glint.add(at: ["export"], do: export_command())
   |> glint.add(at: ["lint"], do: lint_command())
   |> glint.add(at: ["analyze"], do: analyze_command())
   |> glint.add(at: ["improve"], do: improve_command())
   |> glint.add(at: ["interview"], do: interview_command())
   |> glint.add(at: ["beads"], do: beads_command())
+  |> glint.add(at: ["execute-beads"], do: execute_beads_command())
   |> glint.add(at: ["bead-status"], do: bead_status_command())
   |> glint.add(at: ["history"], do: history_command())
   |> glint.add(at: ["diff"], do: diff_command())
@@ -75,6 +95,16 @@ pub fn main() {
   |> glint.add(at: ["compact"], do: kirk_compact_command())
   |> glint.add(at: ["prototext"], do: kirk_prototext_command())
   |> glint.add(at: ["ears"], do: kirk_ears_command())
+  |> glint.add(at: ["ears-interview"], do: ears_interview_command())
+  |> glint.add(at: ["lattice-analyze"], do: lattice_analyze_command())
+  |> glint.add(at: ["generate-contract"], do: generate_contract_command())
+  |> glint.add(at: ["plan-structure"], do: plan_structure_command())
+  |> glint.add(at: ["generate-beads"], do: generate_beads_command())
+  // Review commands
+  |> glint.add(at: ["review-requirements"], do: review_requirements_command())
+  |> glint.add(at: ["review-contracts"], do: review_contracts_command())
+  |> glint.add(at: ["review-structure"], do: review_structure_command())
+  |> glint.add(at: ["review-beads"], do: review_beads_command())
   |> glint.add(at: ["parse"], do: parse_command())
   |> glint.add(at: ["effects"], do: kirk_effects_command())
   // Plan commands
@@ -90,28 +120,60 @@ pub fn main() {
 /// The `check` command - run spec against a target
 fn check_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let target_url =
-      flag.get_string(input.flags, "target")
-      |> result.unwrap("")
+    // Support environment variable overrides
+    let target_url = case flag.get_string(input.flags, "target") {
+      Ok("") -> env_string("INTENT_TARGET", "")
+      Ok(value) -> value
+      Error(_) -> env_string("INTENT_TARGET", "")
+    }
 
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
+    let is_json = case flag.get_bool(input.flags, "json") {
+      Ok(True) -> True
+      _ -> env_bool("INTENT_JSON", False)
+    }
 
-    let feature_filter =
-      flag.get_string(input.flags, "feature")
-      |> result.unwrap("")
+    let is_junit = case flag.get_bool(input.flags, "junit") {
+      Ok(True) -> True
+      _ -> False
+    }
 
-    let only_filter =
-      flag.get_string(input.flags, "only")
-      |> result.unwrap("")
+    let is_tap = case flag.get_bool(input.flags, "tap") {
+      Ok(True) -> True
+      _ -> False
+    }
+
+    let feature_filter = case flag.get_string(input.flags, "feature") {
+      Ok("") -> env_string("INTENT_FEATURE", "")
+      Ok(value) -> value
+      Error(_) -> env_string("INTENT_FEATURE", "")
+    }
+
+    let only_filter = case flag.get_string(input.flags, "only") {
+      Ok("") -> env_string("INTENT_ONLY", "")
+      Ok(value) -> value
+      Error(_) -> env_string("INTENT_ONLY", "")
+    }
 
     let output_level = case flag.get_bool(input.flags, "verbose") {
       Ok(True) -> runner.Verbose
-      _ -> case flag.get_bool(input.flags, "quiet") {
-        Ok(True) -> runner.Quiet
-        _ -> runner.Normal
-      }
+      _ ->
+        case flag.get_bool(input.flags, "quiet") {
+          Ok(True) -> runner.Quiet
+          _ ->
+            case env_bool("INTENT_VERBOSE", False) {
+              True -> runner.Verbose
+              False ->
+                case env_bool("INTENT_QUIET", False) {
+                  True -> runner.Quiet
+                  False -> runner.Normal
+                }
+            }
+        }
+    }
+
+    let dry_run = case flag.get_bool(input.flags, "dry-run") {
+      Ok(True) -> True
+      _ -> env_bool("INTENT_DRY_RUN", False)
     }
 
     case input.args {
@@ -120,9 +182,12 @@ fn check_command() -> glint.Command(Nil) {
           spec_path,
           target_url,
           is_json,
+          is_junit,
+          is_tap,
           feature_filter,
           only_filter,
           output_level,
+          dry_run,
         )
       }
       [] -> {
@@ -132,22 +197,89 @@ fn check_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Run spec against a target URL and verify behaviors")
-  |> glint.flag("target", flag.string() |> flag.default("") |> flag.description("Target base URL to test against"))
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output results as JSON"))
-  |> glint.flag("feature", flag.string() |> flag.default("") |> flag.description("Filter to a specific feature"))
-  |> glint.flag("only", flag.string() |> flag.default("") |> flag.description("Run only a specific behavior"))
-  |> glint.flag("verbose", flag.bool() |> flag.default(False) |> flag.description("Verbose output"))
-  |> glint.flag("quiet", flag.bool() |> flag.default(False) |> flag.description("Quiet output (errors only)"))
+  |> glint.description(
+    "Run spec against a target URL and verify behaviors\n\n"
+    <> "Examples:\n"
+    <> "  intent check spec.cue\n"
+    <> "  intent check spec.cue --target http://localhost:8080\n"
+    <> "  intent check spec.cue --feature auth --json\n"
+    <> "  intent check spec.cue --only login --verbose\n"
+    <> "  intent check spec.cue --dry-run\n\n"
+    <> "Environment variables:\n"
+    <> "  INTENT_TARGET    - Override --target\n"
+    <> "  INTENT_JSON      - Override --json (1/true/yes)\n"
+    <> "  INTENT_VERBOSE   - Override --verbose (1/true/yes)\n"
+    <> "  INTENT_QUIET     - Override --quiet (1/true/yes)\n"
+    <> "  INTENT_FEATURE   - Override --feature\n"
+    <> "  INTENT_ONLY      - Override --only\n"
+    <> "  INTENT_DRY_RUN   - Override --dry-run (1/true/yes)",
+  )
+  |> glint.flag(
+    "target",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Target base URL to test against"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output results as JSON"),
+  )
+  |> glint.flag(
+    "junit",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output results as JUnit XML for CI integration"),
+  )
+  |> glint.flag(
+    "tap",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output results as TAP (Test Anything Protocol)"),
+  )
+  |> glint.flag(
+    "feature",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Filter to a specific feature"),
+  )
+  |> glint.flag(
+    "only",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Run only a specific behavior"),
+  )
+  |> glint.flag(
+    "verbose",
+    flag.bool() |> flag.default(False) |> flag.description("Verbose output"),
+  )
+  |> glint.flag(
+    "quiet",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Quiet output (errors only)"),
+  )
+  |> glint.flag(
+    "dry-run",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Show what would be tested without executing requests",
+      ),
+  )
 }
 
 fn run_check(
   spec_path: String,
   target_url: String,
   is_json: Bool,
+  is_junit: Bool,
+  is_tap: Bool,
   feature_filter: String,
   only_filter: String,
   output_level: runner.OutputLevel,
+  dry_run: Bool,
 ) -> Nil {
   // Validate target URL is provided
   case string.is_empty(target_url) {
@@ -178,6 +310,15 @@ fn run_check(
       cli_ui.print_header("Checking spec: " <> spec.name)
 
       // Build run options
+      // Disable spinner in JSON/JUnit/TAP mode or Quiet mode
+      let show_spinner = case is_json, is_junit, is_tap, output_level {
+        True, _, _, _ -> False
+        _, True, _, _ -> False
+        _, _, True, _ -> False
+        _, _, _, runner.Quiet -> False
+        _, _, _, _ -> True
+      }
+
       let options =
         runner.RunOptions(
           feature_filter: case feature_filter {
@@ -189,18 +330,36 @@ fn run_check(
             b -> Some(b)
           },
           output_level: output_level,
+          show_spinner: show_spinner,
         )
+
+      // Handle dry run
+      case dry_run {
+        True -> {
+          print_dry_run_plan(spec, target_url, options)
+          halt(exit_pass)
+        }
+        False -> Nil
+      }
 
       // Run the spec
       let result = runner.run_spec(spec, target_url, options)
 
       // Output results
-      case is_json {
-        True -> {
+      case is_json, is_junit, is_tap {
+        True, _, _ -> {
           let json_result = output.spec_result_to_json(result)
           io.println(json.to_string(json_result))
         }
-        False -> {
+        _, True, _ -> {
+          let junit_xml = output.spec_result_to_junit_xml(result, spec.name)
+          io.println(junit_xml)
+        }
+        _, _, True -> {
+          let tap_output = output.spec_result_to_tap(result, spec.name)
+          io.println(tap_output)
+        }
+        False, False, False -> {
           io.println(output.spec_result_to_text(result))
         }
       }
@@ -223,6 +382,77 @@ fn run_check(
       halt(exit_code)
     }
   }
+}
+
+/// Print dry run plan showing what would be tested
+fn print_dry_run_plan(
+  spec: types.Spec,
+  target_url: String,
+  options: runner.RunOptions,
+) -> Nil {
+  io.println("")
+  cli_ui.print_info("DRY RUN MODE - No requests will be executed")
+  io.println("")
+  io.println("Target: " <> target_url)
+  io.println("Spec: " <> spec.name <> " (v" <> spec.version <> ")")
+
+  // Apply filters to get behaviors that would be tested
+  let features_to_test = case options.feature_filter {
+    Some(filter) -> list.filter(spec.features, fn(f) { f.name == filter })
+    None -> spec.features
+  }
+
+  let behaviors_to_test =
+    list.flat_map(features_to_test, fn(feature) {
+      case options.behavior_filter {
+        Some(filter) ->
+          list.filter(feature.behaviors, fn(b) { b.name == filter })
+          |> list.map(fn(b) { #(feature.name, b) })
+        None -> list.map(feature.behaviors, fn(b) { #(feature.name, b) })
+      }
+    })
+
+  let behavior_count = list.length(behaviors_to_test)
+  let feature_count = list.length(features_to_test)
+
+  io.println("")
+  io.println(
+    "Would test "
+    <> string.inspect(behavior_count)
+    <> " behavior"
+    <> case behavior_count {
+      1 -> ""
+      _ -> "s"
+    }
+    <> " across "
+    <> string.inspect(feature_count)
+    <> " feature"
+    <> case feature_count {
+      1 -> ""
+      _ -> "s"
+    }
+    <> ":",
+  )
+  io.println("")
+
+  // List features and behaviors
+  list.each(features_to_test, fn(feature) {
+    io.println("  " <> feature.name <> ":")
+    list.each(feature.behaviors, fn(behavior) {
+      io.println(
+        "    - "
+        <> behavior.name
+        <> " ("
+        <> types.method_to_string(behavior.request.method)
+        <> " "
+        <> behavior.request.path
+        <> ")",
+      )
+    })
+  })
+
+  io.println("")
+  cli_ui.print_success("Dry run complete - spec is valid")
 }
 
 /// The `validate` command - validate CUE spec syntax AND structure
@@ -249,7 +479,12 @@ fn validate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Validate a CUE spec file (syntax and structure)")
+  |> glint.description(
+    "Validate a CUE spec file (syntax and structure)\n\n"
+    <> "Examples:\n"
+    <> "  intent validate spec.cue\n"
+    <> "  intent validate examples/user-api.cue",
+  )
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -270,7 +505,7 @@ fn show_command() -> glint.Command(Nil) {
               }
               Error(e) -> {
                 io.println_error("Error: " <> loader.format_error(e))
-                halt(exit_error)
+                halt(exit_invalid)
               }
             }
           False -> {
@@ -281,7 +516,7 @@ fn show_command() -> glint.Command(Nil) {
               }
               Error(e) -> {
                 io.println_error("Error: " <> loader.format_error(e))
-                halt(exit_error)
+                halt(exit_invalid)
               }
             }
           }
@@ -294,8 +529,28 @@ fn show_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Pretty print a parsed spec")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.description(
+    "Pretty print a parsed spec\n\n"
+    <> "Examples:\n"
+    <> "  intent show spec.cue\n"
+    <> "  intent show spec.cue --json",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
+}
+
+/// The `version` command - display version information
+fn version_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    io.println("intent version 0.1.0")
+    io.println("Contract-driven API testing tool")
+    halt(exit_pass)
+  })
+  |> glint.description(
+    "Display version information\n\n" <> "Examples:\n" <> "  intent version",
+  )
 }
 
 fn print_spec_summary(spec: types.Spec) -> Nil {
@@ -372,7 +627,7 @@ fn export_command() -> glint.Command(Nil) {
           }
           Error(e) -> {
             io.println_error("Error: " <> loader.format_error(e))
-            halt(exit_error)
+            halt(exit_invalid)
           }
         }
       }
@@ -383,7 +638,12 @@ fn export_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Export spec to JSON format")
+  |> glint.description(
+    "Export spec to JSON format\n\n"
+    <> "Examples:\n"
+    <> "  intent export spec.cue\n"
+    <> "  intent export spec.cue > output.json",
+  )
 }
 
 /// The `lint` command - check for specification anti-patterns
@@ -418,7 +678,11 @@ fn lint_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Check spec for anti-patterns and quality issues")
+  |> glint.description(
+    "Check spec for anti-patterns and quality issues\n\n"
+    <> "Examples:\n"
+    <> "  intent lint spec.cue",
+  )
 }
 
 /// The `analyze` command - analyze spec quality
@@ -445,7 +709,11 @@ fn analyze_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Analyze spec quality and provide improvement suggestions")
+  |> glint.description(
+    "Analyze spec quality and provide improvement suggestions\n\n"
+    <> "Examples:\n"
+    <> "  intent analyze spec.cue",
+  )
 }
 
 /// The `improve` command - suggest improvements
@@ -480,7 +748,11 @@ fn improve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Suggest improvements based on quality analysis and linting")
+  |> glint.description(
+    "Suggest improvements based on quality analysis and linting\n\n"
+    <> "Examples:\n"
+    <> "  intent improve spec.cue",
+  )
 }
 
 /// The `interview` command - guided specification discovery
@@ -527,11 +799,9 @@ fn interview_command() -> glint.Command(Nil) {
 
         case has_session, has_answer {
           // Submitting an answer to an existing session
-          True, True ->
-            run_interview_cue_answer(session_flag, answer_text)
+          True, True -> run_interview_cue_answer(session_flag, answer_text)
           // Resume session in CUE mode
-          True, False ->
-            run_interview_cue_resume(session_flag)
+          True, False -> run_interview_cue_resume(session_flag)
           // Start new session in CUE mode
           False, False -> {
             let profile = parse_profile(profile_str)
@@ -555,12 +825,48 @@ fn interview_command() -> glint.Command(Nil) {
         case resume_id {
           "" ->
             case string.lowercase(profile_str) {
-              "api" -> run_interview(interview.Api, answers_file, strict_mode, export_to)
-              "cli" -> run_interview(interview.Cli, answers_file, strict_mode, export_to)
-              "event" -> run_interview(interview.Event, answers_file, strict_mode, export_to)
-              "data" -> run_interview(interview.Data, answers_file, strict_mode, export_to)
-              "workflow" -> run_interview(interview.Workflow, answers_file, strict_mode, export_to)
-              "ui" -> run_interview(interview.UI, answers_file, strict_mode, export_to)
+              "api" ->
+                run_interview(
+                  interview.Api,
+                  answers_file,
+                  strict_mode,
+                  export_to,
+                )
+              "cli" ->
+                run_interview(
+                  interview.Cli,
+                  answers_file,
+                  strict_mode,
+                  export_to,
+                )
+              "event" ->
+                run_interview(
+                  interview.Event,
+                  answers_file,
+                  strict_mode,
+                  export_to,
+                )
+              "data" ->
+                run_interview(
+                  interview.Data,
+                  answers_file,
+                  strict_mode,
+                  export_to,
+                )
+              "workflow" ->
+                run_interview(
+                  interview.Workflow,
+                  answers_file,
+                  strict_mode,
+                  export_to,
+                )
+              "ui" ->
+                run_interview(
+                  interview.UI,
+                  answers_file,
+                  strict_mode,
+                  export_to,
+                )
               _ -> {
                 io.println_error(
                   "Error: unknown profile '" <> profile_str <> "'",
@@ -576,56 +882,72 @@ fn interview_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Guided specification discovery through structured interview")
+  |> glint.description(
+    "Guided specification discovery through structured interview\n\n"
+    <> "Examples:\n"
+    <> "  intent interview\n"
+    <> "  intent interview --profile api\n"
+    <> "  intent interview --profile cli --export spec.cue\n"
+    <> "  intent interview --resume session-123\n"
+    <> "  intent interview --answers answers.json --export spec.cue",
+  )
   |> glint.flag(
     "profile",
     flag.string()
-    |> flag.default("api")
-    |> flag.description(
-      "System profile: api, cli, event, data, workflow, or ui",
-    ),
+      |> flag.default("api")
+      |> flag.description(
+        "System profile: api, cli, event, data, workflow, or ui",
+      ),
   )
   |> glint.flag(
     "resume",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Resume existing interview session by ID"),
+      |> flag.default("")
+      |> flag.description("Resume existing interview session by ID"),
   )
   |> glint.flag(
     "answers",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Path to CUE file with pre-filled answers for non-interactive mode"),
+      |> flag.default("")
+      |> flag.description(
+        "Path to CUE file with pre-filled answers for non-interactive mode",
+      ),
   )
   |> glint.flag(
     "strict",
     flag.bool()
-    |> flag.default(False)
-    |> flag.description("Strict mode: fail if answers file is missing required answers (requires --answers)"),
+      |> flag.default(False)
+      |> flag.description(
+        "Strict mode: fail if answers file is missing required answers (requires --answers)",
+      ),
   )
   |> glint.flag(
     "export",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Export completed interview to spec file"),
+      |> flag.default("")
+      |> flag.description("Export completed interview to spec file"),
   )
   |> glint.flag(
     "cue",
     flag.bool()
-    |> flag.default(False)
-    |> flag.description("Output CUE directives for AI agents (non-interactive)"),
+      |> flag.default(False)
+      |> flag.description(
+        "Output CUE directives for AI agents (non-interactive)",
+      ),
   )
   |> glint.flag(
     "session",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Session ID for CUE mode (use with --cue)"),
+      |> flag.default("")
+      |> flag.description("Session ID for CUE mode (use with --cue)"),
   )
   |> glint.flag(
     "answer",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Submit answer to current question (use with --cue --session)"),
+      |> flag.default("")
+      |> flag.description(
+        "Submit answer to current question (use with --cue --session)",
+      ),
   )
 }
 
@@ -648,18 +970,30 @@ fn run_interview(
       case answer_loader.load_from_file(answers_file) {
         Ok(dict) -> {
           io.println("")
-          io.println("✓ Loaded " <> string.inspect(dict.size(dict)) <> " pre-filled answers from: " <> answers_file)
+          io.println(
+            "✓ Loaded "
+            <> string.inspect(dict.size(dict))
+            <> " pre-filled answers from: "
+            <> answers_file,
+          )
           option.Some(dict)
         }
         Error(err) -> {
           case strict_mode {
             True -> {
-              io.println_error("✗ Failed to load answers file: " <> answer_loader_error_to_string(err))
+              io.println_error(
+                "✗ Failed to load answers file: "
+                <> answer_loader_error_to_string(err),
+              )
               halt(exit_error)
-              option.None  // unreachable, but needed for type consistency
+              option.None
+              // unreachable, but needed for type consistency
             }
             False -> {
-              io.println("⚠ Failed to load answers file: " <> answer_loader_error_to_string(err))
+              io.println(
+                "⚠ Failed to load answers file: "
+                <> answer_loader_error_to_string(err),
+              )
               io.println("  Continuing in interactive mode...")
               option.None
             }
@@ -671,9 +1005,13 @@ fn run_interview(
 
   // Print welcome message
   io.println("")
-  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
   io.println("                    INTENT INTERVIEW")
-  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
   io.println("")
   io.println("Profile: " <> profile_to_display_string(profile))
   io.println("Session: " <> session_id)
@@ -702,10 +1040,11 @@ fn run_interview(
   let final_session = interview_loop(session, 1)
 
   // Save session to JSONL
-  let save_result = interview_storage.append_session_to_jsonl(
-    final_session,
-    ".interview/sessions.jsonl",
-  )
+  let save_result =
+    interview_storage.append_session_to_jsonl(
+      final_session,
+      ".interview/sessions.jsonl",
+    )
 
   case save_result {
     Ok(Nil) -> {
@@ -748,17 +1087,23 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
     }
     Ok(session) -> {
       cli_ui.print_header("Resuming Interview: " <> session.id)
-      cli_ui.print_info("Profile: " <> profile_to_display_string(session.profile))
+      cli_ui.print_info(
+        "Profile: " <> profile_to_display_string(session.profile),
+      )
       io.println("")
 
       // Show progress
       io.println("Progress:")
-      io.println("  • Answers collected: " <> string.inspect(list.length(session.answers)))
+      io.println(
+        "  • Answers collected: "
+        <> string.inspect(list.length(session.answers)),
+      )
       io.println(
         "  • Gaps detected: " <> string.inspect(list.length(session.gaps)),
       )
       io.println(
-        "  • Conflicts detected: " <> string.inspect(list.length(session.conflicts)),
+        "  • Conflicts detected: "
+        <> string.inspect(list.length(session.conflicts)),
       )
       io.println("")
 
@@ -776,10 +1121,8 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
       let final_session = interview_loop(session, next_round)
 
       // Save updated session
-      let save_result = interview_storage.append_session_to_jsonl(
-        final_session,
-        jsonl_path,
-      )
+      let save_result =
+        interview_storage.append_session_to_jsonl(final_session, jsonl_path)
 
       case save_result {
         Ok(Nil) -> {
@@ -801,7 +1144,9 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
               cli_ui.print_success("Spec exported to: " <> path)
             }
             Error(err) -> {
-              cli_ui.print_error("Failed to export spec: " <> string.inspect(err))
+              cli_ui.print_error(
+                "Failed to export spec: " <> string.inspect(err),
+              )
             }
           }
         }
@@ -813,14 +1158,21 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
 }
 
 /// Main interview loop - asks questions round by round
-fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.InterviewSession {
+fn interview_loop(
+  session: interview.InterviewSession,
+  round: Int,
+) -> interview.InterviewSession {
   case round > 5 {
     True -> session
     False -> {
       io.println("")
-      io.println("═══════════════════════════════════════════════════════════════════")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
       io.println("ROUND " <> string.inspect(round) <> "/5")
-      io.println("═══════════════════════════════════════════════════════════════════")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
       io.println("")
 
       // Get questions for this round
@@ -831,7 +1183,8 @@ fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.
         }
         Ok(first_question) -> {
           // Ask all questions in this round
-          let updated_session = ask_questions_in_round(session, round, first_question)
+          let updated_session =
+            ask_questions_in_round(session, round, first_question)
 
           // Check for blocking gaps before proceeding
           let blocking_gaps = interview.get_blocking_gaps(updated_session)
@@ -863,13 +1216,13 @@ fn ask_questions_in_round(
   let profile_str = profile_to_string(session.profile)
 
   // Get all questions for this round
-  let questions = interview_questions.get_questions_for_round(profile_str, round)
+  let questions =
+    interview_questions.get_questions_for_round(profile_str, round)
   let answered_ids = list.map(session.answers, fn(a) { a.question_id })
 
   // Filter to unanswered questions
-  let unanswered = list.filter(questions, fn(q) {
-    !list.contains(answered_ids, q.id)
-  })
+  let unanswered =
+    list.filter(questions, fn(q) { !list.contains(answered_ids, q.id) })
 
   // Ask each unanswered question
   list.fold(unanswered, session, fn(sess, question) {
@@ -911,27 +1264,30 @@ fn ask_single_question(
   }
 
   // Extract fields from answer
-  let extracted = interview.extract_from_answer(
-    question.id,
-    answer_text,
-    question.extract_into,
-  )
+  let extracted =
+    interview.extract_from_answer(
+      question.id,
+      answer_text,
+      question.extract_into,
+    )
 
   // Calculate confidence
-  let confidence = interview.calculate_confidence(question.id, answer_text, extracted)
+  let confidence =
+    interview.calculate_confidence(question.id, answer_text, extracted)
 
   // Create answer record
-  let answer = interview.Answer(
-    question_id: question.id,
-    question_text: question.question,
-    perspective: question.perspective,
-    round: round,
-    response: answer_text,
-    extracted: extracted,
-    confidence: confidence,
-    notes: "",
-    timestamp: current_timestamp(),
-  )
+  let answer =
+    interview.Answer(
+      question_id: question.id,
+      question_text: question.question,
+      perspective: question.perspective,
+      round: round,
+      response: answer_text,
+      extracted: extracted,
+      confidence: confidence,
+      notes: "",
+      timestamp: current_timestamp(),
+    )
 
   // Add to session
   let updated_session = interview.add_answer(session, answer)
@@ -982,13 +1338,22 @@ fn parse_profile(profile_str: String) -> Result(interview.Profile, String) {
     "data" -> Ok(interview.Data)
     "workflow" -> Ok(interview.Workflow)
     "ui" -> Ok(interview.UI)
-    _ -> Error("Unknown profile '" <> profile_str <> "'. Valid profiles: api, cli, event, data, workflow, ui")
+    _ ->
+      Error(
+        "Unknown profile '"
+        <> profile_str
+        <> "'. Valid profiles: api, cli, event, data, workflow, ui",
+      )
   }
 }
 
 /// Output a CUE error directive
 fn output_cue_error(message: String) -> Nil {
-  io.println("{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \"" <> escape_cue_string(message) <> "\"\n\t\tsuggestion: \"Check your input and try again\"\n\t\tretry_allowed: true\n\t}\n}")
+  io.println(
+    "{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \""
+    <> escape_cue_string(message)
+    <> "\"\n\t\tsuggestion: \"Check your input and try again\"\n\t\tretry_allowed: true\n\t}\n}",
+  )
 }
 
 /// Start a new interview session in CUE mode
@@ -998,17 +1363,17 @@ fn run_interview_cue_start(profile: interview.Profile) -> Nil {
   let session = interview.create_session(session_id, profile, timestamp)
 
   // Save session to JSONL
-  let save_result = interview_storage.append_session_to_jsonl(
-    session,
-    ".interview/sessions.jsonl",
-  )
+  let save_result =
+    interview_storage.append_session_to_jsonl(
+      session,
+      ".interview/sessions.jsonl",
+    )
 
   case save_result {
     Ok(_) -> {
       // Get first question
       case interview.get_first_question_for_round(session, 1) {
-        Ok(question) ->
-          output_cue_question(session, question, 1)
+        Ok(question) -> output_cue_question(session, question, 1)
         Error(_) -> {
           output_cue_error("No questions available for this profile")
           halt(exit_error)
@@ -1024,7 +1389,12 @@ fn run_interview_cue_start(profile: interview.Profile) -> Nil {
 
 /// Resume an existing interview session in CUE mode
 fn run_interview_cue_resume(session_id: String) -> Nil {
-  case interview_storage.get_session_from_jsonl(".interview/sessions.jsonl", session_id) {
+  case
+    interview_storage.get_session_from_jsonl(
+      ".interview/sessions.jsonl",
+      session_id,
+    )
+  {
     Error(err) -> {
       output_cue_error("Session not found: " <> err)
       halt(exit_error)
@@ -1043,8 +1413,7 @@ fn run_interview_cue_resume(session_id: String) -> Nil {
             _ -> 5
           }
           case get_next_unanswered_question(session, next_round) {
-            Some(question) ->
-              output_cue_question(session, question, next_round)
+            Some(question) -> output_cue_question(session, question, next_round)
             None -> {
               // All questions answered, complete the interview
               output_cue_complete(session)
@@ -1057,7 +1426,10 @@ fn run_interview_cue_resume(session_id: String) -> Nil {
 }
 
 /// Get the next unanswered question for a session
-fn get_next_unanswered_question(session: interview.InterviewSession, start_round: Int) -> Option(Question) {
+fn get_next_unanswered_question(
+  session: interview.InterviewSession,
+  start_round: Int,
+) -> Option(Question) {
   let profile_str = profile_to_string(session.profile)
   let answered_ids = list.map(session.answers, fn(a) { a.question_id })
 
@@ -1065,14 +1437,18 @@ fn get_next_unanswered_question(session: interview.InterviewSession, start_round
   find_unanswered_in_rounds(profile_str, answered_ids, start_round)
 }
 
-fn find_unanswered_in_rounds(profile_str: String, answered_ids: List(String), round: Int) -> Option(Question) {
+fn find_unanswered_in_rounds(
+  profile_str: String,
+  answered_ids: List(String),
+  round: Int,
+) -> Option(Question) {
   case round > 5 {
     True -> None
     False -> {
-      let questions = interview_questions.get_questions_for_round(profile_str, round)
-      let unanswered = list.filter(questions, fn(q) {
-        !list.contains(answered_ids, q.id)
-      })
+      let questions =
+        interview_questions.get_questions_for_round(profile_str, round)
+      let unanswered =
+        list.filter(questions, fn(q) { !list.contains(answered_ids, q.id) })
       case unanswered {
         [first, ..] -> Some(first)
         [] -> find_unanswered_in_rounds(profile_str, answered_ids, round + 1)
@@ -1083,7 +1459,12 @@ fn find_unanswered_in_rounds(profile_str: String, answered_ids: List(String), ro
 
 /// Submit an answer to a session in CUE mode
 fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
-  case interview_storage.get_session_from_jsonl(".interview/sessions.jsonl", session_id) {
+  case
+    interview_storage.get_session_from_jsonl(
+      ".interview/sessions.jsonl",
+      session_id,
+    )
+  {
     Error(err) -> {
       output_cue_error("Session not found: " <> err)
       halt(exit_error)
@@ -1092,7 +1473,10 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
       // Validate answer (basic validation)
       case string.length(string.trim(answer_text)) < 3 {
         True -> {
-          output_cue_validation_error("Answer too short", "Please provide a more detailed response")
+          output_cue_validation_error(
+            "Answer too short",
+            "Please provide a more detailed response",
+          )
           halt(exit_fail)
         }
         False -> {
@@ -1110,24 +1494,31 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
             }
             Some(question) -> {
               // Create answer record
-              let extracted = interview.extract_from_answer(
-                question.id,
-                answer_text,
-                question.extract_into,
-              )
-              let confidence = interview.calculate_confidence(question.id, answer_text, extracted)
+              let extracted =
+                interview.extract_from_answer(
+                  question.id,
+                  answer_text,
+                  question.extract_into,
+                )
+              let confidence =
+                interview.calculate_confidence(
+                  question.id,
+                  answer_text,
+                  extracted,
+                )
 
-              let answer = interview.Answer(
-                question_id: question.id,
-                question_text: question.question,
-                perspective: question.perspective,
-                round: next_round,
-                response: answer_text,
-                extracted: extracted,
-                confidence: confidence,
-                notes: "",
-                timestamp: current_timestamp(),
-              )
+              let answer =
+                interview.Answer(
+                  question_id: question.id,
+                  question_text: question.question,
+                  perspective: question.perspective,
+                  round: next_round,
+                  response: answer_text,
+                  extracted: extracted,
+                  confidence: confidence,
+                  notes: "",
+                  timestamp: current_timestamp(),
+                )
 
               // Add answer to session
               let updated_session = interview.add_answer(session, answer)
@@ -1139,10 +1530,12 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
                 interview.check_for_conflicts(sess_with_gaps, answer)
 
               // Save updated session
-              case interview_storage.append_session_to_jsonl(
-                sess_final,
-                ".interview/sessions.jsonl",
-              ) {
+              case
+                interview_storage.append_session_to_jsonl(
+                  sess_final,
+                  ".interview/sessions.jsonl",
+                )
+              {
                 Error(err) -> {
                   output_cue_error("Failed to save session: " <> err)
                   halt(exit_error)
@@ -1156,15 +1549,22 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
                       // Check if there are more rounds
                       case next_round < 5 {
                         True -> {
-                          case get_next_unanswered_question(sess_final, next_round + 1) {
+                          case
+                            get_next_unanswered_question(
+                              sess_final,
+                              next_round + 1,
+                            )
+                          {
                             Some(next_q) ->
-                              output_cue_question(sess_final, next_q, next_round + 1)
-                            None ->
-                              output_cue_complete(sess_final)
+                              output_cue_question(
+                                sess_final,
+                                next_q,
+                                next_round + 1,
+                              )
+                            None -> output_cue_complete(sess_final)
                           }
                         }
-                        False ->
-                          output_cue_complete(sess_final)
+                        False -> output_cue_complete(sess_final)
                       }
                     }
                   }
@@ -1179,7 +1579,11 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
 }
 
 /// Output a CUE question directive
-fn output_cue_question(session: interview.InterviewSession, question: Question, round: Int) -> Nil {
+fn output_cue_question(
+  session: interview.InterviewSession,
+  question: Question,
+  round: Int,
+) -> Nil {
   let profile_str = profile_to_string(session.profile)
   let total_questions = get_total_questions(profile_str)
   let answered_count = list.length(session.answers)
@@ -1204,21 +1608,43 @@ fn output_cue_question(session: interview.InterviewSession, question: Question, 
     "{\n"
     <> "\taction: \"ask_question\"\n\n"
     <> "\tquestion: {\n"
-    <> "\t\ttext: \"" <> escape_cue_string(question.question) <> "\"\n"
-    <> "\t\tpattern: \"" <> pattern <> "\"\n"
-    <> "\t\texamples: [" <> format_cue_string_list(examples) <> "]\n"
-    <> "\t\thint: \"" <> escape_cue_string(hint) <> "\"\n"
+    <> "\t\ttext: \""
+    <> escape_cue_string(question.question)
+    <> "\"\n"
+    <> "\t\tpattern: \""
+    <> pattern
+    <> "\"\n"
+    <> "\t\texamples: ["
+    <> format_cue_string_list(examples)
+    <> "]\n"
+    <> "\t\thint: \""
+    <> escape_cue_string(hint)
+    <> "\"\n"
     <> "\t}\n\n"
     <> "\tprogress: {\n"
-    <> "\t\tcurrent_step: " <> string.inspect(answered_count + 1) <> "\n"
-    <> "\t\ttotal_steps: " <> string.inspect(total_questions) <> "\n"
-    <> "\t\tpercent_complete: " <> string.inspect(percent) <> "\n"
-    <> "\t\tcategory: \"" <> category <> "\"\n"
+    <> "\t\tcurrent_step: "
+    <> string.inspect(answered_count + 1)
+    <> "\n"
+    <> "\t\ttotal_steps: "
+    <> string.inspect(total_questions)
+    <> "\n"
+    <> "\t\tpercent_complete: "
+    <> string.inspect(percent)
+    <> "\n"
+    <> "\t\tcategory: \""
+    <> category
+    <> "\"\n"
     <> "\t}\n\n"
     <> "\tsession: {\n"
-    <> "\t\tid: \"" <> session.id <> "\"\n"
-    <> "\t\tprofile: \"" <> profile_str <> "\"\n"
-    <> "\t\tstarted_at: \"" <> session.created_at <> "\"\n"
+    <> "\t\tid: \""
+    <> session.id
+    <> "\"\n"
+    <> "\t\tprofile: \""
+    <> profile_str
+    <> "\"\n"
+    <> "\t\tstarted_at: \""
+    <> session.created_at
+    <> "\"\n"
     <> "\t}\n"
     <> "}"
 
@@ -1228,7 +1654,13 @@ fn output_cue_question(session: interview.InterviewSession, question: Question, 
 
 /// Output a CUE validation error
 fn output_cue_validation_error(message: String, suggestion: String) -> Nil {
-  io.println("{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \"" <> escape_cue_string(message) <> "\"\n\t\tsuggestion: \"" <> escape_cue_string(suggestion) <> "\"\n\t\tretry_allowed: true\n\t}\n}")
+  io.println(
+    "{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \""
+    <> escape_cue_string(message)
+    <> "\"\n\t\tsuggestion: \""
+    <> escape_cue_string(suggestion)
+    <> "\"\n\t\tretry_allowed: true\n\t}\n}",
+  )
 }
 
 /// Output interview complete directive
@@ -1245,16 +1677,32 @@ fn output_cue_complete(session: interview.InterviewSession) -> Nil {
     "{\n"
     <> "\taction: \"interview_complete\"\n\n"
     <> "\toutput: {\n"
-    <> "\t\tspec_path: \"" <> spec_path <> "\"\n"
-    <> "\t\tbehaviors_count: " <> string.inspect(behaviors_count) <> "\n"
-    <> "\t\tanti_patterns_count: " <> string.inspect(anti_patterns_count) <> "\n"
-    <> "\t\tsummary: \"Interview complete. Generated spec with " <> string.inspect(behaviors_count) <> " behaviors.\"\n"
+    <> "\t\tspec_path: \""
+    <> spec_path
+    <> "\"\n"
+    <> "\t\tbehaviors_count: "
+    <> string.inspect(behaviors_count)
+    <> "\n"
+    <> "\t\tanti_patterns_count: "
+    <> string.inspect(anti_patterns_count)
+    <> "\n"
+    <> "\t\tsummary: \"Interview complete. Generated spec with "
+    <> string.inspect(behaviors_count)
+    <> " behaviors.\"\n"
     <> "\t}\n\n"
     <> "\tsession: {\n"
-    <> "\t\tid: \"" <> session.id <> "\"\n"
-    <> "\t\tprofile: \"" <> profile_to_string(session.profile) <> "\"\n"
-    <> "\t\tstarted_at: \"" <> session.created_at <> "\"\n"
-    <> "\t\tcompleted_at: \"" <> current_timestamp() <> "\"\n"
+    <> "\t\tid: \""
+    <> session.id
+    <> "\"\n"
+    <> "\t\tprofile: \""
+    <> profile_to_string(session.profile)
+    <> "\"\n"
+    <> "\t\tstarted_at: \""
+    <> session.created_at
+    <> "\"\n"
+    <> "\t\tcompleted_at: \""
+    <> current_timestamp()
+    <> "\"\n"
     <> "\t}\n"
     <> "}"
 
@@ -1265,7 +1713,9 @@ fn output_cue_complete(session: interview.InterviewSession) -> Nil {
 /// Get total number of questions for a profile
 fn get_total_questions(profile_str: String) -> Int {
   list.range(1, 5)
-  |> list.map(fn(round) { interview_questions.get_questions_for_round(profile_str, round) })
+  |> list.map(fn(round) {
+    interview_questions.get_questions_for_round(profile_str, round)
+  })
   |> list.map(list.length)
   |> list.fold(0, fn(acc, n) { acc + n })
 }
@@ -1274,7 +1724,13 @@ fn get_total_questions(profile_str: String) -> Int {
 fn infer_ears_pattern(question: Question) -> String {
   let q_lower = string.lowercase(question.question)
 
-  case string.contains(q_lower, "when"), string.contains(q_lower, "while"), string.contains(q_lower, "if"), string.contains(q_lower, "should not"), string.contains(q_lower, "optional") {
+  case
+    string.contains(q_lower, "when"),
+    string.contains(q_lower, "while"),
+    string.contains(q_lower, "if"),
+    string.contains(q_lower, "should not"),
+    string.contains(q_lower, "optional")
+  {
     True, True, _, _, _ -> "complex"
     True, False, _, _, _ -> "event_driven"
     False, True, _, _, _ -> "state_driven"
@@ -1292,7 +1748,8 @@ fn get_ears_hint(pattern: String) -> String {
     "state_driven" -> "Use format: WHILE [state] THE SYSTEM SHALL [behavior]"
     "optional" -> "Use format: WHERE [condition] THE SYSTEM SHALL [behavior]"
     "unwanted" -> "Use format: IF [condition] THE SYSTEM SHALL NOT [behavior]"
-    "complex" -> "Use format: WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]"
+    "complex" ->
+      "Use format: WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]"
     _ -> "Use EARS format: THE SYSTEM SHALL [behavior]"
   }
 }
@@ -1300,12 +1757,27 @@ fn get_ears_hint(pattern: String) -> String {
 /// Get example answers for a pattern
 fn get_pattern_examples(pattern: String) -> List(String) {
   case pattern {
-    "ubiquitous" -> ["THE SYSTEM SHALL validate all API inputs", "THE SYSTEM SHALL log all requests"]
-    "event_driven" -> ["WHEN user submits form THE SYSTEM SHALL validate data", "WHEN request times out THE SYSTEM SHALL retry"]
-    "state_driven" -> ["WHILE user is authenticated THE SYSTEM SHALL allow access", "WHILE rate limit exceeded THE SYSTEM SHALL reject requests"]
-    "optional" -> ["WHERE user has admin role THE SYSTEM SHALL allow admin actions"]
-    "unwanted" -> ["IF token is expired THE SYSTEM SHALL NOT authorize requests"]
-    "complex" -> ["WHILE in transaction WHEN error occurs THE SYSTEM SHALL rollback"]
+    "ubiquitous" -> [
+      "THE SYSTEM SHALL validate all API inputs",
+      "THE SYSTEM SHALL log all requests",
+    ]
+    "event_driven" -> [
+      "WHEN user submits form THE SYSTEM SHALL validate data",
+      "WHEN request times out THE SYSTEM SHALL retry",
+    ]
+    "state_driven" -> [
+      "WHILE user is authenticated THE SYSTEM SHALL allow access",
+      "WHILE rate limit exceeded THE SYSTEM SHALL reject requests",
+    ]
+    "optional" -> [
+      "WHERE user has admin role THE SYSTEM SHALL allow admin actions",
+    ]
+    "unwanted" -> [
+      "IF token is expired THE SYSTEM SHALL NOT authorize requests",
+    ]
+    "complex" -> [
+      "WHILE in transaction WHEN error occurs THE SYSTEM SHALL rollback",
+    ]
     _ -> ["THE SYSTEM SHALL [describe behavior]"]
   }
 }
@@ -1323,10 +1795,12 @@ fn beads_command() -> glint.Command(Nil) {
     case input.args {
       [session_id, ..] -> {
         // Load session from JSONL
-        case interview_storage.get_session_from_jsonl(
-          ".interview/sessions.jsonl",
-          session_id,
-        ) {
+        case
+          interview_storage.get_session_from_jsonl(
+            ".interview/sessions.jsonl",
+            session_id,
+          )
+        {
           Error(err) -> {
             io.println_error("Error: " <> err)
             halt(exit_error)
@@ -1337,17 +1811,28 @@ fn beads_command() -> glint.Command(Nil) {
             let bead_count = list.length(beads)
 
             io.println("")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("                    BEAD GENERATION")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("")
-            io.println("Generated " <> string.inspect(bead_count) <> " work items from session: " <> session_id)
+            io.println(
+              "Generated "
+              <> string.inspect(bead_count)
+              <> " work items from session: "
+              <> session_id,
+            )
             io.println("")
 
             // Export to .beads/issues.jsonl
             let jsonl_output = bead_templates.beads_to_jsonl(beads)
 
-            case simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n") {
+            case
+              simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
+            {
               Ok(Nil) -> {
                 io.println("✓ Beads exported to: .beads/issues.jsonl")
                 io.println("")
@@ -1360,7 +1845,9 @@ fn beads_command() -> glint.Command(Nil) {
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error("✗ Failed to write beads: " <> string.inspect(err))
+                io.println_error(
+                  "✗ Failed to write beads: " <> string.inspect(err),
+                )
                 halt(exit_error)
               }
             }
@@ -1375,7 +1862,118 @@ fn beads_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Generate work items (beads) from an interview session")
+  |> glint.description(
+    "Generate work items (beads) from an interview session\n\n"
+    <> "Examples:\n"
+    <> "  intent beads interview-abc123def456",
+  )
+}
+
+/// The `execute-beads` command - create beads in bd database from interview session
+fn execute_beads_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [session_id, ..] -> {
+        // Load session from JSONL
+        case
+          interview_storage.get_session_from_jsonl(
+            ".interview/sessions.jsonl",
+            session_id,
+          )
+        {
+          Error(err) -> {
+            io.println_error("Error loading session: " <> err)
+            halt(exit_error)
+          }
+          Ok(session) -> {
+            // Generate beads from session
+            let beads = bead_templates.generate_beads_from_session(session)
+            let bead_count = list.length(beads)
+
+            io.println("")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
+            io.println("                 EXECUTE BEADS IN BD DATABASE")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
+            io.println("")
+            io.println(
+              "Creating "
+              <> string.inspect(bead_count)
+              <> " beads from session: "
+              <> session_id,
+            )
+            io.println("")
+
+            // Create beads in bd database
+            let results = bd_integration.create_beads(beads)
+
+            // Count successes and failures
+            let success_count =
+              results
+              |> list.filter(fn(r) { result.is_ok(r) })
+              |> list.length
+
+            let failure_count =
+              results
+              |> list.filter(fn(r) { result.is_error(r) })
+              |> list.length
+
+            // Display results
+            io.println("Results:")
+            io.println(
+              "  ✓ Successfully created: " <> string.inspect(success_count),
+            )
+
+            case failure_count > 0 {
+              True -> {
+                io.println(
+                  "  ✗ Failed to create: " <> string.inspect(failure_count),
+                )
+                io.println("")
+                io.println("Errors:")
+
+                // Show errors
+                results
+                |> list.filter(fn(r) { result.is_error(r) })
+                |> list.map(fn(r) {
+                  case r {
+                    Error(err) ->
+                      io.println("  - " <> bd_integration.describe_error(err))
+                    Ok(_) -> Nil
+                  }
+                })
+
+                halt(exit_error)
+              }
+              False -> {
+                io.println("")
+                io.println("All beads created successfully!")
+                halt(exit_pass)
+              }
+            }
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Usage: intent execute-beads <session_id>")
+        io.println_error("")
+        io.println_error("Example: intent execute-beads interview-abc123def456")
+        io.println_error("")
+        io.println_error(
+          "This command creates beads in the bd database using 'bd create'.",
+        )
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Create beads in bd database from an interview session\n\n"
+    <> "Examples:\n"
+    <> "  intent execute-beads interview-abc123def456",
+  )
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
@@ -1399,31 +1997,57 @@ fn bead_status_command() -> glint.Command(Nil) {
 
     case string.is_empty(bead_id) {
       True -> {
-        io.println_error("Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]")
+        io.println_error(
+          "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+        )
         halt(exit_error)
       }
       False -> {
         case status {
           "success" -> {
-            case bead_feedback.mark_bead_executed(session_id, bead_id, bead_feedback.Success, reason, 0) {
+            case
+              bead_feedback.mark_bead_executed(
+                session_id,
+                bead_id,
+                bead_feedback.Success,
+                reason,
+                0,
+              )
+            {
               Ok(Nil) -> {
                 io.println("✓ Bead " <> bead_id <> " marked as success")
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                io.println_error(
+                  "✗ Failed to mark bead: "
+                  <> bead_feedback_error_to_string(err),
+                )
                 halt(exit_error)
               }
             }
           }
           "failed" -> {
-            case bead_feedback.mark_bead_failed(session_id, bead_id, reason, "execution_error", "Bead execution failed", option.None, 0) {
+            case
+              bead_feedback.mark_bead_failed(
+                session_id,
+                bead_id,
+                reason,
+                "execution_error",
+                "Bead execution failed",
+                option.None,
+                0,
+              )
+            {
               Ok(Nil) -> {
                 io.println("✓ Bead " <> bead_id <> " marked as failed")
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                io.println_error(
+                  "✗ Failed to mark bead: "
+                  <> bead_feedback_error_to_string(err),
+                )
                 halt(exit_error)
               }
             }
@@ -1435,13 +2059,28 @@ fn bead_status_command() -> glint.Command(Nil) {
                 halt(exit_error)
               }
               False -> {
-                case bead_feedback.mark_bead_blocked(session_id, bead_id, reason, "user_action", "User blocked this bead", "Manual resume required", 0) {
+                case
+                  bead_feedback.mark_bead_blocked(
+                    session_id,
+                    bead_id,
+                    reason,
+                    "user_action",
+                    "User blocked this bead",
+                    "Manual resume required",
+                    0,
+                  )
+                {
                   Ok(Nil) -> {
-                    io.println("✓ Bead " <> bead_id <> " marked as blocked: " <> reason)
+                    io.println(
+                      "✓ Bead " <> bead_id <> " marked as blocked: " <> reason,
+                    )
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                    io.println_error(
+                      "✗ Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
+                    )
                     halt(exit_error)
                   }
                 }
@@ -1457,11 +2096,32 @@ fn bead_status_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Mark bead execution status (success/failed/blocked)")
-  |> glint.flag("bead-id", flag.string() |> flag.default("") |> flag.description("Bead ID (required)"))
-  |> glint.flag("status", flag.string() |> flag.default("") |> flag.description("Status: success, failed, or blocked (required)"))
-  |> glint.flag("reason", flag.string() |> flag.default("") |> flag.description("Reason for status (required for blocked)"))
-  |> glint.flag("session", flag.string() |> flag.default("") |> flag.description("Session ID"))
+  |> glint.description(
+    "Mark bead execution status (success/failed/blocked)\n\n"
+    <> "Examples:\n"
+    <> "  intent bead-status --bead-id bead-123 --status success\n"
+    <> "  intent bead-status --bead-id bead-456 --status blocked --reason 'waiting on API'",
+  )
+  |> glint.flag(
+    "bead-id",
+    flag.string() |> flag.default("") |> flag.description("Bead ID (required)"),
+  )
+  |> glint.flag(
+    "status",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Status: success, failed, or blocked (required)"),
+  )
+  |> glint.flag(
+    "reason",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Reason for status (required for blocked)"),
+  )
+  |> glint.flag(
+    "session",
+    flag.string() |> flag.default("") |> flag.description("Session ID"),
+  )
 }
 
 // =============================================================================
@@ -1493,19 +2153,28 @@ fn plan_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent plan <session_id> [--format human|json]")
+        io.println_error(
+          "Usage: intent plan <session_id> [--format human|json]",
+        )
         io.println_error("")
         io.println_error("Display execution plan from session beads.")
         io.println_error("")
         io.println_error("Examples:")
-        io.println_error("  intent plan abc123              # Human-readable output")
+        io.println_error(
+          "  intent plan abc123              # Human-readable output",
+        )
         io.println_error("  intent plan abc123 --format json  # JSON output")
         halt(exit_error)
       }
     }
   })
   |> glint.description("Display execution plan from session beads")
-  |> glint.flag("format", flag.string() |> flag.default("human") |> flag.description("Output format: human or json"))
+  |> glint.flag(
+    "format",
+    flag.string()
+      |> flag.default("human")
+      |> flag.description("Output format: human or json"),
+  )
 }
 
 /// The `plan-approve` command - approve execution plan for CI/automation
@@ -1530,9 +2199,13 @@ fn plan_approve_command() -> glint.Command(Nil) {
           Ok(plan) -> {
             // Show plan summary
             io.println("")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("                    PLAN APPROVAL")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("")
             io.println("Session: " <> plan.session_id)
             io.println("Total Beads: " <> string.inspect(plan.total_beads))
@@ -1577,7 +2250,9 @@ fn plan_approve_command() -> glint.Command(Nil) {
                             halt(exit_pass)
                           }
                           Error(err) -> {
-                            io.println_error("✗ Failed to approve plan: " <> err)
+                            io.println_error(
+                              "✗ Failed to approve plan: " <> err,
+                            )
                             halt(exit_error)
                           }
                         }
@@ -1587,7 +2262,9 @@ fn plan_approve_command() -> glint.Command(Nil) {
                         halt(exit_fail)
                       }
                       _ -> {
-                        io.println_error("Invalid response. Please enter 'yes' or 'no'")
+                        io.println_error(
+                          "Invalid response. Please enter 'yes' or 'no'",
+                        )
                         halt(exit_error)
                       }
                     }
@@ -1603,28 +2280,54 @@ fn plan_approve_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent plan-approve <session_id> [--yes] [--notes 'text']")
+        io.println_error(
+          "Usage: intent plan-approve <session_id> [--yes] [--notes 'text']",
+        )
         io.println_error("")
         io.println_error("Approve execution plan for a session.")
         io.println_error("")
         io.println_error("Flags:")
-        io.println_error("  --yes      Auto-approve for CI pipelines (non-interactive)")
+        io.println_error(
+          "  --yes      Auto-approve for CI pipelines (non-interactive)",
+        )
         io.println_error("  --notes    Optional approval notes")
         io.println_error("")
         io.println_error("Examples:")
-        io.println_error("  intent plan-approve abc123           # Interactive approval")
-        io.println_error("  intent plan-approve abc123 --yes     # CI auto-approval")
+        io.println_error(
+          "  intent plan-approve abc123           # Interactive approval",
+        )
+        io.println_error(
+          "  intent plan-approve abc123 --yes     # CI auto-approval",
+        )
         halt(exit_error)
       }
     }
   })
-  |> glint.description("Approve execution plan for session")
-  |> glint.flag("yes", flag.bool() |> flag.default(False) |> flag.description("Auto-approve for CI (non-interactive)"))
-  |> glint.flag("notes", flag.string() |> flag.default("") |> flag.description("Approval notes"))
+  |> glint.description(
+    "Approve execution plan for session\n\n"
+    <> "Examples:\n"
+    <> "  intent plan-approve abc123\n"
+    <> "  intent plan-approve abc123 --yes\n"
+    <> "  intent plan-approve abc123 --notes 'approved for release'",
+  )
+  |> glint.flag(
+    "yes",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Auto-approve for CI (non-interactive)"),
+  )
+  |> glint.flag(
+    "notes",
+    flag.string() |> flag.default("") |> flag.description("Approval notes"),
+  )
 }
 
 /// Write plan approval to session CUE file
-fn approve_plan(session_id: String, approved_by: String, notes: String) -> Result(Nil, String) {
+fn approve_plan(
+  session_id: String,
+  approved_by: String,
+  notes: String,
+) -> Result(Nil, String) {
   let session_path = ".intent/session-" <> session_id <> ".cue"
   let timestamp = current_iso8601_timestamp()
 
@@ -1694,7 +2397,10 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
             // Load feedback
             case bead_feedback.load_feedback_for_session(session_id) {
               Error(err) -> {
-                io.println_error("Failed to load feedback: " <> bead_feedback_error_to_string(err))
+                io.println_error(
+                  "Failed to load feedback: "
+                  <> bead_feedback_error_to_string(err),
+                )
                 halt(exit_error)
               }
               Ok(feedback) -> {
@@ -1710,19 +2416,30 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                   })
 
                 io.println("")
-                io.println("═══════════════════════════════════════════════════════════════════")
+                io.println(
+                  "═══════════════════════════════════════════════════════════════════",
+                )
                 io.println("                    BEAD REGENERATION")
-                io.println("═══════════════════════════════════════════════════════════════════")
+                io.println(
+                  "═══════════════════════════════════════════════════════════════════",
+                )
                 io.println("")
                 io.println("Session: " <> session_id)
                 io.println("Strategy: " <> strategy)
-                io.println("Feedback entries: " <> string.inspect(list.length(feedback)))
-                io.println("Beads needing regeneration: " <> string.inspect(list.length(needs_regen)))
+                io.println(
+                  "Feedback entries: " <> string.inspect(list.length(feedback)),
+                )
+                io.println(
+                  "Beads needing regeneration: "
+                  <> string.inspect(list.length(needs_regen)),
+                )
                 io.println("")
 
                 case list.is_empty(needs_regen) {
                   True -> {
-                    io.println("✓ No beads need regeneration - all passed or skipped")
+                    io.println(
+                      "✓ No beads need regeneration - all passed or skipped",
+                    )
                     halt(exit_pass)
                   }
                   False -> {
@@ -1734,28 +2451,53 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                         bead_feedback.Blocked -> "⊘"
                         _ -> "?"
                       }
-                      io.println("  " <> status_icon <> " " <> fb.bead_id <> ": " <> fb.reason)
+                      io.println(
+                        "  "
+                        <> status_icon
+                        <> " "
+                        <> fb.bead_id
+                        <> ": "
+                        <> fb.reason,
+                      )
                     })
                     io.println("")
 
                     // Generate regeneration entries
-                    let regen_entries = generate_regeneration_entries(needs_regen, strategy)
+                    let regen_entries =
+                      generate_regeneration_entries(needs_regen, strategy)
 
                     // Append regeneration metadata to session
-                    case append_regeneration_to_session(session_path, regen_entries) {
+                    case
+                      append_regeneration_to_session(
+                        session_path,
+                        regen_entries,
+                      )
+                    {
                       Ok(Nil) -> {
                         io.println("✓ Regeneration metadata added to session")
                         io.println("  Strategy: " <> strategy)
-                        io.println("  Beads marked for regeneration: " <> string.inspect(list.length(needs_regen)))
+                        io.println(
+                          "  Beads marked for regeneration: "
+                          <> string.inspect(list.length(needs_regen)),
+                        )
                         io.println("")
                         io.println("Next steps:")
-                        io.println("  1. Review regeneration suggestions in " <> session_path)
-                        io.println("  2. Run 'intent plan " <> session_id <> "' to see updated plan")
+                        io.println(
+                          "  1. Review regeneration suggestions in "
+                          <> session_path,
+                        )
+                        io.println(
+                          "  2. Run 'intent plan "
+                          <> session_id
+                          <> "' to see updated plan",
+                        )
                         io.println("  3. Execute regenerated beads")
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error("✗ Failed to update session: " <> err)
+                        io.println_error(
+                          "✗ Failed to update session: " <> err,
+                        )
                         halt(exit_error)
                       }
                     }
@@ -1767,9 +2509,13 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]")
+        io.println_error(
+          "Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
+        )
         io.println_error("")
-        io.println_error("Regenerate failed/blocked beads with adjusted approach.")
+        io.println_error(
+          "Regenerate failed/blocked beads with adjusted approach.",
+        )
         io.println_error("")
         io.println_error("Strategies:")
         io.println_error("  hybrid     - Use all analysis methods (default)")
@@ -1778,13 +2524,27 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         io.println_error("")
         io.println_error("Examples:")
         io.println_error("  intent beads-regenerate abc123")
-        io.println_error("  intent beads-regenerate abc123 --strategy inversion")
+        io.println_error(
+          "  intent beads-regenerate abc123 --strategy inversion",
+        )
         halt(exit_error)
       }
     }
   })
-  |> glint.description("Regenerate failed/blocked beads with adjusted approach")
-  |> glint.flag("strategy", flag.string() |> flag.default("hybrid") |> flag.description("Regeneration strategy: hybrid, inversion, or premortem"))
+  |> glint.description(
+    "Regenerate failed/blocked beads with adjusted approach\n\n"
+    <> "Examples:\n"
+    <> "  intent beads-regenerate abc123\n"
+    <> "  intent beads-regenerate abc123 --strategy inversion",
+  )
+  |> glint.flag(
+    "strategy",
+    flag.string()
+      |> flag.default("hybrid")
+      |> flag.description(
+        "Regeneration strategy: hybrid, inversion, or premortem",
+      ),
+  )
 }
 
 /// Generate regeneration entries based on failed beads and strategy
@@ -1803,10 +2563,18 @@ fn generate_regeneration_entries(
       }
 
       "  {\n"
-      <> "    bead_id: \"" <> fb.bead_id <> "\"\n"
-      <> "    strategy: \"" <> strategy <> "\"\n"
-      <> "    root_cause: \"" <> escape_cue_string(root_cause) <> "\"\n"
-      <> "    regenerated_at: \"" <> timestamp <> "\"\n"
+      <> "    bead_id: \""
+      <> fb.bead_id
+      <> "\"\n"
+      <> "    strategy: \""
+      <> strategy
+      <> "\"\n"
+      <> "    root_cause: \""
+      <> escape_cue_string(root_cause)
+      <> "\"\n"
+      <> "    regenerated_at: \""
+      <> timestamp
+      <> "\"\n"
       <> "  }"
     })
     |> string.join(",\n")
@@ -1835,7 +2603,8 @@ fn append_regeneration_to_session(
 fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
   case err {
     bead_feedback.SessionNotFound(id) -> "Session not found: " <> id
-    bead_feedback.WriteError(path, msg) -> "Write error to " <> path <> ": " <> msg
+    bead_feedback.WriteError(path, msg) ->
+      "Write error to " <> path <> ": " <> msg
     bead_feedback.ValidationError(msg) -> "Validation error: " <> msg
   }
 }
@@ -1855,7 +2624,9 @@ fn history_command() -> glint.Command(Nil) {
           Ok([]) -> {
             cli_ui.print_warning("No history found for session: " <> session_id)
             io.println("")
-            io.println("Tip: Session history is recorded when you save snapshots")
+            io.println(
+              "Tip: Session history is recorded when you save snapshots",
+            )
             io.println("during an interview with --snapshot flag.")
             halt(exit_pass)
           }
@@ -1868,9 +2639,13 @@ fn history_command() -> glint.Command(Nil) {
               io.println("│  Time: " <> snapshot.timestamp)
               io.println("│  Stage: " <> snapshot.stage)
               io.println("│  Description: " <> snapshot.description)
-              io.println("│  Answers: " <> string.inspect(dict.size(snapshot.answers)))
+              io.println(
+                "│  Answers: " <> string.inspect(dict.size(snapshot.answers)),
+              )
               io.println("│  Gaps: " <> string.inspect(snapshot.gaps_count))
-              io.println("│  Conflicts: " <> string.inspect(snapshot.conflicts_count))
+              io.println(
+                "│  Conflicts: " <> string.inspect(snapshot.conflicts_count),
+              )
               io.println("└─")
               io.println("")
             })
@@ -1889,7 +2664,11 @@ fn history_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("View snapshot history for an interview session")
+  |> glint.description(
+    "View snapshot history for an interview session\n\n"
+    <> "Examples:\n"
+    <> "  intent history interview-abc123",
+  )
 }
 
 /// The `diff` command - compare two sessions
@@ -1913,7 +2692,8 @@ fn diff_command() -> glint.Command(Nil) {
               }
               Ok(to_session) -> {
                 // Compute and display diff
-                let diff = interview_storage.diff_sessions(from_session, to_session)
+                let diff =
+                  interview_storage.diff_sessions(from_session, to_session)
                 cli_ui.print_header("Session Comparison")
                 io.println("")
                 io.println(interview_storage.format_diff(diff))
@@ -1927,7 +2707,10 @@ fn diff_command() -> glint.Command(Nil) {
 
                 case total_changes {
                   0 -> cli_ui.print_info("No answer changes between sessions")
-                  n -> cli_ui.print_info(string.inspect(n) <> " total answer changes")
+                  n ->
+                    cli_ui.print_info(
+                      string.inspect(n) <> " total answer changes",
+                    )
                 }
 
                 halt(exit_pass)
@@ -1960,7 +2743,11 @@ fn diff_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Compare two interview sessions and show differences")
+  |> glint.description(
+    "Compare two interview sessions and show differences\n\n"
+    <> "Examples:\n"
+    <> "  intent diff session1 session2",
+  )
 }
 
 /// The `sessions` command - list all interview sessions
@@ -1996,14 +2783,16 @@ fn sessions_command() -> glint.Command(Nil) {
         // Filter by profile if specified
         let filtered = case profile_filter {
           "" -> sessions
-          p -> list.filter(sessions, fn(s) {
-            profile_to_string(s.profile) == string.lowercase(p)
-          })
+          p ->
+            list.filter(sessions, fn(s) {
+              profile_to_string(s.profile) == string.lowercase(p)
+            })
         }
 
         case is_json {
           True -> {
-            let json_sessions = json.array(filtered, interview_storage.session_to_json)
+            let json_sessions =
+              json.array(filtered, interview_storage.session_to_json)
             io.println(json.to_string(json_sessions))
           }
           False -> {
@@ -2018,16 +2807,26 @@ fn sessions_command() -> glint.Command(Nil) {
               }
 
               io.println(status_icon <> " " <> session.id)
-              io.println("  Profile: " <> profile_to_display_string(session.profile))
+              io.println(
+                "  Profile: " <> profile_to_display_string(session.profile),
+              )
               io.println("  Stage: " <> stage_to_display_string(session.stage))
-              io.println("  Rounds: " <> string.inspect(session.rounds_completed) <> "/5")
-              io.println("  Answers: " <> string.inspect(list.length(session.answers)))
+              io.println(
+                "  Rounds: " <> string.inspect(session.rounds_completed) <> "/5",
+              )
+              io.println(
+                "  Answers: " <> string.inspect(list.length(session.answers)),
+              )
               io.println("  Created: " <> session.created_at)
               io.println("  Updated: " <> session.updated_at)
               io.println("")
             })
 
-            io.println("Total: " <> string.inspect(list.length(filtered)) <> " session(s)")
+            io.println(
+              "Total: "
+              <> string.inspect(list.length(filtered))
+              <> " session(s)",
+            )
           }
         }
 
@@ -2035,18 +2834,23 @@ fn sessions_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("List all interview sessions")
+  |> glint.description(
+    "List all interview sessions\n\n"
+    <> "Examples:\n"
+    <> "  intent sessions\n"
+    <> "  intent sessions --json",
+  )
   |> glint.flag(
     "json",
     flag.bool()
-    |> flag.default(False)
-    |> flag.description("Output as JSON"),
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
   )
   |> glint.flag(
     "profile",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Filter by profile (api, cli, event, etc.)"),
+      |> flag.default("")
+      |> flag.description("Filter by profile (api, cli, event, etc.)"),
   )
 }
 
@@ -2078,21 +2882,30 @@ fn kirk_quality_command() -> glint.Command(Nil) {
             let report = kirk_quality.analyze_quality(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("completeness", json.float(report.completeness)),
-                  #("consistency", json.float(report.consistency)),
-                  #("testability", json.float(report.testability)),
-                  #("clarity", json.float(report.clarity)),
-                  #("security", json.float(report.security)),
-                  #("overall", json.float(report.overall)),
-                  #("issues", json.array(report.issues, fn(i) {
-                    json.object([
-                      #("field", json.string(i.field)),
-                      #("issue", json.string(i.issue)),
-                      #("severity", json.string(kirk_quality.severity_to_string(i.severity))),
-                    ])
-                  })),
-                ])
+                let json_obj =
+                  json.object([
+                    #("completeness", json.float(report.completeness)),
+                    #("consistency", json.float(report.consistency)),
+                    #("testability", json.float(report.testability)),
+                    #("clarity", json.float(report.clarity)),
+                    #("security", json.float(report.security)),
+                    #("overall", json.float(report.overall)),
+                    #(
+                      "issues",
+                      json.array(report.issues, fn(i) {
+                        json.object([
+                          #("field", json.string(i.field)),
+                          #("issue", json.string(i.issue)),
+                          #(
+                            "severity",
+                            json.string(kirk_quality.severity_to_string(
+                              i.severity,
+                            )),
+                          ),
+                        ])
+                      }),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(kirk_quality.format_report(report))
@@ -2112,8 +2925,16 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.description(
+    "KIRK: Analyze spec quality across multiple dimensions\n\n"
+    <> "Examples:\n"
+    <> "  intent quality spec.cue\n"
+    <> "  intent quality spec.cue --json",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `invert` command - KIRK inversion analysis
@@ -2130,20 +2951,33 @@ fn kirk_invert_command() -> glint.Command(Nil) {
             let report = inversion_checker.analyze_inversions(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("score", json.float(report.score)),
-                  #("security_gaps", json.array(report.security_gaps, gap_to_json)),
-                  #("usability_gaps", json.array(report.usability_gaps, gap_to_json)),
-                  #("integration_gaps", json.array(report.integration_gaps, gap_to_json)),
-                  #("suggested_behaviors", json.array(report.suggested_behaviors, fn(s) {
-                    json.object([
-                      #("name", json.string(s.name)),
-                      #("intent", json.string(s.intent)),
-                      #("expected_status", json.int(s.expected_status)),
-                      #("category", json.string(s.category)),
-                    ])
-                  })),
-                ])
+                let json_obj =
+                  json.object([
+                    #("score", json.float(report.score)),
+                    #(
+                      "security_gaps",
+                      json.array(report.security_gaps, gap_to_json),
+                    ),
+                    #(
+                      "usability_gaps",
+                      json.array(report.usability_gaps, gap_to_json),
+                    ),
+                    #(
+                      "integration_gaps",
+                      json.array(report.integration_gaps, gap_to_json),
+                    ),
+                    #(
+                      "suggested_behaviors",
+                      json.array(report.suggested_behaviors, fn(s) {
+                        json.object([
+                          #("name", json.string(s.name)),
+                          #("intent", json.string(s.intent)),
+                          #("expected_status", json.int(s.expected_status)),
+                          #("category", json.string(s.category)),
+                        ])
+                      }),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(inversion_checker.format_report(report))
@@ -2163,15 +2997,26 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Inversion analysis - what failure cases are missing?")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.description(
+    "KIRK: Inversion analysis - what failure cases are missing?\n\n"
+    <> "Examples:\n"
+    <> "  intent invert spec.cue\n"
+    <> "  intent invert spec.cue --json",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 fn gap_to_json(gap: inversion_checker.InversionGap) -> json.Json {
   json.object([
     #("category", json.string(gap.category)),
     #("description", json.string(gap.description)),
-    #("severity", json.string(inversion_checker.severity_to_string(gap.severity))),
+    #(
+      "severity",
+      json.string(inversion_checker.severity_to_string(gap.severity)),
+    ),
     #("what_could_fail", json.string(gap.what_could_fail)),
   ])
 }
@@ -2190,21 +3035,31 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
             let report = coverage_analyzer.analyze_coverage(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("overall_score", json.float(report.overall_score)),
-                  #("methods", json.object(
-                    report.methods
-                    |> dict.to_list()
-                    |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) })
-                  )),
-                  #("status_codes", json.object(
-                    report.status_codes
-                    |> dict.to_list()
-                    |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) })
-                  )),
-                  #("owasp_score", json.float(report.owasp.score)),
-                  #("owasp_missing", json.array(report.owasp.missing, json.string)),
-                ])
+                let json_obj =
+                  json.object([
+                    #("overall_score", json.float(report.overall_score)),
+                    #(
+                      "methods",
+                      json.object(
+                        report.methods
+                        |> dict.to_list()
+                        |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
+                      ),
+                    ),
+                    #(
+                      "status_codes",
+                      json.object(
+                        report.status_codes
+                        |> dict.to_list()
+                        |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
+                      ),
+                    ),
+                    #("owasp_score", json.float(report.owasp.score)),
+                    #(
+                      "owasp_missing",
+                      json.array(report.owasp.missing, json.string),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(coverage_analyzer.format_report(report))
@@ -2224,8 +3079,16 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.description(
+    "KIRK: Coverage analysis including OWASP Top 10\n\n"
+    <> "Examples:\n"
+    <> "  intent coverage spec.cue\n"
+    <> "  intent coverage spec.cue --json",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `gaps` command - KIRK gap detection
@@ -2242,20 +3105,42 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
             let report = gap_detector.detect_gaps(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("total_gaps", json.int(report.total_gaps)),
-                  #("severity_breakdown", json.object([
-                    #("critical", json.int(report.severity_breakdown.critical)),
-                    #("high", json.int(report.severity_breakdown.high)),
-                    #("medium", json.int(report.severity_breakdown.medium)),
-                    #("low", json.int(report.severity_breakdown.low)),
-                  ])),
-                  #("inversion_gaps", json.array(report.inversion_gaps, detected_gap_to_json)),
-                  #("second_order_gaps", json.array(report.second_order_gaps, detected_gap_to_json)),
-                  #("checklist_gaps", json.array(report.checklist_gaps, detected_gap_to_json)),
-                  #("coverage_gaps", json.array(report.coverage_gaps, detected_gap_to_json)),
-                  #("security_gaps", json.array(report.security_gaps, detected_gap_to_json)),
-                ])
+                let json_obj =
+                  json.object([
+                    #("total_gaps", json.int(report.total_gaps)),
+                    #(
+                      "severity_breakdown",
+                      json.object([
+                        #(
+                          "critical",
+                          json.int(report.severity_breakdown.critical),
+                        ),
+                        #("high", json.int(report.severity_breakdown.high)),
+                        #("medium", json.int(report.severity_breakdown.medium)),
+                        #("low", json.int(report.severity_breakdown.low)),
+                      ]),
+                    ),
+                    #(
+                      "inversion_gaps",
+                      json.array(report.inversion_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "second_order_gaps",
+                      json.array(report.second_order_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "checklist_gaps",
+                      json.array(report.checklist_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "coverage_gaps",
+                      json.array(report.coverage_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "security_gaps",
+                      json.array(report.security_gaps, detected_gap_to_json),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(gap_detector.format_report(report))
@@ -2275,8 +3160,16 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Detect gaps using mental models")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.description(
+    "KIRK: Detect gaps using mental models\n\n"
+    <> "Examples:\n"
+    <> "  intent gaps spec.cue\n"
+    <> "  intent gaps spec.cue --json",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
@@ -2313,7 +3206,11 @@ fn kirk_effects_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze second-order effects (consequence tracing)")
+  |> glint.description(
+    "KIRK: Analyze second-order effects (consequence tracing)\n\n"
+    <> "Examples:\n"
+    <> "  intent effects spec.cue",
+  )
 }
 
 /// The `compact` command - KIRK compact format (CIN)
@@ -2333,13 +3230,26 @@ fn kirk_compact_command() -> glint.Command(Nil) {
 
             case show_tokens {
               True -> {
-                let #(full, compact_tokens, savings) = compact_format.compare_token_usage(spec)
+                let #(full, compact_tokens, savings) =
+                  compact_format.compare_token_usage(spec)
                 io.println("")
-                io.println("─────────────────────────────────────")
+                io.println(
+                  "─────────────────────────────────────",
+                )
                 io.println("Token Analysis:")
-                io.println("  Full JSON:    ~" <> string.inspect(full) <> " tokens")
-                io.println("  Compact CIN:  ~" <> string.inspect(compact_tokens) <> " tokens")
-                io.println("  Savings:      " <> string.inspect(float.round(savings)) <> "%")
+                io.println(
+                  "  Full JSON:    ~" <> string.inspect(full) <> " tokens",
+                )
+                io.println(
+                  "  Compact CIN:  ~"
+                  <> string.inspect(compact_tokens)
+                  <> " tokens",
+                )
+                io.println(
+                  "  Savings:      "
+                  <> string.inspect(float.round(savings))
+                  <> "%",
+                )
               }
               False -> Nil
             }
@@ -2359,8 +3269,18 @@ fn kirk_compact_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Convert to Compact Intent Notation (token-efficient)")
-  |> glint.flag("tokens", flag.bool() |> flag.default(False) |> flag.description("Show token comparison"))
+  |> glint.description(
+    "KIRK: Convert to Compact Intent Notation (token-efficient)\n\n"
+    <> "Examples:\n"
+    <> "  intent compact spec.cue\n"
+    <> "  intent compact spec.cue --tokens",
+  )
+  |> glint.flag(
+    "tokens",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Show token comparison"),
+  )
 }
 
 /// The `prototext` command - KIRK protobuf text format output
@@ -2387,7 +3307,11 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Export to Protobuf text format")
+  |> glint.description(
+    "KIRK: Export to Protobuf text format\n\n"
+    <> "Examples:\n"
+    <> "  intent prototext spec.cue",
+  )
 }
 
 /// The `ears` command - KIRK EARS requirements parser
@@ -2417,33 +3341,46 @@ fn kirk_ears_command() -> glint.Command(Nil) {
               }
               "json" -> {
                 let behaviors = ears_parser.to_behaviors(result)
-                let json_obj = json.object([
-                  #("requirements", json.array(result.requirements, fn(r) {
-                    json.object([
-                      #("id", json.string(r.id)),
-                      #("pattern", json.string(ears_parser.pattern_to_string(r.pattern))),
-                      #("system_shall", json.string(r.system_shall)),
-                      #("raw_text", json.string(r.raw_text)),
-                    ])
-                  })),
-                  #("behaviors", json.array(behaviors, fn(b) {
-                    json.object([
-                      #("name", json.string(b.name)),
-                      #("intent", json.string(b.intent)),
-                      #("method", json.string(b.method)),
-                      #("path", json.string(b.path)),
-                      #("status", json.int(b.status)),
-                    ])
-                  })),
-                  #("errors", json.array(result.errors, fn(e) {
-                    json.object([
-                      #("line", json.int(e.line)),
-                      #("message", json.string(e.message)),
-                      #("suggestion", json.string(e.suggestion)),
-                    ])
-                  })),
-                  #("warnings", json.array(result.warnings, json.string)),
-                ])
+                let json_obj =
+                  json.object([
+                    #(
+                      "requirements",
+                      json.array(result.requirements, fn(r) {
+                        json.object([
+                          #("id", json.string(r.id)),
+                          #(
+                            "pattern",
+                            json.string(ears_parser.pattern_to_string(r.pattern)),
+                          ),
+                          #("system_shall", json.string(r.system_shall)),
+                          #("raw_text", json.string(r.raw_text)),
+                        ])
+                      }),
+                    ),
+                    #(
+                      "behaviors",
+                      json.array(behaviors, fn(b) {
+                        json.object([
+                          #("name", json.string(b.name)),
+                          #("intent", json.string(b.intent)),
+                          #("method", json.string(b.method)),
+                          #("path", json.string(b.path)),
+                          #("status", json.int(b.status)),
+                        ])
+                      }),
+                    ),
+                    #(
+                      "errors",
+                      json.array(result.errors, fn(e) {
+                        json.object([
+                          #("line", json.int(e.line)),
+                          #("message", json.string(e.message)),
+                          #("suggestion", json.string(e.suggestion)),
+                        ])
+                      }),
+                    ),
+                    #("warnings", json.array(result.warnings, json.string)),
+                  ])
                 json.to_string(json_obj)
               }
               _ -> ears_parser.format_result(result)
@@ -2469,25 +3406,1334 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       }
       [] -> {
         cli_ui.print_error("requirements file path required")
-        io.println("Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]")
+        io.println(
+          "Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
+        )
         io.println("")
         io.println("EARS Patterns:")
-        io.println("  THE SYSTEM SHALL [behavior]                    - Ubiquitous")
-        io.println("  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven")
-        io.println("  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven")
-        io.println("  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional")
-        io.println("  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted")
+        io.println(
+          "  THE SYSTEM SHALL [behavior]                    - Ubiquitous",
+        )
+        io.println(
+          "  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven",
+        )
+        io.println(
+          "  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven",
+        )
+        io.println(
+          "  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional",
+        )
+        io.println(
+          "  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted",
+        )
         halt(exit_error)
       }
     }
   })
-  |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
-  |> glint.flag("output", flag.string() |> flag.default("text") |> flag.description("Output format: text, cue, json"))
-  |> glint.flag("out", flag.string() |> flag.default("") |> flag.description("Output file path"))
-  |> glint.flag("name", flag.string() |> flag.default("GeneratedSpec") |> flag.description("Spec name for CUE output"))
+  |> glint.description(
+    "KIRK: Parse EARS requirements to Intent behaviors\n\n"
+    <> "Examples:\n"
+    <> "  intent ears requirements.md\n"
+    <> "  intent ears requirements.md --output cue --name UserAPI\n"
+    <> "  intent ears requirements.md --output json\n"
+    <> "  intent ears requirements.md --output cue --out spec.cue",
+  )
+  |> glint.flag(
+    "output",
+    flag.string()
+      |> flag.default("text")
+      |> flag.description("Output format: text, cue, json"),
+  )
+  |> glint.flag(
+    "out",
+    flag.string() |> flag.default("") |> flag.description("Output file path"),
+  )
+  |> glint.flag(
+    "name",
+    flag.string()
+      |> flag.default("GeneratedSpec")
+      |> flag.description("Spec name for CUE output"),
+  )
 }
 
-import gleam/float
+/// The `ears-interview` command - interactive EARS requirements capture
+fn ears_interview_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let session_name = case input.args {
+      [name, ..] -> name
+      [] -> "ears-session-" <> string.inspect(timestamp_ms())
+    }
+
+    io.println("")
+    io.println(
+      "═══════════════════════════════════════════════════════════════════",
+    )
+    io.println("          EARS INTERVIEW - Systematic Requirements Capture")
+    io.println(
+      "═══════════════════════════════════════════════════════════════════",
+    )
+    io.println("")
+    io.println(
+      "This interview will guide you through the 6 EARS patterns to capture",
+    )
+    io.println("complete, unambiguous requirements.")
+    io.println("")
+    io.println("Session: " <> session_name)
+    io.println("")
+
+    // Create new session
+    let session = ears_interview.new_session(session_name)
+
+    // Start interview loop
+    run_ears_interview_loop(session)
+  })
+  |> glint.description(
+    "Interactive EARS requirements interview workflow\n\n"
+    <> "Examples:\n"
+    <> "  intent ears-interview --profile Api\n"
+    <> "  intent ears-interview --profile Cli --name MyTool",
+  )
+}
+
+/// Run the interactive EARS interview loop
+fn run_ears_interview_loop(session: ears_interview.EarsSession) -> Nil {
+  case ears_interview.is_complete(session) {
+    True -> {
+      // Interview complete
+      io.println("")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("                    INTERVIEW COMPLETE!")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("")
+      io.println(ears_interview.get_progress_summary(session))
+      io.println("")
+
+      // Export requirements
+      let requirements = ears_interview.get_requirements(session)
+      let requirements_text =
+        requirements
+        |> list.map(fn(req) { req.raw_text })
+        |> string.join("\n")
+
+      let output_file = session.session_id <> ".ears.txt"
+      case simplifile.write(output_file, requirements_text) {
+        Ok(_) -> {
+          io.println("✓ Requirements saved to: " <> output_file)
+          io.println("")
+          io.println("Next steps:")
+          io.println("  1. Review requirements in " <> output_file)
+          io.println("  2. Run: intent ears " <> output_file <> " --output cue")
+          io.println(
+            "  3. Run: intent check <generated-spec.cue> --target <url>",
+          )
+        }
+        Error(_) -> cli_ui.print_error("Failed to save requirements")
+      }
+
+      halt(exit_pass)
+    }
+    False -> {
+      // Get current question
+      let question = ears_interview.get_current_question(session)
+
+      // Display question
+      io.println(
+        "─────────────────────────────────────────────────────────────────────",
+      )
+      io.println("Pattern: " <> pattern_name(question.pattern))
+      io.println(
+        "─────────────────────────────────────────────────────────────────────",
+      )
+      io.println("")
+      io.println("Question: " <> question.question)
+      io.println("")
+      io.println("Example:")
+      io.println("  " <> question.example)
+      io.println("")
+      io.println("Template:")
+      io.println("  " <> question.template)
+      io.println("")
+      io.println("Why this matters:")
+      io.println("  " <> question.why)
+      io.println("")
+      io.println("Enter your requirement (or 'skip' to move to next pattern):")
+      io.println("")
+
+      // Get user input
+      case stdin.read_line() {
+        Ok(response) -> {
+          let response = string.trim(response)
+
+          case response {
+            "skip" | "SKIP" -> {
+              // Skip this pattern
+              io.println("")
+              io.println("⊳ Skipping " <> pattern_name(question.pattern))
+              io.println("")
+              run_ears_interview_loop(ears_interview.advance_pattern(session))
+            }
+            "" -> {
+              // Empty input, prompt again
+              io.println("")
+              cli_ui.print_error("Please enter a requirement or 'skip'")
+              io.println("")
+              run_ears_interview_loop(session)
+            }
+            _ -> {
+              // Process the response
+              case ears_interview.process_response(session, response) {
+                Ok(result) -> {
+                  // Show validation notes
+                  case result.validation_notes {
+                    [] -> Nil
+                    notes -> {
+                      io.println("")
+                      io.println("⚠ Validation notes:")
+                      list.each(notes, fn(note) { io.println("  • " <> note) })
+                    }
+                  }
+
+                  // Show suggestions
+                  case result.suggestions {
+                    [] -> Nil
+                    suggestions -> {
+                      io.println("")
+                      io.println("💡 Suggestions:")
+                      list.each(suggestions, fn(s) { io.println("  • " <> s) })
+                    }
+                  }
+
+                  io.println("")
+                  io.println("✓ Requirement captured!")
+                  io.println("")
+
+                  // Add to session and advance
+                  let session =
+                    session
+                    |> ears_interview.add_requirement(result.requirement)
+                    |> ears_interview.advance_pattern
+
+                  run_ears_interview_loop(session)
+                }
+                Error(ears_interview.InvalidRequirement(reason)) -> {
+                  io.println("")
+                  cli_ui.print_error("Invalid requirement: " <> reason)
+                  io.println("Please try again using the EARS template.")
+                  io.println("")
+                  run_ears_interview_loop(session)
+                }
+                Error(ears_interview.PatternMismatch(_, _)) -> {
+                  io.println("")
+                  cli_ui.print_error(
+                    "This doesn't match the "
+                    <> pattern_name(question.pattern)
+                    <> " pattern.",
+                  )
+                  io.println("Please use the template: " <> question.template)
+                  io.println("")
+                  run_ears_interview_loop(session)
+                }
+                Error(ears_interview.ParsingFailed(errors)) -> {
+                  io.println("")
+                  cli_ui.print_error("Parsing errors:")
+                  list.each(errors, fn(e) {
+                    io.println(
+                      "  Line " <> string.inspect(e.line) <> ": " <> e.message,
+                    )
+                    io.println("  Suggestion: " <> e.suggestion)
+                  })
+                  io.println("")
+                  run_ears_interview_loop(session)
+                }
+              }
+            }
+          }
+        }
+        Error(_) -> {
+          cli_ui.print_error("Failed to read input")
+          halt(exit_error)
+        }
+      }
+    }
+  }
+}
+
+/// Get pattern name for display
+fn pattern_name(pattern: ears_interview.EarsPattern) -> String {
+  case pattern {
+    ears_interview.Ubiquitous -> "Ubiquitous"
+    ears_interview.EventDriven -> "Event-Driven"
+    ears_interview.StateDriven -> "State-Driven"
+    ears_interview.Optional -> "Optional"
+    ears_interview.Unwanted -> "Unwanted"
+    ears_interview.Complex -> "Complex"
+  }
+}
+
+/// Get current timestamp in milliseconds (simplified)
+fn timestamp_ms() -> Int {
+  // Simple timestamp - in real implementation would use proper time library
+  1_000_000
+}
+
+// =============================================================================
+// LATTICE ANALYZE COMMAND
+// =============================================================================
+
+/// The `lattice-analyze` command - apply 5 thinking models to requirements
+fn lattice_analyze_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let output_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    case input.args {
+      [requirements_file, ..] -> {
+        // Load requirements from file
+        io.println("Loading requirements from: " <> requirements_file)
+
+        case simplifile.read(requirements_file) {
+          Ok(content) -> {
+            // Parse EARS requirements
+            let parse_result = ears_parser.parse(content)
+
+            case parse_result.requirements {
+              [] -> {
+                cli_ui.print_error("No valid requirements found in file")
+                halt(exit_error)
+              }
+              requirements -> {
+                io.println(
+                  "Analyzing "
+                  <> string.inspect(list.length(requirements))
+                  <> " requirements with 5 mental lattice models...",
+                )
+                io.println("")
+
+                // Create lattice session
+                let session_id = "lattice-" <> string.inspect(timestamp_ms())
+                case mental_lattice.new_session(session_id, requirements) {
+                  Ok(session) -> {
+                    // Run analysis
+                    case mental_lattice.analyze_session(session) {
+                      Ok(analyzed_session) -> {
+                        case output_json {
+                          True -> output_lattice_json(analyzed_session)
+                          False -> output_lattice_text(analyzed_session)
+                        }
+                        halt(exit_pass)
+                      }
+                      Error(err) -> {
+                        cli_ui.print_error(
+                          "Analysis failed: " <> describe_lattice_error(err),
+                        )
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                  Error(err) -> {
+                    cli_ui.print_error(
+                      "Failed to create session: "
+                      <> describe_lattice_error(err),
+                    )
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read file: " <> requirements_file)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("Usage: intent lattice-analyze <requirements-file>")
+        io.println("")
+        io.println("Analyze EARS requirements using 5 mental lattice models:")
+        io.println("  1. Inversion - What could fail?")
+        io.println("  2. Second-Order Effects - What happens after?")
+        io.println("  3. Pre-Mortem - Imagine this failed, why?")
+        io.println("  4. Checklist - What are we missing?")
+        io.println("  5. Circle of Competence - What's in scope?")
+        io.println("")
+        io.println("Options:")
+        io.println("  --json    Output as JSON instead of human-readable")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Apply 5 mental lattice models to analyze EARS requirements",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
+}
+
+/// Output lattice analysis in human-readable format
+fn output_lattice_text(session: mental_lattice.LatticeSession) -> Nil {
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
+  io.println("              MENTAL LATTICE ANALYSIS COMPLETE")
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
+  io.println("")
+  io.println(
+    "Analyzed "
+    <> string.inspect(list.length(session.requirements))
+    <> " requirements using "
+    <> string.inspect(list.length(session.completed_models))
+    <> " mental models",
+  )
+  io.println("")
+
+  // Output by requirement
+  list.each(session.requirements, fn(req) {
+    io.println(
+      "─────────────────────────────────────────────────────────────────",
+    )
+    io.println("Requirement: " <> req.raw_text)
+    io.println(
+      "─────────────────────────────────────────────────────────────────",
+    )
+    io.println("")
+
+    let analyses = mental_lattice.get_analyses_for_requirement(session, req)
+
+    list.each(analyses, fn(analysis) {
+      io.println(
+        "▸ "
+        <> mental_lattice.model_name(analysis.model)
+        <> " (confidence: "
+        <> float.to_string(analysis.confidence)
+        <> ")",
+      )
+      io.println("  " <> mental_lattice.model_description(analysis.model))
+      io.println("")
+
+      case analysis.insights {
+        [] -> Nil
+        insights -> {
+          io.println("  Insights:")
+          list.each(insights, fn(insight) { io.println("    • " <> insight) })
+          io.println("")
+        }
+      }
+
+      case analysis.warnings {
+        [] -> Nil
+        warnings -> {
+          io.println("  ⚠️  Warnings:")
+          list.each(warnings, fn(warning) { io.println("    • " <> warning) })
+          io.println("")
+        }
+      }
+
+      case analysis.questions {
+        [] -> Nil
+        questions -> {
+          io.println("  Questions:")
+          list.each(questions, fn(question) { io.println("    ? " <> question) })
+          io.println("")
+        }
+      }
+    })
+
+    io.println("")
+  })
+}
+
+/// Output lattice analysis as JSON
+fn output_lattice_json(session: mental_lattice.LatticeSession) -> Nil {
+  // Simplified JSON output - in real implementation would use gleam/json encoder
+  io.println("{")
+  io.println("  \"session_id\": \"" <> session.session_id <> "\",")
+  io.println(
+    "  \"requirements_count\": "
+    <> string.inspect(list.length(session.requirements))
+    <> ",",
+  )
+  io.println(
+    "  \"models_applied\": "
+    <> string.inspect(list.length(session.completed_models))
+    <> ",",
+  )
+  io.println(
+    "  \"analyses_count\": " <> string.inspect(list.length(session.analyses)),
+  )
+  io.println("}")
+}
+
+/// Describe a lattice error in human-readable format
+fn describe_lattice_error(error: mental_lattice.LatticeError) -> String {
+  case error {
+    mental_lattice.InvalidRequirement(reason) ->
+      "Invalid requirement: " <> reason
+    mental_lattice.AnalysisFailed(model, reason) ->
+      "Analysis failed for "
+      <> mental_lattice.model_name(model)
+      <> ": "
+      <> reason
+    mental_lattice.NoRequirementsProvided -> "No requirements provided"
+  }
+}
+
+// =============================================================================
+// GENERATE CONTRACT COMMAND
+// =============================================================================
+
+/// The `generate-contract` command - generate KIRK contracts from EARS requirements
+fn generate_contract_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let output_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    case input.args {
+      [requirements_file, ..] -> {
+        // Load requirements from file
+        io.println("Loading requirements from: " <> requirements_file)
+
+        case simplifile.read(requirements_file) {
+          Ok(content) -> {
+            // Parse EARS requirements
+            let parse_result = ears_parser.parse(content)
+
+            case parse_result.requirements {
+              [] -> {
+                cli_ui.print_error("No valid requirements found in file")
+                halt(exit_error)
+              }
+              requirements -> {
+                io.println(
+                  "Generating KIRK contracts for "
+                  <> string.inspect(list.length(requirements))
+                  <> " requirements...",
+                )
+                io.println("")
+
+                // Generate contracts
+                case kirk_contract.generate_contracts(requirements) {
+                  Ok(contracts) -> {
+                    case output_json {
+                      True -> output_contracts_json(contracts)
+                      False -> output_contracts_text(contracts)
+                    }
+                    halt(exit_pass)
+                  }
+                  Error(err) -> {
+                    cli_ui.print_error(
+                      "Contract generation failed: "
+                      <> describe_contract_error(err),
+                    )
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read file: " <> requirements_file)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error(
+          "Usage: intent generate-contract <requirements-file>",
+        )
+        io.println("")
+        io.println(
+          "Generate KIRK Design-by-Contract specifications from EARS requirements.",
+        )
+        io.println("")
+        io.println("Contract elements:")
+        io.println("  • Preconditions - What must be true before execution")
+        io.println("  • Postconditions - What must be true after execution")
+        io.println(
+          "  • Second-Order Effects - What happens after this action",
+        )
+        io.println("")
+        io.println("Options:")
+        io.println("  --json    Output as JSON instead of human-readable")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Generate KIRK contracts from EARS requirements\n\n"
+    <> "Examples:\n"
+    <> "  intent generate-contract requirements.md\n"
+    <> "  intent generate-contract requirements.md --name UserAPI",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
+}
+
+/// Output contracts in human-readable format
+fn output_contracts_text(contracts: List(kirk_contract.KirkContract)) -> Nil {
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
+  io.println("              KIRK CONTRACT GENERATION COMPLETE")
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
+  io.println("")
+  io.println(
+    "Generated " <> string.inspect(list.length(contracts)) <> " KIRK contracts",
+  )
+  io.println("")
+
+  // Output each contract
+  list.each(contracts, fn(contract) {
+    io.println(kirk_contract.format_contract(contract))
+    io.println("")
+    io.println("Confidence: " <> float.to_string(contract.confidence))
+    io.println("")
+    io.println(
+      "─────────────────────────────────────────────────────────────────",
+    )
+    io.println("")
+  })
+}
+
+/// Output contracts as JSON (simplified)
+fn output_contracts_json(contracts: List(kirk_contract.KirkContract)) -> Nil {
+  // Simplified JSON output
+  io.println("{")
+  io.println(
+    "  \"contracts_count\": " <> string.inspect(list.length(contracts)) <> ",",
+  )
+  io.println("  \"contracts\": [")
+
+  let contract_strings =
+    list.map(contracts, fn(contract) {
+      let precond_count =
+        list.length(contract.preconditions.required_fields)
+        + list.length(contract.preconditions.field_constraints)
+        + case contract.preconditions.auth_required {
+          True -> 1
+          False -> 0
+        }
+
+      let postcond_count =
+        list.length(contract.postconditions.state_changes)
+        + list.length(contract.postconditions.response_guarantees)
+
+      "    {\"requirement\": \""
+      <> contract.requirement.raw_text
+      <> "\", \"preconditions\": "
+      <> string.inspect(precond_count)
+      <> ", \"postconditions\": "
+      <> string.inspect(postcond_count)
+      <> ", \"effects\": "
+      <> string.inspect(list.length(contract.second_order_effects))
+      <> ", \"confidence\": "
+      <> float.to_string(contract.confidence)
+      <> "}"
+    })
+
+  io.println(string.join(contract_strings, ",\n"))
+
+  io.println("  ]")
+  io.println("}")
+}
+
+/// Describe a contract error in human-readable format
+fn describe_contract_error(error: kirk_contract.ContractError) -> String {
+  case error {
+    kirk_contract.InvalidRequirement(reason) ->
+      "Invalid requirement: " <> reason
+    kirk_contract.GenerationFailed(reason) -> "Generation failed: " <> reason
+    kirk_contract.NoContractGenerated -> "No contract generated"
+  }
+}
+
+// =============================================================================
+// PLAN STRUCTURE COMMAND
+// =============================================================================
+
+/// The `plan-structure` command - organize contracts into epic/feature/task hierarchy
+fn plan_structure_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let output_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let project_name =
+      flag.get_string(input.flags, "project")
+      |> result.unwrap("Project")
+
+    case input.args {
+      [requirements_file, ..] -> {
+        // Load requirements from file
+        io.println("Loading requirements from: " <> requirements_file)
+
+        case simplifile.read(requirements_file) {
+          Ok(content) -> {
+            // Parse EARS requirements
+            let parse_result = ears_parser.parse(content)
+
+            case parse_result.requirements {
+              [] -> {
+                cli_ui.print_error("No valid requirements found in file")
+                halt(exit_error)
+              }
+              requirements -> {
+                io.println(
+                  "Planning structure for "
+                  <> string.inspect(list.length(requirements))
+                  <> " requirements...",
+                )
+                io.println("")
+
+                // Generate contracts first
+                case kirk_contract.generate_contracts(requirements) {
+                  Ok(contracts) -> {
+                    // Plan structure from contracts
+                    case
+                      structure_planner.plan_structure(project_name, contracts)
+                    {
+                      Ok(structure) -> {
+                        case output_json {
+                          True -> output_structure_json(structure)
+                          False -> output_structure_text(structure)
+                        }
+                        halt(exit_pass)
+                      }
+                      Error(err) -> {
+                        cli_ui.print_error(
+                          "Structure planning failed: "
+                          <> describe_structure_error(err),
+                        )
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                  Error(contract_err) -> {
+                    cli_ui.print_error(
+                      "Contract generation failed: "
+                      <> describe_contract_error(contract_err),
+                    )
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read file: " <> requirements_file)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("Usage: intent plan-structure <requirements-file>")
+        io.println("")
+        io.println("Organize EARS requirements into project structure:")
+        io.println(
+          "  • Epic: High-level grouping (e.g., Authentication System)",
+        )
+        io.println(
+          "  • Feature: Cohesive set of behaviors (e.g., User Login)",
+        )
+        io.println("  • Task: Individual implementable unit")
+        io.println("")
+        io.println(
+          "Wave-based dependency analysis enables parallel execution planning.",
+        )
+        io.println("")
+        io.println("Options:")
+        io.println("  --project=NAME    Project name (default: 'Project')")
+        io.println(
+          "  --json            Output as JSON instead of human-readable",
+        )
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Organize contracts into epic/feature/task hierarchy with wave-based dependencies\n\n"
+    <> "Examples:\n"
+    <> "  intent plan-structure --project MyProject\n"
+    <> "  intent plan-structure --project MyProject --json",
+  )
+  |> glint.flag(
+    "project",
+    flag.string()
+      |> flag.default("Project")
+      |> flag.description("Project name"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
+}
+
+/// Output structure in human-readable format
+fn output_structure_text(structure: structure_planner.ProjectStructure) -> Nil {
+  io.println(structure_planner.format_structure(structure))
+}
+
+/// Output structure as JSON (simplified)
+fn output_structure_json(structure: structure_planner.ProjectStructure) -> Nil {
+  // Simplified JSON output
+  io.println("{")
+  io.println("  \"project_name\": \"" <> structure.project_name <> "\",")
+  io.println(
+    "  \"total_tasks\": " <> string.inspect(structure.total_tasks) <> ",",
+  )
+  io.println(
+    "  \"total_waves\": " <> string.inspect(structure.total_waves) <> ",",
+  )
+  io.println(
+    "  \"parallelism_score\": "
+    <> float.to_string(structure.parallelism_score)
+    <> ",",
+  )
+  io.println(
+    "  \"epics_count\": " <> string.inspect(list.length(structure.epics)),
+  )
+  io.println("}")
+}
+
+/// Describe a structure planning error
+fn describe_structure_error(
+  error: structure_planner.StructurePlanError,
+) -> String {
+  case error {
+    structure_planner.NoContractsProvided -> "No contracts provided"
+    structure_planner.CyclicDependency(task_ids) ->
+      "Cyclic dependency detected in tasks: " <> string.join(task_ids, ", ")
+    structure_planner.InvalidStructure(reason) ->
+      "Invalid structure: " <> reason
+  }
+}
+
+// =============================================================================
+// GENERATE BEADS COMMAND
+// =============================================================================
+
+/// The `generate-beads` command - generate bd beads from EARS requirements
+fn generate_beads_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let output_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let project_name =
+      flag.get_string(input.flags, "project")
+      |> result.unwrap("Project")
+
+    case input.args {
+      [requirements_file, ..] -> {
+        // Load requirements from file
+        io.println("Loading requirements from: " <> requirements_file)
+
+        case simplifile.read(requirements_file) {
+          Ok(content) -> {
+            // Parse EARS requirements
+            let parse_result = ears_parser.parse(content)
+
+            case parse_result.requirements {
+              [] -> {
+                cli_ui.print_error("No valid requirements found in file")
+                halt(exit_error)
+              }
+              requirements -> {
+                io.println(
+                  "Processing "
+                  <> string.inspect(list.length(requirements))
+                  <> " requirements...",
+                )
+
+                // Generate contracts
+                case kirk_contract.generate_contracts(requirements) {
+                  Ok(contracts) -> {
+                    io.println(
+                      "Generated "
+                      <> string.inspect(list.length(contracts))
+                      <> " contracts",
+                    )
+
+                    // Plan structure from contracts
+                    case
+                      structure_planner.plan_structure(project_name, contracts)
+                    {
+                      Ok(structure) -> {
+                        io.println(
+                          "Planned structure with "
+                          <> string.inspect(structure.total_tasks)
+                          <> " tasks in "
+                          <> string.inspect(structure.total_waves)
+                          <> " waves",
+                        )
+                        io.println("")
+
+                        // Generate beads from structure
+                        case bead_generator.generate_beads(structure) {
+                          Ok(result) -> {
+                            case output_json {
+                              True -> output_beads_result_json(result)
+                              False -> output_beads_result_text(result)
+                            }
+                            halt(exit_pass)
+                          }
+                          Error(err) -> {
+                            cli_ui.print_error(
+                              "Bead generation failed: "
+                              <> bead_generator.describe_error(err),
+                            )
+                            halt(exit_error)
+                          }
+                        }
+                      }
+                      Error(structure_err) -> {
+                        cli_ui.print_error(
+                          "Structure planning failed: "
+                          <> describe_structure_error(structure_err),
+                        )
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                  Error(contract_err) -> {
+                    cli_ui.print_error(
+                      "Contract generation failed: "
+                      <> describe_contract_error(contract_err),
+                    )
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read file: " <> requirements_file)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("Usage: intent generate-beads <requirements-file>")
+        io.println("")
+        io.println("Generate bd beads from EARS requirements:")
+        io.println("  1. Parse requirements")
+        io.println("  2. Generate KIRK contracts")
+        io.println("  3. Plan epic/feature/task structure")
+        io.println("  4. Create beads in bd database")
+        io.println("")
+        io.println("This creates trackable work items with:")
+        io.println("  • Proper hierarchy (epic → feature → task)")
+        io.println("  • Wave-based dependencies")
+        io.println("  • Contract metadata embedded")
+        io.println("")
+        io.println("Options:")
+        io.println("  --project=NAME    Project name (default: 'Project')")
+        io.println(
+          "  --json            Output as JSON instead of human-readable",
+        )
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Generate bd beads from EARS requirements with hierarchy and dependencies\n\n"
+    <> "Examples:\n"
+    <> "  intent generate-beads --project MyProject\n"
+    <> "  intent generate-beads --project MyProject --json",
+  )
+  |> glint.flag(
+    "project",
+    flag.string()
+      |> flag.default("Project")
+      |> flag.description("Project name"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
+  )
+}
+
+/// Output bead generation result in human-readable format
+fn output_beads_result_text(result: bead_generator.GenerationResult) -> Nil {
+  io.println(bead_generator.format_result(result))
+}
+
+/// Output bead generation result as JSON
+fn output_beads_result_json(result: bead_generator.GenerationResult) -> Nil {
+  io.println("{")
+  io.println(
+    "  \"total_created\": " <> string.inspect(result.total_created) <> ",",
+  )
+  io.println("  \"epic_count\": " <> string.inspect(result.epic_count) <> ",")
+  io.println(
+    "  \"feature_count\": " <> string.inspect(result.feature_count) <> ",",
+  )
+  io.println("  \"task_count\": " <> string.inspect(result.task_count) <> ",")
+  io.println(
+    "  \"failed_count\": " <> string.inspect(list.length(result.failed_beads)),
+  )
+  io.println("}")
+}
+
+// =============================================================================
+// REVIEW COMMANDS
+// =============================================================================
+
+/// The `review-requirements` command - review EARS requirements
+fn review_requirements_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let save_checkpoint =
+      flag.get_bool(input.flags, "checkpoint")
+      |> result.unwrap(False)
+
+    case input.args {
+      [requirements_file, ..] -> {
+        case simplifile.read(requirements_file) {
+          Ok(content) -> {
+            let parse_result = ears_parser.parse(content)
+
+            case parse_result.requirements {
+              [] -> {
+                cli_ui.print_error("No valid requirements found in file")
+                halt(exit_error)
+              }
+              requirements -> {
+                // Display review
+                let review = review_gates.review_requirements(requirements)
+                io.println(review)
+
+                // Save checkpoint if requested
+                case save_checkpoint {
+                  True -> {
+                    case
+                      review_gates.save_requirements_checkpoint(
+                        requirements,
+                        "Review checkpoint",
+                      )
+                    {
+                      Ok(_) -> {
+                        io.println(
+                          "✓ Checkpoint saved to .intent/checkpoints/requirements.json",
+                        )
+                      }
+                      Error(err) -> {
+                        cli_ui.print_error(
+                          "Failed to save checkpoint: "
+                          <> review_gates.describe_error(err),
+                        )
+                      }
+                    }
+                  }
+                  False -> Nil
+                }
+
+                halt(exit_pass)
+              }
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read file: " <> requirements_file)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error(
+          "Usage: intent review-requirements <requirements-file>",
+        )
+        io.println("")
+        io.println("Review EARS requirements with validation questions:")
+        io.println("  • Pattern appropriateness")
+        io.println("  • Clarity and specificity")
+        io.println("  • Completeness")
+        io.println("  • Avoidance of vague terms")
+        io.println("")
+        io.println("Options:")
+        io.println("  --checkpoint    Save checkpoint to .intent/checkpoints/")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Review EARS requirements with validation questions\n\n"
+    <> "Examples:\n"
+    <> "  intent review-requirements requirements.md",
+  )
+  |> glint.flag(
+    "checkpoint",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Save checkpoint"),
+  )
+}
+
+/// The `review-contracts` command - review KIRK contracts
+fn review_contracts_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let save_checkpoint =
+      flag.get_bool(input.flags, "checkpoint")
+      |> result.unwrap(False)
+
+    case input.args {
+      [requirements_file, ..] -> {
+        case simplifile.read(requirements_file) {
+          Ok(content) -> {
+            let parse_result = ears_parser.parse(content)
+
+            case parse_result.requirements {
+              [] -> {
+                cli_ui.print_error("No valid requirements found in file")
+                halt(exit_error)
+              }
+              requirements -> {
+                // Generate contracts
+                case kirk_contract.generate_contracts(requirements) {
+                  Ok(contracts) -> {
+                    // Display review
+                    let review = review_gates.review_contracts(contracts)
+                    io.println(review)
+
+                    // Save checkpoint if requested
+                    case save_checkpoint {
+                      True -> {
+                        case
+                          review_gates.save_contracts_checkpoint(
+                            contracts,
+                            "Review checkpoint",
+                          )
+                        {
+                          Ok(_) -> {
+                            io.println(
+                              "✓ Checkpoint saved to .intent/checkpoints/contracts.json",
+                            )
+                          }
+                          Error(err) -> {
+                            cli_ui.print_error(
+                              "Failed to save checkpoint: "
+                              <> review_gates.describe_error(err),
+                            )
+                          }
+                        }
+                      }
+                      False -> Nil
+                    }
+
+                    halt(exit_pass)
+                  }
+                  Error(err) -> {
+                    cli_ui.print_error(
+                      "Contract generation failed: "
+                      <> describe_contract_error(err),
+                    )
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read file: " <> requirements_file)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("Usage: intent review-contracts <requirements-file>")
+        io.println("")
+        io.println("Review KIRK contracts with validation questions:")
+        io.println("  • Precondition completeness")
+        io.println("  • Postcondition testability")
+        io.println("  • Second-order effect identification")
+        io.println("  • Contract confidence")
+        io.println("")
+        io.println("Options:")
+        io.println("  --checkpoint    Save checkpoint to .intent/checkpoints/")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Review KIRK contracts with validation questions\n\n"
+    <> "Examples:\n"
+    <> "  intent review-contracts --project MyProject",
+  )
+  |> glint.flag(
+    "checkpoint",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Save checkpoint"),
+  )
+}
+
+/// The `review-structure` command - review project structure
+fn review_structure_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let save_checkpoint =
+      flag.get_bool(input.flags, "checkpoint")
+      |> result.unwrap(False)
+
+    let project_name =
+      flag.get_string(input.flags, "project")
+      |> result.unwrap("Project")
+
+    case input.args {
+      [requirements_file, ..] -> {
+        case simplifile.read(requirements_file) {
+          Ok(content) -> {
+            let parse_result = ears_parser.parse(content)
+
+            case parse_result.requirements {
+              [] -> {
+                cli_ui.print_error("No valid requirements found in file")
+                halt(exit_error)
+              }
+              requirements -> {
+                // Generate contracts and structure
+                case kirk_contract.generate_contracts(requirements) {
+                  Ok(contracts) -> {
+                    case
+                      structure_planner.plan_structure(project_name, contracts)
+                    {
+                      Ok(structure) -> {
+                        // Display review
+                        let review = review_gates.review_structure(structure)
+                        io.println(review)
+
+                        // Save checkpoint if requested
+                        case save_checkpoint {
+                          True -> {
+                            case
+                              review_gates.save_structure_checkpoint(
+                                structure,
+                                "Review checkpoint",
+                              )
+                            {
+                              Ok(_) -> {
+                                io.println(
+                                  "✓ Checkpoint saved to .intent/checkpoints/structure.json",
+                                )
+                              }
+                              Error(err) -> {
+                                cli_ui.print_error(
+                                  "Failed to save checkpoint: "
+                                  <> review_gates.describe_error(err),
+                                )
+                              }
+                            }
+                          }
+                          False -> Nil
+                        }
+
+                        halt(exit_pass)
+                      }
+                      Error(err) -> {
+                        cli_ui.print_error(
+                          "Structure planning failed: "
+                          <> describe_structure_error(err),
+                        )
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                  Error(err) -> {
+                    cli_ui.print_error(
+                      "Contract generation failed: "
+                      <> describe_contract_error(err),
+                    )
+                    halt(exit_error)
+                  }
+                }
+              }
+            }
+          }
+          Error(_) -> {
+            cli_ui.print_error("Failed to read file: " <> requirements_file)
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        cli_ui.print_error("Usage: intent review-structure <requirements-file>")
+        io.println("")
+        io.println("Review project structure with validation questions:")
+        io.println("  • Epic/feature/task hierarchy logic")
+        io.println("  • Task sizing appropriateness")
+        io.println("  • Wave-based dependency order")
+        io.println("  • Parallelism score acceptability")
+        io.println("")
+        io.println("Options:")
+        io.println("  --project=NAME    Project name (default: 'Project')")
+        io.println(
+          "  --checkpoint      Save checkpoint to .intent/checkpoints/",
+        )
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Review project structure with validation questions\n\n"
+    <> "Examples:\n"
+    <> "  intent review-structure --project MyProject",
+  )
+  |> glint.flag(
+    "project",
+    flag.string()
+      |> flag.default("Project")
+      |> flag.description("Project name"),
+  )
+  |> glint.flag(
+    "checkpoint",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Save checkpoint"),
+  )
+}
+
+/// The `review-beads` command - review generated beads (checkpoint only)
+fn review_beads_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    cli_ui.print_error("This command reviews beads after generation")
+    io.println("")
+    io.println("To review beads:")
+    io.println("  1. Run: intent generate-beads <requirements-file>")
+    io.println("  2. Review in bd: bd list --status=open")
+    io.println("  3. Check details: bd show <id>")
+    io.println("  4. View dependencies: bd show <id>")
+    io.println("")
+    io.println("Or use bd commands directly:")
+    io.println("  bd ready          Show available work")
+    io.println("  bd blocked        Show blocked issues")
+    io.println("  bd stats          Project statistics")
+    halt(exit_pass)
+  })
+  |> glint.description(
+    "Review generated beads (guidance command)\n\n"
+    <> "Examples:\n"
+    <> "  intent review-beads --project MyProject",
+  )
+}
 
 // =============================================================================
 // PARSE COMMAND
@@ -2529,34 +4775,47 @@ fn parse_command() -> glint.Command(Nil) {
             case is_json {
               True -> {
                 let behaviors = ears_parser.to_behaviors(result)
-                let json_obj = json.object([
-                  #("requirements", json.array(result.requirements, fn(r) {
-                    json.object([
-                      #("id", json.string(r.id)),
-                      #("pattern", json.string(ears_parser.pattern_to_string(r.pattern))),
-                      #("system_shall", json.string(r.system_shall)),
-                      #("raw_text", json.string(r.raw_text)),
-                    ])
-                  })),
-                  #("behaviors", json.array(behaviors, fn(b) {
-                    json.object([
-                      #("name", json.string(b.name)),
-                      #("intent", json.string(b.intent)),
-                      #("method", json.string(b.method)),
-                      #("path", json.string(b.path)),
-                      #("status", json.int(b.status)),
-                    ])
-                  })),
-                  #("errors", json.array(result.errors, fn(e) {
-                    json.object([
-                      #("line", json.int(e.line)),
-                      #("message", json.string(e.message)),
-                      #("suggestion", json.string(e.suggestion)),
-                    ])
-                  })),
-                  #("warnings", json.array(result.warnings, json.string)),
-                  #("count", json.int(req_count)),
-                ])
+                let json_obj =
+                  json.object([
+                    #(
+                      "requirements",
+                      json.array(result.requirements, fn(r) {
+                        json.object([
+                          #("id", json.string(r.id)),
+                          #(
+                            "pattern",
+                            json.string(ears_parser.pattern_to_string(r.pattern)),
+                          ),
+                          #("system_shall", json.string(r.system_shall)),
+                          #("raw_text", json.string(r.raw_text)),
+                        ])
+                      }),
+                    ),
+                    #(
+                      "behaviors",
+                      json.array(behaviors, fn(b) {
+                        json.object([
+                          #("name", json.string(b.name)),
+                          #("intent", json.string(b.intent)),
+                          #("method", json.string(b.method)),
+                          #("path", json.string(b.path)),
+                          #("status", json.int(b.status)),
+                        ])
+                      }),
+                    ),
+                    #(
+                      "errors",
+                      json.array(result.errors, fn(e) {
+                        json.object([
+                          #("line", json.int(e.line)),
+                          #("message", json.string(e.message)),
+                          #("suggestion", json.string(e.suggestion)),
+                        ])
+                      }),
+                    ),
+                    #("warnings", json.array(result.warnings, json.string)),
+                    #("count", json.int(req_count)),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> {
@@ -2564,27 +4823,57 @@ fn parse_command() -> glint.Command(Nil) {
                 io.println("Parsing EARS requirements...")
 
                 case ubiq > 0 {
-                  True -> io.println("✓ Parsed " <> string.inspect(ubiq) <> " ubiquitous requirements")
+                  True ->
+                    io.println(
+                      "✓ Parsed "
+                      <> string.inspect(ubiq)
+                      <> " ubiquitous requirements",
+                    )
                   False -> Nil
                 }
                 case event > 0 {
-                  True -> io.println("✓ Parsed " <> string.inspect(event) <> " event-driven requirements")
+                  True ->
+                    io.println(
+                      "✓ Parsed "
+                      <> string.inspect(event)
+                      <> " event-driven requirements",
+                    )
                   False -> Nil
                 }
                 case state > 0 {
-                  True -> io.println("✓ Parsed " <> string.inspect(state) <> " state-driven requirements")
+                  True ->
+                    io.println(
+                      "✓ Parsed "
+                      <> string.inspect(state)
+                      <> " state-driven requirements",
+                    )
                   False -> Nil
                 }
                 case opt > 0 {
-                  True -> io.println("✓ Parsed " <> string.inspect(opt) <> " optional requirements")
+                  True ->
+                    io.println(
+                      "✓ Parsed "
+                      <> string.inspect(opt)
+                      <> " optional requirements",
+                    )
                   False -> Nil
                 }
                 case unwant > 0 {
-                  True -> io.println("✓ Parsed " <> string.inspect(unwant) <> " unwanted requirements")
+                  True ->
+                    io.println(
+                      "✓ Parsed "
+                      <> string.inspect(unwant)
+                      <> " unwanted requirements",
+                    )
                   False -> Nil
                 }
                 case complex > 0 {
-                  True -> io.println("✓ Parsed " <> string.inspect(complex) <> " complex requirements")
+                  True ->
+                    io.println(
+                      "✓ Parsed "
+                      <> string.inspect(complex)
+                      <> " complex requirements",
+                    )
                   False -> Nil
                 }
 
@@ -2594,13 +4883,19 @@ fn parse_command() -> glint.Command(Nil) {
                     io.println("")
                     list.each(result.errors, fn(e) {
                       io.println("Error parsing requirements:")
-                      io.println("Line " <> string.inspect(e.line) <> ": " <> e.message)
+                      io.println(
+                        "Line " <> string.inspect(e.line) <> ": " <> e.message,
+                      )
                       io.println("  ❌ Does not match any EARS pattern")
                       io.println("  💡 Suggestion: " <> e.suggestion)
                     })
                     io.println("")
-                    io.println("Parsed: " <> string.inspect(req_count) <> " requirements")
-                    io.println("Failed: " <> string.inspect(err_count) <> " requirements")
+                    io.println(
+                      "Parsed: " <> string.inspect(req_count) <> " requirements",
+                    )
+                    io.println(
+                      "Failed: " <> string.inspect(err_count) <> " requirements",
+                    )
                   }
                   False -> Nil
                 }
@@ -2612,18 +4907,23 @@ fn parse_command() -> glint.Command(Nil) {
                     // Infer spec name from filename
                     let spec_name = case string.split(path, "/") {
                       [] -> "GeneratedSpec"
-                      parts -> case list.last(parts) {
-                        Ok(filename) -> case string.split(filename, ".") {
-                          [name, ..] -> name
-                          [] -> "GeneratedSpec"
+                      parts ->
+                        case list.last(parts) {
+                          Ok(filename) ->
+                            case string.split(filename, ".") {
+                              [name, ..] -> name
+                              [] -> "GeneratedSpec"
+                            }
+                          Error(_) -> "GeneratedSpec"
                         }
-                        Error(_) -> "GeneratedSpec"
-                      }
                     }
                     let cue_output = ears_parser.to_cue(result, spec_name)
                     case simplifile.write(path, cue_output) {
                       Ok(_) -> io.println("Written to: " <> path)
-                      Error(e) -> cli_ui.print_error("Failed to write: " <> string.inspect(e))
+                      Error(e) ->
+                        cli_ui.print_error(
+                          "Failed to write: " <> string.inspect(e),
+                        )
                     }
                   }
                 }
@@ -2643,16 +4943,30 @@ fn parse_command() -> glint.Command(Nil) {
       }
       [] -> {
         cli_ui.print_error("requirements file path required")
-        io.println("Usage: intent parse <requirements.ears.md> [-o spec.cue] [--json]")
+        io.println(
+          "Usage: intent parse <requirements.ears.md> [-o spec.cue] [--json]",
+        )
         io.println("")
-        io.println("Parse EARS-formatted requirements and output structured CUE spec.")
+        io.println(
+          "Parse EARS-formatted requirements and output structured CUE spec.",
+        )
         io.println("")
         io.println("EARS Patterns:")
-        io.println("  THE SYSTEM SHALL [behavior]                    - Ubiquitous")
-        io.println("  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven")
-        io.println("  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven")
-        io.println("  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional")
-        io.println("  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted")
+        io.println(
+          "  THE SYSTEM SHALL [behavior]                    - Ubiquitous",
+        )
+        io.println(
+          "  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven",
+        )
+        io.println(
+          "  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven",
+        )
+        io.println(
+          "  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional",
+        )
+        io.println(
+          "  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted",
+        )
         io.println("  WHILE [state] WHEN [trigger] THE SYSTEM SHALL  - Complex")
         io.println("")
         io.println("Examples:")
@@ -2663,9 +4977,21 @@ fn parse_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Parse EARS requirements to Intent behaviors")
-  |> glint.flag("o", flag.string() |> flag.default("") |> flag.description("Output spec file path"))
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.description(
+    "Parse EARS requirements to Intent behaviors\n\n"
+    <> "Examples:\n"
+    <> "  intent parse requirements.md",
+  )
+  |> glint.flag(
+    "o",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Output spec file path"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 // =============================================================================
@@ -2675,8 +5001,10 @@ fn parse_command() -> glint.Command(Nil) {
 fn answer_loader_error_to_string(err: answer_loader.AnswerLoaderError) -> String {
   case err {
     answer_loader.FileNotFound(path) -> "File not found: " <> path
-    answer_loader.PermissionDenied(path) -> "Permission denied reading: " <> path
-    answer_loader.ParseError(path, msg) -> "Parse error in " <> path <> ": " <> msg
+    answer_loader.PermissionDenied(path) ->
+      "Permission denied reading: " <> path
+    answer_loader.ParseError(path, msg) ->
+      "Parse error in " <> path <> ": " <> msg
     answer_loader.SchemaError(msg) -> "Schema validation failed: " <> msg
     answer_loader.IoError(msg) -> "I/O error: " <> msg
   }
@@ -2690,3 +5018,33 @@ fn generate_uuid() -> String
 
 @external(erlang, "intent_ffi", "current_timestamp")
 fn current_timestamp() -> String
+
+@external(erlang, "intent_ffi", "set_env")
+fn set_env(key: String, value: String) -> Nil
+
+@external(erlang, "os", "getenv")
+fn get_env(key: String) -> Result(String, Nil)
+
+/// Set NO_COLOR environment variable to disable colored output
+fn set_no_color_env() -> Nil {
+  set_env("NO_COLOR", "1")
+}
+
+/// Get environment variable as string with default
+fn env_string(key: String, default: String) -> String {
+  case get_env(key) {
+    Ok(value) -> value
+    Error(_) -> default
+  }
+}
+
+/// Get environment variable as boolean (1/true/yes = True)
+fn env_bool(key: String, default: Bool) -> Bool {
+  case get_env(key) {
+    Ok(value) -> {
+      let lower = string.lowercase(value)
+      lower == "1" || lower == "true" || lower == "yes"
+    }
+    Error(_) -> default
+  }
+}
