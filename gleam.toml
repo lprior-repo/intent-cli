@@ -1,7 +1,13 @@
 name = "intent"
 version = "0.1.0"
-description = "Human-writes, AI-verifies, AI-implements - Contract-driven API testing"
+description = "Contract-driven API testing CLI - human-writes, AI-verifies, AI-implements behavior specifications"
+licences = ["Apache-2.0"]
+repository = { type = "github", user = "lprior-repo", repo = "intent-cli" }
 target = "erlang"
+
+links = [
+  { title = "Repository", href = "https://github.com/lprior-repo/intent-cli" },
+]
 
 [dependencies]
 gleam_stdlib = ">= 0.36.0 and < 0.40.0"
