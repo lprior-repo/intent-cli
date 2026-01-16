@@ -1,1 +1,0 @@
--record(request_error, {message :: binary()}).
