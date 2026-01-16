@@ -1,10 +1,10 @@
 /// Global rules engine for checking responses against spec-wide rules
+
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option
 import gleam/regexp
 import gleam/string
 import intent/http_client.{type ExecutionResult}
@@ -44,28 +44,19 @@ pub fn check_rules(
 
 /// Check if a rule applies based on its `when` conditions
 fn rule_applies(rule: Rule, response: ExecutionResult) -> Bool {
-  case rule.when {
-    option.Some(when) -> check_when_conditions(when, response)
-    option.None -> True
-    // Rule applies to all responses if no 'when' clause
-  }
+  check_when_conditions(rule.when, response)
 }
 
 fn check_when_conditions(when: When, response: ExecutionResult) -> Bool {
   // Check status condition
-  let status_ok = check_status_condition(when.status, response.status)
+  let status_ok =
+    check_status_condition(when.status, response.status)
 
-  // Check method condition (if specified)
-  let method_ok = case when.method {
-    option.Some(m) -> response.request_method == m
-    option.None -> True
-  }
+  // Check method condition
+  let method_ok = response.request_method == when.method
 
-  // Check path condition (if specified)
-  let path_ok = case when.path {
-    option.Some(p) -> check_path_pattern(p, response.request_path)
-    option.None -> True
-  }
+  // Check path condition
+  let path_ok = check_path_pattern(when.path, response.request_path)
 
   // All conditions must pass
   status_ok && method_ok && path_ok
@@ -164,50 +155,63 @@ fn collect_violations(
 ) -> List(RuleViolation) {
   let violations = []
 
-  // Build header index once for all header checks
-  let header_index = build_header_index(response.headers)
-
   // Check body_must_not_contain
   let violations =
-    list.fold(check.body_must_not_contain, violations, fn(acc, forbidden) {
-      case contains_string(response.raw_body, forbidden) {
-        True -> [BodyContains(forbidden, "response body"), ..acc]
-        False -> acc
-      }
-    })
+    list.fold(
+      check.body_must_not_contain,
+      violations,
+      fn(acc, forbidden) {
+        case contains_string(response.raw_body, forbidden) {
+          True -> [BodyContains(forbidden, "response body"), ..acc]
+          False -> acc
+        }
+      },
+    )
 
   // Check body_must_contain
   let violations =
-    list.fold(check.body_must_contain, violations, fn(acc, required) {
-      case contains_string(response.raw_body, required) {
-        True -> acc
-        False -> [BodyMissing(required), ..acc]
-      }
-    })
+    list.fold(
+      check.body_must_contain,
+      violations,
+      fn(acc, required) {
+        case contains_string(response.raw_body, required) {
+          True -> acc
+          False -> [BodyMissing(required), ..acc]
+        }
+      },
+    )
 
   // Check fields_must_exist
   let violations =
-    list.fold(check.fields_must_exist, violations, fn(acc, field) {
-      case field_exists(response.body, field) {
-        True -> acc
-        False -> [FieldMissing(field), ..acc]
-      }
-    })
+    list.fold(
+      check.fields_must_exist,
+      violations,
+      fn(acc, field) {
+        case field_exists(response.body, field) {
+          True -> acc
+          False -> [FieldMissing(field), ..acc]
+        }
+      },
+    )
 
   // Check fields_must_not_exist
   let violations =
-    list.fold(check.fields_must_not_exist, violations, fn(acc, field) {
-      case field_exists(response.body, field) {
-        True -> [FieldPresent(field), ..acc]
-        False -> acc
-      }
-    })
+    list.fold(
+      check.fields_must_not_exist,
+      violations,
+      fn(acc, field) {
+        case field_exists(response.body, field) {
+          True -> [FieldPresent(field), ..acc]
+          False -> acc
+        }
+      },
+    )
 
   // Check header_must_exist
   let violations = case check.header_must_exist {
     "" -> violations
     required_header ->
-      case header_exists_in_index(header_index, required_header) {
+      case header_exists(response.headers, required_header) {
         True -> violations
         False -> [HeaderMissing(required_header), ..violations]
       }
@@ -217,7 +221,7 @@ fn collect_violations(
   let violations = case check.header_must_not_exist {
     "" -> violations
     forbidden_header ->
-      case header_exists_in_index(header_index, forbidden_header) {
+      case header_exists(response.headers, forbidden_header) {
         True -> [HeaderPresent(forbidden_header), ..violations]
         False -> violations
       }
@@ -257,23 +261,11 @@ fn navigate_and_check(value: Json, path: List(String)) -> Bool {
   }
 }
 
-/// Build a lowercase header index for O(1) lookups
-/// This should be called once per response, not per header check
-fn build_header_index(headers: Dict(String, String)) -> Dict(String, String) {
+fn header_exists(headers: Dict(String, String), header_name: String) -> Bool {
+  let lower_name = string.lowercase(header_name)
   headers
   |> dict.to_list
-  |> list.map(fn(pair) { #(string.lowercase(pair.0), pair.1) })
-  |> dict.from_list
-}
-
-/// Check if a header exists in a pre-built lowercase index
-/// This avoids rebuilding the index on every call
-fn header_exists_in_index(
-  header_index: Dict(String, String),
-  header_name: String,
-) -> Bool {
-  let lower_name = string.lowercase(header_name)
-  dict.has_key(header_index, lower_name)
+  |> list.any(fn(pair) { string.lowercase(pair.0) == lower_name })
 }
 
 /// Format a rule violation as a human-readable string
