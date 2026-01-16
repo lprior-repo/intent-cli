@@ -1,0 +1,871 @@
+//// Tests for the improver module
+//// Tests analysis and suggestion of improvements for API specifications
+//// Validates improvement suggestions based on quality analysis and linting results
+
+import gleam/dict
+import gleam/int
+import gleam/json
+import gleam/list
+import gleam/string
+import gleeunit
+import gleeunit/should
+import intent/improver.{
+  type ImprovementContext, type ImprovementSuggestion, AddExplanation,
+  AddMissingTest, AddResponseExample, ImprovementContext, ImprovementSuggestion,
+  RefineVagueRule, RenameForClarity,
+}
+import intent/quality_analyzer.{
+  type QualityIssue, type QualityReport, MissingAIHints,
+  MissingAuthenticationTest, MissingEdgeCases, MissingErrorTests,
+  MissingExplanations, NoExamples, QualityReport, UntestedRules, VagueRules,
+}
+import intent/spec_linter.{
+  type LintResult, AntiPatternDetected, DuplicateBehavior, LintValid,
+  LintWarnings, MissingExample, NamingConvention, UnusedAntiPattern, VagueRule,
+}
+import intent/types.{type Behavior, type Check, Behavior, Check, Response}
+import test_helpers.{
+  make_test_behavior, make_test_behavior_with_status, make_test_feature,
+  make_test_spec,
+}
+
+pub fn main() {
+  gleeunit.main()
+}
+
+// ============================================================================
+// Helper Functions for Test Data
+// ============================================================================
+
+/// Create a behavior with response example
+fn make_behavior_with_example(name: String, example: json.Json) -> Behavior {
+  let behavior = make_test_behavior(name, [])
+  Behavior(
+    ..behavior,
+    response: Response(..behavior.response, example: example),
+  )
+}
+
+/// Create a behavior with checks
+fn make_behavior_with_checks(
+  name: String,
+  checks: dict.Dict(String, Check),
+) -> Behavior {
+  let behavior = make_test_behavior(name, [])
+  Behavior(..behavior, response: Response(..behavior.response, checks: checks))
+}
+
+/// Create a minimal quality report for testing
+fn make_quality_report(
+  coverage: Int,
+  clarity: Int,
+  testability: Int,
+  ai_readiness: Int,
+  issues: List(QualityIssue),
+) -> QualityReport {
+  QualityReport(
+    coverage_score: coverage,
+    clarity_score: clarity,
+    testability_score: testability,
+    ai_readiness_score: ai_readiness,
+    overall_score: { coverage + clarity + testability + ai_readiness } / 4,
+    issues: issues,
+    suggestions: [],
+  )
+}
+
+/// Create an improvement context for testing
+fn make_improvement_context(
+  quality_report: QualityReport,
+  lint_result: LintResult,
+  behaviors: List(Behavior),
+) -> ImprovementContext {
+  let spec = make_test_spec([make_test_feature("Test", behaviors)])
+  ImprovementContext(
+    quality_report: quality_report,
+    lint_result: lint_result,
+    spec: spec,
+  )
+}
+
+// ============================================================================
+// Happy Path Tests - No Improvements Needed
+// ============================================================================
+
+pub fn suggest_improvements_empty_spec_test() {
+  // Test with empty spec (no behaviors)
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let context = make_improvement_context(quality_report, LintValid, [])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(0)
+}
+
+pub fn suggest_improvements_perfect_spec_test() {
+  // Test with a complete, high-quality spec
+  let behavior = make_test_behavior("test-success", [])
+  let behavior_with_error =
+    make_test_behavior_with_status("test-error", 404, [])
+  let example =
+    json.object([#("id", json.int(1)), #("name", json.string("test"))])
+  let behavior_with_example =
+    make_behavior_with_example("test-with-example", example)
+
+  let checks =
+    dict.from_list([
+      #(
+        "email_valid",
+        Check(rule: "email | format:email", why: "Must be valid email"),
+      ),
+    ])
+  let behavior_with_checks =
+    make_behavior_with_checks("test-with-checks", checks)
+
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let context =
+    make_improvement_context(quality_report, LintValid, [
+      behavior,
+      behavior_with_error,
+      behavior_with_example,
+      behavior_with_checks,
+    ])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  // Should have no suggestions for a perfect spec
+  suggestions
+  |> list.length
+  |> should.equal(0)
+}
+
+// ============================================================================
+// Coverage-Related Suggestions
+// ============================================================================
+
+pub fn suggest_improvements_missing_error_tests_test() {
+  // Test detecting missing error case behaviors
+  let behavior = make_test_behavior_with_status("test-success", 200, [])
+  let quality_report =
+    make_quality_report(50, 100, 100, 100, [MissingErrorTests])
+  let context = make_improvement_context(quality_report, LintValid, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Add error case tests")
+
+  suggestion.impact_score
+  |> should.equal(25)
+
+  case suggestion.proposed_change {
+    AddMissingTest(name, description) -> {
+      name
+      |> should.equal("test-error-not-found")
+
+      description
+      |> string.contains("404 Not Found")
+      |> should.be_true
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn suggest_improvements_has_error_tests_test() {
+  // Test that error test suggestion is NOT generated when error tests exist
+  let behavior_success = make_test_behavior_with_status("test-success", 200, [])
+  let behavior_error = make_test_behavior_with_status("test-not-found", 404, [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let context =
+    make_improvement_context(quality_report, LintValid, [
+      behavior_success,
+      behavior_error,
+    ])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  // Should not suggest adding error tests since one exists
+  suggestions
+  |> list.any(fn(s) { s.title == "Add error case tests" })
+  |> should.be_false
+}
+
+// ============================================================================
+// Clarity-Related Suggestions
+// ============================================================================
+
+pub fn suggest_improvements_missing_intent_test() {
+  // Test detecting behaviors without intent descriptions
+  let behavior_no_intent =
+    Behavior(..make_test_behavior("test-no-intent", []), intent: "")
+  let quality_report = make_quality_report(100, 50, 100, 100, [])
+  let context =
+    make_improvement_context(quality_report, LintValid, [behavior_no_intent])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Add intent descriptions")
+
+  suggestion.impact_score
+  |> should.equal(15)
+
+  case suggestion.proposed_change {
+    AddExplanation(_behavior, field, explanation) -> {
+      field
+      |> should.equal("intent")
+
+      explanation
+      |> string.contains("Verify successful operation")
+      |> should.be_true
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn suggest_improvements_multiple_missing_intents_test() {
+  // Test detecting multiple behaviors without intent
+  let b1 = Behavior(..make_test_behavior("test1", []), intent: "")
+  let b2 = Behavior(..make_test_behavior("test2", []), intent: "")
+  let b3 = Behavior(..make_test_behavior("test3", []), intent: "")
+
+  let quality_report = make_quality_report(100, 50, 100, 100, [])
+  let context =
+    make_improvement_context(quality_report, LintValid, [b1, b2, b3])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.description
+  |> string.contains("3 behavior(s) lack intent descriptions")
+  |> should.be_true
+}
+
+// ============================================================================
+// Testability-Related Suggestions
+// ============================================================================
+
+pub fn suggest_improvements_missing_response_examples_test() {
+  // Test detecting behaviors without response examples
+  let behavior = make_behavior_with_example("test-no-example", json.null())
+  let quality_report = make_quality_report(100, 100, 50, 100, [NoExamples])
+  let context = make_improvement_context(quality_report, LintValid, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Add response examples")
+
+  suggestion.impact_score
+  |> should.equal(20)
+
+  case suggestion.proposed_change {
+    AddResponseExample(behavior_name) -> {
+      behavior_name
+      |> should.equal("test-no-example")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn suggest_improvements_multiple_missing_examples_test() {
+  // Test detecting multiple behaviors without examples
+  let b1 = make_behavior_with_example("test1", json.null())
+  let b2 = make_behavior_with_example("test2", json.null())
+
+  let quality_report = make_quality_report(100, 100, 50, 100, [NoExamples])
+  let context = make_improvement_context(quality_report, LintValid, [b1, b2])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.description
+  |> string.contains("2 behavior(s) lack response examples")
+  |> should.be_true
+}
+
+// ============================================================================
+// AI Readiness-Related Suggestions
+// ============================================================================
+
+pub fn suggest_improvements_missing_validation_explanations_test() {
+  // Test detecting validation checks without 'why' explanations
+  let checks =
+    dict.from_list([
+      #("email_check", Check(rule: "email | format:email", why: "")),
+    ])
+  let behavior = make_behavior_with_checks("test", checks)
+
+  let quality_report =
+    make_quality_report(100, 100, 100, 50, [MissingExplanations])
+  let context = make_improvement_context(quality_report, LintValid, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Add validation explanations")
+
+  suggestion.impact_score
+  |> should.equal(18)
+
+  case suggestion.proposed_change {
+    AddExplanation(_, field, explanation) -> {
+      field
+      |> should.equal("why")
+
+      explanation
+      |> string.contains("email")
+      |> should.be_true
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn suggest_improvements_multiple_missing_why_test() {
+  // Test detecting multiple checks without 'why'
+  let checks1 = dict.from_list([#("check1", Check(rule: "rule1", why: ""))])
+  let checks2 =
+    dict.from_list([
+      #("check2", Check(rule: "rule2", why: "")),
+      #("check3", Check(rule: "rule3", why: "")),
+    ])
+  let b1 = make_behavior_with_checks("test1", checks1)
+  let b2 = make_behavior_with_checks("test2", checks2)
+
+  let quality_report =
+    make_quality_report(100, 100, 100, 50, [MissingExplanations])
+  let context = make_improvement_context(quality_report, LintValid, [b1, b2])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.description
+  |> string.contains("3 validation rule(s) lack 'why' explanations")
+  |> should.be_true
+}
+
+// ============================================================================
+// Lint-Based Suggestions
+// ============================================================================
+
+pub fn suggest_improvements_from_vague_rule_warning_test() {
+  // Test generating suggestion from vague rule lint warning
+  let behavior = make_test_behavior("test", [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let lint_result =
+    LintWarnings([VagueRule("test", "email", "should be valid")])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Clarify validation rule")
+
+  suggestion.impact_score
+  |> should.equal(22)
+
+  case suggestion.proposed_change {
+    RefineVagueRule(behavior_name, field, better_rule) -> {
+      behavior_name
+      |> should.equal("test")
+
+      field
+      |> should.equal("email")
+
+      better_rule
+      |> string.contains("email")
+      |> should.be_true
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn suggest_improvements_from_missing_example_warning_test() {
+  // Test generating suggestion from missing example lint warning
+  let behavior = make_test_behavior("test", [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let lint_result = LintWarnings([MissingExample("test")])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Add response example")
+
+  suggestion.impact_score
+  |> should.equal(20)
+}
+
+pub fn suggest_improvements_from_naming_convention_warning_test() {
+  // Test generating suggestion from naming convention lint warning
+  let behavior = make_test_behavior("test_with_underscores", [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let lint_result =
+    LintWarnings([
+      NamingConvention(
+        "test_with_underscores",
+        "Use hyphens instead of underscores",
+      ),
+    ])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Improve naming")
+
+  suggestion.impact_score
+  |> should.equal(10)
+
+  case suggestion.proposed_change {
+    RenameForClarity(old_name, new_name) -> {
+      old_name
+      |> should.equal("test_with_underscores")
+
+      new_name
+      |> should.equal("test-with-underscores")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn suggest_improvements_from_unused_antipattern_warning_test() {
+  // Test generating suggestion from unused anti-pattern lint warning
+  let behavior = make_test_behavior("test", [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let lint_result = LintWarnings([UnusedAntiPattern("bad_pattern")])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Remove unused anti-pattern")
+
+  suggestion.impact_score
+  |> should.equal(5)
+}
+
+pub fn suggest_improvements_from_antipattern_detected_warning_test() {
+  // Test generating suggestion from anti-pattern detected in response
+  let behavior = make_test_behavior("test", [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let lint_result =
+    LintWarnings([
+      AntiPatternDetected("test", "bad_example", "Contains deprecated field"),
+    ])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Fix anti-pattern in response")
+
+  suggestion.impact_score
+  |> should.equal(30)
+}
+
+pub fn suggest_improvements_from_duplicate_behavior_warning_test() {
+  // Test generating suggestion from duplicate behavior lint warning
+  let b1 = make_test_behavior("test-one", [])
+  let b2 = make_test_behavior("test-two", [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let lint_result =
+    LintWarnings([DuplicateBehavior("test-one", "test-two", "85% similar")])
+  let context = make_improvement_context(quality_report, lint_result, [b1, b2])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  suggestions
+  |> list.length
+  |> should.equal(1)
+
+  let assert [suggestion] = suggestions
+  suggestion.title
+  |> should.equal("Consolidate duplicate behaviors")
+
+  suggestion.impact_score
+  |> should.equal(25)
+}
+
+// ============================================================================
+// Multiple Issues and Suggestion Sorting
+// ============================================================================
+
+pub fn suggest_improvements_multiple_issues_sorted_by_impact_test() {
+  // Test that multiple suggestions are sorted by impact score (highest first)
+  let behavior = Behavior(..make_test_behavior("test", []), intent: "")
+  let quality_report =
+    make_quality_report(50, 50, 50, 50, [
+      MissingErrorTests,
+      NoExamples,
+      MissingExplanations,
+    ])
+  let lint_result =
+    LintWarnings([
+      VagueRule("test", "field", "vague"),
+      NamingConvention("test", "Use better name"),
+    ])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  // Should have multiple suggestions
+  let count = list.length(suggestions)
+  { count > 0 }
+  |> should.be_true
+
+  // Should be sorted by impact score (descending)
+  let scores = list.map(suggestions, fn(s) { s.impact_score })
+  let sorted_scores = list.sort(scores, fn(a, b) { int.compare(b, a) })
+
+  scores
+  |> should.equal(sorted_scores)
+
+  // First suggestion should have highest impact
+  let assert [first, ..] = suggestions
+  first.impact_score
+  |> should.equal(25)
+}
+
+pub fn suggest_improvements_combines_quality_and_lint_issues_test() {
+  // Test that both quality and lint issues generate suggestions
+  let behavior = Behavior(..make_test_behavior("test_name", []), intent: "")
+  let quality_report =
+    make_quality_report(50, 50, 100, 100, [MissingErrorTests])
+  let lint_result = LintWarnings([NamingConvention("test_name", "Use hyphens")])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  // Should have at least 3 suggestions:
+  // 1. Add error case tests (coverage)
+  // 2. Add intent descriptions (clarity)
+  // 3. Improve naming (lint)
+  let count = list.length(suggestions)
+  { count >= 3 }
+  |> should.be_true
+
+  // Check that both types of suggestions are present
+  let titles = list.map(suggestions, fn(s) { s.title })
+
+  titles
+  |> list.contains("Add error case tests")
+  |> should.be_true
+
+  titles
+  |> list.contains("Improve naming")
+  |> should.be_true
+}
+
+// ============================================================================
+// Formatting Tests
+// ============================================================================
+
+pub fn format_improvements_no_suggestions_test() {
+  // Test formatting when there are no suggestions
+  let formatted = improver.format_improvements([])
+
+  formatted
+  |> should.equal("No improvements suggested - spec is well-formed!")
+}
+
+pub fn format_improvements_single_suggestion_test() {
+  // Test formatting a single suggestion
+  let suggestion =
+    ImprovementSuggestion(
+      title: "Test Title",
+      description: "Test description",
+      reasoning: "Test reasoning",
+      impact_score: 50,
+      proposed_change: AddMissingTest("test", "Add a test"),
+    )
+
+  let formatted = improver.format_improvements([suggestion])
+
+  formatted
+  |> string.contains("Found 1 improvement suggestion(s)")
+  |> should.be_true
+
+  formatted
+  |> string.contains("Test Title")
+  |> should.be_true
+
+  formatted
+  |> string.contains("Test description")
+  |> should.be_true
+
+  formatted
+  |> string.contains("Test reasoning")
+  |> should.be_true
+
+  formatted
+  |> string.contains("50/100")
+  |> should.be_true
+}
+
+pub fn format_improvements_multiple_suggestions_test() {
+  // Test formatting multiple suggestions with impact bars
+  let s1 =
+    ImprovementSuggestion(
+      title: "High Impact",
+      description: "High impact change",
+      reasoning: "Very important",
+      impact_score: 90,
+      proposed_change: AddMissingTest("test", "Add test"),
+    )
+  let s2 =
+    ImprovementSuggestion(
+      title: "Low Impact",
+      description: "Low impact change",
+      reasoning: "Nice to have",
+      impact_score: 20,
+      proposed_change: AddMissingTest("test2", "Add test2"),
+    )
+
+  let formatted = improver.format_improvements([s1, s2])
+
+  formatted
+  |> string.contains("Found 2 improvement suggestion(s)")
+  |> should.be_true
+
+  formatted
+  |> string.contains("1. High Impact")
+  |> should.be_true
+
+  formatted
+  |> string.contains("2. Low Impact")
+  |> should.be_true
+
+  // Should contain impact bars
+  formatted
+  |> string.contains("█")
+  |> should.be_true
+
+  formatted
+  |> string.contains("░")
+  |> should.be_true
+}
+
+// ============================================================================
+// Apply Improvements Tests
+// ============================================================================
+
+pub fn apply_improvements_returns_spec_unchanged_test() {
+  // Test that apply_improvements currently returns spec unchanged
+  // (implementation not complete yet)
+  let spec = make_test_spec([])
+  let suggestions = []
+
+  let result = improver.apply_improvements(spec, suggestions)
+
+  result
+  |> should.equal(spec)
+}
+
+pub fn apply_improvements_with_suggestions_test() {
+  // Test apply_improvements with actual suggestions
+  // Currently should still return unchanged spec
+  let spec = make_test_spec([make_test_feature("Test", [])])
+  let suggestions = [
+    ImprovementSuggestion(
+      title: "Test",
+      description: "Test",
+      reasoning: "Test",
+      impact_score: 50,
+      proposed_change: AddMissingTest("test", "Add test"),
+    ),
+  ]
+
+  let result = improver.apply_improvements(spec, suggestions)
+
+  // For now, should return unchanged
+  result
+  |> should.equal(spec)
+}
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+
+pub fn suggest_improvements_all_lint_warning_types_test() {
+  // Test that all lint warning types can be converted to suggestions
+  let behavior = make_test_behavior("test", [])
+  let quality_report = make_quality_report(100, 100, 100, 100, [])
+  let lint_result =
+    LintWarnings([
+      VagueRule("b1", "f1", "vague"),
+      MissingExample("b2"),
+      NamingConvention("b3", "suggestion"),
+      UnusedAntiPattern("pattern"),
+      AntiPatternDetected("b4", "bad", "details"),
+      DuplicateBehavior("b5", "b6", "90%"),
+    ])
+  let context =
+    make_improvement_context(quality_report, lint_result, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  // Should generate one suggestion for each lint warning
+  suggestions
+  |> list.length
+  |> should.equal(6)
+}
+
+pub fn suggest_improvements_mixed_quality_issues_test() {
+  // Test handling multiple quality issues simultaneously
+  let behavior = Behavior(..make_test_behavior("test", []), intent: "")
+  let quality_report =
+    make_quality_report(40, 40, 40, 40, [
+      MissingErrorTests,
+      MissingAuthenticationTest,
+      MissingEdgeCases,
+      VagueRules,
+      NoExamples,
+      MissingExplanations,
+      UntestedRules,
+      MissingAIHints,
+    ])
+  let context = make_improvement_context(quality_report, LintValid, [behavior])
+
+  let suggestions = improver.suggest_improvements(context)
+
+  // Should generate suggestions for detectable quality issues
+  let count = list.length(suggestions)
+  { count >= 1 }
+  |> should.be_true
+}
+
+pub fn suggest_improvements_behavior_across_features_test() {
+  // Test with behaviors spread across multiple features
+  let b1 = make_test_behavior("feature1-test", [])
+  let b2 = Behavior(..make_test_behavior("feature2-test", []), intent: "")
+
+  let spec =
+    make_test_spec([
+      make_test_feature("Feature1", [b1]),
+      make_test_feature("Feature2", [b2]),
+    ])
+
+  let quality_report = make_quality_report(100, 50, 100, 100, [])
+  let context =
+    ImprovementContext(
+      quality_report: quality_report,
+      lint_result: LintValid,
+      spec: spec,
+    )
+
+  let suggestions = improver.suggest_improvements(context)
+
+  // Should detect issues across all features
+  suggestions
+  |> list.any(fn(s) { s.title == "Add intent descriptions" })
+  |> should.be_true
+}
+
+pub fn format_improvements_impact_bar_rendering_test() {
+  // Test that impact bars render correctly for different scores
+  let test_cases = [
+    #(0, 0),
+    // 0 filled, 10 empty
+    #(50, 5),
+    // 5 filled, 5 empty
+    #(100, 10),
+    // 10 filled, 0 empty
+  ]
+
+  list.each(test_cases, fn(tc) {
+    let test_case = tc
+    let #(score, expected_filled) = test_case
+    let suggestion =
+      ImprovementSuggestion(
+        title: "Test",
+        description: "Test",
+        reasoning: "Test",
+        impact_score: score,
+        proposed_change: AddMissingTest("test", "Test"),
+      )
+
+    let formatted = improver.format_improvements([suggestion])
+
+    // Count filled bars
+    let filled_count =
+      string.length(formatted)
+      - string.length(string.replace(formatted, "█", ""))
+    filled_count
+    |> should.equal(expected_filled)
+  })
+}
+
+// TODO: Add tests for apply_improvements when implementation is complete
+// TODO: Add tests for more complex ProposedChange scenarios (SimplifyRule)
+// TODO: Add tests for suggestion priority when impact scores are equal
+// TODO: Add tests for cross-feature improvement detection
+// TODO: Add performance tests with large specs (100+ behaviors)
+// TODO: Add tests for edge cases with empty strings in various fields
+// TODO: Add tests for unicode handling in format_improvements output

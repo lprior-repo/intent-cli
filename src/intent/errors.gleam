@@ -1,5 +1,6 @@
 /// Rich error reporting with context and suggestions
 /// Provides detailed feedback to help users understand and fix validation failures
+
 import gleam/dict
 import gleam/dynamic
 import gleam/int
@@ -42,7 +43,10 @@ pub fn field_not_found(
 
 /// Suggest similar field names based on Levenshtein distance
 /// Helps users catch typos in field paths
-fn suggest_field_names(target: String, available: List(String)) -> List(String) {
+fn suggest_field_names(
+  target: String,
+  available: List(String),
+) -> List(String) {
   available
   |> list.map(fn(field) { #(field, levenshtein_distance(target, field)) })
   |> list.filter(fn(pair) {
@@ -89,43 +93,33 @@ fn levenshtein_distance(s1: String, s2: String) -> Int {
 pub fn format_error(error: ContextualError) -> String {
   let field_info = "Field: '" <> error.field_path <> "'"
 
-  let rule_info =
-    "Rule: "
-    <> error.rule
-    <> "\n  Expected: "
-    <> error.expected
-    <> "\n  Actual: "
-    <> error.actual
+  let rule_info = "Rule: " <> error.rule <> "\n  Expected: " <> error.expected <> "\n  Actual: " <> error.actual
 
   let available_info = case error.available_fields {
     [] -> ""
     fields -> {
-      "\n\nAvailable fields in response:\n  " <> string.join(fields, "\n  ")
+      "\n\nAvailable fields in response:\n  "
+      <> string.join(fields, "\n  ")
     }
   }
 
   let suggestions_info = case error.suggestions {
     [] -> ""
     sugg -> {
-      "\n\nDid you mean:\n  " <> string.join(sugg, "\n  ")
+      "\n\nDid you mean:\n  "
+      <> string.join(sugg, "\n  ")
     }
   }
 
-  "Behavior '"
-  <> error.behavior
-  <> "' validation failed:\n  "
-  <> field_info
-  <> "\n\n  "
-  <> rule_info
-  <> available_info
-  <> suggestions_info
-  <> "\n\n"
-  <> error.explanation
+  "Behavior '" <> error.behavior <> "' validation failed:\n  " <> field_info <> "\n\n  " <> rule_info <> available_info <> suggestions_info <> "\n\n" <> error.explanation
 }
 
 /// Error type for validation results that collect all failures
 pub type ValidationError {
-  ValidationError(behavior: String, failures: List(FieldFailure))
+  ValidationError(
+    behavior: String,
+    failures: List(FieldFailure),
+  )
 }
 
 pub type FieldFailure {
@@ -150,30 +144,16 @@ pub fn format_validation_error(error: ValidationError) -> String {
     error.failures
     |> list.index_map(fn(failure, i) {
       let idx = i + 1
-      "  "
-      <> int.to_string(idx)
-      <> ". Field '"
-      <> failure.field
-      <> "':\n"
-      <> "     Rule: "
-      <> failure.rule
-      <> "\n"
-      <> "     Expected: "
-      <> failure.expected
-      <> "\n"
-      <> "     Actual: "
-      <> failure.actual
+      "  " <> int.to_string(idx) <> ". Field '" <> failure.field <> "':\n"
+      <> "     Rule: " <> failure.rule <> "\n"
+      <> "     Expected: " <> failure.expected <> "\n"
+      <> "     Actual: " <> failure.actual
     })
     |> string.join("\n\n")
 
-  "Behavior '"
-  <> error.behavior
-  <> "' failed with "
-  <> int.to_string(count)
-  <> " "
-  <> plural
-  <> ":\n\n"
-  <> failure_lines
+  "Behavior '" <> error.behavior <> "' failed with " <> int.to_string(
+    count,
+  ) <> " " <> plural <> ":\n\n" <> failure_lines
 }
 
 /// Extract available fields from JSON object for suggestions
@@ -195,14 +175,7 @@ pub fn format_format_error(
   value: String,
   reason: String,
 ) -> String {
-  "Field '"
-  <> field
-  <> "':\n  Expected valid "
-  <> format_name
-  <> "\n  Got: "
-  <> value
-  <> "\n  Problem: "
-  <> reason
+  "Field '" <> field <> "':\n  Expected valid " <> format_name <> "\n  Got: " <> value <> "\n  Problem: " <> reason
 }
 
 /// Suggest next validation steps based on error pattern
@@ -226,9 +199,6 @@ pub fn suggest_next_steps(error_type: String) -> List(String) {
       "Review behavior 'requires' declarations for cycles",
       "Break circular dependencies by removing one requires link",
     ]
-    _ -> [
-      "Check the specification for ambiguities",
-      "Run 'intent analyze' to improve spec quality",
-    ]
+    _ -> ["Check the specification for ambiguities", "Run 'intent analyze' to improve spec quality"]
   }
 }
