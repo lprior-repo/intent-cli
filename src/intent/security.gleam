@@ -64,85 +64,67 @@ pub fn validate_file_path(path: String) -> Result(String, SecurityError) {
 
 // Internal implementation after empty path check
 fn validate_file_path_impl(path: String) -> Result(String, SecurityError) {
-  // Check path length first (most Unix systems have PATH_MAX = 4096)
-  // Use 4096 as limit to match common OS limits
-  let path_length = string.byte_size(path)
-  case path_length > 4096 {
-    True ->
-      Error(InvalidPath(
-        path,
-        "Path too long: "
-          <> string.inspect(path_length)
-          <> " bytes (maximum: 4096 bytes)",
-      ))
-    False -> {
-      // Check for shell metacharacters to prevent command injection
-      case is_safe_path(path) {
-        False -> Error(ShellMetacharactersDetected(path))
-        True -> {
-          // Normalize to lowercase for case-insensitive checks
-          let path_lower = string.lowercase(path)
+  // First check for shell metacharacters to prevent command injection
+  case is_safe_path(path) {
+    False -> Error(ShellMetacharactersDetected(path))
+    True -> {
+      // Normalize to lowercase for case-insensitive checks
+      let path_lower = string.lowercase(path)
 
-          // Check for literal path traversal
-          case string.contains(path, "..") {
+      // Check for literal path traversal
+      case string.contains(path, "..") {
+        True -> Error(PathTraversalAttempt(path))
+        False -> {
+          // Check for URL-encoded dot sequences
+          // %2e = . (dot)
+          // %2f = / (forward slash)
+          // %5c = \ (backslash)
+          case
+            string.contains(path_lower, "%2e")
+            || string.contains(path_lower, "%2f")
+            || string.contains(path_lower, "%5c")
+          {
             True -> Error(PathTraversalAttempt(path))
             False -> {
-              // Check for URL-encoded dot sequences
-              // %2e = . (dot)
-              // %2f = / (forward slash)
-              // %5c = \ (backslash)
+              // Check for backslash path traversal (Windows-style)
               case
-                string.contains(path_lower, "%2e")
-                || string.contains(path_lower, "%2f")
-                || string.contains(path_lower, "%5c")
+                string.contains(path, "..\\\\")
+                || string.contains(path, "\\\\..")
               {
                 True -> Error(PathTraversalAttempt(path))
                 False -> {
-                  // Check for backslash path traversal (Windows-style)
-                  case
-                    string.contains(path, "..\\\\")
-                    || string.contains(path, "\\\\..")
-                  {
+                  // Check for null byte injection (both literal NUL and URL-encoded %00)
+                  // Literal null bytes (U+0000) truncate paths in C/Erlang filesystem calls
+                  // Gleam doesn't have \0 escape, so we check for the actual null character
+                  let has_null_byte =
+                    string.to_utf_codepoints(path)
+                    |> list.any(fn(cp) {
+                      string.utf_codepoint_to_int(cp) == 0
+                    })
+
+                  case has_null_byte || string.contains(path_lower, "%00") {
                     True -> Error(PathTraversalAttempt(path))
                     False -> {
-                      // Check for null byte injection (both literal NUL and URL-encoded %00)
-                      // Literal null bytes (U+0000) truncate paths in C/Erlang filesystem calls
-                      // Gleam doesn't have \0 escape, so we check for the actual null character
-                      let has_null_byte =
-                        string.to_utf_codepoints(path)
-                        |> list.any(fn(cp) {
-                          string.utf_codepoint_to_int(cp) == 0
-                        })
-
-                      case has_null_byte || string.contains(path_lower, "%00") {
+                      // Check for double-encoded sequences
+                      // %25 = % (percent sign, used for double encoding)
+                      case string.contains(path_lower, "%25") {
                         True -> Error(PathTraversalAttempt(path))
                         False -> {
-                          // Check for double-encoded sequences
-                          // %25 = % (percent sign, used for double encoding)
-                          case string.contains(path_lower, "%25") {
+                          // Check for alternative dot representations
+                          // .... can be interpreted as .. in some parsers
+                          case string.contains(path, "....") {
                             True -> Error(PathTraversalAttempt(path))
                             False -> {
-                              // Check for alternative dot representations
-                              // .... can be interpreted as .. in some parsers
-                              case string.contains(path, "....") {
-                                True -> Error(PathTraversalAttempt(path))
-                                False -> {
-                                  // Check for symlinks - reject to prevent symlink attacks
-                                  case simplifile.verify_is_symlink(path) {
-                                    Ok(True) -> Error(SymlinkNotAllowed(path))
-                                    _ -> {
-                                      // Verify file exists
-                                      case simplifile.verify_is_file(path) {
-                                        Ok(True) -> Ok(path)
-                                        Ok(False) ->
-                                          Error(InvalidPath(
-                                            path,
-                                            "Not a regular file",
-                                          ))
-                                        Error(_) ->
-                                          Error(FileNotAccessible(path))
-                                      }
-                                    }
+                              // Check for symlinks - reject to prevent symlink attacks
+                              case simplifile.verify_is_symlink(path) {
+                                Ok(True) -> Error(SymlinkNotAllowed(path))
+                                _ -> {
+                                  // Verify file exists
+                                  case simplifile.verify_is_file(path) {
+                                    Ok(True) -> Ok(path)
+                                    Ok(False) ->
+                                      Error(InvalidPath(path, "Not a regular file"))
+                                    Error(_) -> Error(FileNotAccessible(path))
                                   }
                                 }
                               }
@@ -234,7 +216,10 @@ pub fn validate_url(url: String) -> Result(String, SecurityError) {
 
   case has_valid_scheme {
     False ->
-      Error(SSRFAttempt(url, "Only http:// and https:// schemes are allowed"))
+      Error(SSRFAttempt(
+        url,
+        "Only http:// and https:// schemes are allowed",
+      ))
     True -> {
       // Check for localhost variations
       case
@@ -244,7 +229,8 @@ pub fn validate_url(url: String) -> Result(String, SecurityError) {
         || string.contains(url_lower, "[::1]")
         || string.contains(url_lower, "[0:0:0:0:0:0:0:1]")
       {
-        True -> Error(SSRFAttempt(url, "Localhost addresses are not allowed"))
+        True ->
+          Error(SSRFAttempt(url, "Localhost addresses are not allowed"))
         False -> {
           // Check for private IP ranges
           case
