@@ -49,6 +49,7 @@ fn make_behavior(name: String, requires: List(String)) -> types.Behavior {
       example: json.null(),
       checks: dict.new(),
       headers: dict.new(),
+      allow_localhost: False,
     ),
     captures: dict.new(),
   )
@@ -69,6 +70,7 @@ fn make_spec(features: List(types.Feature)) -> types.Spec {
       base_url: "http://localhost",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     ),
     features: features,
     rules: [],
@@ -555,6 +557,7 @@ pub fn http_client_url_construction_simple_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -586,6 +589,7 @@ pub fn http_client_path_interpolation_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -618,6 +622,7 @@ pub fn http_client_missing_variable_interpolation_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -646,6 +651,7 @@ pub fn http_client_header_interpolation_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.from_list([#("X-Default", "default-value")]),
+      allow_localhost: False,
     )
 
   let request =
@@ -680,6 +686,7 @@ pub fn http_client_header_merge_test() {
         #("X-Default", "config-value"),
         #("X-Config-Only", "config"),
       ]),
+      allow_localhost: False,
     )
 
   let request =
@@ -709,6 +716,7 @@ pub fn http_client_body_json_interpolation_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let body_json =
@@ -746,6 +754,7 @@ pub fn http_client_invalid_url_test() {
       base_url: "not a valid url at all",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -774,6 +783,7 @@ pub fn http_client_https_url_test() {
       base_url: "https://api.example.com",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -803,6 +813,7 @@ pub fn http_client_custom_port_test() {
       base_url: "http://localhost:3000",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -832,6 +843,7 @@ pub fn http_client_path_leading_slash_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   // Path without leading slash
@@ -862,6 +874,7 @@ pub fn http_client_method_conversion_get_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -891,6 +904,7 @@ pub fn http_client_method_conversion_post_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     )
 
   let request =
@@ -1716,6 +1730,7 @@ pub fn http_client_unicode_header_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.from_list([#("X-Custom", "café")]),
+      allow_localhost: False,
     )
 
   let request =

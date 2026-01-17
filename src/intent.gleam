@@ -182,6 +182,10 @@ fn check_command() -> glint.Command(Nil) {
         }
     }
 
+    let allow_localhost =
+      flag.get_bool(input.flags, "allow-localhost")
+      |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
         run_check(
@@ -191,6 +195,7 @@ fn check_command() -> glint.Command(Nil) {
           feature_filter,
           only_filter,
           output_level,
+          allow_localhost,
         )
       }
       [] -> {
@@ -235,6 +240,14 @@ fn check_command() -> glint.Command(Nil) {
       |> flag.default(False)
       |> flag.description("Quiet output (errors only)"),
   )
+  |> glint.flag(
+    "allow-localhost",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Allow localhost URLs for development (bypasses SSRF protection)",
+      ),
+  )
 }
 
 fn run_check(
@@ -244,6 +257,7 @@ fn run_check(
   feature_filter: String,
   only_filter: String,
   output_level: runner.OutputLevel,
+  allow_localhost: Bool,
 ) -> Nil {
   // Mark that command execution has started (for proper exit code handling)
   mark_command_started()
@@ -259,7 +273,7 @@ fn run_check(
   }
 
   // Validate target URL for SSRF protection
-  case security.validate_url(target_url) {
+  case security.validate_url(target_url, allow_localhost) {
     Error(e) -> {
       cli_ui.print_error(security.format_security_error(e))
       halt(exit_error)

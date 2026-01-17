@@ -212,7 +212,7 @@ pub fn create_test_spec(behavior_count: Int) -> Spec {
     audience: "test",
     version: "1.0.0",
     success_criteria: [],
-    config: Config("http://test", 1000, dict.new()),
+    config: Config("http://test", 1000, dict.new(), allow_localhost: False),
     features: [Feature("test-feature", "test", behaviors)],
     rules: [],
     anti_patterns: [],

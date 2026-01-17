@@ -126,6 +126,7 @@ pub fn make_test_spec(features: List(Feature)) -> Spec {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+      allow_localhost: False,
     ),
     features: features,
     rules: [],
@@ -164,12 +165,13 @@ pub fn make_test_config() -> Config {
     base_url: "http://localhost:8080",
     timeout_ms: 5000,
     headers: dict.new(),
+    allow_localhost: False,
   )
 }
 
 /// Create a config with custom base URL
 pub fn make_test_config_with_url(base_url: String) -> Config {
-  Config(base_url: base_url, timeout_ms: 5000, headers: dict.new())
+  Config(base_url: base_url, timeout_ms: 5000, headers: dict.new(), allow_localhost: False)
 }
 
 /// Create a minimal GET request for testing

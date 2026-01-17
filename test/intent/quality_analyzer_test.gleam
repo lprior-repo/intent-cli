@@ -19,6 +19,7 @@ pub fn analyze_empty_spec_returns_error_test() {
         base_url: "http://localhost",
         timeout_ms: 5000,
         headers: dict.new(),
+        allow_localhost: False,
       ),
       features: [],
       rules: [],
@@ -55,6 +56,7 @@ pub fn analyze_spec_with_no_behaviors_returns_error_test() {
         base_url: "http://localhost",
         timeout_ms: 5000,
         headers: dict.new(),
+        allow_localhost: False,
       ),
       features: [
         Feature(

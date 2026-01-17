@@ -23,7 +23,7 @@ import intent/types.{
 
 /// Create a minimal Config
 fn make_config() -> Config {
-  Config(base_url: "http://localhost", timeout_ms: 5000, headers: dict.new())
+  Config(base_url: "http://localhost", timeout_ms: 5000, headers: dict.new(), allow_localhost: False)
 }
 
 /// Create minimal AI hints

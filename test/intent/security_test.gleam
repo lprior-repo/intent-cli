@@ -440,42 +440,42 @@ pub fn validate_file_path_rejects_empty_string_test() {
 // =============================================================================
 
 pub fn validate_url_accepts_valid_https_test() {
-  case security.validate_url("https://api.example.com") {
+  case security.validate_url("https://api.example.com", False) {
     Ok(_) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_accepts_valid_http_test() {
-  case security.validate_url("http://api.example.com") {
+  case security.validate_url("http://api.example.com", False) {
     Ok(_) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_accepts_valid_with_port_test() {
-  case security.validate_url("https://api.example.com:8080") {
+  case security.validate_url("https://api.example.com:8080", False) {
     Ok(_) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_accepts_valid_with_path_test() {
-  case security.validate_url("https://api.example.com/v1/users") {
+  case security.validate_url("https://api.example.com/v1/users", False) {
     Ok(_) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_accepts_valid_with_query_test() {
-  case security.validate_url("https://api.example.com/search?q=test") {
+  case security.validate_url("https://api.example.com/search?q=test", False) {
     Ok(_) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_file_scheme_test() {
-  case security.validate_url("file:///etc/passwd") {
+  case security.validate_url("file:///etc/passwd", False) {
     Error(security.SSRFAttempt(_, reason)) -> {
       string.contains(reason, "http") |> should.be_true()
     }
@@ -484,14 +484,14 @@ pub fn validate_url_rejects_file_scheme_test() {
 }
 
 pub fn validate_url_rejects_ftp_scheme_test() {
-  case security.validate_url("ftp://example.com") {
+  case security.validate_url("ftp://example.com", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_localhost_test() {
-  case security.validate_url("http://localhost:8080") {
+  case security.validate_url("http://localhost:8080", False) {
     Error(security.SSRFAttempt(_, reason)) -> {
       string.contains(reason, "ocalhost") |> should.be_true()
     }
@@ -500,42 +500,42 @@ pub fn validate_url_rejects_localhost_test() {
 }
 
 pub fn validate_url_rejects_localhost_uppercase_test() {
-  case security.validate_url("http://LOCALHOST:8080") {
+  case security.validate_url("http://LOCALHOST:8080", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_127_0_0_1_test() {
-  case security.validate_url("http://127.0.0.1") {
+  case security.validate_url("http://127.0.0.1", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_127_loopback_test() {
-  case security.validate_url("http://127.1.1.1") {
+  case security.validate_url("http://127.1.1.1", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_ipv6_loopback_test() {
-  case security.validate_url("http://[::1]:8080") {
+  case security.validate_url("http://[::1]:8080", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_ipv6_loopback_long_test() {
-  case security.validate_url("http://[0:0:0:0:0:0:0:1]:8080") {
+  case security.validate_url("http://[0:0:0:0:0:0:0:1]:8080", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_10_private_range_test() {
-  case security.validate_url("http://10.0.0.1") {
+  case security.validate_url("http://10.0.0.1", False) {
     Error(security.SSRFAttempt(_, reason)) -> {
       string.contains(reason, "rivate") |> should.be_true()
     }
@@ -544,35 +544,35 @@ pub fn validate_url_rejects_10_private_range_test() {
 }
 
 pub fn validate_url_rejects_10_255_private_range_test() {
-  case security.validate_url("http://10.9.255.255") {
+  case security.validate_url("http://10.9.255.255", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_192_168_private_range_test() {
-  case security.validate_url("http://192.168.1.1") {
+  case security.validate_url("http://192.168.1.1", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_172_16_private_range_test() {
-  case security.validate_url("http://172.16.0.1") {
+  case security.validate_url("http://172.16.0.1", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_172_31_private_range_test() {
-  case security.validate_url("http://172.31.255.255") {
+  case security.validate_url("http://172.31.255.255", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_169_254_link_local_test() {
-  case security.validate_url("http://169.254.169.254") {
+  case security.validate_url("http://169.254.169.254", False) {
     Error(security.SSRFAttempt(_, reason)) -> {
       string.contains(reason, "ink-local") |> should.be_true()
     }
@@ -581,7 +581,7 @@ pub fn validate_url_rejects_169_254_link_local_test() {
 }
 
 pub fn validate_url_rejects_169_254_aws_metadata_test() {
-  case security.validate_url("http://169.254.169.254/latest/meta-data/") {
+  case security.validate_url("http://169.254.169.254/latest/meta-data/", False) {
     Error(security.SSRFAttempt(_, reason)) -> {
       string.contains(reason, "metadata") |> should.be_true()
     }
@@ -590,7 +590,7 @@ pub fn validate_url_rejects_169_254_aws_metadata_test() {
 }
 
 pub fn validate_url_rejects_ipv6_link_local_test() {
-  case security.validate_url("http://[fe80::1]") {
+  case security.validate_url("http://[fe80::1]", False) {
     Error(security.SSRFAttempt(_, reason)) -> {
       string.contains(reason, "IPv6") |> should.be_true()
     }
@@ -599,14 +599,14 @@ pub fn validate_url_rejects_ipv6_link_local_test() {
 }
 
 pub fn validate_url_rejects_ipv6_unique_local_fc_test() {
-  case security.validate_url("http://[fc00::1]") {
+  case security.validate_url("http://[fc00::1]", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
 }
 
 pub fn validate_url_rejects_ipv6_unique_local_fd_test() {
-  case security.validate_url("http://[fd00::1]") {
+  case security.validate_url("http://[fd00::1]", False) {
     Error(security.SSRFAttempt(_, _)) -> Nil
     _ -> should.fail()
   }
