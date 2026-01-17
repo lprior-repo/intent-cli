@@ -1,6 +1,7 @@
 /// Interview Questions Library
 /// Types and loader for interview questions
 /// Questions are defined in schema/questions.cue
+
 import gleam/option
 import intent/question_loader
 import intent/question_types.{type Question, Critical, HappyPath, Question, User}
@@ -11,10 +12,7 @@ import intent/question_types.{type Question, Critical, HappyPath, Question, User
 pub fn get_questions_for_round(profile: String, round: Int) -> List(Question) {
   case question_loader.load_default_questions() {
     Ok(db) -> question_loader.get_questions(db, profile, round)
-    Error(_err) -> {
-      // Silent fallback - error already logged by question_loader
-      fallback_questions(profile, round)
-    }
+    Error(_) -> fallback_questions(profile, round)
   }
 }
 
