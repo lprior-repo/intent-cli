@@ -52,6 +52,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 201
+					headers: {}
+
 
 						example: {
 							id:         "usr_abc123xyz"
@@ -101,6 +103,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 409
+					headers: {}
+
 
 						example: {
 							error: {
@@ -136,6 +140,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 400
+					headers: {}
+
 
 						checks: {
 							"error.code": {rule: "equals INVALID_EMAIL"}
@@ -157,6 +163,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 400
+					headers: {}
+
 
 						checks: {
 							"error.code": {rule: "equals WEAK_PASSWORD"}
@@ -200,6 +208,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
+					headers: {}
+
 
 						example: {
 							token:         "eyJhbGciOiJIUzI1NiIs..."
@@ -245,6 +255,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 401
+					headers: {}
+
 
 						checks: {
 							"error.code": {rule: "equals INVALID_CREDENTIALS"}
@@ -272,6 +284,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 401
+					headers: {}
+
 
 						checks: {
 							"error.code": {rule: "equals INVALID_CREDENTIALS"}
@@ -304,6 +318,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
+					headers: {}
+
 
 						checks: {
 							"id":    {rule: "equals ${new_user_id}"}
@@ -331,6 +347,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
+					headers: {}
+
 
 						checks: {
 							"name":       {rule: "equals Updated Name"}
@@ -349,6 +367,8 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 401
+					headers: {}
+
 
 						checks: {
 							"error.code": {rule: "equals UNAUTHORIZED"}
