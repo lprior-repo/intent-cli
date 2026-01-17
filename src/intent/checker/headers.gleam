@@ -1,4 +1,5 @@
 /// Header validation - validates HTTP response headers
+
 import gleam/dict
 import gleam/list
 import gleam/string
@@ -20,8 +21,7 @@ pub fn check_header(
   case actual_value {
     Ok(#(_, value)) ->
       case value == expected_value {
-        True ->
-          CheckPassed("header:" <> header_name, "equals " <> expected_value)
+        True -> CheckPassed("header:" <> header_name, "equals " <> expected_value)
         False ->
           CheckFailed(
             field: "header:" <> header_name,
@@ -43,9 +43,7 @@ pub fn check_header(
         rule: "present",
         expected: "header to be present",
         actual: "header missing",
-        explanation: "Expected header '"
-          <> header_name
-          <> "' not found in response",
+        explanation: "Expected header '" <> header_name <> "' not found in response",
       )
   }
 }
