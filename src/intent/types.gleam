@@ -21,7 +21,12 @@ pub type Spec {
 
 /// Configuration for spec execution
 pub type Config {
-  Config(base_url: String, timeout_ms: Int, headers: Dict(String, String))
+  Config(
+    base_url: String,
+    timeout_ms: Int,
+    headers: Dict(String, String),
+    allow_localhost: Bool,
+  )
 }
 
 /// A feature groups related behaviors

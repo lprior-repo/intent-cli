@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, mark_command_started/0, base64_url_decode/1, generate_uuid/0, current_timestamp/0, int_to_float/1]).
+-export([now_ms/0, halt/1, mark_command_started/0, base64_url_decode/1, generate_uuid/0, current_timestamp/0, int_to_float/1, get_env/1]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -66,3 +66,10 @@ current_timestamp() ->
 %% Convert integer to float
 int_to_float(I) when is_integer(I) ->
     float(I).
+
+%% Get environment variable value
+get_env(Name) when is_binary(Name) ->
+    case os:getenv(binary_to_list(Name)) of
+        false -> {error, nil};
+        Value -> {ok, list_to_binary(Value)}
+    end.
