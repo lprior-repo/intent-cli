@@ -5,12 +5,10 @@
 //// - CUE unification automatically merges with session file
 //// - No JSONL - pure CUE state for all operations
 
-import gleam/dict
 import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
-import intent/ai_errors
 import simplifile
 
 /// Represents the result of bead execution
@@ -46,102 +44,6 @@ pub type FeedbackError {
   SessionNotFound(session_id: String)
   WriteError(path: String, message: String)
   ValidationError(message: String)
-}
-
-/// Format FeedbackError as AI-friendly structured output
-pub fn format_feedback_error_ai(error: FeedbackError) -> String {
-  case error {
-    SessionNotFound(session_id) ->
-      ai_errors.session_not_found(
-        session_id,
-        ".intent/feedback-" <> session_id <> ".cue",
-      )
-      |> ai_errors.format_cue
-
-    WriteError(path, message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "file_error",
-          error_type: "write_failed",
-          message: "Failed to write feedback: " <> message,
-          context: dict.from_list([#("path", path), #("error", message)]),
-          suggestion: "Check directory permissions and disk space",
-          recovery_steps: [
-            "Verify .intent directory exists: ls -la .intent",
-            "Create directory if missing: mkdir -p .intent",
-            "Check permissions: ls -la .intent", "Verify disk space: df -h",
-            "Check file is not locked by another process",
-          ],
-        )
-      ai_errors.format_cue(error)
-    }
-
-    ValidationError(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "validation_error",
-          error_type: "invalid_input",
-          message: message,
-          context: dict.from_list([#("validation_error", message)]),
-          suggestion: "Fix the validation error",
-          recovery_steps: [
-            "Check the error message for specific validation failures",
-            "Ensure session IDs are alphanumeric with hyphens/underscores",
-            "Ensure bead IDs follow format: PREFIX-NNN (e.g., AUTH-001)",
-            "Verify all required fields are present",
-          ],
-        )
-      ai_errors.format_cue(error)
-    }
-  }
-}
-
-/// Format FeedbackError as human-readable text
-pub fn format_feedback_error_text(error: FeedbackError) -> String {
-  case error {
-    SessionNotFound(session_id) ->
-      ai_errors.session_not_found(
-        session_id,
-        ".intent/feedback-" <> session_id <> ".cue",
-      )
-      |> ai_errors.format_text
-
-    WriteError(path, message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "file_error",
-          error_type: "write_failed",
-          message: "Failed to write feedback: " <> message,
-          context: dict.from_list([#("path", path), #("error", message)]),
-          suggestion: "Check directory permissions and disk space",
-          recovery_steps: [
-            "Verify .intent directory exists: ls -la .intent",
-            "Create directory if missing: mkdir -p .intent",
-            "Check permissions: ls -la .intent", "Verify disk space: df -h",
-            "Check file is not locked by another process",
-          ],
-        )
-      ai_errors.format_text(error)
-    }
-
-    ValidationError(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "validation_error",
-          error_type: "invalid_input",
-          message: message,
-          context: dict.from_list([#("validation_error", message)]),
-          suggestion: "Fix the validation error",
-          recovery_steps: [
-            "Check the error message for specific validation failures",
-            "Ensure session IDs are alphanumeric with hyphens/underscores",
-            "Ensure bead IDs follow format: PREFIX-NNN (e.g., AUTH-001)",
-            "Verify all required fields are present",
-          ],
-        )
-      ai_errors.format_text(error)
-    }
-  }
 }
 
 /// Mark a bead as executed with success status.

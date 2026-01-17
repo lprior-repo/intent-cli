@@ -1,185 +1,24 @@
-# ============================================
-# Intent CLI - Comprehensive .gitignore
-# ============================================
+# bv (beads viewer) local config and caches
+.bv/
 
-# --------------------------------------------
-# Gleam Build Artifacts
-# --------------------------------------------
+# Gleam build artifacts
 build/
 *.beam
-*.cache
-*.cache_meta
-*.erl
-*.app
-*.hrl
-*.mjs
-/priv/
 
-# --------------------------------------------
-# Erlang/OTP
-# --------------------------------------------
+# Erlang
 erl_crash.dump
-*.ez
-*.boot
-*.rel
-*.script
-ebin/
-deps/
-_build/
 
-# --------------------------------------------
-# Node.js (for potential tooling)
-# --------------------------------------------
+# Node dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-.pnpm-debug.log*
 
-# --------------------------------------------
-# Editor & IDE
-# --------------------------------------------
+# Editor and IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*.swn
 *~
 .DS_Store
 Thumbs.db
-*.sublime-project
-*.sublime-workspace
-.vim/
-.project
-.classpath
-.settings/
-*.iml
 
-# --------------------------------------------
-# OS Specific
-# --------------------------------------------
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon?
-._*
-.Spotlight-V100
-.Trashes
-Thumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# --------------------------------------------
-# Test Outputs & Temporary Files
-# --------------------------------------------
+# Test outputs
 *.test
-test-output.txt
-*.log
-*.tmp
-*.temp
-.test/
-coverage/
-
-# --------------------------------------------
-# Claude Code & Plugins
-# --------------------------------------------
-.claude/
-!.claude/README.md
-
-# --------------------------------------------
-# Moon CI/CD
-# --------------------------------------------
-.moon/cache/
-.moon/docker/
-
-# --------------------------------------------
-# Beads (Issue Tracking)
-# --------------------------------------------
-.bv/
-.beads/interactions.jsonl
-
-# Keep these beads files:
-# .beads/issues.jsonl (tracked - issue database)
-# .beads/last-touched (tracked - sync metadata)
-# .beads/README.md (tracked - documentation)
-
-# --------------------------------------------
-# Interview Sessions (Ephemeral)
-# --------------------------------------------
-.interview/
-*.session.cue
-
-# --------------------------------------------
-# Development & Debug
-# --------------------------------------------
-.env
-.env.local
-.env.*.local
-*.pid
-*.seed
-*.log
-debug/
-*.stackdump
-
-# --------------------------------------------
-# Git & VCS
-# --------------------------------------------
-.git/
-.jj/
-.gitattributes
-*.orig
-*.rej
-*.patch
-
-# --------------------------------------------
-# Documentation Build Artifacts
-# --------------------------------------------
-/docs/_build/
-/docs/.doctrees/
-site/
-
-# --------------------------------------------
-# Backups & Archives
-# --------------------------------------------
-*.bak
-*.backup
-*.old
-*.orig
-*~
-\#*\#
-.#*
-
-# --------------------------------------------
-# CUE Temporary Files
-# --------------------------------------------
-*.cue.tmp
-
-# --------------------------------------------
-# Compiled Binaries
-# --------------------------------------------
-/intent
-/bin/intent
-/bin/install.js
-/dist/
-*.exe
-*.dll
-*.so
-*.dylib
-
-# --------------------------------------------
-# Package Manager Artifacts
-# --------------------------------------------
-/hex/
-/.hex/
-rebar3.crashdump
-
-# --------------------------------------------
-# Security & Secrets
-# --------------------------------------------
-*.pem
-*.key
-*.cert
-credentials.json
-secrets.yaml
-.secrets/

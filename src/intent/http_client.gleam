@@ -11,7 +11,6 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import gleam/uri
-import intent/ai_errors
 import intent/interpolate.{type Context}
 import intent/parser
 import intent/types.{type Config, type Request}
@@ -36,169 +35,6 @@ pub type ExecutionError {
   RequestError(message: String)
   ResponseParseError(message: String)
   SSRFBlocked(message: String)
-}
-
-/// Format ExecutionError as AI-friendly structured output
-pub fn format_execution_error_ai(error: ExecutionError) -> String {
-  case error {
-    UrlParseError(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "http_error",
-          error_type: "url_parse_error",
-          message: "Invalid URL: " <> message,
-          context: dict.from_list([#("error", message)]),
-          suggestion: "Fix the URL format in your spec",
-          recovery_steps: [
-            "Ensure base_url is properly formatted (http:// or https://)",
-            "Check for missing protocol (http:// or https://)",
-            "Verify URL does not contain invalid characters",
-            "Test URL manually: curl <url>",
-          ],
-        )
-      ai_errors.format_cue(error)
-    }
-
-    InterpolationError(message) -> {
-      // Extract variable name if present
-      let var_name = case string.contains(message, "{{") {
-        True ->
-          string.split(message, "{{")
-          |> list.drop(1)
-          |> list.first
-          |> result.unwrap("")
-          |> string.split("}}")
-          |> list.first
-          |> result.unwrap("unknown")
-          |> string.trim
-        False -> "unknown"
-      }
-
-      ai_errors.interpolation_error(var_name, [])
-      |> ai_errors.format_cue
-    }
-
-    RequestError(message) ->
-      ai_errors.http_connection_error(message, "target API")
-      |> ai_errors.format_cue
-
-    ResponseParseError(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "http_error",
-          error_type: "response_parse_error",
-          message: "Failed to parse response: " <> message,
-          context: dict.from_list([#("error", message)]),
-          suggestion: "Check API response format",
-          recovery_steps: [
-            "Verify the API returns valid JSON",
-            "Check response Content-Type header",
-            "Test endpoint manually: curl <url>",
-            "Review API documentation for expected response format",
-          ],
-        )
-      ai_errors.format_cue(error)
-    }
-
-    SSRFBlocked(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "security_error",
-          error_type: "ssrf_blocked",
-          message: "Security: " <> message,
-          context: dict.from_list([#("security_check", "SSRF protection")]),
-          suggestion: "Use a public-facing URL for API testing",
-          recovery_steps: [
-            "Blocked URLs: localhost, 127.x, 10.x, 192.168.x, 172.16-31.x",
-            "Use a publicly accessible test server instead",
-            "For local testing, deploy API to a public endpoint",
-            "Review SSRF protection documentation for allowed URLs",
-          ],
-        )
-      ai_errors.format_cue(error)
-    }
-  }
-}
-
-/// Format ExecutionError as human-readable text
-pub fn format_execution_error_text(error: ExecutionError) -> String {
-  case error {
-    UrlParseError(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "http_error",
-          error_type: "url_parse_error",
-          message: "Invalid URL: " <> message,
-          context: dict.from_list([#("error", message)]),
-          suggestion: "Fix the URL format in your spec",
-          recovery_steps: [
-            "Ensure base_url is properly formatted (http:// or https://)",
-            "Check for missing protocol (http:// or https://)",
-            "Verify URL does not contain invalid characters",
-            "Test URL manually: curl <url>",
-          ],
-        )
-      ai_errors.format_text(error)
-    }
-
-    InterpolationError(message) -> {
-      let var_name = case string.contains(message, "{{") {
-        True ->
-          string.split(message, "{{")
-          |> list.drop(1)
-          |> list.first
-          |> result.unwrap("")
-          |> string.split("}}")
-          |> list.first
-          |> result.unwrap("unknown")
-          |> string.trim
-        False -> "unknown"
-      }
-
-      ai_errors.interpolation_error(var_name, [])
-      |> ai_errors.format_text
-    }
-
-    RequestError(message) ->
-      ai_errors.http_connection_error(message, "target API")
-      |> ai_errors.format_text
-
-    ResponseParseError(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "http_error",
-          error_type: "response_parse_error",
-          message: "Failed to parse response: " <> message,
-          context: dict.from_list([#("error", message)]),
-          suggestion: "Check API response format",
-          recovery_steps: [
-            "Verify the API returns valid JSON",
-            "Check response Content-Type header",
-            "Test endpoint manually: curl <url>",
-            "Review API documentation for expected response format",
-          ],
-        )
-      ai_errors.format_text(error)
-    }
-
-    SSRFBlocked(message) -> {
-      let error =
-        ai_errors.AiError(
-          action: "security_error",
-          error_type: "ssrf_blocked",
-          message: "Security: " <> message,
-          context: dict.from_list([#("security_check", "SSRF protection")]),
-          suggestion: "Use a public-facing URL for API testing",
-          recovery_steps: [
-            "Blocked URLs: localhost, 127.x, 10.x, 192.168.x, 172.16-31.x",
-            "Use a publicly accessible test server instead",
-            "For local testing, deploy API to a public endpoint",
-            "Review SSRF protection documentation for allowed URLs",
-          ],
-        )
-      ai_errors.format_text(error)
-    }
-  }
 }
 
 /// Execute a behavior request against the target
@@ -300,27 +136,14 @@ fn build_http_request(
   headers: Dict(String, String),
   body: Json,
 ) -> Result(HttpRequest(String), ExecutionError) {
-  // Validate host - should be guaranteed by validate_safe_url
-  use host <- result.try(case parsed_uri.host {
-    Some(h) -> Ok(h)
-    None -> Error(SSRFBlocked("URL missing hostname"))
-  })
-
-  // Validate and extract scheme - should be guaranteed by validate_scheme
-  use scheme <- result.try(case parsed_uri.scheme {
-    Some("https") -> Ok(http.Https)
-    Some("http") -> Ok(http.Http)
-    Some(other) ->
-      Error(SSRFBlocked(
-        "Invalid scheme: "
-        <> other
-        <> ". Only http:// and https:// are allowed.",
-      ))
-    None -> Error(SSRFBlocked("URL missing scheme"))
-  })
-
+  // Get host from URI - path is now a String, not Option(String) in older API
+  let host = option.unwrap(parsed_uri.host, "localhost")
   let path = ensure_leading_slash(parsed_uri.path)
   let port = parsed_uri.port
+  let scheme = case parsed_uri.scheme {
+    Some("https") -> http.Https
+    _ -> http.Http
+  }
 
   // Start building request
   let req =
@@ -493,12 +316,6 @@ fn validate_safe_url(parsed_uri: uri.Uri) -> Result(Nil, ExecutionError) {
 
 /// Validate that a hostname is not a private/internal address
 fn validate_host(host: String) -> Result(Nil, ExecutionError) {
-  // Reject empty hostnames (URLs like "http:///path")
-  use _ <- result.try(case string.is_empty(host) {
-    True -> Error(SSRFBlocked("URL missing hostname"))
-    False -> Ok(Nil)
-  })
-
   let lowercase_host = string.lowercase(host)
 
   // Check for localhost variants
@@ -611,10 +428,7 @@ fn validate_scheme(parsed_uri: uri.Uri) -> Result(Nil, ExecutionError) {
         <> scheme
         <> ". Only http:// and https:// are allowed.",
       ))
-    None ->
-      Error(SSRFBlocked(
-        "URL missing scheme. Only http:// and https:// URLs are allowed.",
-      ))
+    None -> Ok(Nil)
   }
 }
 

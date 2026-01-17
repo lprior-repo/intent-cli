@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, set_env/2, get_home_dir/0, get_env/1]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -27,14 +27,10 @@ base64_url_decode(Input) when is_binary(Input) ->
         _:_ -> {error, invalid_base64}
     end.
 
-%% Generate UUID v4 (RFC 4122 compliant)
+%% Generate UUID v4 (simple implementation)
 generate_uuid() ->
     <<A:32, B:16, C:16, D:16, E:48>> = crypto:strong_rand_bytes(16),
-    %% Set version bits (bits 48-51) to 0100 (4)
-    C1 = (C band 16#0FFF) bor 16#4000,
-    %% Set variant bits (bits 64-65) to 10
-    D1 = (D band 16#3FFF) bor 16#8000,
-    Parts = [to_hex(A, 8), "-", to_hex(B, 4), "-", to_hex(C1, 4), "-", to_hex(D1, 4), "-", to_hex(E, 12)],
+    Parts = [to_hex(A, 8), "-", to_hex(B, 4), "-", to_hex(C, 4), "-", to_hex(D, 4), "-", to_hex(E, 12)],
     list_to_binary(Parts).
 
 to_hex(N, Width) ->
@@ -44,23 +40,4 @@ to_hex(N, Width) ->
 %% Get current timestamp in ISO 8601 format
 current_timestamp() ->
     Now = erlang:system_time(millisecond),
-    list_to_binary(calendar:system_time_to_rfc3339(Now, [{unit, millisecond}])).
-
-%% Set environment variable
-set_env(Key, Value) ->
-    os:putenv(binary_to_list(Key), binary_to_list(Value)),
-    nil.
-
-%% Get home directory from environment
-get_home_dir() ->
-    case os:getenv("HOME") of
-        false -> {error, nil};
-        Home -> {ok, list_to_binary(Home)}
-    end.
-
-%% Get environment variable (handles binary to list conversion)
-get_env(Key) when is_binary(Key) ->
-    case os:getenv(binary_to_list(Key)) of
-        false -> {error, nil};
-        Value -> {ok, list_to_binary(Value)}
-    end.
+    calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]).
