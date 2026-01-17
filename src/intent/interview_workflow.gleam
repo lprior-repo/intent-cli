@@ -264,79 +264,28 @@ pub fn format_all_summaries(summaries: List(SectionSummary)) -> String {
   <> string.join(list.map(summaries, format_section_summary), "\n\n")
 }
 
-// Helper: convert int to float
-fn int_to_float(i: Int) -> Float {
-  case i {
-    0 -> 0.0
-    1 -> 1.0
-    2 -> 2.0
-    3 -> 3.0
-    4 -> 4.0
-    5 -> 5.0
-    6 -> 6.0
-    7 -> 7.0
-    8 -> 8.0
-    9 -> 9.0
-    10 -> 10.0
-    _ -> {
-      // For larger numbers, approximate via string conversion
-      let s = string.inspect(i)
-      case string.contains(s, ".") {
-        True -> 0.0
-        False -> {
-          // Try to parse as float, fallback to 0.0
-          case float_parse(s) {
-            Ok(f) -> f
-            Error(_) -> 0.0
-          }
-        }
-      }
-    }
-  }
-}
-
-// Helper: parse float from string
-fn float_parse(s: String) -> Result(Float, Nil) {
-  // Gleam doesn't have built-in string to float parsing
-  // For now, return Error - this would need FFI in production
-  Error(Nil)
-}
+// Helper: convert int to float (simple FFI-free approximation)
+@external(erlang, "intent_ffi", "int_to_float")
+fn int_to_float(i: Int) -> Float
 
 // Helper: format float to 2 decimal places
 fn float_to_string_2dp(f: Float) -> String {
-  // Simple approximation: multiply by 100, round, divide by 100
-  let rounded = case f {
-    _ if f < 0.0 -> "0.00"
-    _ if f >= 100.0 -> "100.00"
-    _ -> {
-      // Approximation for display
-      let whole = float_truncate(f)
-      let decimal_part = f -. int_to_float(whole)
-      let decimal_int = float_truncate(decimal_part *. 100.0)
-      string.inspect(whole)
-      <> "."
-      <> case decimal_int < 10 {
-        True -> "0" <> string.inspect(decimal_int)
-        False -> string.inspect(decimal_int)
+  // Simple approximation using string conversion
+  // For more precision, would need FFI
+  let s = string.inspect(f)
+  case string.contains(s, ".") {
+    True -> {
+      // Take first few characters after decimal
+      let parts = string.split(s, ".")
+      case parts {
+        [whole, decimal] -> {
+          let decimal_trimmed = string.slice(decimal, 0, 2)
+          whole <> "." <> decimal_trimmed
+        }
+        _ -> s
       }
     }
-  }
-  rounded
-}
-
-// Helper: truncate float to int
-fn float_truncate(f: Float) -> Int {
-  // Approximation - would need FFI for proper implementation
-  case f {
-    _ if f < 0.0 -> 0
-    _ if f < 1.0 -> 0
-    _ if f < 2.0 -> 1
-    _ if f < 3.0 -> 2
-    _ if f < 10.0 -> 9
-    _ if f < 20.0 -> 19
-    _ if f < 50.0 -> 49
-    _ if f < 100.0 -> 99
-    _ -> 100
+    False -> s <> ".00"
   }
 }
 

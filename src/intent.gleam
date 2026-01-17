@@ -838,6 +838,8 @@ fn run_interview(
         Error(msg) -> {
           io.println_error("Error: " <> msg)
           halt(exit_error)
+          mut_session
+          // unreachable, but needed for type consistency
         }
       }
     }
@@ -885,6 +887,8 @@ fn run_interview(
         Error(err) -> {
           io.println_error("Failed to load bulk answers: " <> err)
           halt(exit_error)
+          session
+          // unreachable, but needed for type consistency
         }
       }
     }
