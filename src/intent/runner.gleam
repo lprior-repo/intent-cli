@@ -10,6 +10,7 @@ import intent/checker
 import intent/http_client.{type ExecutionError, type ExecutionResult}
 import intent/interpolate.{type Context}
 import intent/output.{type SpecResult}
+import intent/output_mode.{type OutputMode}
 import intent/resolver.{type ResolvedBehavior}
 import intent/rules_engine
 import intent/types.{type Behavior, type Config, type Request, type Spec}
@@ -74,8 +75,9 @@ pub fn run_spec(
   spec: Spec,
   target_url: String,
   options: RunOptions,
+  mode: OutputMode,
 ) -> SpecResult {
-  run_spec_with_executor(spec, target_url, options, default_executor())
+  run_spec_with_executor(spec, target_url, options, default_executor(), mode)
 }
 
 /// Run a spec with a custom executor - enables dependency injection for testing
@@ -85,6 +87,7 @@ pub fn run_spec_with_executor(
   target_url: String,
   options: RunOptions,
   executor: BehaviorExecutor,
+  mode: OutputMode,
 ) -> SpecResult {
   // Override base_url with target if provided
   let config = case string.is_empty(target_url) {
@@ -114,11 +117,16 @@ pub fn run_spec_with_executor(
       let filtered = apply_filters(resolved, options)
       let total = list.length(filtered)
 
-      // Start spinner for execution
-      let sp =
-        spinner.new("Running " <> string.inspect(total) <> " behaviors...")
-        |> spinner.with_colour(ansi.cyan)
-        |> spinner.start
+      // Conditionally create spinner based on output mode
+      let sp = case output_mode.should_show_spinner(mode) {
+        True ->
+          Some(
+            spinner.new("Running " <> string.inspect(total) <> " behaviors...")
+            |> spinner.with_colour(ansi.cyan)
+            |> spinner.start,
+          )
+        False -> None
+      }
 
       // Execute behaviors in order with the provided executor
       let #(results, _ctx, _failed_set) =
@@ -131,8 +139,11 @@ pub fn run_spec_with_executor(
           executor,
         )
 
-      // Stop spinner
-      spinner.stop(sp)
+      // Stop spinner if it was created
+      case sp {
+        Some(spinner) -> spinner.stop(spinner)
+        None -> Nil
+      }
 
       // Collect results
       let passed =
@@ -251,7 +262,7 @@ fn execute_behaviors_with_spinner(
   config: Config,
   spec: Spec,
   failed_set: Set(String),
-  sp: spinner.Spinner,
+  sp: Option(spinner.Spinner),
   executor: BehaviorExecutor,
 ) -> #(List(BehaviorResult), Context, Set(String)) {
   list.fold(
@@ -259,8 +270,12 @@ fn execute_behaviors_with_spinner(
     #([], interpolate.new_context(), failed_set),
     fn(acc, rb) {
       let #(results, ctx, failed) = acc
-      // Update spinner text with current behavior
-      spinner.set_text(sp, "Testing: " <> rb.behavior.name)
+      // Update spinner text if spinner exists
+      case sp {
+        Some(spinner) ->
+          spinner.set_text(spinner, "Testing: " <> rb.behavior.name)
+        None -> Nil
+      }
       let #(result, new_ctx, new_failed) =
         execute_single_behavior(rb, config, spec, ctx, failed, executor)
       #([result, ..results], new_ctx, new_failed)

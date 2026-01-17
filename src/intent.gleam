@@ -27,6 +27,7 @@ import intent/kirk/inversion_checker
 import intent/kirk/quality_analyzer as kirk_quality
 import intent/loader
 import intent/output
+import intent/output_mode
 import intent/plan_mode
 import intent/quality_analyzer
 import intent/question_types.{type Question}
@@ -263,10 +264,13 @@ fn run_check(
   // Mark that command execution has started (for proper exit code handling)
   mark_command_started()
 
+  // Determine output mode based on --json flag
+  let mode = output_mode.from_json_flag(is_json)
+
   // Validate target URL is provided
   case string.is_empty(target_url) {
     True -> {
-      cli_ui.print_error("--target URL is required")
+      cli_ui.print_error("--target URL is required", mode)
       io.println("Usage: intent check <spec.cue> --target=<url>")
       halt(exit_error)
     }
@@ -276,7 +280,7 @@ fn run_check(
   // Validate target URL for SSRF protection
   case security.validate_url(target_url, allow_localhost) {
     Error(e) -> {
-      cli_ui.print_error(security.format_security_error(e))
+      cli_ui.print_error(security.format_security_error(e), mode)
       halt(exit_error)
     }
     Ok(_) -> Nil
@@ -285,11 +289,11 @@ fn run_check(
   // Load the spec
   case loader.load_spec(spec_path) {
     Error(e) -> {
-      cli_ui.print_error(loader.format_error(e))
+      cli_ui.print_error(loader.format_error(e), mode)
       halt(exit_invalid)
     }
     Ok(spec) -> {
-      cli_ui.print_header("Checking spec: " <> spec.name)
+      cli_ui.print_header("Checking spec: " <> spec.name, mode)
 
       // Build run options
       let options =
@@ -306,7 +310,7 @@ fn run_check(
         )
 
       // Run the spec
-      let result = runner.run_spec(spec, target_url, options)
+      let result = runner.run_spec(spec, target_url, options, mode)
 
       // Output results
       case is_json {
@@ -322,15 +326,15 @@ fn run_check(
       // Exit with appropriate code
       let exit_code = case result {
         output.SpecResult(pass: True, ..) -> {
-          cli_ui.print_success("All checks passed!")
+          cli_ui.print_success("All checks passed!", mode)
           exit_pass
         }
         output.SpecResult(blocked: blocked, ..) if blocked > 0 -> {
-          cli_ui.print_warning("Blocked behaviors detected")
+          cli_ui.print_warning("Blocked behaviors detected", mode)
           exit_blocked
         }
         _ -> {
-          cli_ui.print_error("Check failed")
+          cli_ui.print_error("Check failed", mode)
           exit_fail
         }
       }
@@ -342,22 +346,24 @@ fn run_check(
 /// The `validate` command - validate CUE spec syntax AND structure
 fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     case input.args {
       [spec_path, ..] -> {
         // Use load_spec_quiet to validate both CUE syntax AND spec structure
         case loader.load_spec_quiet(spec_path) {
           Ok(_) -> {
-            cli_ui.print_success("Valid spec: " <> spec_path)
+            cli_ui.print_success("Valid spec: " <> spec_path, mode)
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error("Invalid spec: " <> loader.format_error(e))
+            cli_ui.print_error("Invalid spec: " <> loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent validate <spec.cue>")
         halt(exit_error)
       }
@@ -935,17 +941,19 @@ fn run_interview(
 /// Resume an existing interview session
 fn run_resume_interview(session_id: String, export_to: String) -> Nil {
   let jsonl_path = ".interview/sessions.jsonl"
+  let mode = output_mode.Interactive
 
   // Load the session from JSONL
   case interview_storage.get_session_from_jsonl(jsonl_path, session_id) {
     Error(err) -> {
-      cli_ui.print_error(err)
+      cli_ui.print_error(err, mode)
       halt(exit_error)
     }
     Ok(session) -> {
-      cli_ui.print_header("Resuming Interview: " <> session.id)
+      cli_ui.print_header("Resuming Interview: " <> session.id, mode)
       cli_ui.print_info(
         "Profile: " <> profile_to_display_string(session.profile),
+        mode,
       )
       io.println("")
 
@@ -984,10 +992,10 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
       case save_result {
         Ok(Nil) -> {
           io.println("")
-          cli_ui.print_success("Session updated: " <> session.id)
+          cli_ui.print_success("Session updated: " <> session.id, mode)
         }
         Error(err) -> {
-          cli_ui.print_error("Failed to save session: " <> err)
+          cli_ui.print_error("Failed to save session: " <> err, mode)
         }
       }
 
@@ -998,11 +1006,12 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
           let spec_cue = spec_builder.build_spec_from_session(final_session)
           case simplifile.write(path, spec_cue) {
             Ok(Nil) -> {
-              cli_ui.print_success("Spec exported to: " <> path)
+              cli_ui.print_success("Spec exported to: " <> path, mode)
             }
             Error(err) -> {
               cli_ui.print_error(
                 "Failed to export spec: " <> string.inspect(err),
+                mode,
               )
             }
           }
@@ -2341,16 +2350,17 @@ fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
 fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let history_path = ".interview/history.jsonl"
+    let mode = output_mode.Interactive
 
     case input.args {
       [session_id, ..] -> {
         case interview_storage.list_session_history(history_path, session_id) {
           Error(err) -> {
-            cli_ui.print_error(err)
+            cli_ui.print_error(err, mode)
             halt(exit_error)
           }
           Ok([]) -> {
-            cli_ui.print_warning("No history found for session: " <> session_id)
+            cli_ui.print_warning("No history found for session: " <> session_id, mode)
             io.println("")
             io.println(
               "Tip: Session history is recorded when you save snapshots",
@@ -2359,7 +2369,7 @@ fn history_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Ok(snapshots) -> {
-            cli_ui.print_header("Session History: " <> session_id)
+            cli_ui.print_header("Session History: " <> session_id, mode)
             io.println("")
 
             list.each(snapshots, fn(snapshot) {
@@ -2383,7 +2393,7 @@ fn history_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        cli_ui.print_error("Session ID required")
+        cli_ui.print_error("Session ID required", mode)
         io.println("")
         io.println("Usage: intent history <session-id>")
         io.println("")
@@ -2399,26 +2409,27 @@ fn history_command() -> glint.Command(Nil) {
 fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let jsonl_path = ".interview/sessions.jsonl"
+    let mode = output_mode.Interactive
 
     case input.args {
       [from_id, to_id, ..] -> {
         // Load both sessions
         case interview_storage.get_session_from_jsonl(jsonl_path, from_id) {
           Error(err) -> {
-            cli_ui.print_error("Failed to load 'from' session: " <> err)
+            cli_ui.print_error("Failed to load 'from' session: " <> err, mode)
             halt(exit_error)
           }
           Ok(from_session) -> {
             case interview_storage.get_session_from_jsonl(jsonl_path, to_id) {
               Error(err) -> {
-                cli_ui.print_error("Failed to load 'to' session: " <> err)
+                cli_ui.print_error("Failed to load 'to' session: " <> err, mode)
                 halt(exit_error)
               }
               Ok(to_session) -> {
                 // Compute and display diff
                 let diff =
                   interview_storage.diff_sessions(from_session, to_session)
-                cli_ui.print_header("Session Comparison")
+                cli_ui.print_header("Session Comparison", mode)
                 io.println("")
                 io.println(interview_storage.format_diff(diff))
 
@@ -2430,10 +2441,11 @@ fn diff_command() -> glint.Command(Nil) {
                   + list.length(diff.answers_removed)
 
                 case total_changes {
-                  0 -> cli_ui.print_info("No answer changes between sessions")
+                  0 -> cli_ui.print_info("No answer changes between sessions", mode)
                   n ->
                     cli_ui.print_info(
                       string.inspect(n) <> " total answer changes",
+                      mode,
                     )
                 }
 
@@ -2445,7 +2457,7 @@ fn diff_command() -> glint.Command(Nil) {
       }
       [single_id] -> {
         // Compare session with its previous version (if exists)
-        cli_ui.print_error("Two session IDs required for comparison")
+        cli_ui.print_error("Two session IDs required for comparison", mode)
         io.println("")
         io.println("Usage: intent diff <from-session> <to-session>")
         io.println("")
@@ -2454,7 +2466,7 @@ fn diff_command() -> glint.Command(Nil) {
         halt(exit_error)
       }
       [] -> {
-        cli_ui.print_error("Session IDs required")
+        cli_ui.print_error("Session IDs required", mode)
         io.println("")
         io.println("Usage: intent diff <from-session> <to-session>")
         io.println("")
@@ -2479,6 +2491,8 @@ fn sessions_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
+    let mode = output_mode.from_json_flag(is_json)
+
     let profile_filter =
       flag.get_string(input.flags, "profile")
       |> result.unwrap("")
@@ -2486,14 +2500,14 @@ fn sessions_command() -> glint.Command(Nil) {
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(_) -> {
         // File doesn't exist yet - treat as empty
-        cli_ui.print_warning("No interview sessions found")
+        cli_ui.print_warning("No interview sessions found", mode)
         io.println("")
         io.println("Start a new interview with:")
         io.println("  intent interview --profile api")
         halt(exit_pass)
       }
       Ok([]) -> {
-        cli_ui.print_warning("No interview sessions found")
+        cli_ui.print_warning("No interview sessions found", mode)
         io.println("")
         io.println("Start a new interview with:")
         io.println("  intent interview --profile api")
@@ -2516,7 +2530,7 @@ fn sessions_command() -> glint.Command(Nil) {
             io.println(json.to_string(json_sessions))
           }
           False -> {
-            cli_ui.print_header("Interview Sessions")
+            cli_ui.print_header("Interview Sessions", mode)
             io.println("")
 
             list.each(filtered, fn(session) {
@@ -2590,6 +2604,8 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
+    let mode = output_mode.from_json_flag(is_json)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -2628,13 +2644,13 @@ fn kirk_quality_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent quality <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2653,6 +2669,8 @@ fn kirk_invert_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -2695,13 +2713,13 @@ fn kirk_invert_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent invert <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2734,6 +2752,8 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -2774,13 +2794,13 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent coverage <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2799,6 +2819,8 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -2850,13 +2872,13 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent gaps <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2882,6 +2904,8 @@ fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
 /// The `effects` command - KIRK second-order effects analysis
 fn kirk_effects_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -2891,13 +2915,13 @@ fn kirk_effects_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent effects <spec.cue>")
         halt(exit_error)
       }
@@ -2911,6 +2935,8 @@ fn kirk_effects_command() -> glint.Command(Nil) {
 /// The `compact` command - KIRK compact format (CIN)
 fn kirk_compact_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     let show_tokens =
       flag.get_bool(input.flags, "tokens")
       |> result.unwrap(False)
@@ -2950,13 +2976,13 @@ fn kirk_compact_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent compact <spec.cue> [--tokens]")
         halt(exit_error)
       }
@@ -2976,6 +3002,8 @@ fn kirk_compact_command() -> glint.Command(Nil) {
 /// The `prototext` command - KIRK protobuf text format output
 fn kirk_prototext_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -2985,13 +3013,13 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent prototext <spec.cue>")
         halt(exit_error)
       }
@@ -3003,6 +3031,8 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
 /// The `ears` command - KIRK EARS requirements parser
 fn kirk_ears_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     let output_format =
       flag.get_string(input.flags, "output")
       |> result.unwrap("text")
@@ -3077,7 +3107,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
               path -> {
                 case simplifile.write(path, output) {
                   Ok(_) -> io.println("Written to: " <> path)
-                  Error(_) -> cli_ui.print_error("Failed to write to: " <> path)
+                  Error(_) -> cli_ui.print_error("Failed to write to: " <> path, mode)
                 }
               }
             }
@@ -3085,13 +3115,13 @@ fn kirk_ears_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(_) -> {
-            cli_ui.print_error("Failed to read: " <> requirements_path)
+            cli_ui.print_error("Failed to read: " <> requirements_path, mode)
             halt(exit_error)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("requirements file path required")
+        cli_ui.print_error("requirements file path required", mode)
         io.println(
           "Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
         )
@@ -3147,6 +3177,8 @@ fn parse_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     let output_file =
       flag.get_string(input.flags, "o")
@@ -3325,6 +3357,7 @@ fn parse_command() -> glint.Command(Nil) {
                       Error(e) ->
                         cli_ui.print_error(
                           "Failed to write: " <> string.inspect(e),
+                          mode,
                         )
                     }
                   }
@@ -3338,13 +3371,13 @@ fn parse_command() -> glint.Command(Nil) {
             }
           }
           Error(_) -> {
-            cli_ui.print_error("Failed to read: " <> requirements_path)
+            cli_ui.print_error("Failed to read: " <> requirements_path, mode)
             halt(exit_error)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("requirements file path required")
+        cli_ui.print_error("requirements file path required", mode)
         io.println(
           "Usage: intent parse <requirements.ears.md> [-o spec.cue] [--json]",
         )

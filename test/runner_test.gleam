@@ -7,6 +7,7 @@ import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
 import intent/output
+import intent/output_mode
 import intent/resolver
 import intent/runner.{RunOptions}
 import test_helpers.{make_test_behavior, make_test_feature, make_test_spec}
@@ -95,7 +96,8 @@ pub fn runner_circular_dependency_error_test() {
   let b = make_test_behavior("beta", ["alpha"])
   let spec = make_test_spec([make_test_feature("Test", [a, b])])
 
-  let result = runner.run_spec(spec, "", runner.default_options())
+  let result =
+    runner.run_spec(spec, "", runner.default_options(), output_mode.Interactive)
 
   result.pass
   |> should.be_false
@@ -111,7 +113,8 @@ pub fn runner_missing_dependency_error_test() {
   let b = make_test_behavior("test", ["nonexistent"])
   let spec = make_test_spec([make_test_feature("Test", [b])])
 
-  let result = runner.run_spec(spec, "", runner.default_options())
+  let result =
+    runner.run_spec(spec, "", runner.default_options(), output_mode.Interactive)
 
   result.pass
   |> should.be_false
@@ -129,7 +132,8 @@ pub fn runner_empty_spec_test() {
   // Spec with no features
   let spec = make_test_spec([])
 
-  let result = runner.run_spec(spec, "", runner.default_options())
+  let result =
+    runner.run_spec(spec, "", runner.default_options(), output_mode.Interactive)
 
   result.total
   |> should.equal(0)
@@ -152,7 +156,8 @@ pub fn runner_empty_feature_test() {
   // Feature with no behaviors
   let spec = make_test_spec([make_test_feature("Empty", [])])
 
-  let result = runner.run_spec(spec, "", runner.default_options())
+  let result =
+    runner.run_spec(spec, "", runner.default_options(), output_mode.Interactive)
 
   result.total
   |> should.equal(0)
@@ -174,7 +179,8 @@ pub fn runner_target_url_override_test() {
 
   // With empty target_url, should attempt to use config base_url
   // This will fail because localhost:8080 isn't running, but that's expected
-  let result = runner.run_spec(spec, "", runner.default_options())
+  let result =
+    runner.run_spec(spec, "", runner.default_options(), output_mode.Interactive)
 
   // The test should have been attempted (total > 0)
   result.total
@@ -191,6 +197,7 @@ pub fn runner_custom_target_url_test() {
       spec,
       "http://nonexistent.invalid:9999",
       runner.default_options(),
+      output_mode.Interactive,
     )
 
   // Should attempt to run against the custom URL (1 behavior)
@@ -240,7 +247,8 @@ pub fn runner_multiple_features_count_test() {
     make_test_feature("Products", [make_test_behavior("list-products", [])])
   let spec = make_test_spec([f1, f2, f3])
 
-  let result = runner.run_spec(spec, "", runner.default_options())
+  let result =
+    runner.run_spec(spec, "", runner.default_options(), output_mode.Interactive)
 
   // Should have 3 total behaviors
   result.total
@@ -273,7 +281,8 @@ pub fn runner_cross_feature_dependencies_test() {
 pub fn runner_summary_all_passed_format_test() {
   // When all pass, summary should mention "passed"
   let spec = make_test_spec([])
-  let result = runner.run_spec(spec, "", runner.default_options())
+  let result =
+    runner.run_spec(spec, "", runner.default_options(), output_mode.Interactive)
 
   result.summary
   |> string.contains("passed")
