@@ -63,14 +63,17 @@ fn create_mock_answer(
   response: String,
   round: Int,
 ) -> interview.Answer {
+  let extracted = dict.new()
+  let confidence = interview.calculate_confidence(question_id, response, extracted)
+
   interview.Answer(
     question_id: question_id,
     question_text: "Test question",
     perspective: question_types.Developer,
     round: round,
     response: response,
-    extracted: dict.new(),
-    confidence: 0.8,
+    extracted: extracted,
+    confidence: confidence,
     notes: "",
     timestamp: "2024-01-01T00:00:00Z",
   )
@@ -1169,10 +1172,7 @@ pub fn ai_agent_full_interview_workflow_test() {
 
   // STEP 4: Reload session from JSONL to verify persistence
   let loaded_result =
-    interview_storage.get_session_from_jsonl(
-      "test-sessions.jsonl",
-      session_id,
-    )
+    interview_storage.get_session_from_jsonl("test-sessions.jsonl", session_id)
 
   case loaded_result {
     Ok(loaded) -> {
@@ -1202,10 +1202,7 @@ pub fn ai_agent_resume_mid_interview_test() {
 
   // Simulate AI agent crash/restart - reload session
   let result =
-    interview_storage.get_session_from_jsonl(
-      "test-sessions.jsonl",
-      session_id,
-    )
+    interview_storage.get_session_from_jsonl("test-sessions.jsonl", session_id)
 
   case result {
     Ok(resumed) -> {
@@ -1221,7 +1218,10 @@ pub fn ai_agent_resume_mid_interview_test() {
 
       // Save again
       let _ =
-        interview_storage.append_session_to_jsonl(resumed, "test-sessions.jsonl")
+        interview_storage.append_session_to_jsonl(
+          resumed,
+          "test-sessions.jsonl",
+        )
 
       // Verify we can reload again
       let final_result =
@@ -1379,9 +1379,7 @@ fn cue_question_decoder(
 fn cue_progress_decoder(
   dyn: dynamic.Dynamic,
 ) -> Result(CueProgress, List(dynamic.DecodeError)) {
-  use current_step <- result.try(dynamic.field("current_step", dynamic.int)(
-    dyn,
-  ))
+  use current_step <- result.try(dynamic.field("current_step", dynamic.int)(dyn))
   use total_steps <- result.try(dynamic.field("total_steps", dynamic.int)(dyn))
   use percent_complete <- result.try(dynamic.field(
     "percent_complete",
