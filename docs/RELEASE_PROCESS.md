@@ -1,317 +1,207 @@
 # Release Process
 
-This document describes how to create and publish a new release of Intent CLI.
+Complete guide for creating and publishing Intent CLI releases.
 
 ## Prerequisites
 
-Ensure you have the following tools installed:
-
-- **git-cliff** - Automated changelog generation
+- **git-cliff** - Changelog generation
   ```bash
   cargo install git-cliff
   # or: brew install git-cliff
   ```
 
-- **just** - Command runner
+- **just** - Task runner
   ```bash
   cargo install just
   # or: brew install just
   ```
 
-- **gleam** - Gleam compiler (1.14.0+)
-  ```bash
-  # Already installed for development
-  gleam --version
-  ```
+## Quick Release Checklist
 
-## Release Checklist
+- [ ] All tests pass (`gleam test`)
+- [ ] Code is formatted (`gleam format --check`)
+- [ ] Update version in `gleam.toml`
+- [ ] Generate changelog (`just release X.Y.Z`)
+- [ ] Review CHANGELOG.md
+- [ ] Commit changes
+- [ ] Create git tag
+- [ ] Push to remote
+- [ ] Create GitHub release
 
-### 1. Prepare the Release
+## Semantic Versioning
 
-**Verify clean state:**
+Follow [SemVer](https://semver.org/):
+
+- **MAJOR (X.0.0)** - Breaking changes
+- **MINOR (0.X.0)** - New features, backward compatible
+- **PATCH (0.0.X)** - Bug fixes, backward compatible
+
+## Step-by-Step Release
+
+### 1. Verify Clean State
+
 ```bash
 # Ensure working directory is clean
 git status
 
-# Ensure all tests pass
+# Run full test suite
 gleam test
 
-# Ensure code is formatted
+# Check formatting
 gleam format --check
 
 # Build successfully
 gleam build
 ```
 
-**Check current version:**
-```bash
-# Current version is in gleam.toml
-grep '^version' gleam.toml
-```
+### 2. Update Version
 
-### 2. Update Version Number
-
-Determine the new version using [Semantic Versioning](https://semver.org/):
-
-- **MAJOR** (X.0.0) - Breaking changes
-- **MINOR** (0.X.0) - New features, backward compatible
-- **PATCH** (0.0.X) - Bug fixes, backward compatible
-
-**Update gleam.toml:**
-```bash
-# Edit gleam.toml manually or use sed
-sed -i 's/version = ".*"/version = "0.2.0"/' gleam.toml
+Edit `gleam.toml`:
+```toml
+version = "0.2.0"
 ```
 
 ### 3. Generate Changelog
 
-**Preview changes:**
 ```bash
-# See what will be added to changelog
+# Preview first
 just changelog-preview v0.2.0
-```
 
-**Generate changelog:**
-```bash
-# Use the release command for guided process
+# Generate changelog
 just release 0.2.0
-
-# Or manually generate
-just changelog v0.2.0
 ```
 
-**Review CHANGELOG.md:**
-- Check that all notable changes are included
-- Verify categorization (Features, Bug Fixes, etc.)
-- Edit manually if needed
-- Ensure dates are correct
-- Add any missing context or notes
+### 4. Review Changes
 
-### 4. Commit Release Changes
+Check `CHANGELOG.md`:
+- All notable changes included
+- Proper categorization
+- Correct dates
+- Clear descriptions
+
+Edit manually if needed.
+
+### 5. Commit Release
 
 ```bash
-# Stage the changed files
 git add gleam.toml CHANGELOG.md
-
-# Commit with conventional format
 git commit -m "chore(release): prepare for v0.2.0"
 ```
 
-### 5. Create Git Tag
+### 6. Create Tag
 
 ```bash
-# Create annotated tag
 git tag -a v0.2.0 -m "Release v0.2.0"
-
-# Verify tag
-git tag -l -n1 v0.2.0
 ```
 
-### 6. Push Changes
+### 7. Push Everything
 
 ```bash
-# Push commits
 git push origin main
-
-# Push tags
 git push origin --tags
 ```
 
-### 7. Create GitHub Release
+### 8. Create GitHub Release
 
-1. Go to [GitHub Releases](https://github.com/lprior-repo/intent-cli/releases)
+1. Go to GitHub Releases page
 2. Click "Draft a new release"
-3. Choose the tag you just created (v0.2.0)
-4. Use the version as the release title (v0.2.0)
-5. Copy the relevant section from CHANGELOG.md as the description
-6. Attach any release artifacts if applicable
-7. Click "Publish release"
+3. Select tag v0.2.0
+4. Copy relevant CHANGELOG.md section
+5. Publish release
 
-### 8. Verify Release
-
-```bash
-# Verify tag is visible
-git tag -l
-
-# Verify GitHub release exists
-gh release view v0.2.0  # If gh CLI is installed
-
-# Test installation from tag
-git clone --branch v0.2.0 https://github.com/lprior-repo/intent-cli.git /tmp/intent-test
-cd /tmp/intent-test
-gleam build
-gleam test
-```
-
-### 9. Announce Release
-
-- Update project README.md if needed
-- Post in relevant channels/communities
-- Update documentation site if applicable
-
-## Release Workflow (Quick Reference)
-
-```bash
-# 1. Ensure clean state
-git status
-gleam test
-gleam format --check
-
-# 2. Update version in gleam.toml
-vim gleam.toml  # or your editor
-
-# 3. Generate and review changelog
-just release 0.2.0
-
-# 4. Review changes
-git diff gleam.toml CHANGELOG.md
-
-# 5. Commit and tag
-git add gleam.toml CHANGELOG.md
-git commit -m "chore(release): prepare for v0.2.0"
-git tag -a v0.2.0 -m "Release v0.2.0"
-
-# 6. Push everything
-git push origin main
-git push origin --tags
-
-# 7. Create GitHub release (via web UI or gh CLI)
-```
-
-## Hotfix Release Process
+## Hotfix Releases
 
 For urgent bug fixes:
 
-1. **Create hotfix branch from tag:**
-   ```bash
-   git checkout -b hotfix/0.1.1 v0.1.0
-   ```
-
-2. **Make the fix:**
-   ```bash
-   # Fix the bug
-   # Add tests
-   # Update version in gleam.toml to 0.1.1
-   ```
-
-3. **Update changelog:**
-   ```bash
-   just changelog v0.1.1
-   ```
-
-4. **Commit, tag, and push:**
-   ```bash
-   git commit -am "fix: critical bug in X"
-   git tag -a v0.1.1 -m "Hotfix v0.1.1"
-   git push origin hotfix/0.1.1
-   git push origin --tags
-   ```
-
-5. **Merge back to main:**
-   ```bash
-   git checkout main
-   git merge hotfix/0.1.1
-   git push origin main
-   ```
-
-## Changelog Tips
-
-### Good Commit Messages
-
 ```bash
-# Good - clear and descriptive
+# 1. Branch from tag
+git checkout -b hotfix/0.1.1 v0.1.0
+
+# 2. Make fixes
+# ... fix code, add tests ...
+
+# 3. Update version
+vim gleam.toml  # Set to 0.1.1
+
+# 4. Generate changelog
+just changelog v0.1.1
+
+# 5. Commit and tag
+git commit -am "fix: critical bug in X"
+git tag -a v0.1.1 -m "Hotfix v0.1.1"
+
+# 6. Push
+git push origin hotfix/0.1.1
+git push origin --tags
+
+# 7. Merge back to main
+git checkout main
+git merge hotfix/0.1.1
+git push origin main
+```
+
+## Commit Message Tips
+
+Good commit messages make better changelogs:
+
+### Good Examples
+```
 feat(interview): add support for resuming sessions across restarts
 fix(parser): handle empty CUE blocks without crashing
 docs(api): add examples for KIRK analysis commands
-
-# Bad - too vague
-feat: improvements
-fix: bug
-docs: updates
 ```
 
-### Manual Changelog Editing
+### Bad Examples
+```
+feat: improvements       # Too vague
+fix: bug                 # What bug?
+docs: updates           # What updates?
+```
 
-If git-cliff doesn't categorize something correctly:
+## Breaking Changes
 
-1. Edit CHANGELOG.md directly
-2. Move entries between sections
-3. Reword descriptions for clarity
-4. Add context or breaking change notes
-5. Ensure links to issues/PRs are correct
-
-### Breaking Changes
-
-Always call out breaking changes explicitly:
+Always call out breaking changes:
 
 ```markdown
 ## [2.0.0] - 2026-02-01
 
 ### ⚠️ BREAKING CHANGES
 
-- **interview:** Session format changed - old sessions must be migrated
+- **interview:** Session format changed - migrate old sessions
 - **api:** Removed deprecated `--legacy` flag
 - **config:** Default timeout increased from 5s to 30s
-
-### Features
-...
 ```
 
-## Common Issues
+## Troubleshooting
 
 ### Changelog Missing Commits
 
-**Problem:** Some commits don't appear in changelog
+**Problem:** Some commits don't appear
 
 **Solution:**
-- Check `cliff.toml` commit_parsers configuration
-- Ensure commits follow conventional format
-- Use `just changelog-preview` to see what's included
-- Manually add missing entries to CHANGELOG.md
+- Check `cliff.toml` commit_parsers
+- Ensure conventional commit format
+- Use `just changelog-preview` to debug
+- Add missing entries manually
 
 ### Wrong Version Order
 
-**Problem:** Versions appear in wrong order in changelog
+**Problem:** Versions out of order
 
 **Solution:**
-- Check that `topo_order = false` in cliff.toml
-- Ensure tags follow semantic versioning (vX.Y.Z)
-- Regenerate changelog: `just changelog`
+- Check `topo_order = false` in cliff.toml
+- Use semantic versioning (vX.Y.Z)
+- Regenerate: `just changelog`
 
-### Merge Conflicts in CHANGELOG.md
+## Post-Release
 
-**Problem:** Conflicts when merging branches
+After releasing:
 
-**Solution:**
-- Keep both versions during merge
-- Regenerate changelog: `just changelog`
-- Review and manually adjust if needed
-
-## Post-Release Tasks
-
-After each release:
-
-1. **Update documentation** - Ensure docs reflect new version
-2. **Close related beads** - Mark completed issues as done
-3. **Plan next version** - Review open beads for next milestone
-4. **Monitor issues** - Watch for bugs in new release
-5. **Update dependencies** - Check for outdated packages
-
-## Version Support Policy
-
-- **Latest version:** Fully supported, receives all updates
-- **Previous minor:** Bug fixes only for 6 months
-- **Older versions:** Community support only
-
-## Emergency Rollback
-
-If a release has critical issues:
-
-1. **Warn users immediately** - Create GitHub issue
-2. **Fix in hotfix branch** - Follow hotfix process above
-3. **Delete problematic release** - GitHub UI or `gh release delete`
-4. **Release fixed version ASAP**
-5. **Post-mortem** - Document what went wrong
+1. Monitor issues for bugs
+2. Update documentation
+3. Close related beads
+4. Plan next version
+5. Check dependencies
 
 ## Resources
 
@@ -319,8 +209,7 @@ If a release has critical issues:
 - [Keep a Changelog](https://keepachangelog.com/)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [git-cliff Documentation](https://git-cliff.org/docs/)
-- [just Documentation](https://just.systems/)
 
 ---
 
-**Remember:** A good release process prevents bugs, a great release process makes rollbacks easy.
+**Remember:** Good releases prevent bugs, great releases make rollbacks easy.
