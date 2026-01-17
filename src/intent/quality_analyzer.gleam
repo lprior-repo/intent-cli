@@ -1,20 +1,13 @@
 /// Spec quality analysis and scoring
 /// Analyzes completeness, clarity, testability, and AI readiness
+
 import gleam/dict
 import gleam/int
-import gleam/json
 import gleam/list
+import gleam/json
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/types.{type Behavior, type Rule, type Spec}
-
-/// Errors that can occur during quality analysis
-pub type QualityAnalyzerError {
-  EmptySpec(message: String)
-  InvalidSpec(message: String)
-  MissingRequiredField(field: String, location: String)
-  IncompleteData(message: String)
-}
+import intent/types.{type Spec, type Behavior, type Rule}
 
 /// Quality metrics for a spec
 pub type QualityReport {
@@ -42,79 +35,41 @@ pub type QualityIssue {
 }
 
 /// Analyze spec quality
-/// Returns error for invalid specs that cannot be analyzed
-pub fn analyze_spec(spec: Spec) -> Result(QualityReport, QualityAnalyzerError) {
-  // Validate spec has required fields
-  case validate_spec_structure(spec) {
-    Error(e) -> Error(e)
-    Ok(_) -> {
-      let behaviors =
-        spec.features
-        |> list.flat_map(fn(f) { f.behaviors })
+pub fn analyze_spec(spec: Spec) -> QualityReport {
+  let behaviors =
+    spec.features
+    |> list.flat_map(fn(f) { f.behaviors })
 
-      // Check for completely empty spec (error condition)
-      case behaviors {
-        [] ->
-          case list.is_empty(spec.features) {
-            True ->
-              Error(EmptySpec(
-                "Spec has no features or behaviors. Cannot perform quality analysis on empty specification.",
-              ))
-            False ->
-              Error(IncompleteData(
-                "Features exist but have no behaviors. Add at least one behavior to each feature for analysis.",
-              ))
-          }
-        _ -> {
-          // Calculate all scores
-          let coverage_score = calculate_coverage_score(behaviors, spec.rules)
-          let clarity_score = calculate_clarity_score(behaviors)
-          let testability_score = calculate_testability_score(behaviors)
-          let ai_readiness_score = calculate_ai_readiness_score(spec, behaviors)
+  let coverage_score = calculate_coverage_score(behaviors, spec.rules)
+  let clarity_score = calculate_clarity_score(behaviors)
+  let testability_score = calculate_testability_score(behaviors)
+  let ai_readiness_score = calculate_ai_readiness_score(spec, behaviors)
 
-          let overall_score = {
-            let sum =
-              coverage_score
-              + clarity_score
-              + testability_score
-              + ai_readiness_score
-            sum / 4
-          }
-
-          let issues = find_quality_issues(behaviors, spec.rules)
-          let suggestions = generate_suggestions(issues, behaviors, spec.rules)
-
-          Ok(QualityReport(
-            coverage_score: coverage_score,
-            clarity_score: clarity_score,
-            testability_score: testability_score,
-            ai_readiness_score: ai_readiness_score,
-            overall_score: overall_score,
-            issues: issues,
-            suggestions: suggestions,
-          ))
-        }
-      }
-    }
+  let overall_score = {
+    let sum = coverage_score + clarity_score + testability_score + ai_readiness_score
+    sum / 4
   }
-}
 
-/// Validate that spec has required structure for quality analysis
-fn validate_spec_structure(spec: Spec) -> Result(Nil, QualityAnalyzerError) {
-  // Check for required name field
-  case string.is_empty(spec.name) {
-    True ->
-      Error(MissingRequiredField(
-        "name",
-        "spec.name is required for quality analysis",
-      ))
-    False -> Ok(Nil)
-  }
+  let issues = find_quality_issues(behaviors, spec.rules)
+  let suggestions = generate_suggestions(issues, behaviors, spec.rules)
+
+  QualityReport(
+    coverage_score: coverage_score,
+    clarity_score: clarity_score,
+    testability_score: testability_score,
+    ai_readiness_score: ai_readiness_score,
+    overall_score: overall_score,
+    issues: issues,
+    suggestions: suggestions,
+  )
 }
 
 /// Calculate coverage score (0-100)
 /// Measures how many error cases and edge cases are tested
-fn calculate_coverage_score(behaviors: List(Behavior), rules: List(Rule)) -> Int {
+fn calculate_coverage_score(
+  behaviors: List(Behavior),
+  rules: List(Rule),
+) -> Int {
   let base = 50
 
   // Count error status codes tested
@@ -127,6 +82,7 @@ fn calculate_coverage_score(behaviors: List(Behavior), rules: List(Rule)) -> Int
     |> list.length
 
   let error_bonus = int.min(50, error_statuses * 10)
+
 
   // Check if authentication tested
   let has_auth_test =
@@ -157,8 +113,7 @@ fn calculate_coverage_score(behaviors: List(Behavior), rules: List(Rule)) -> Int
   // Check for anti-pattern coverage
   let antipattern_bonus = int.min(5, list.length(rules) * 2)
 
-  let coverage_total =
-    base + error_bonus + auth_bonus + edge_bonus + antipattern_bonus
+  let coverage_total = base + error_bonus + auth_bonus + edge_bonus + antipattern_bonus
   int.min(100, coverage_total)
 }
 
@@ -245,11 +200,12 @@ fn calculate_testability_score(behaviors: List(Behavior)) -> Int {
   // Check for examples
   let with_examples =
     behaviors
-    |> list.filter(fn(b) { b.response.example != json.null() })
+    |> list.filter(fn(b) {
+      b.response.example != json.null()
+    })
     |> list.length
 
-  let example_bonus =
-    int.min(5, with_examples / int.max(1, list.length(behaviors) / 2))
+  let example_bonus = int.min(5, with_examples / int.max(1, list.length(behaviors) / 2))
 
   let testability_total = base + capture_bonus + deps_bonus + example_bonus
   int.min(100, testability_total)
@@ -293,7 +249,9 @@ fn calculate_ai_readiness_score(spec: Spec, behaviors: List(Behavior)) -> Int {
   // Count example responses
   let with_examples =
     behaviors
-    |> list.filter(fn(b) { b.response.example != json.null() })
+    |> list.filter(fn(b) {
+      b.response.example != json.null()
+    })
     |> list.length
 
   let example_bonus = int.min(10, with_examples * 5)
@@ -310,7 +268,8 @@ fn find_quality_issues(
   let mut_issues = []
 
   // Check for error tests
-  let has_error_tests = list.any(behaviors, fn(b) { b.response.status >= 400 })
+  let has_error_tests =
+    list.any(behaviors, fn(b) { b.response.status >= 400 })
 
   let mut_issues = case has_error_tests {
     True -> mut_issues
@@ -319,7 +278,9 @@ fn find_quality_issues(
 
   // Check for auth tests
   let has_auth_test =
-    list.any(behaviors, fn(b) { contains_any_ignore_case(b.name, ["auth"]) })
+    list.any(behaviors, fn(b) {
+      contains_any_ignore_case(b.name, ["auth"])
+    })
 
   let mut_issues = case has_auth_test {
     True -> mut_issues
@@ -355,8 +316,7 @@ fn find_quality_issues(
   }
 
   // Check for examples
-  let has_examples =
-    list.any(behaviors, fn(b) { b.response.example != json.null() })
+  let has_examples = list.any(behaviors, fn(b) { b.response.example != json.null() })
 
   let mut_issues = case has_examples {
     True -> mut_issues
@@ -435,36 +395,31 @@ fn add_suggestion_if(
 /// Format quality report for display
 pub fn format_report(report: QualityReport) -> String {
   let score_section =
-    "Quality Score: "
-    <> int.to_string(report.overall_score)
-    <> "/100\n"
-    <> "  Coverage: "
-    <> int.to_string(report.coverage_score)
-    <> "/100\n"
-    <> "  Clarity: "
-    <> int.to_string(report.clarity_score)
-    <> "/100\n"
-    <> "  Testability: "
-    <> int.to_string(report.testability_score)
-    <> "/100\n"
-    <> "  AI Readiness: "
-    <> int.to_string(report.ai_readiness_score)
-    <> "/100"
+    "Quality Score: " <> int.to_string(report.overall_score) <> "/100\n" <> "  Coverage: " <> int.to_string(
+      report.coverage_score,
+    ) <> "/100\n" <> "  Clarity: " <> int.to_string(
+      report.clarity_score,
+    ) <> "/100\n" <> "  Testability: " <> int.to_string(
+      report.testability_score,
+    ) <> "/100\n" <> "  AI Readiness: " <> int.to_string(
+      report.ai_readiness_score,
+    ) <> "/100"
 
   let issues_section = case list.is_empty(report.issues) {
     True -> "No quality issues found!"
     False ->
-      "Quality Issues:\n"
-      <> string.join(report.issues |> list.map(format_issue), "\n")
+      "Quality Issues:\n" <> string.join(
+        report.issues |> list.map(format_issue),
+        "\n",
+      )
   }
 
   let suggestions_section = case list.is_empty(report.suggestions) {
     True -> ""
     False ->
-      "\n\nSuggestions for Improvement:\n"
-      <> string.join(
+      "\n\nSuggestions for Improvement:\n" <> string.join(
         report.suggestions
-          |> list.index_map(fn(s, i) { int.to_string(i + 1) <> ". " <> s }),
+        |> list.index_map(fn(s, i) { int.to_string(i + 1) <> ". " <> s }),
         "\n",
       )
   }
@@ -484,186 +439,4 @@ fn format_issue(issue: QualityIssue) -> String {
     UntestedRules -> "  • Global rules not tested in behaviors"
     MissingAIHints -> "  • No AI implementation hints provided"
   }
-}
-
-// =============================================================================
-// AI-FRIENDLY ERROR FORMATTING
-// =============================================================================
-
-/// Format error as AI-friendly CUE structure
-/// Returns structured error with action, context, suggestion, and recovery steps
-pub fn format_error_ai(error: QualityAnalyzerError) -> String {
-  case error {
-    EmptySpec(msg) ->
-      "{\n"
-      <> "    action: \"validation_error\"\n"
-      <> "    error: {\n"
-      <> "        type: \"empty_spec\"\n"
-      <> "        message: \"Cannot analyze empty specification\"\n"
-      <> "        context: {\n"
-      <> "            reason: \""
-      <> escape_json_string(msg)
-      <> "\"\n"
-      <> "            analysis_stage: \"quality_analysis\"\n"
-      <> "        }\n"
-      <> "    }\n"
-      <> "    suggestion: \"Add features and behaviors to the specification\"\n"
-      <> "    recovery: [\n"
-      <> "        \"Add at least one feature to the spec\",\n"
-      <> "        \"Ensure each feature has at least one behavior\",\n"
-      <> "        \"Run 'intent validate <spec.cue>' to verify structure\",\n"
-      <> "        \"Use 'intent interview' to generate complete specification\"\n"
-      <> "    ]\n"
-      <> "}"
-
-    InvalidSpec(msg) ->
-      "{\n"
-      <> "    action: \"validation_error\"\n"
-      <> "    error: {\n"
-      <> "        type: \"invalid_spec_structure\"\n"
-      <> "        message: \"Spec structure is invalid for quality analysis\"\n"
-      <> "        context: {\n"
-      <> "            validation_error: \""
-      <> escape_json_string(msg)
-      <> "\"\n"
-      <> "            analysis_stage: \"pre_analysis_validation\"\n"
-      <> "        }\n"
-      <> "    }\n"
-      <> "    suggestion: \"Fix spec structure to meet quality analysis requirements\"\n"
-      <> "    recovery: [\n"
-      <> "        \"Run 'intent validate <spec.cue>' to identify structural issues\",\n"
-      <> "        \"Check CUE syntax with: cue vet <spec.cue>\",\n"
-      <> "        \"Verify all required fields are present\",\n"
-      <> "        \"Review spec format in examples/ directory\"\n"
-      <> "    ]\n"
-      <> "}"
-
-    MissingRequiredField(field, location) ->
-      "{\n"
-      <> "    action: \"validation_error\"\n"
-      <> "    error: {\n"
-      <> "        type: \"missing_required_field\"\n"
-      <> "        message: \"Required field missing: "
-      <> field
-      <> "\"\n"
-      <> "        context: {\n"
-      <> "            field: \""
-      <> field
-      <> "\"\n"
-      <> "            location: \""
-      <> location
-      <> "\"\n"
-      <> "            analysis_stage: \"structure_validation\"\n"
-      <> "        }\n"
-      <> "    }\n"
-      <> "    suggestion: \"Add the required field to the specification\"\n"
-      <> "    recovery: [\n"
-      <> "        \"Add '"
-      <> field
-      <> "' field to spec\",\n"
-      <> "        \"Check spec template for required fields\",\n"
-      <> "        \"Run 'intent validate <spec.cue>' to find all missing fields\",\n"
-      <> "        \"Review Intent spec format documentation\"\n"
-      <> "    ]\n"
-      <> "}"
-
-    IncompleteData(msg) ->
-      "{\n"
-      <> "    action: \"validation_error\"\n"
-      <> "    error: {\n"
-      <> "        type: \"incomplete_spec_data\"\n"
-      <> "        message: \"Specification has incomplete data\"\n"
-      <> "        context: {\n"
-      <> "            reason: \""
-      <> escape_json_string(msg)
-      <> "\"\n"
-      <> "            analysis_stage: \"data_completeness_check\"\n"
-      <> "        }\n"
-      <> "    }\n"
-      <> "    suggestion: \"Complete the specification with behavior definitions\"\n"
-      <> "    recovery: [\n"
-      <> "        \"Add behaviors to all features\",\n"
-      <> "        \"Ensure each behavior has request and response definitions\",\n"
-      <> "        \"Run 'intent validate <spec.cue>' to check completeness\",\n"
-      <> "        \"Use 'intent interview' to fill in missing details\"\n"
-      <> "    ]\n"
-      <> "}"
-  }
-}
-
-/// Format error as human-readable text with context and recovery steps
-pub fn format_error_text(error: QualityAnalyzerError) -> String {
-  case error {
-    EmptySpec(msg) ->
-      "Error: Cannot analyze empty specification\n\n"
-      <> "Context:\n"
-      <> "  reason: "
-      <> msg
-      <> "\n"
-      <> "  analysis_stage: quality_analysis\n\n"
-      <> "Suggestion: Add features and behaviors to the specification\n\n"
-      <> "Recovery Steps:\n"
-      <> "  1. Add at least one feature to the spec\n"
-      <> "  2. Ensure each feature has at least one behavior\n"
-      <> "  3. Run 'intent validate <spec.cue>' to verify structure\n"
-      <> "  4. Use 'intent interview' to generate complete specification"
-
-    InvalidSpec(msg) ->
-      "Error: Spec structure is invalid for quality analysis\n\n"
-      <> "Context:\n"
-      <> "  validation_error: "
-      <> msg
-      <> "\n"
-      <> "  analysis_stage: pre_analysis_validation\n\n"
-      <> "Suggestion: Fix spec structure to meet quality analysis requirements\n\n"
-      <> "Recovery Steps:\n"
-      <> "  1. Run 'intent validate <spec.cue>' to identify structural issues\n"
-      <> "  2. Check CUE syntax with: cue vet <spec.cue>\n"
-      <> "  3. Verify all required fields are present\n"
-      <> "  4. Review spec format in examples/ directory"
-
-    MissingRequiredField(field, location) ->
-      "Error: Required field missing: "
-      <> field
-      <> "\n\n"
-      <> "Context:\n"
-      <> "  field: "
-      <> field
-      <> "\n"
-      <> "  location: "
-      <> location
-      <> "\n"
-      <> "  analysis_stage: structure_validation\n\n"
-      <> "Suggestion: Add the required field to the specification\n\n"
-      <> "Recovery Steps:\n"
-      <> "  1. Add '"
-      <> field
-      <> "' field to spec\n"
-      <> "  2. Check spec template for required fields\n"
-      <> "  3. Run 'intent validate <spec.cue>' to find all missing fields\n"
-      <> "  4. Review Intent spec format documentation"
-
-    IncompleteData(msg) ->
-      "Error: Specification has incomplete data\n\n"
-      <> "Context:\n"
-      <> "  reason: "
-      <> msg
-      <> "\n"
-      <> "  analysis_stage: data_completeness_check\n\n"
-      <> "Suggestion: Complete the specification with behavior definitions\n\n"
-      <> "Recovery Steps:\n"
-      <> "  1. Add behaviors to all features\n"
-      <> "  2. Ensure each behavior has request and response definitions\n"
-      <> "  3. Run 'intent validate <spec.cue>' to check completeness\n"
-      <> "  4. Use 'intent interview' to fill in missing details"
-  }
-}
-
-/// Escape special characters in JSON strings
-fn escape_json_string(s: String) -> String {
-  s
-  |> string.replace("\\", "\\\\")
-  |> string.replace("\"", "\\\"")
-  |> string.replace("\n", "\\n")
-  |> string.replace("\t", "\\t")
 }

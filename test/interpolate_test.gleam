@@ -49,12 +49,10 @@ fn ctx_with_object() -> Context {
 
 /// Create context with array
 fn ctx_with_array() -> Context {
-  let item1 =
-    json.object([#("id", json.int(1)), #("name", json.string("first"))])
+  let item1 = json.object([#("id", json.int(1)), #("name", json.string("first"))])
   let item2 =
     json.object([#("id", json.int(2)), #("name", json.string("second"))])
-  let item3 =
-    json.object([#("id", json.int(3)), #("name", json.string("third"))])
+  let item3 = json.object([#("id", json.int(3)), #("name", json.string("third"))])
 
   empty_ctx()
   |> interpolate.set_variable(

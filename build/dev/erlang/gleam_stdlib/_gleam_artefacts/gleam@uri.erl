@@ -1,27 +1,8 @@
 -module(gleam@uri).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/gleam/uri.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([parse/1, parse_query/1, percent_encode/1, query_to_string/1, percent_decode/1, path_segments/1, to_string/1, origin/1, merge/2]).
 -export_type([uri/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
-
-?MODULEDOC(
-    " Utilities for working with URIs\n"
-    "\n"
-    " This module provides functions for working with URIs (for example, parsing\n"
-    " URIs or encoding query strings). The functions in this module are implemented\n"
-    " according to [RFC 3986](https://tools.ietf.org/html/rfc3986).\n"
-    "\n"
-    " Query encoding (Form encoding) is defined in the\n"
-    " [W3C specification](https://www.w3.org/TR/html52/sec-forms.html#urlencoded-form-data).\n"
-).
 
 -type uri() :: {uri,
         gleam@option:option(binary()),
@@ -32,7 +13,6 @@
         gleam@option:option(binary()),
         gleam@option:option(binary())}.
 
--file("src/gleam/uri.gleam", 116).
 -spec regex_submatches(binary(), binary()) -> list(gleam@option:option(binary())).
 regex_submatches(Pattern, String) ->
     _pipe = Pattern,
@@ -46,7 +26,6 @@ regex_submatches(Pattern, String) ->
     _pipe@5 = gleam@result:map(_pipe@4, fun(M) -> erlang:element(3, M) end),
     gleam@result:unwrap(_pipe@5, []).
 
--file("src/gleam/uri.gleam", 126).
 -spec noneify_query(gleam@option:option(binary())) -> gleam@option:option(binary()).
 noneify_query(X) ->
     case X of
@@ -63,7 +42,6 @@ noneify_query(X) ->
             end
     end.
 
--file("src/gleam/uri.gleam", 137).
 -spec noneify_empty_string(gleam@option:option(binary())) -> gleam@option:option(binary()).
 noneify_empty_string(X) ->
     case X of
@@ -77,7 +55,6 @@ noneify_empty_string(X) ->
             X
     end.
 
--file("src/gleam/uri.gleam", 178).
 -spec extra_required(list(any()), integer()) -> integer().
 extra_required(List, Remaining) ->
     case List of
@@ -91,13 +68,11 @@ extra_required(List, Remaining) ->
             extra_required(Xs, Remaining - 1)
     end.
 
--file("src/gleam/uri.gleam", 173).
--spec pad_list(list(gleam@option:option(FGG)), integer()) -> list(gleam@option:option(FGG)).
+-spec pad_list(list(gleam@option:option(FKO)), integer()) -> list(gleam@option:option(FKO)).
 pad_list(List, Size) ->
     _pipe = List,
     lists:append(_pipe, gleam@list:repeat(none, extra_required(List, Size))).
 
--file("src/gleam/uri.gleam", 145).
 -spec split_authority(gleam@option:option(binary())) -> {gleam@option:option(binary()),
     gleam@option:option(binary()),
     gleam@option:option(integer())}.
@@ -132,68 +107,18 @@ split_authority(Authority) ->
             end
     end.
 
--file("src/gleam/uri.gleam", 56).
-?DOC(
-    " Parses a compliant URI string into the `Uri` Type.\n"
-    " If the string is not a valid URI string then an error is returned.\n"
-    "\n"
-    " The opposite operation is `uri.to_string`.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " parse(\"https://example.com:1234/a/b?query=true#fragment\")\n"
-    " // -> Ok(\n"
-    " //   Uri(\n"
-    " //     scheme: Some(\"https\"),\n"
-    " //     userinfo: None,\n"
-    " //     host: Some(\"example.com\"),\n"
-    " //     port: Some(1234),\n"
-    " //     path: \"/a/b\",\n"
-    " //     query: Some(\"query=true\"),\n"
-    " //     fragment: Some(\"fragment\")\n"
-    " //   )\n"
-    " // )\n"
-    " ```\n"
-).
 -spec parse(binary()) -> {ok, uri()} | {error, nil}.
 parse(Uri_string) ->
     gleam_stdlib:uri_parse(Uri_string).
 
--file("src/gleam/uri.gleam", 198).
-?DOC(
-    " Parses an urlencoded query string into a list of key value pairs.\n"
-    " Returns an error for invalid encoding.\n"
-    "\n"
-    " The opposite operation is `uri.query_to_string`.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " parse_query(\"a=1&b=2\")\n"
-    " // -> Ok([#(\"a\", \"1\"), #(\"b\", \"2\")])\n"
-    " ```\n"
-).
 -spec parse_query(binary()) -> {ok, list({binary(), binary()})} | {error, nil}.
 parse_query(Query) ->
     gleam_stdlib:parse_query(Query).
 
--file("src/gleam/uri.gleam", 242).
-?DOC(
-    " Encodes a string into a percent encoded representation.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " percent_encode(\"100% great\")\n"
-    " // -> \"100%25%20great\"\n"
-    " ```\n"
-).
 -spec percent_encode(binary()) -> binary().
 percent_encode(Value) ->
     gleam_stdlib:percent_encode(Value).
 
--file("src/gleam/uri.gleam", 225).
 -spec query_pair({binary(), binary()}) -> gleam@string_builder:string_builder().
 query_pair(Pair) ->
     gleam@string_builder:from_strings(
@@ -202,19 +127,6 @@ query_pair(Pair) ->
             percent_encode(erlang:element(2, Pair))]
     ).
 
--file("src/gleam/uri.gleam", 217).
-?DOC(
-    " Encodes a list of key value pairs as a URI query string.\n"
-    "\n"
-    " The opposite operation is `uri.parse_query`.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " query_to_string([#(\"a\", \"1\"), #(\"b\", \"2\")])\n"
-    " // -> \"a=1&b=2\"\n"
-    " ```\n"
-).
 -spec query_to_string(list({binary(), binary()})) -> binary().
 query_to_string(Query) ->
     _pipe = Query,
@@ -226,22 +138,10 @@ query_to_string(Query) ->
     _pipe@3 = gleam@string_builder:concat(_pipe@2),
     gleam@string_builder:to_string(_pipe@3).
 
--file("src/gleam/uri.gleam", 259).
-?DOC(
-    " Decodes a percent encoded string.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " percent_decode(\"100%25+great\")\n"
-    " // -> Ok(\"100% great\")\n"
-    " ```\n"
-).
 -spec percent_decode(binary()) -> {ok, binary()} | {error, nil}.
 percent_decode(Value) ->
     gleam_stdlib:percent_decode(Value).
 
--file("src/gleam/uri.gleam", 267).
 -spec do_remove_dot_segments(list(binary()), list(binary())) -> list(binary()).
 do_remove_dot_segments(Input, Accumulator) ->
     case Input of
@@ -268,43 +168,14 @@ do_remove_dot_segments(Input, Accumulator) ->
             do_remove_dot_segments(Rest, Accumulator@5)
     end.
 
--file("src/gleam/uri.gleam", 286).
 -spec remove_dot_segments(list(binary())) -> list(binary()).
 remove_dot_segments(Input) ->
     do_remove_dot_segments(Input, []).
 
--file("src/gleam/uri.gleam", 302).
-?DOC(
-    " Splits the path section of a URI into it's constituent segments.\n"
-    "\n"
-    " Removes empty segments and resolves dot-segments as specified in\n"
-    " [section 5.2](https://www.ietf.org/rfc/rfc3986.html#section-5.2) of the RFC.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " path_segments(\"/users/1\")\n"
-    " // -> [\"users\" ,\"1\"]\n"
-    " ```\n"
-).
 -spec path_segments(binary()) -> list(binary()).
 path_segments(Path) ->
     remove_dot_segments(gleam@string:split(Path, <<"/"/utf8>>)).
 
--file("src/gleam/uri.gleam", 318).
-?DOC(
-    " Encodes a `Uri` value as a URI string.\n"
-    "\n"
-    " The opposite operation is `uri.parse`.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " let uri = Uri(Some(\"http\"), None, Some(\"example.com\"), ...)\n"
-    " to_string(uri)\n"
-    " // -> \"http://example.com\"\n"
-    " ```\n"
-).
 -spec to_string(uri()) -> binary().
 to_string(Uri) ->
     Parts = case erlang:element(8, Uri) of
@@ -360,24 +231,6 @@ to_string(Uri) ->
     end,
     gleam@string:concat(Parts@5).
 
--file("src/gleam/uri.gleam", 362).
-?DOC(
-    " Fetches the origin of a URI.\n"
-    "\n"
-    " Returns the origin of a uri as defined in\n"
-    " [RFC 6454](https://tools.ietf.org/html/rfc6454)\n"
-    "\n"
-    " The supported URI schemes are `http` and `https`.\n"
-    " URLs without a scheme will return `Error`.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " let assert Ok(uri) = parse(\"http://example.com/path?foo#bar\")\n"
-    " origin(uri)\n"
-    " // -> Ok(\"http://example.com\")\n"
-    " ```\n"
-).
 -spec origin(uri()) -> {ok, binary()} | {error, nil}.
 origin(Uri) ->
     {uri, Scheme, _, Host, Port, _, _, _} = Uri,
@@ -398,24 +251,14 @@ origin(Uri) ->
             {error, nil}
     end.
 
--file("src/gleam/uri.gleam", 381).
--spec drop_last(list(FHG)) -> list(FHG).
+-spec drop_last(list(FLO)) -> list(FLO).
 drop_last(Elements) ->
     gleam@list:take(Elements, erlang:length(Elements) - 1).
 
--file("src/gleam/uri.gleam", 385).
 -spec join_segments(list(binary())) -> binary().
 join_segments(Segments) ->
     gleam@string:join([<<""/utf8>> | Segments], <<"/"/utf8>>).
 
--file("src/gleam/uri.gleam", 395).
-?DOC(
-    " Resolves a URI with respect to the given base URI.\n"
-    "\n"
-    " The base URI must be an absolute URI or this function will return an error.\n"
-    " The algorithm for merging uris is described in\n"
-    " [RFC 3986](https://tools.ietf.org/html/rfc3986#section-5.2).\n"
-).
 -spec merge(uri(), uri()) -> {ok, uri()} | {error, nil}.
 merge(Base, Relative) ->
     case Base of

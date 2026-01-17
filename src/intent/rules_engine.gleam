@@ -1,4 +1,5 @@
 /// Global rules engine for checking responses against spec-wide rules
+
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/int
@@ -48,7 +49,8 @@ fn rule_applies(rule: Rule, response: ExecutionResult) -> Bool {
 
 fn check_when_conditions(when: When, response: ExecutionResult) -> Bool {
   // Check status condition
-  let status_ok = check_status_condition(when.status, response.status)
+  let status_ok =
+    check_status_condition(when.status, response.status)
 
   // Check method condition
   let method_ok = response.request_method == when.method
@@ -155,39 +157,55 @@ fn collect_violations(
 
   // Check body_must_not_contain
   let violations =
-    list.fold(check.body_must_not_contain, violations, fn(acc, forbidden) {
-      case contains_string(response.raw_body, forbidden) {
-        True -> [BodyContains(forbidden, "response body"), ..acc]
-        False -> acc
-      }
-    })
+    list.fold(
+      check.body_must_not_contain,
+      violations,
+      fn(acc, forbidden) {
+        case contains_string(response.raw_body, forbidden) {
+          True -> [BodyContains(forbidden, "response body"), ..acc]
+          False -> acc
+        }
+      },
+    )
 
   // Check body_must_contain
   let violations =
-    list.fold(check.body_must_contain, violations, fn(acc, required) {
-      case contains_string(response.raw_body, required) {
-        True -> acc
-        False -> [BodyMissing(required), ..acc]
-      }
-    })
+    list.fold(
+      check.body_must_contain,
+      violations,
+      fn(acc, required) {
+        case contains_string(response.raw_body, required) {
+          True -> acc
+          False -> [BodyMissing(required), ..acc]
+        }
+      },
+    )
 
   // Check fields_must_exist
   let violations =
-    list.fold(check.fields_must_exist, violations, fn(acc, field) {
-      case field_exists(response.body, field) {
-        True -> acc
-        False -> [FieldMissing(field), ..acc]
-      }
-    })
+    list.fold(
+      check.fields_must_exist,
+      violations,
+      fn(acc, field) {
+        case field_exists(response.body, field) {
+          True -> acc
+          False -> [FieldMissing(field), ..acc]
+        }
+      },
+    )
 
   // Check fields_must_not_exist
   let violations =
-    list.fold(check.fields_must_not_exist, violations, fn(acc, field) {
-      case field_exists(response.body, field) {
-        True -> [FieldPresent(field), ..acc]
-        False -> acc
-      }
-    })
+    list.fold(
+      check.fields_must_not_exist,
+      violations,
+      fn(acc, field) {
+        case field_exists(response.body, field) {
+          True -> [FieldPresent(field), ..acc]
+          False -> acc
+        }
+      },
+    )
 
   // Check header_must_exist
   let violations = case check.header_must_exist {
