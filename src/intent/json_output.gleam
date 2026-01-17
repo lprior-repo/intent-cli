@@ -7,7 +7,6 @@
 /// - data: Command-specific output
 /// - metadata: Timestamp, version, exit code
 /// - spec_path: Optional path to spec file
-
 import gleam/json.{type Json}
 import gleam/option.{type Option, None, Some}
 
@@ -24,11 +23,7 @@ pub type JsonResponse {
 
 /// Metadata included in all JSON responses
 pub type JsonMetadata {
-  JsonMetadata(
-    timestamp: String,
-    version: String,
-    exit_code: Int,
-  )
+  JsonMetadata(timestamp: String, version: String, exit_code: Int)
 }
 
 /// Create a JSON response with standard metadata

@@ -281,7 +281,8 @@ pub fn config_minimal_test() {
     Config(
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
+      allow_localhost: False,
     )
 
   config.base_url |> should.equal("http://localhost:8080")
@@ -301,6 +302,7 @@ pub fn config_with_headers_test() {
       base_url: "https://api.example.com",
       timeout_ms: 10_000,
       headers: headers,
+      allow_localhost: False,
     )
 
   config.base_url |> should.equal("https://api.example.com")
@@ -314,7 +316,12 @@ pub fn config_with_headers_test() {
 
 pub fn config_zero_timeout_test() {
   let config =
-    Config(base_url: "http://localhost", timeout_ms: 0, headers: dict.new(), allow_localhost: False)
+    Config(
+      base_url: "http://localhost",
+      timeout_ms: 0,
+      headers: dict.new(),
+      allow_localhost: False,
+    )
 
   config.timeout_ms |> should.equal(0)
 }
@@ -322,7 +329,12 @@ pub fn config_zero_timeout_test() {
 pub fn config_negative_timeout_test() {
   // Type system allows negative timeout, runtime would handle
   let config =
-    Config(base_url: "http://localhost", timeout_ms: -1, headers: dict.new(), allow_localhost: False)
+    Config(
+      base_url: "http://localhost",
+      timeout_ms: -1,
+      headers: dict.new(),
+      allow_localhost: False,
+    )
 
   config.timeout_ms |> should.equal(-1)
 }
@@ -336,7 +348,7 @@ pub fn request_minimal_get_test() {
     Request(
       method: Get,
       path: "/users",
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
       query: dict.new(),
       body: json.null(),
     )
@@ -385,7 +397,7 @@ pub fn request_with_query_params_test() {
     Request(
       method: Get,
       path: "/users",
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
       query: query,
       body: json.null(),
     )
@@ -402,7 +414,7 @@ pub fn request_all_methods_test() {
     Request(
       method: method,
       path: "/test",
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
       query: dict.new(),
       body: json.null(),
     )
@@ -416,7 +428,7 @@ pub fn request_empty_path_test() {
     Request(
       method: Get,
       path: "",
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
       query: dict.new(),
       body: json.null(),
     )
@@ -429,7 +441,7 @@ pub fn request_root_path_test() {
     Request(
       method: Get,
       path: "/",
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
       query: dict.new(),
       body: json.null(),
     )
@@ -447,7 +459,7 @@ pub fn response_minimal_test() {
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
     )
 
   response.status |> should.equal(200)
@@ -467,7 +479,7 @@ pub fn response_with_example_test() {
       status: 200,
       example: example,
       checks: dict.new(),
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
     )
 
   response.example
@@ -490,7 +502,7 @@ pub fn response_with_checks_test() {
       status: 200,
       example: json.null(),
       checks: checks,
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
     )
 
   response.checks |> dict.size |> should.equal(2)
@@ -502,7 +514,7 @@ pub fn response_4xx_status_test() {
       status: 404,
       example: json.object([#("error", json.string("Not found"))]),
       checks: dict.new(),
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
     )
 
   response.status |> should.equal(404)
@@ -514,7 +526,7 @@ pub fn response_5xx_status_test() {
       status: 500,
       example: json.object([#("error", json.string("Internal error"))]),
       checks: dict.new(),
-      headers: dict.new(), allow_localhost: False,
+      headers: dict.new(),
     )
 
   response.status |> should.equal(500)
@@ -588,7 +600,7 @@ pub fn behavior_minimal_test() {
       request: Request(
         method: Get,
         path: "/users/1",
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -596,7 +608,7 @@ pub fn behavior_minimal_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
       ),
       captures: dict.new(),
     )
@@ -617,7 +629,7 @@ pub fn behavior_with_dependencies_test() {
       request: Request(
         method: Delete,
         path: "/users/1",
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -625,7 +637,7 @@ pub fn behavior_with_dependencies_test() {
         status: 204,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
       ),
       captures: dict.new(),
     )
@@ -652,7 +664,7 @@ pub fn behavior_with_captures_test() {
       request: Request(
         method: Post,
         path: "/login",
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -660,7 +672,7 @@ pub fn behavior_with_captures_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
       ),
       captures: captures,
     )
@@ -683,7 +695,7 @@ pub fn behavior_with_notes_test() {
       request: Request(
         method: Get,
         path: "/test",
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -691,7 +703,7 @@ pub fn behavior_with_notes_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
       ),
       captures: dict.new(),
     )
@@ -717,7 +729,7 @@ pub fn feature_minimal_test() {
       request: Request(
         method: Get,
         path: "/test1",
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -725,7 +737,7 @@ pub fn feature_minimal_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
       ),
       captures: dict.new(),
     ),
@@ -756,7 +768,7 @@ pub fn feature_multiple_behaviors_test() {
         request: Request(
           method: Get,
           path: "/test",
-          headers: dict.new(), allow_localhost: False,
+          headers: dict.new(),
           query: dict.new(),
           body: json.null(),
         ),
@@ -764,7 +776,7 @@ pub fn feature_multiple_behaviors_test() {
           status: 200,
           example: json.null(),
           checks: dict.new(),
-          headers: dict.new(), allow_localhost: False,
+          headers: dict.new(),
         ),
         captures: dict.new(),
       )
@@ -1158,7 +1170,8 @@ pub fn spec_minimal_test() {
       config: Config(
         base_url: "http://localhost:8080",
         timeout_ms: 5000,
-        headers: dict.new(), allow_localhost: False,
+        headers: dict.new(),
+        allow_localhost: False,
       ),
       features: [],
       rules: [],
@@ -1225,6 +1238,7 @@ pub fn spec_complete_test() {
         base_url: "https://api.example.com",
         timeout_ms: 10_000,
         headers: dict.from_list([#("X-API-Key", "test123")]),
+        allow_localhost: False,
       ),
       features: [feature],
       rules: [rule],

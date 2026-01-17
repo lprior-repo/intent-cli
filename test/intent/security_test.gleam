@@ -581,7 +581,9 @@ pub fn validate_url_rejects_169_254_link_local_test() {
 }
 
 pub fn validate_url_rejects_169_254_aws_metadata_test() {
-  case security.validate_url("http://169.254.169.254/latest/meta-data/", False) {
+  case
+    security.validate_url("http://169.254.169.254/latest/meta-data/", False)
+  {
     Error(security.SSRFAttempt(_, reason)) -> {
       string.contains(reason, "metadata") |> should.be_true()
     }

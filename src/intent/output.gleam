@@ -407,10 +407,7 @@ pub fn create_blocked(
 }
 
 /// Wrap SpecResult in action-based JSON schema for AI consumption
-pub fn spec_result_to_action_json(
-  result: SpecResult,
-  spec_name: String,
-) -> Json {
+pub fn spec_result_to_action_json(result: SpecResult, spec_name: String) -> Json {
   let exit_code = case result.pass {
     True -> 0
     False ->

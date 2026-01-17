@@ -356,13 +356,7 @@ pub fn beads_to_action_json(beads: List(BeadRecord), session_id: String) -> Json
       ),
     ])
 
-  json_output.create_response(
-    "beads_generated",
-    "beads",
-    data,
-    None,
-    0,
-  )
+  json_output.create_response("beads_generated", "beads", data, None, 0)
   |> json_output.to_json
 }
 

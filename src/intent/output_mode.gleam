@@ -4,7 +4,6 @@
 /// presents information. When in Json mode, all interactive UI elements
 /// (spinners, colors, progress bars) are suppressed to ensure clean,
 /// parseable JSON output.
-
 pub type OutputMode {
   /// Full interactive UI with colors, spinners, and progress bars
   Interactive

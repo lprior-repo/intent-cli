@@ -54,7 +54,8 @@ pub fn print_warning(message: String, mode: OutputMode) {
 pub fn print_error(message: String, mode: OutputMode) {
   case output_mode.is_interactive(mode) {
     True -> io.println_error(ansi.red("✗ " <> message))
-    False -> io.println_error(message)  // Plain text in Json mode
+    False -> io.println_error(message)
+    // Plain text in Json mode
   }
 }
 

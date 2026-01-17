@@ -49,7 +49,6 @@ fn make_behavior(name: String, requires: List(String)) -> types.Behavior {
       example: json.null(),
       checks: dict.new(),
       headers: dict.new(),
-      allow_localhost: False,
     ),
     captures: dict.new(),
   )
@@ -937,6 +936,7 @@ pub fn http_client_multiple_header_merge_test() {
         #("X-API-Version", "v1"),
         #("User-Agent", "intent-cli"),
       ]),
+      allow_localhost: False,
     )
 
   let request =

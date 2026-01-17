@@ -171,7 +171,12 @@ pub fn make_test_config() -> Config {
 
 /// Create a config with custom base URL
 pub fn make_test_config_with_url(base_url: String) -> Config {
-  Config(base_url: base_url, timeout_ms: 5000, headers: dict.new(), allow_localhost: False)
+  Config(
+    base_url: base_url,
+    timeout_ms: 5000,
+    headers: dict.new(),
+    allow_localhost: False,
+  )
 }
 
 /// Create a minimal GET request for testing
