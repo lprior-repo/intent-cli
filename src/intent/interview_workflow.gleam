@@ -1,17 +1,14 @@
 /// Interview Workflow Enhancements
 /// Incremental interview capabilities: skip, jump, bulk answers, section navigation
-import gleam/dict.{type Dict}
+import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import intent/interview.{type Answer, type InterviewSession, type Profile}
+import intent/interview.{type Answer, type InterviewSession}
 import intent/interview_questions
-import intent/question_types.{
-  type Question, type QuestionPriority, Critical, Important, NiceTohave,
-}
+import intent/question_types.{type Question, Critical, Important}
 import simplifile
 
 /// Section represents logical groupings of interview rounds
