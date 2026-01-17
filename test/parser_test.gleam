@@ -538,7 +538,8 @@ pub fn parse_config_valid_test() {
       \"headers\": {
         \"Authorization\": \"Bearer token\",
         \"Content-Type\": \"application/json\"
-      }
+      },
+      \"allow_localhost\": false
     }"
 
   let assert Ok(data) = json.decode(json_str, dynamic.dynamic)
@@ -1203,7 +1204,11 @@ fn parse_config_helper(
     "headers",
     dynamic.dict(dynamic.string, dynamic.string),
   )(data))
-  Ok(types.Config(base_url, timeout_ms, headers))
+  use allow_localhost <- result.try(dynamic.field(
+    "allow_localhost",
+    dynamic.bool,
+  )(data))
+  Ok(types.Config(base_url, timeout_ms, headers, allow_localhost))
 }
 
 fn parse_feature_helper(

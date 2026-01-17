@@ -284,6 +284,7 @@ pub fn config_minimal_test() {
     base_url: "http://localhost:8080",
     timeout_ms: 5000,
     headers: dict.new(),
+      allow_localhost: False,
   )
 
   config.base_url |> should.equal("http://localhost:8080")
@@ -301,6 +302,7 @@ pub fn config_with_headers_test() {
     base_url: "https://api.example.com",
     timeout_ms: 10000,
     headers: headers,
+      allow_localhost: False,
   )
 
   config.base_url |> should.equal("https://api.example.com")
@@ -311,10 +313,12 @@ pub fn config_with_headers_test() {
 }
 
 pub fn config_zero_timeout_test() {
-  let config = Config(
-    base_url: "http://localhost",
-    timeout_ms: 0,
-    headers: dict.new(),
+  let config =
+    Config(
+      base_url: "http://localhost",
+      timeout_ms: 0,
+      headers: dict.new(),
+      allow_localhost: False,
   )
 
   config.timeout_ms |> should.equal(0)
@@ -322,10 +326,12 @@ pub fn config_zero_timeout_test() {
 
 pub fn config_negative_timeout_test() {
   // Type system allows negative timeout, runtime would handle
-  let config = Config(
-    base_url: "http://localhost",
-    timeout_ms: -1,
-    headers: dict.new(),
+  let config =
+    Config(
+      base_url: "http://localhost",
+      timeout_ms: -1,
+      headers: dict.new(),
+      allow_localhost: False,
   )
 
   config.timeout_ms |> should.equal(-1)
@@ -1087,6 +1093,7 @@ pub fn spec_minimal_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
+        allow_localhost: False,
     ),
     features: [],
     rules: [],
@@ -1149,6 +1156,7 @@ pub fn spec_complete_test() {
       base_url: "https://api.example.com",
       timeout_ms: 10000,
       headers: dict.from_list([#("X-API-Key", "test123")]),
+        allow_localhost: False,
     ),
     features: [feature],
     rules: [rule],

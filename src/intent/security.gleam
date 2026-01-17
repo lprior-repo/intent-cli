@@ -192,20 +192,27 @@ pub fn validate_regex_pattern(pattern: String) -> Result(String, SecurityError) 
 ///
 /// Checks:
 /// - URL must use http:// or https:// scheme
-/// - Blocks localhost, 127.0.0.0/8, and loopback addresses
+/// - Blocks localhost, 127.0.0.0/8, and loopback addresses (unless allow_localhost)
 /// - Blocks private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
 /// - Blocks link-local addresses (169.254.0.0/16)
 /// - Blocks IPv6 loopback and link-local
 /// - Blocks file:// and other dangerous schemes
 ///
+/// # Parameters
+/// - url: The URL to validate
+/// - allow_localhost: If True, allows localhost addresses for development
+///
 /// # Example
 /// ```gleam
-/// case validate_url("https://api.example.com") {
+/// case validate_url("https://api.example.com", False) {
 ///   Ok(url) -> make_request(url)
 ///   Error(SSRFAttempt(_, reason)) -> Error(reason)
 /// }
 /// ```
-pub fn validate_url(url: String) -> Result(String, SecurityError) {
+pub fn validate_url(
+  url: String,
+  allow_localhost: Bool,
+) -> Result(String, SecurityError) {
   // Convert to lowercase for case-insensitive checks
   let url_lower = string.lowercase(url)
 
@@ -222,15 +229,15 @@ pub fn validate_url(url: String) -> Result(String, SecurityError) {
       ))
     True -> {
       // Check for localhost variations
-      case
+      let is_localhost =
         string.contains(url_lower, "localhost")
         || string.contains(url_lower, "127.0.0.")
         || string.contains(url_lower, "127.1.")
         || string.contains(url_lower, "[::1]")
         || string.contains(url_lower, "[0:0:0:0:0:0:0:1]")
-      {
-        True ->
-          Error(SSRFAttempt(url, "Localhost addresses are not allowed"))
+
+      case is_localhost && !allow_localhost {
+        True -> Error(SSRFAttempt(url, "Localhost addresses are not allowed"))
         False -> {
           // Check for private IP ranges
           case

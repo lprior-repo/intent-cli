@@ -56,7 +56,7 @@ pub fn execute_request(
   )
 
   // Validate URL for SSRF protection
-  use _ <- result.try(validate_safe_url(parsed_uri))
+  use _ <- result.try(validate_safe_url(parsed_uri, config))
 
   // Build headers - merge config headers with request headers
   use request_headers <- result.try(interpolate_headers(req.headers, ctx))
@@ -303,30 +303,37 @@ fn format_httpc_error(error: dynamic.Dynamic) -> String {
 }
 
 /// Validate that a URL is safe to request (SSRF protection)
-fn validate_safe_url(parsed_uri: uri.Uri) -> Result(Nil, ExecutionError) {
+fn validate_safe_url(
+  parsed_uri: uri.Uri,
+  config: Config,
+) -> Result(Nil, ExecutionError) {
   // First validate the scheme
   use _ <- result.try(validate_scheme(parsed_uri))
 
   // Then validate the host
   case parsed_uri.host {
     None -> Error(SSRFBlocked("URL missing hostname"))
-    Some(host) -> validate_host(host)
+    Some(host) -> validate_host(host, config.allow_localhost)
   }
 }
 
 /// Validate that a hostname is not a private/internal address
-fn validate_host(host: String) -> Result(Nil, ExecutionError) {
+fn validate_host(
+  host: String,
+  allow_localhost: Bool,
+) -> Result(Nil, ExecutionError) {
   let lowercase_host = string.lowercase(host)
 
   // Check for localhost variants
-  case
+  let is_localhost =
     lowercase_host == "localhost"
     || lowercase_host == "127.0.0.1"
     || string.starts_with(lowercase_host, "127.")
-  {
+
+  case is_localhost && !allow_localhost {
     True ->
       Error(SSRFBlocked(
-        "Blocked request to localhost (127.x). Private IP ranges are not allowed for security reasons.",
+        "Blocked request to localhost (127.x). Use --allow-localhost for development testing.",
       ))
     False ->
       // Check for private IPv4 ranges

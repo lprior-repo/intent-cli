@@ -3,9 +3,12 @@
 // Traces consequences beyond first-order results
 
 import gleam/int
+import gleam/json.{type Json}
 import gleam/list
+import gleam/option.{Some}
 import gleam/result
 import gleam/string
+import intent/json_output
 import intent/types.{
   type Behavior, type Spec, Delete, Get, Head, Options, Patch, Post, Put,
 }
@@ -779,4 +782,117 @@ fn float_to_string(f: Float) -> String {
 fn get_all_behaviors(spec: Spec) -> List(Behavior) {
   spec.features
   |> list.flat_map(fn(f) { f.behaviors })
+}
+
+// =============================================================================
+// JSON OUTPUT
+// =============================================================================
+
+/// Convert EffectsReport to action-based JSON for AI consumption
+pub fn effects_report_to_action_json(
+  report: EffectsReport,
+  spec_name: String,
+) -> Json {
+  let data = effects_report_to_json(report)
+
+  json_output.create_response(
+    "effects_report",
+    "effects",
+    data,
+    Some(spec_name),
+    0,
+  )
+  |> json_output.to_json
+}
+
+/// Convert EffectsReport to JSON
+fn effects_report_to_json(report: EffectsReport) -> Json {
+  json.object([
+    #(
+      "behavior_effects",
+      json.array(report.behavior_effects, behavior_effects_to_json),
+    ),
+    #(
+      "orphaned_resources",
+      json.array(report.orphaned_resources, orphaned_resource_to_json),
+    ),
+    #(
+      "cascade_warnings",
+      json.array(report.cascade_warnings, cascade_warning_to_json),
+    ),
+    #(
+      "state_dependencies",
+      json.array(report.state_dependencies, state_dependency_to_json),
+    ),
+    #("total_second_order_effects", json.int(report.total_second_order_effects)),
+    #("coverage_score", json.float(report.coverage_score)),
+  ])
+}
+
+fn behavior_effects_to_json(be: BehaviorEffects) -> Json {
+  json.object([
+    #("behavior_name", json.string(be.behavior_name)),
+    #("first_order", json.string(be.first_order)),
+    #("second_order", json.array(be.second_order, second_order_effect_to_json)),
+    #(
+      "missing_verifications",
+      json.array(be.missing_verifications, json.string),
+    ),
+  ])
+}
+
+fn second_order_effect_to_json(effect: SecondOrderEffect) -> Json {
+  json.object([
+    #("description", json.string(effect.description)),
+    #("severity", json.string(severity_to_string(effect.severity))),
+    #("category", json.string(category_to_string(effect.category))),
+    #("has_verification", json.bool(effect.has_verification)),
+  ])
+}
+
+fn severity_to_string(severity: EffectSeverity) -> String {
+  case severity {
+    Info -> "info"
+    Warning -> "warning"
+    Danger -> "danger"
+    Critical -> "critical"
+  }
+}
+
+fn category_to_string(category: EffectCategory) -> String {
+  case category {
+    ResourceLifecycle -> "resource_lifecycle"
+    DataIntegrity -> "data_integrity"
+    SystemState -> "system_state"
+    SecurityImplication -> "security_implication"
+    PerformanceImpact -> "performance_impact"
+    ExternalDependency -> "external_dependency"
+  }
+}
+
+fn orphaned_resource_to_json(orphan: OrphanedResource) -> Json {
+  json.object([
+    #("resource_type", json.string(orphan.resource_type)),
+    #("caused_by", json.string(orphan.caused_by)),
+    #("description", json.string(orphan.description)),
+    #("mitigation", json.string(orphan.mitigation)),
+  ])
+}
+
+fn cascade_warning_to_json(warning: CascadeWarning) -> Json {
+  json.object([
+    #("operation", json.string(warning.operation)),
+    #("cascades_to", json.array(warning.cascades_to, json.string)),
+    #("requires_transaction", json.bool(warning.requires_transaction)),
+    #("description", json.string(warning.description)),
+  ])
+}
+
+fn state_dependency_to_json(dep: StateDependency) -> Json {
+  json.object([
+    #("behavior", json.string(dep.behavior)),
+    #("depends_on", json.array(dep.depends_on, json.string)),
+    #("state_mutations", json.array(dep.state_mutations, json.string)),
+    #("isolation_level", json.string(dep.isolation_level)),
+  ])
 }

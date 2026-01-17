@@ -58,7 +58,7 @@ fn parse_config(data: Dynamic) -> Result(Config, List(DecodeError)) {
   use base_url <- result.try(dynamic.field("base_url", dynamic.string)(data))
   use timeout_ms <- result.try(dynamic.field("timeout_ms", dynamic.int)(data))
   use headers <- result.try(dynamic.field("headers", parse_string_dict)(data))
-  Ok(Config(base_url, timeout_ms, headers))
+  Ok(Config(base_url, timeout_ms, headers, allow_localhost: False))
 }
 
 fn parse_string_dict(

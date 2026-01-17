@@ -208,8 +208,12 @@ pub fn create_test_spec(behavior_count: Int) -> Spec {
     list.range(1, behavior_count)
     |> list.map(fn(i) { make_behavior("b" <> int.to_string(i)) })
   Spec(
-    name: "test", description: "test", audience: "test", version: "1.0.0",
-    success_criteria: [], config: Config("http://test", 1000, dict.new()),
+    name: "test",
+    description: "test",
+    audience: "test",
+    version: "1.0.0",
+    success_criteria: [],
+    config: Config("http://test", 1000, dict.new(), allow_localhost: False),
     features: [Feature("test-feature", "test", behaviors)],
     rules: [], anti_patterns: [],
     ai_hints: AIHints(ImplementationHints([]), dict.new(), SecurityHints("", "", "", ""), []),

@@ -5,11 +5,12 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option}
+import gleam/option.{type Option, Some}
 import gleam/string
 import intent/anti_patterns.{type AntiPatternResult}
 import intent/checker.{type ResponseCheckResult}
 import intent/http_client.{type ExecutionResult}
+import intent/json_output
 import intent/types.{type Behavior}
 
 /// Overall result of running a spec
@@ -401,4 +402,27 @@ pub fn create_blocked(
     reason: "Requires '" <> failed_dependency <> "' which failed",
     hint: "Fix '" <> failed_dependency <> "' first, then this will run",
   )
+}
+
+/// Wrap SpecResult in action-based JSON schema for AI consumption
+pub fn spec_result_to_action_json(result: SpecResult, spec_name: String) -> Json {
+  let exit_code = case result.pass {
+    True -> 0
+    False ->
+      case result.blocked {
+        0 -> 1
+        _ -> 2
+      }
+  }
+
+  let data = spec_result_to_json(result)
+
+  json_output.create_response(
+    "check_result",
+    "check",
+    data,
+    Some(spec_name),
+    exit_code,
+  )
+  |> json_output.to_json
 }

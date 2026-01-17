@@ -13,6 +13,10 @@ import glint
 import glint/flag
 import intent/loader
 import intent/output
+import intent/output_mode
+import intent/plan_mode
+import intent/quality_analyzer
+import intent/question_types.{type Question}
 import intent/runner
 import intent/types
 import intent/quality_analyzer
@@ -50,7 +54,67 @@ const exit_invalid = 3
 
 const exit_error = 4
 
+/// Normalize flag syntax to support both --flag=value and --flag value
+/// Glint only supports --flag=value, so we pre-process args to convert
+/// --flag value into --flag=value before passing to glint
+pub fn normalize_flag_syntax(args: List(String)) -> List(String) {
+  do_normalize(args)
+}
+
+fn do_normalize(args: List(String)) -> List(String) {
+  case args {
+    // Empty list
+    [] -> []
+
+    // Single argument
+    [arg] -> {
+      case string.starts_with(arg, "--") {
+        True -> [arg]
+        // Boolean flag or flag with equals
+        False -> [arg]
+        // Positional argument
+      }
+    }
+
+    // Two or more arguments
+    [first, second, ..rest] -> {
+      case string.starts_with(first, "--") {
+        True -> {
+          // First is a flag
+          case string.contains(first, "=") {
+            True -> {
+              // Flag already has equals (--flag=value)
+              [first, ..do_normalize([second, ..rest])]
+            }
+            False -> {
+              // Flag doesn't have equals, check if second is a value or flag
+              case string.starts_with(second, "--") {
+                True -> {
+                  // Second is also a flag (first is boolean)
+                  [first, ..do_normalize([second, ..rest])]
+                }
+                False -> {
+                  // Second is a value, merge with first
+                  [first <> "=" <> second, ..do_normalize(rest)]
+                }
+              }
+            }
+          }
+        }
+        False -> {
+          // First is not a flag (positional argument)
+          [first, ..do_normalize([second, ..rest])]
+        }
+      }
+    }
+  }
+}
+
 pub fn main() {
+  let raw_args = argv.load().arguments
+  let args = normalize_flag_syntax(raw_args)
+
+  let app =
   glint.new()
   |> glint.with_name("intent")
   |> glint.with_pretty_help(glint.default_pretty_help())
@@ -114,6 +178,11 @@ fn check_command() -> glint.Command(Nil) {
       }
     }
 
+    let allow_localhost =
+      flag.get_bool(input.flags, "allow-localhost")
+      |> result.unwrap(False)
+      || is_localhost_allowed_by_env()
+
     case input.args {
       [spec_path, ..] -> {
         run_check(
@@ -123,6 +192,7 @@ fn check_command() -> glint.Command(Nil) {
           feature_filter,
           only_filter,
           output_level,
+          allow_localhost,
         )
       }
       [] -> {
@@ -133,12 +203,48 @@ fn check_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Run spec against a target URL and verify behaviors")
-  |> glint.flag("target", flag.string() |> flag.default("") |> flag.description("Target base URL to test against"))
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output results as JSON"))
-  |> glint.flag("feature", flag.string() |> flag.default("") |> flag.description("Filter to a specific feature"))
-  |> glint.flag("only", flag.string() |> flag.default("") |> flag.description("Run only a specific behavior"))
-  |> glint.flag("verbose", flag.bool() |> flag.default(False) |> flag.description("Verbose output"))
-  |> glint.flag("quiet", flag.bool() |> flag.default(False) |> flag.description("Quiet output (errors only)"))
+  |> glint.flag(
+    "target",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Target base URL to test against"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output results as JSON"),
+  )
+  |> glint.flag(
+    "feature",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Filter to a specific feature"),
+  )
+  |> glint.flag(
+    "only",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Run only a specific behavior"),
+  )
+  |> glint.flag(
+    "verbose",
+    flag.bool() |> flag.default(False) |> flag.description("Verbose output"),
+  )
+  |> glint.flag(
+    "quiet",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Quiet output (errors only)"),
+  )
+  |> glint.flag(
+    "allow-localhost",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Allow localhost URLs for development (bypasses SSRF protection)",
+      ),
+  )
 }
 
 fn run_check(
@@ -148,11 +254,18 @@ fn run_check(
   feature_filter: String,
   only_filter: String,
   output_level: runner.OutputLevel,
+  allow_localhost: Bool,
 ) -> Nil {
+  // Mark that command execution has started (for proper exit code handling)
+  mark_command_started()
+
+  // Determine output mode based on --json flag
+  let mode = output_mode.from_json_flag(is_json)
+
   // Validate target URL is provided
   case string.is_empty(target_url) {
     True -> {
-      cli_ui.print_error("--target URL is required")
+      cli_ui.print_error("--target URL is required", mode)
       io.println("Usage: intent check <spec.cue> --target=<url>")
       halt(exit_error)
     }
@@ -160,9 +273,9 @@ fn run_check(
   }
 
   // Validate target URL for SSRF protection
-  case security.validate_url(target_url) {
+  case security.validate_url(target_url, allow_localhost) {
     Error(e) -> {
-      cli_ui.print_error(security.format_security_error(e))
+      cli_ui.print_error(security.format_security_error(e), mode)
       halt(exit_error)
     }
     Ok(_) -> Nil
@@ -171,11 +284,11 @@ fn run_check(
   // Load the spec
   case loader.load_spec(spec_path) {
     Error(e) -> {
-      cli_ui.print_error(loader.format_error(e))
+      cli_ui.print_error(loader.format_error(e), mode)
       halt(exit_invalid)
     }
     Ok(spec) -> {
-      cli_ui.print_header("Checking spec: " <> spec.name)
+      cli_ui.print_header("Checking spec: " <> spec.name, mode)
 
       // Build run options
       let options =
@@ -192,7 +305,7 @@ fn run_check(
         )
 
       // Run the spec
-      let result = runner.run_spec(spec, target_url, options)
+      let result = runner.run_spec(spec, target_url, options, mode)
 
       // Output results
       case is_json {
@@ -208,15 +321,15 @@ fn run_check(
       // Exit with appropriate code
       let exit_code = case result {
         output.SpecResult(pass: True, ..) -> {
-          cli_ui.print_success("All checks passed!")
+          cli_ui.print_success("All checks passed!", mode)
           exit_pass
         }
         output.SpecResult(blocked: blocked, ..) if blocked > 0 -> {
-          cli_ui.print_warning("Blocked behaviors detected")
+          cli_ui.print_warning("Blocked behaviors detected", mode)
           exit_blocked
         }
         _ -> {
-          cli_ui.print_error("Check failed")
+          cli_ui.print_error("Check failed", mode)
           exit_fail
         }
       }
@@ -228,22 +341,24 @@ fn run_check(
 /// The `validate` command - validate CUE spec syntax AND structure
 fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     case input.args {
       [spec_path, ..] -> {
         // Use load_spec_quiet to validate both CUE syntax AND spec structure
         case loader.load_spec_quiet(spec_path) {
           Ok(_) -> {
-            cli_ui.print_success("Valid spec: " <> spec_path)
+            cli_ui.print_success("Valid spec: " <> spec_path, mode)
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error("Invalid spec: " <> loader.format_error(e))
+            cli_ui.print_error("Invalid spec: " <> loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent validate <spec.cue>")
         halt(exit_error)
       }
@@ -518,6 +633,10 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "answer")
       |> result.unwrap("")
 
+    let dry_run =
+      flag.get_bool(input.flags, "dry-run")
+      |> result.unwrap(False)
+
     // CUE mode: output CUE directives for AI agents
     case cue_mode {
       True -> {
@@ -528,15 +647,14 @@ fn interview_command() -> glint.Command(Nil) {
         case has_session, has_answer {
           // Submitting an answer to an existing session
           True, True ->
-            run_interview_cue_answer(session_flag, answer_text)
+            run_interview_cue_answer(session_flag, answer_text, dry_run)
           // Resume session in CUE mode
-          True, False ->
-            run_interview_cue_resume(session_flag)
+          True, False -> run_interview_cue_resume(session_flag, dry_run)
           // Start new session in CUE mode
           False, False -> {
             let profile = parse_profile(profile_str)
             case profile {
-              Ok(p) -> run_interview_cue_start(p)
+              Ok(p) -> run_interview_cue_start(p, dry_run)
               Error(msg) -> {
                 output_cue_error(msg)
                 halt(exit_error)
@@ -626,6 +744,14 @@ fn interview_command() -> glint.Command(Nil) {
     flag.string()
     |> flag.default("")
     |> flag.description("Submit answer to current question (use with --cue --session)"),
+  )
+  |> glint.flag(
+    "dry-run",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Preview interview questions without saving to sessions.jsonl",
+      ),
   )
 }
 
@@ -739,16 +865,20 @@ fn run_interview(
 /// Resume an existing interview session
 fn run_resume_interview(session_id: String, export_to: String) -> Nil {
   let jsonl_path = ".interview/sessions.jsonl"
+  let mode = output_mode.Interactive
 
   // Load the session from JSONL
   case interview_storage.get_session_from_jsonl(jsonl_path, session_id) {
     Error(err) -> {
-      cli_ui.print_error(err)
+      cli_ui.print_error(err, mode)
       halt(exit_error)
     }
     Ok(session) -> {
-      cli_ui.print_header("Resuming Interview: " <> session.id)
-      cli_ui.print_info("Profile: " <> profile_to_display_string(session.profile))
+      cli_ui.print_header("Resuming Interview: " <> session.id, mode)
+      cli_ui.print_info(
+        "Profile: " <> profile_to_display_string(session.profile),
+        mode,
+      )
       io.println("")
 
       // Show progress
@@ -784,10 +914,10 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
       case save_result {
         Ok(Nil) -> {
           io.println("")
-          cli_ui.print_success("Session updated: " <> session.id)
+          cli_ui.print_success("Session updated: " <> session.id, mode)
         }
         Error(err) -> {
-          cli_ui.print_error("Failed to save session: " <> err)
+          cli_ui.print_error("Failed to save session: " <> err, mode)
         }
       }
 
@@ -798,10 +928,13 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
           let spec_cue = spec_builder.build_spec_from_session(final_session)
           case simplifile.write(path, spec_cue) {
             Ok(Nil) -> {
-              cli_ui.print_success("Spec exported to: " <> path)
+              cli_ui.print_success("Spec exported to: " <> path, mode)
             }
             Error(err) -> {
-              cli_ui.print_error("Failed to export spec: " <> string.inspect(err))
+              cli_ui.print_error(
+                "Failed to export spec: " <> string.inspect(err),
+                mode,
+              )
             }
           }
         }
@@ -992,16 +1125,23 @@ fn output_cue_error(message: String) -> Nil {
 }
 
 /// Start a new interview session in CUE mode
-fn run_interview_cue_start(profile: interview.Profile) -> Nil {
-  let session_id = "interview-" <> generate_uuid()
+fn run_interview_cue_start(profile: interview.Profile, dry_run: Bool) -> Nil {
+  let session_id = case dry_run {
+    True -> "dry-run-" <> generate_uuid()
+    False -> "interview-" <> generate_uuid()
+  }
   let timestamp = current_timestamp()
   let session = interview.create_session(session_id, profile, timestamp)
 
-  // Save session to JSONL
-  let save_result = interview_storage.append_session_to_jsonl(
+  // Save session to JSONL (skip in dry-run mode)
+  let save_result = case dry_run {
+    True -> Ok(Nil)
+    False ->
+      interview_storage.append_session_to_jsonl(
     session,
     ".interview/sessions.jsonl",
   )
+  }
 
   case save_result {
     Ok(_) -> {
@@ -1023,11 +1163,28 @@ fn run_interview_cue_start(profile: interview.Profile) -> Nil {
 }
 
 /// Resume an existing interview session in CUE mode
-fn run_interview_cue_resume(session_id: String) -> Nil {
-  case interview_storage.get_session_from_jsonl(".interview/sessions.jsonl", session_id) {
+fn run_interview_cue_resume(session_id: String, dry_run: Bool) -> Nil {
+  let is_dry_run_session = string.starts_with(session_id, "dry-run-")
+
+  case
+    interview_storage.get_session_from_jsonl(
+      ".interview/sessions.jsonl",
+      session_id,
+    )
+  {
     Error(err) -> {
+      case is_dry_run_session || dry_run {
+        True -> {
+          output_cue_error(
+            "Cannot resume dry-run session (not saved): " <> session_id,
+          )
+          halt(exit_error)
+        }
+        False -> {
       output_cue_error("Session not found: " <> err)
       halt(exit_error)
+    }
+      }
     }
     Ok(session) -> {
       // Check if interview is complete
@@ -1082,11 +1239,32 @@ fn find_unanswered_in_rounds(profile_str: String, answered_ids: List(String), ro
 }
 
 /// Submit an answer to a session in CUE mode
-fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
-  case interview_storage.get_session_from_jsonl(".interview/sessions.jsonl", session_id) {
+fn run_interview_cue_answer(
+  session_id: String,
+  answer_text: String,
+  dry_run: Bool,
+) -> Nil {
+  let is_dry_run_session = string.starts_with(session_id, "dry-run-")
+
+  case
+    interview_storage.get_session_from_jsonl(
+      ".interview/sessions.jsonl",
+      session_id,
+    )
+  {
     Error(err) -> {
+      case is_dry_run_session || dry_run {
+        True -> {
+          output_cue_error(
+            "Cannot answer dry-run session (not saved): " <> session_id,
+          )
+          halt(exit_error)
+        }
+        False -> {
       output_cue_error("Session not found: " <> err)
       halt(exit_error)
+    }
+      }
     }
     Ok(session) -> {
       // Validate answer (basic validation)
@@ -1138,11 +1316,17 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
               let #(sess_final, _conflicts) =
                 interview.check_for_conflicts(sess_with_gaps, answer)
 
-              // Save updated session
-              case interview_storage.append_session_to_jsonl(
-                sess_final,
-                ".interview/sessions.jsonl",
-              ) {
+              // Save updated session (skip in dry-run mode)
+              let save_result = case is_dry_run_session || dry_run {
+                True -> Ok(Nil)
+                False ->
+                  interview_storage.append_session_to_jsonl(
+                    sess_final,
+                    ".interview/sessions.jsonl",
+                  )
+              }
+
+              case save_result {
                 Error(err) -> {
                   output_cue_error("Failed to save session: " <> err)
                   halt(exit_error)
@@ -1200,6 +1384,8 @@ fn output_cue_question(session: interview.InterviewSession, question: Question, 
     _ -> "validation"
   }
 
+  let is_dry_run = string.starts_with(session.id, "dry-run-")
+
   let output =
     "{\n"
     <> "\taction: \"ask_question\"\n\n"
@@ -1216,9 +1402,19 @@ fn output_cue_question(session: interview.InterviewSession, question: Question, 
     <> "\t\tcategory: \"" <> category <> "\"\n"
     <> "\t}\n\n"
     <> "\tsession: {\n"
-    <> "\t\tid: \"" <> session.id <> "\"\n"
-    <> "\t\tprofile: \"" <> profile_str <> "\"\n"
-    <> "\t\tstarted_at: \"" <> session.created_at <> "\"\n"
+    <> "\t\tid: \""
+    <> session.id
+    <> "\"\n"
+    <> "\t\tprofile: \""
+    <> profile_str
+    <> "\"\n"
+    <> "\t\tstarted_at: \""
+    <> session.created_at
+    <> "\"\n"
+    <> case is_dry_run {
+      True -> "\t\tdry_run: true\n"
+      False -> ""
+    }
     <> "\t}\n"
     <> "}"
 
@@ -1235,26 +1431,71 @@ fn output_cue_validation_error(message: String, suggestion: String) -> Nil {
 fn output_cue_complete(session: interview.InterviewSession) -> Nil {
   let behaviors_count = list.length(session.answers)
   let anti_patterns_count = list.length(session.gaps)
-  let spec_path = ".interview/spec-" <> session.id <> ".cue"
+  let is_dry_run = string.starts_with(session.id, "dry-run-")
 
-  // Generate and save the spec
+  // Generate and save the spec (skip in dry-run mode)
+  let spec_path = case is_dry_run {
+    True -> ""
+    False -> ".interview/spec-" <> session.id <> ".cue"
+  }
+
+  case is_dry_run {
+    False -> {
   let spec_cue = spec_builder.build_spec_from_session(session)
   let _ = simplifile.write(spec_path, spec_cue)
+      Nil
+    }
+    True -> Nil
+  }
+
+  let summary = case is_dry_run {
+    True ->
+      "DRY RUN complete. No spec generated (use without --dry-run to save)."
+    False ->
+      "Interview complete. Generated spec with "
+      <> string.inspect(behaviors_count)
+      <> " behaviors."
+  }
 
   let output =
     "{\n"
     <> "\taction: \"interview_complete\"\n\n"
     <> "\toutput: {\n"
-    <> "\t\tspec_path: \"" <> spec_path <> "\"\n"
-    <> "\t\tbehaviors_count: " <> string.inspect(behaviors_count) <> "\n"
-    <> "\t\tanti_patterns_count: " <> string.inspect(anti_patterns_count) <> "\n"
-    <> "\t\tsummary: \"Interview complete. Generated spec with " <> string.inspect(behaviors_count) <> " behaviors.\"\n"
+    <> case is_dry_run {
+      False -> "\t\tspec_path: \"" <> spec_path <> "\"\n"
+      True -> ""
+    }
+    <> "\t\tbehaviors_count: "
+    <> string.inspect(behaviors_count)
+    <> "\n"
+    <> "\t\tanti_patterns_count: "
+    <> string.inspect(anti_patterns_count)
+    <> "\n"
+    <> "\t\tsummary: \""
+    <> escape_cue_string(summary)
+    <> "\"\n"
+    <> case is_dry_run {
+      True -> "\t\tdry_run: true\n"
+      False -> ""
+    }
     <> "\t}\n\n"
     <> "\tsession: {\n"
-    <> "\t\tid: \"" <> session.id <> "\"\n"
-    <> "\t\tprofile: \"" <> profile_to_string(session.profile) <> "\"\n"
-    <> "\t\tstarted_at: \"" <> session.created_at <> "\"\n"
-    <> "\t\tcompleted_at: \"" <> current_timestamp() <> "\"\n"
+    <> "\t\tid: \""
+    <> session.id
+    <> "\"\n"
+    <> "\t\tprofile: \""
+    <> profile_to_string(session.profile)
+    <> "\"\n"
+    <> "\t\tstarted_at: \""
+    <> session.created_at
+    <> "\"\n"
+    <> "\t\tcompleted_at: \""
+    <> current_timestamp()
+    <> "\"\n"
+    <> case is_dry_run {
+      True -> "\t\tdry_run: true\n"
+      False -> ""
+    }
     <> "\t}\n"
     <> "}"
 
@@ -1320,6 +1561,10 @@ fn format_cue_string_list(items: List(String)) -> String {
 /// The `beads` command - generate work items from interview session
 fn beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [session_id, ..] -> {
         // Load session from JSONL
@@ -1336,6 +1581,22 @@ fn beads_command() -> glint.Command(Nil) {
             let beads = bead_templates.generate_beads_from_session(session)
             let bead_count = list.length(beads)
 
+            // Export to .beads/issues.jsonl
+            let jsonl_output = bead_templates.beads_to_jsonl(beads)
+
+            case
+              simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
+            {
+              Ok(Nil) -> {
+                case is_json {
+                  True -> {
+                    // Output JSON for AI agents
+                    let json_output =
+                      bead_templates.beads_to_action_json(beads, session_id)
+                    io.println(json.to_string(json_output))
+                  }
+                  False -> {
+                    // Human-readable output
             io.println("")
             io.println("═══════════════════════════════════════════════════════════════════")
             io.println("                    BEAD GENERATION")
@@ -1343,12 +1604,6 @@ fn beads_command() -> glint.Command(Nil) {
             io.println("")
             io.println("Generated " <> string.inspect(bead_count) <> " work items from session: " <> session_id)
             io.println("")
-
-            // Export to .beads/issues.jsonl
-            let jsonl_output = bead_templates.beads_to_jsonl(beads)
-
-            case simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n") {
-              Ok(Nil) -> {
                 io.println("✓ Beads exported to: .beads/issues.jsonl")
                 io.println("")
 
@@ -1356,6 +1611,8 @@ fn beads_command() -> glint.Command(Nil) {
                 let stats = bead_templates.bead_stats(beads)
                 io.println("Summary:")
                 io.println("  Total beads: " <> string.inspect(stats.total))
+                  }
+                }
 
                 halt(exit_pass)
               }
@@ -1368,7 +1625,7 @@ fn beads_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads <session_id>")
+        io.println_error("Usage: intent beads <session_id> [--json]")
         io.println_error("")
         io.println_error("Example: intent beads interview-abc123def456")
         halt(exit_error)
@@ -1376,6 +1633,12 @@ fn beads_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Generate work items (beads) from an interview session")
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output JSON for machine consumption"),
+  )
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
@@ -1844,23 +2107,27 @@ fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
 fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let history_path = ".interview/history.jsonl"
+    let mode = output_mode.Interactive
 
     case input.args {
       [session_id, ..] -> {
         case interview_storage.list_session_history(history_path, session_id) {
           Error(err) -> {
-            cli_ui.print_error(err)
+            cli_ui.print_error(err, mode)
             halt(exit_error)
           }
           Ok([]) -> {
-            cli_ui.print_warning("No history found for session: " <> session_id)
+            cli_ui.print_warning(
+              "No history found for session: " <> session_id,
+              mode,
+            )
             io.println("")
             io.println("Tip: Session history is recorded when you save snapshots")
             io.println("during an interview with --snapshot flag.")
             halt(exit_pass)
           }
           Ok(snapshots) -> {
-            cli_ui.print_header("Session History: " <> session_id)
+            cli_ui.print_header("Session History: " <> session_id, mode)
             io.println("")
 
             list.each(snapshots, fn(snapshot) {
@@ -1880,7 +2147,7 @@ fn history_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        cli_ui.print_error("Session ID required")
+        cli_ui.print_error("Session ID required", mode)
         io.println("")
         io.println("Usage: intent history <session-id>")
         io.println("")
@@ -1896,25 +2163,27 @@ fn history_command() -> glint.Command(Nil) {
 fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let jsonl_path = ".interview/sessions.jsonl"
+    let mode = output_mode.Interactive
 
     case input.args {
       [from_id, to_id, ..] -> {
         // Load both sessions
         case interview_storage.get_session_from_jsonl(jsonl_path, from_id) {
           Error(err) -> {
-            cli_ui.print_error("Failed to load 'from' session: " <> err)
+            cli_ui.print_error("Failed to load 'from' session: " <> err, mode)
             halt(exit_error)
           }
           Ok(from_session) -> {
             case interview_storage.get_session_from_jsonl(jsonl_path, to_id) {
               Error(err) -> {
-                cli_ui.print_error("Failed to load 'to' session: " <> err)
+                cli_ui.print_error("Failed to load 'to' session: " <> err, mode)
                 halt(exit_error)
               }
               Ok(to_session) -> {
                 // Compute and display diff
-                let diff = interview_storage.diff_sessions(from_session, to_session)
-                cli_ui.print_header("Session Comparison")
+                let diff =
+                  interview_storage.diff_sessions(from_session, to_session)
+                cli_ui.print_header("Session Comparison", mode)
                 io.println("")
                 io.println(interview_storage.format_diff(diff))
 
@@ -1926,8 +2195,16 @@ fn diff_command() -> glint.Command(Nil) {
                   + list.length(diff.answers_removed)
 
                 case total_changes {
-                  0 -> cli_ui.print_info("No answer changes between sessions")
-                  n -> cli_ui.print_info(string.inspect(n) <> " total answer changes")
+                  0 ->
+                    cli_ui.print_info(
+                      "No answer changes between sessions",
+                      mode,
+                    )
+                  n ->
+                    cli_ui.print_info(
+                      string.inspect(n) <> " total answer changes",
+                      mode,
+                    )
                 }
 
                 halt(exit_pass)
@@ -1938,7 +2215,7 @@ fn diff_command() -> glint.Command(Nil) {
       }
       [single_id] -> {
         // Compare session with its previous version (if exists)
-        cli_ui.print_error("Two session IDs required for comparison")
+        cli_ui.print_error("Two session IDs required for comparison", mode)
         io.println("")
         io.println("Usage: intent diff <from-session> <to-session>")
         io.println("")
@@ -1947,7 +2224,7 @@ fn diff_command() -> glint.Command(Nil) {
         halt(exit_error)
       }
       [] -> {
-        cli_ui.print_error("Session IDs required")
+        cli_ui.print_error("Session IDs required", mode)
         io.println("")
         io.println("Usage: intent diff <from-session> <to-session>")
         io.println("")
@@ -1972,21 +2249,27 @@ fn sessions_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
+    let mode = output_mode.from_json_flag(is_json)
+
     let profile_filter =
       flag.get_string(input.flags, "profile")
       |> result.unwrap("")
 
+    let incomplete_only =
+      flag.get_bool(input.flags, "incomplete")
+      |> result.unwrap(False)
+
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(_) -> {
         // File doesn't exist yet - treat as empty
-        cli_ui.print_warning("No interview sessions found")
+        cli_ui.print_warning("No interview sessions found", mode)
         io.println("")
         io.println("Start a new interview with:")
         io.println("  intent interview --profile api")
         halt(exit_pass)
       }
       Ok([]) -> {
-        cli_ui.print_warning("No interview sessions found")
+        cli_ui.print_warning("No interview sessions found", mode)
         io.println("")
         io.println("Start a new interview with:")
         io.println("  intent interview --profile api")
@@ -2001,13 +2284,25 @@ fn sessions_command() -> glint.Command(Nil) {
           })
         }
 
+        // Filter by incomplete if specified
+        let filtered = case incomplete_only {
+          True ->
+            list.filter(filtered, fn(s) {
+              case s.stage {
+                interview.Complete -> False
+                _ -> True
+              }
+            })
+          False -> filtered
+        }
+
         case is_json {
           True -> {
             let json_sessions = json.array(filtered, interview_storage.session_to_json)
             io.println(json.to_string(json_sessions))
           }
           False -> {
-            cli_ui.print_header("Interview Sessions")
+            cli_ui.print_header("Interview Sessions", mode)
             io.println("")
 
             list.each(filtered, fn(session) {
@@ -2048,6 +2343,12 @@ fn sessions_command() -> glint.Command(Nil) {
     |> flag.default("")
     |> flag.description("Filter by profile (api, cli, event, etc.)"),
   )
+  |> glint.flag(
+    "incomplete",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Show only incomplete sessions"),
+  )
 }
 
 fn stage_to_display_string(stage: interview.InterviewStage) -> String {
@@ -2070,6 +2371,8 @@ fn kirk_quality_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -2100,13 +2403,13 @@ fn kirk_quality_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent quality <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2122,6 +2425,8 @@ fn kirk_invert_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -2151,13 +2456,13 @@ fn kirk_invert_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent invert <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2182,6 +2487,8 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -2212,13 +2519,13 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent coverage <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2234,6 +2541,8 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -2263,13 +2572,13 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent gaps <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -2292,33 +2601,63 @@ fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
 /// The `effects` command - KIRK second-order effects analysis
 fn kirk_effects_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = effects_analyzer.analyze_effects(spec)
+
+            case is_json {
+              True -> {
+                let json_output =
+                  effects_analyzer.effects_report_to_action_json(
+                    report,
+                    spec.name,
+                  )
+                io.println(json.to_string(json_output))
+              }
+              False -> {
             io.println(effects_analyzer.format_report(report))
+              }
+            }
+
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
-        io.println("Usage: intent effects <spec.cue>")
+        cli_ui.print_error("spec file path required", mode)
+        io.println("Usage: intent effects <spec.cue> [--json]")
         halt(exit_error)
       }
     }
   })
-  |> glint.description("KIRK: Analyze second-order effects (consequence tracing)")
+  |> glint.description(
+    "KIRK: Analyze second-order effects (consequence tracing)",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output JSON for machine consumption"),
+  )
 }
 
 /// The `compact` command - KIRK compact format (CIN)
 fn kirk_compact_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     let show_tokens =
       flag.get_bool(input.flags, "tokens")
       |> result.unwrap(False)
@@ -2347,13 +2686,13 @@ fn kirk_compact_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent compact <spec.cue> [--tokens]")
         halt(exit_error)
       }
@@ -2366,6 +2705,8 @@ fn kirk_compact_command() -> glint.Command(Nil) {
 /// The `prototext` command - KIRK protobuf text format output
 fn kirk_prototext_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -2375,13 +2716,13 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent prototext <spec.cue>")
         halt(exit_error)
       }
@@ -2393,6 +2734,8 @@ fn kirk_prototext_command() -> glint.Command(Nil) {
 /// The `ears` command - KIRK EARS requirements parser
 fn kirk_ears_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     let output_format =
       flag.get_string(input.flags, "output")
       |> result.unwrap("text")
@@ -2454,7 +2797,8 @@ fn kirk_ears_command() -> glint.Command(Nil) {
               path -> {
                 case simplifile.write(path, output) {
                   Ok(_) -> io.println("Written to: " <> path)
-                  Error(_) -> cli_ui.print_error("Failed to write to: " <> path)
+                  Error(_) ->
+                    cli_ui.print_error("Failed to write to: " <> path, mode)
                 }
               }
             }
@@ -2462,14 +2806,16 @@ fn kirk_ears_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(_) -> {
-            cli_ui.print_error("Failed to read: " <> requirements_path)
+            cli_ui.print_error("Failed to read: " <> requirements_path, mode)
             halt(exit_error)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("requirements file path required")
-        io.println("Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]")
+        cli_ui.print_error("requirements file path required", mode)
+        io.println(
+          "Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
+        )
         io.println("")
         io.println("EARS Patterns:")
         io.println("  THE SYSTEM SHALL [behavior]                    - Ubiquitous")
@@ -2499,6 +2845,8 @@ fn parse_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     let output_file =
       flag.get_string(input.flags, "o")
@@ -2623,7 +2971,11 @@ fn parse_command() -> glint.Command(Nil) {
                     let cue_output = ears_parser.to_cue(result, spec_name)
                     case simplifile.write(path, cue_output) {
                       Ok(_) -> io.println("Written to: " <> path)
-                      Error(e) -> cli_ui.print_error("Failed to write: " <> string.inspect(e))
+                      Error(e) ->
+                        cli_ui.print_error(
+                          "Failed to write: " <> string.inspect(e),
+                          mode,
+                        )
                     }
                   }
                 }
@@ -2636,14 +2988,16 @@ fn parse_command() -> glint.Command(Nil) {
             }
           }
           Error(_) -> {
-            cli_ui.print_error("Failed to read: " <> requirements_path)
+            cli_ui.print_error("Failed to read: " <> requirements_path, mode)
             halt(exit_error)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("requirements file path required")
-        io.println("Usage: intent parse <requirements.ears.md> [-o spec.cue] [--json]")
+        cli_ui.print_error("requirements file path required", mode)
+        io.println(
+          "Usage: intent parse <requirements.ears.md> [-o spec.cue] [--json]",
+        )
         io.println("")
         io.println("Parse EARS-formatted requirements and output structured CUE spec.")
         io.println("")
@@ -2690,3 +3044,14 @@ fn generate_uuid() -> String
 
 @external(erlang, "intent_ffi", "current_timestamp")
 fn current_timestamp() -> String
+
+@external(erlang, "intent_ffi", "get_env")
+fn get_env(name: String) -> Result(String, Nil)
+
+/// Check if localhost is allowed via environment variable
+fn is_localhost_allowed_by_env() -> Bool {
+  case get_env("INTENT_ALLOW_LOCALHOST") {
+    Ok("true") | Ok("1") | Ok("yes") -> True
+    _ -> False
+  }
+}

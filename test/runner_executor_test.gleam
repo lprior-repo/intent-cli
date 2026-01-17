@@ -10,6 +10,7 @@ import gleam/json
 import gleeunit/should
 import intent/http_client.{ExecutionResult, RequestError}
 import intent/interpolate
+import intent/output_mode
 import intent/runner.{type BehaviorExecutor, BehaviorExecutor}
 import intent/types
 import test_helpers.{
@@ -129,7 +130,14 @@ pub fn run_spec_with_executor_success_test() {
   let options = runner.default_options()
   let executor = mock_success_executor()
 
-  let result = runner.run_spec_with_executor(spec, "", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   result.total
   |> should.equal(1)
@@ -153,7 +161,14 @@ pub fn run_spec_with_executor_multiple_behaviors_test() {
   let options = runner.default_options()
   let executor = mock_success_executor()
 
-  let result = runner.run_spec_with_executor(spec, "", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   result.total
   |> should.equal(3)
@@ -179,7 +194,14 @@ pub fn run_spec_with_executor_status_mismatch_test() {
   // Return 404 when 200 is expected
   let executor = mock_status_executor(404)
 
-  let result = runner.run_spec_with_executor(spec, "", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   result.total
   |> should.equal(1)
@@ -205,7 +227,14 @@ pub fn behavior_error_counted_as_failure_test() {
   let options = runner.default_options()
   let executor = mock_error_executor()
 
-  let result = runner.run_spec_with_executor(spec, "", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   result.total
   |> should.equal(1)
@@ -228,7 +257,14 @@ pub fn behavior_error_cascades_to_dependents_test() {
   let options = runner.default_options()
   let executor = mock_error_executor()
 
-  let result = runner.run_spec_with_executor(spec, "", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   result.total
   |> should.equal(2)
@@ -252,7 +288,14 @@ pub fn behavior_error_summary_includes_errors_test() {
   let options = runner.default_options()
   let executor = mock_error_executor()
 
-  let result = runner.run_spec_with_executor(spec, "", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   // Summary should indicate failure
   result.pass
@@ -268,7 +311,14 @@ pub fn multiple_errors_all_counted_test() {
   let options = runner.default_options()
   let executor = mock_error_executor()
 
-  let result = runner.run_spec_with_executor(spec, "", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   result.total
   |> should.equal(3)
@@ -291,7 +341,7 @@ pub fn run_spec_preserves_default_behavior_test() {
   let spec = make_test_spec([])
   let options = runner.default_options()
 
-  let result = runner.run_spec(spec, "", options)
+  let result = runner.run_spec(spec, "", options, output_mode.Interactive)
 
   // Empty spec should pass
   result.pass
@@ -330,7 +380,14 @@ pub fn executor_receives_target_url_override_test() {
     }
   })
 
-  let result = runner.run_spec_with_executor(spec, "http://override.test:9999", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "http://override.test:9999",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
 
   result.passed
   |> should.equal(1)

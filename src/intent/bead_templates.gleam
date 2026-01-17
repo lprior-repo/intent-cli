@@ -3,12 +3,14 @@
 
 import gleam/dict.{type Dict}
 import gleam/int
-import gleam/json
+import gleam/json.{type Json}
 import gleam/list
+import gleam/option.{None}
 import gleam/result
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
 import intent/interview.{type InterviewSession, type Profile}
+import intent/json_output
 
 /// A single work item (bead) record
 pub type BeadRecord {
@@ -298,4 +300,53 @@ pub fn bead_stats(beads: List(BeadRecord)) -> BeadStats {
   })
 
   BeadStats(total: total, by_type: by_type, by_priority: by_priority)
+}
+
+/// Convert list of beads to action-based JSON for AI consumption
+pub fn beads_to_action_json(beads: List(BeadRecord), session_id: String) -> Json {
+  let stats = bead_stats(beads)
+
+  let data =
+    json.object([
+      #("session_id", json.string(session_id)),
+      #("beads", json.array(beads, bead_to_json)),
+      #(
+        "summary",
+        json.object([
+          #("total", json.int(stats.total)),
+          #(
+            "by_type",
+            json.object(
+              dict.to_list(stats.by_type)
+              |> list.map(fn(p) { #(p.0, json.int(p.1)) }),
+            ),
+          ),
+          #(
+            "by_priority",
+            json.object(
+              dict.to_list(stats.by_priority)
+              |> list.map(fn(p) { #(int.to_string(p.0), json.int(p.1)) }),
+            ),
+          ),
+        ]),
+      ),
+    ])
+
+  json_output.create_response("beads_generated", "beads", data, None, 0)
+  |> json_output.to_json
+}
+
+/// Convert a single bead to JSON
+fn bead_to_json(bead: BeadRecord) -> Json {
+  json.object([
+    #("title", json.string(bead.title)),
+    #("description", json.string(bead.description)),
+    #("profile_type", json.string(bead.profile_type)),
+    #("priority", json.int(bead.priority)),
+    #("issue_type", json.string(bead.issue_type)),
+    #("labels", json.array(bead.labels, json.string)),
+    #("ai_hints", json.string(bead.ai_hints)),
+    #("acceptance_criteria", json.array(bead.acceptance_criteria, json.string)),
+    #("dependencies", json.array(bead.dependencies, json.string)),
+  ])
 }
