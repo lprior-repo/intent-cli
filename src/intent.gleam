@@ -659,6 +659,10 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "answer")
       |> result.unwrap("")
 
+    let dry_run =
+      flag.get_bool(input.flags, "dry-run")
+      |> result.unwrap(False)
+
     // CUE mode: output CUE directives for AI agents
     case cue_mode {
       True -> {
@@ -668,14 +672,15 @@ fn interview_command() -> glint.Command(Nil) {
 
         case has_session, has_answer {
           // Submitting an answer to an existing session
-          True, True -> run_interview_cue_answer(session_flag, answer_text)
+          True, True ->
+            run_interview_cue_answer(session_flag, answer_text, dry_run)
           // Resume session in CUE mode
-          True, False -> run_interview_cue_resume(session_flag)
+          True, False -> run_interview_cue_resume(session_flag, dry_run)
           // Start new session in CUE mode
           False, False -> {
             let profile = parse_profile(profile_str)
             case profile {
-              Ok(p) -> run_interview_cue_start(p)
+              Ok(p) -> run_interview_cue_start(p, dry_run)
               Error(msg) -> {
                 output_cue_error(msg)
                 halt(exit_error)
@@ -810,6 +815,14 @@ fn interview_command() -> glint.Command(Nil) {
       |> flag.default("")
       |> flag.description(
         "Submit answer to current question (use with --cue --session)",
+      ),
+  )
+  |> glint.flag(
+    "dry-run",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Preview interview questions without saving to sessions.jsonl",
       ),
   )
 }
@@ -1223,17 +1236,23 @@ fn output_cue_error(message: String) -> Nil {
 }
 
 /// Start a new interview session in CUE mode
-fn run_interview_cue_start(profile: interview.Profile) -> Nil {
-  let session_id = "interview-" <> generate_uuid()
+fn run_interview_cue_start(profile: interview.Profile, dry_run: Bool) -> Nil {
+  let session_id = case dry_run {
+    True -> "dry-run-" <> generate_uuid()
+    False -> "interview-" <> generate_uuid()
+  }
   let timestamp = current_timestamp()
   let session = interview.create_session(session_id, profile, timestamp)
 
-  // Save session to JSONL
-  let save_result =
-    interview_storage.append_session_to_jsonl(
-      session,
-      ".interview/sessions.jsonl",
-    )
+  // Save session to JSONL (skip in dry-run mode)
+  let save_result = case dry_run {
+    True -> Ok(Nil)
+    False ->
+      interview_storage.append_session_to_jsonl(
+        session,
+        ".interview/sessions.jsonl",
+      )
+  }
 
   case save_result {
     Ok(_) -> {
@@ -1254,7 +1273,9 @@ fn run_interview_cue_start(profile: interview.Profile) -> Nil {
 }
 
 /// Resume an existing interview session in CUE mode
-fn run_interview_cue_resume(session_id: String) -> Nil {
+fn run_interview_cue_resume(session_id: String, dry_run: Bool) -> Nil {
+  let is_dry_run_session = string.starts_with(session_id, "dry-run-")
+
   case
     interview_storage.get_session_from_jsonl(
       ".interview/sessions.jsonl",
@@ -1262,8 +1283,18 @@ fn run_interview_cue_resume(session_id: String) -> Nil {
     )
   {
     Error(err) -> {
-      output_cue_error("Session not found: " <> err)
-      halt(exit_error)
+      case is_dry_run_session || dry_run {
+        True -> {
+          output_cue_error(
+            "Cannot resume dry-run session (not saved): " <> session_id,
+          )
+          halt(exit_error)
+        }
+        False -> {
+          output_cue_error("Session not found: " <> err)
+          halt(exit_error)
+        }
+      }
     }
     Ok(session) -> {
       // Check if interview is complete
@@ -1324,7 +1355,13 @@ fn find_unanswered_in_rounds(
 }
 
 /// Submit an answer to a session in CUE mode
-fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
+fn run_interview_cue_answer(
+  session_id: String,
+  answer_text: String,
+  dry_run: Bool,
+) -> Nil {
+  let is_dry_run_session = string.starts_with(session_id, "dry-run-")
+
   case
     interview_storage.get_session_from_jsonl(
       ".interview/sessions.jsonl",
@@ -1332,8 +1369,18 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
     )
   {
     Error(err) -> {
-      output_cue_error("Session not found: " <> err)
-      halt(exit_error)
+      case is_dry_run_session || dry_run {
+        True -> {
+          output_cue_error(
+            "Cannot answer dry-run session (not saved): " <> session_id,
+          )
+          halt(exit_error)
+        }
+        False -> {
+          output_cue_error("Session not found: " <> err)
+          halt(exit_error)
+        }
+      }
     }
     Ok(session) -> {
       // Validate answer (basic validation)
@@ -1395,13 +1442,17 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
               let #(sess_final, _conflicts) =
                 interview.check_for_conflicts(sess_with_gaps, answer)
 
-              // Save updated session
-              case
-                interview_storage.append_session_to_jsonl(
-                  sess_final,
-                  ".interview/sessions.jsonl",
-                )
-              {
+              // Save updated session (skip in dry-run mode)
+              let save_result = case is_dry_run_session || dry_run {
+                True -> Ok(Nil)
+                False ->
+                  interview_storage.append_session_to_jsonl(
+                    sess_final,
+                    ".interview/sessions.jsonl",
+                  )
+              }
+
+              case save_result {
                 Error(err) -> {
                   output_cue_error("Failed to save session: " <> err)
                   halt(exit_error)
@@ -1470,6 +1521,8 @@ fn output_cue_question(
     _ -> "validation"
   }
 
+  let is_dry_run = string.starts_with(session.id, "dry-run-")
+
   let output =
     "{\n"
     <> "\taction: \"ask_question\"\n\n"
@@ -1511,6 +1564,10 @@ fn output_cue_question(
     <> "\t\tstarted_at: \""
     <> session.created_at
     <> "\"\n"
+    <> case is_dry_run {
+      True -> "\t\tdry_run: true\n"
+      False -> ""
+    }
     <> "\t}\n"
     <> "}"
 
@@ -1533,28 +1590,53 @@ fn output_cue_validation_error(message: String, suggestion: String) -> Nil {
 fn output_cue_complete(session: interview.InterviewSession) -> Nil {
   let behaviors_count = list.length(session.answers)
   let anti_patterns_count = list.length(session.gaps)
-  let spec_path = ".interview/spec-" <> session.id <> ".cue"
+  let is_dry_run = string.starts_with(session.id, "dry-run-")
 
-  // Generate and save the spec
-  let spec_cue = spec_builder.build_spec_from_session(session)
-  let _ = simplifile.write(spec_path, spec_cue)
+  // Generate and save the spec (skip in dry-run mode)
+  let spec_path = case is_dry_run {
+    True -> ""
+    False -> ".interview/spec-" <> session.id <> ".cue"
+  }
+
+  case is_dry_run {
+    False -> {
+      let spec_cue = spec_builder.build_spec_from_session(session)
+      let _ = simplifile.write(spec_path, spec_cue)
+      Nil
+    }
+    True -> Nil
+  }
+
+  let summary = case is_dry_run {
+    True ->
+      "DRY RUN complete. No spec generated (use without --dry-run to save)."
+    False ->
+      "Interview complete. Generated spec with "
+      <> string.inspect(behaviors_count)
+      <> " behaviors."
+  }
 
   let output =
     "{\n"
     <> "\taction: \"interview_complete\"\n\n"
     <> "\toutput: {\n"
-    <> "\t\tspec_path: \""
-    <> spec_path
-    <> "\"\n"
+    <> case is_dry_run {
+      False -> "\t\tspec_path: \"" <> spec_path <> "\"\n"
+      True -> ""
+    }
     <> "\t\tbehaviors_count: "
     <> string.inspect(behaviors_count)
     <> "\n"
     <> "\t\tanti_patterns_count: "
     <> string.inspect(anti_patterns_count)
     <> "\n"
-    <> "\t\tsummary: \"Interview complete. Generated spec with "
-    <> string.inspect(behaviors_count)
-    <> " behaviors.\"\n"
+    <> "\t\tsummary: \""
+    <> escape_cue_string(summary)
+    <> "\"\n"
+    <> case is_dry_run {
+      True -> "\t\tdry_run: true\n"
+      False -> ""
+    }
     <> "\t}\n\n"
     <> "\tsession: {\n"
     <> "\t\tid: \""
@@ -1569,6 +1651,10 @@ fn output_cue_complete(session: interview.InterviewSession) -> Nil {
     <> "\t\tcompleted_at: \""
     <> current_timestamp()
     <> "\"\n"
+    <> case is_dry_run {
+      True -> "\t\tdry_run: true\n"
+      False -> ""
+    }
     <> "\t}\n"
     <> "}"
 
@@ -2380,7 +2466,10 @@ fn history_command() -> glint.Command(Nil) {
             halt(exit_error)
           }
           Ok([]) -> {
-            cli_ui.print_warning("No history found for session: " <> session_id, mode)
+            cli_ui.print_warning(
+              "No history found for session: " <> session_id,
+              mode,
+            )
             io.println("")
             io.println(
               "Tip: Session history is recorded when you save snapshots",
@@ -2461,7 +2550,11 @@ fn diff_command() -> glint.Command(Nil) {
                   + list.length(diff.answers_removed)
 
                 case total_changes {
-                  0 -> cli_ui.print_info("No answer changes between sessions", mode)
+                  0 ->
+                    cli_ui.print_info(
+                      "No answer changes between sessions",
+                      mode,
+                    )
                   n ->
                     cli_ui.print_info(
                       string.inspect(n) <> " total answer changes",
@@ -2517,6 +2610,10 @@ fn sessions_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "profile")
       |> result.unwrap("")
 
+    let incomplete_only =
+      flag.get_bool(input.flags, "incomplete")
+      |> result.unwrap(False)
+
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(_) -> {
         // File doesn't exist yet - treat as empty
@@ -2541,6 +2638,18 @@ fn sessions_command() -> glint.Command(Nil) {
             list.filter(sessions, fn(s) {
               profile_to_string(s.profile) == string.lowercase(p)
             })
+        }
+
+        // Filter by incomplete if specified
+        let filtered = case incomplete_only {
+          True ->
+            list.filter(filtered, fn(s) {
+              case s.stage {
+                interview.Complete -> False
+                _ -> True
+              }
+            })
+          False -> filtered
         }
 
         case is_json {
@@ -2600,6 +2709,12 @@ fn sessions_command() -> glint.Command(Nil) {
     flag.string()
       |> flag.default("")
       |> flag.description("Filter by profile (api, cli, event, etc.)"),
+  )
+  |> glint.flag(
+    "incomplete",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Show only incomplete sessions"),
   )
 }
 
@@ -3151,7 +3266,8 @@ fn kirk_ears_command() -> glint.Command(Nil) {
               path -> {
                 case simplifile.write(path, output) {
                   Ok(_) -> io.println("Written to: " <> path)
-                  Error(_) -> cli_ui.print_error("Failed to write to: " <> path, mode)
+                  Error(_) ->
+                    cli_ui.print_error("Failed to write to: " <> path, mode)
                 }
               }
             }
