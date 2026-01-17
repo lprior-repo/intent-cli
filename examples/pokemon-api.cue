@@ -46,8 +46,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
-					headers: {}
-
 
 						example: {
 							pokemon: [
@@ -81,8 +79,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
-					headers: {}
-
 
 						example: {
 							id:         "pkmn_001"
@@ -136,8 +132,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 404
-					headers: {}
-
 
 						example: {
 							error: {
@@ -180,8 +174,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
-					headers: {}
-
 
 						example: {
 							trainers: [
@@ -212,8 +204,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
-					headers: {}
-
 
 						example: {
 							id:            "trainer_ash"
@@ -254,8 +244,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 200
-					headers: {}
-
 
 						example: {
 							pokemon: [
@@ -289,8 +277,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 404
-					headers: {}
-
 
 						checks: {
 							"error.code": {
@@ -330,8 +316,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 201
-					headers: {}
-
 
 						example: {
 							id:         "pkmn_004"
@@ -392,8 +376,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 400
-					headers: {}
-
 
 						checks: {
 							"error.code": {
@@ -422,8 +404,6 @@ spec: intent.#Spec & {
 
 					response: {
 						status: 400
-					headers: {}
-
 
 						checks: {
 							"error.code": {
@@ -488,13 +468,6 @@ spec: intent.#Spec & {
 	ai_hints: {
 		implementation: {
 			suggested_stack: ["Python", "Flask", "SQLite"]
-		}
-
-		security: {
-			password_hashing: "Not applicable (no authentication)"
-			jwt_algorithm:    "Not applicable"
-			jwt_expiry:       "Not applicable"
-			rate_limiting:    "100 requests per minute per IP"
 		}
 
 		entities: {
