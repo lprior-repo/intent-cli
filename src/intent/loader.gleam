@@ -1,9 +1,11 @@
 /// CUE spec loader - loads and validates CUE files using the cue command
+import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
 import gleam/string
 import gleam_community/ansi
+import intent/ai_errors
 import intent/parser
 import intent/security
 import intent/types.{type Spec, Spec}
@@ -96,18 +98,38 @@ fn export_and_parse(path: String) -> Result(Spec, LoadError) {
 }
 
 fn parse_json_spec(json_str: String) -> Result(Spec, LoadError) {
-  case json.decode(json_str, dynamic.dynamic) {
-    Ok(data) ->
-      case parser.parse_spec(data) {
-        Ok(spec) -> Ok(spec)
-        Error(errors) -> {
-          let msg =
-            errors
-            |> format_decode_errors
-          Error(SpecParseError(msg))
-        }
+  // Validate JSON safety before parsing (prevents DOS attacks)
+  case parser.validate_json_safety(json_str) {
+    Error(parser.PayloadTooLarge(size, max)) ->
+      Error(SecurityError(
+        "JSON payload too large: "
+        <> string.inspect(size)
+        <> " bytes (maximum: "
+        <> string.inspect(max)
+        <> " bytes). This protects against memory exhaustion attacks.",
+      ))
+    Error(parser.NestingTooDeep(depth, max)) ->
+      Error(SecurityError(
+        "JSON nesting too deep: "
+        <> string.inspect(depth)
+        <> " levels (maximum: "
+        <> string.inspect(max)
+        <> " levels). This protects against stack overflow attacks.",
+      ))
+    Ok(_) ->
+      case json.decode(json_str, dynamic.dynamic) {
+        Ok(data) ->
+          case parser.parse_spec(data) {
+            Ok(spec) -> Ok(spec)
+            Error(errors) -> {
+              let msg =
+                errors
+                |> format_decode_errors
+              Error(SpecParseError(msg))
+            }
+          }
+        Error(e) -> Error(JsonParseError(format_json_error(e)))
       }
-    Error(e) -> Error(JsonParseError(format_json_error(e)))
   }
 }
 
@@ -187,7 +209,7 @@ pub fn export_spec_json(path: String) -> Result(String, LoadError) {
   }
 }
 
-/// Format a LoadError as a human-readable string
+/// Format a LoadError as a human-readable string (legacy format)
 pub fn format_error(error: LoadError) -> String {
   case error {
     FileNotFound(path) -> "File not found: " <> path
@@ -196,5 +218,162 @@ pub fn format_error(error: LoadError) -> String {
     JsonParseError(msg) -> "JSON parse error: " <> msg
     SpecParseError(msg) -> "Spec parse error: " <> msg
     SecurityError(msg) -> msg
+  }
+}
+
+/// Format a LoadError as AI-friendly structured output (CUE format)
+pub fn format_error_ai(error: LoadError) -> String {
+  case error {
+    FileNotFound(path) ->
+      ai_errors.file_not_found(path, "CUE specification file")
+      |> ai_errors.format_cue
+
+    CueValidationError(msg) ->
+      ai_errors.cue_validation_error(msg, extract_file_from_error(msg))
+      |> ai_errors.format_cue
+
+    CueExportError(msg) ->
+      ai_errors.cue_export_error(msg, extract_file_from_error(msg))
+      |> ai_errors.format_cue
+
+    JsonParseError(msg) -> {
+      let error =
+        ai_errors.AiError(
+          action: "json_error",
+          error_type: "parse_error",
+          message: "JSON parsing failed: " <> msg,
+          context: dict.from_list([#("parse_error", msg)]),
+          suggestion: "Check JSON syntax and structure",
+          recovery_steps: [
+            "Verify JSON is well-formed with matching braces/brackets",
+            "Check for trailing commas (not allowed in JSON)",
+            "Ensure all strings are properly quoted",
+            "Use a JSON validator to identify syntax errors",
+          ],
+        )
+      ai_errors.format_cue(error)
+    }
+
+    SpecParseError(msg) -> {
+      let error =
+        ai_errors.AiError(
+          action: "spec_error",
+          error_type: "parse_error",
+          message: "Spec parsing failed: " <> msg,
+          context: dict.from_list([#("parse_error", msg)]),
+          suggestion: "Ensure the spec matches the required schema",
+          recovery_steps: [
+            "Check that all required fields are present (name, description, features, etc.)",
+            "Verify field types match expected types",
+            "Review examples in examples/ directory for reference",
+            "Use 'cue vet' to validate against the schema",
+            "Check for typos in field names",
+          ],
+        )
+      ai_errors.format_cue(error)
+    }
+
+    SecurityError(msg) -> {
+      let error =
+        ai_errors.AiError(
+          action: "security_error",
+          error_type: "validation_failed",
+          message: msg,
+          context: dict.from_list([#("security_check", "failed")]),
+          suggestion: "Address the security concern before proceeding",
+          recovery_steps: [
+            "Review the security error message",
+            "Ensure file paths are valid and don't contain malicious patterns",
+            "Check JSON payload size and nesting depth limits",
+            "Contact security team if uncertain about the restriction",
+          ],
+        )
+      ai_errors.format_cue(error)
+    }
+  }
+}
+
+/// Format a LoadError as human-readable text with suggestions
+pub fn format_error_text(error: LoadError) -> String {
+  case error {
+    FileNotFound(path) ->
+      ai_errors.file_not_found(path, "CUE specification file")
+      |> ai_errors.format_text
+
+    CueValidationError(msg) ->
+      ai_errors.cue_validation_error(msg, extract_file_from_error(msg))
+      |> ai_errors.format_text
+
+    CueExportError(msg) ->
+      ai_errors.cue_export_error(msg, extract_file_from_error(msg))
+      |> ai_errors.format_text
+
+    JsonParseError(msg) -> {
+      let error =
+        ai_errors.AiError(
+          action: "json_error",
+          error_type: "parse_error",
+          message: "JSON parsing failed: " <> msg,
+          context: dict.from_list([#("parse_error", msg)]),
+          suggestion: "Check JSON syntax and structure",
+          recovery_steps: [
+            "Verify JSON is well-formed with matching braces/brackets",
+            "Check for trailing commas (not allowed in JSON)",
+            "Ensure all strings are properly quoted",
+            "Use a JSON validator to identify syntax errors",
+          ],
+        )
+      ai_errors.format_text(error)
+    }
+
+    SpecParseError(msg) -> {
+      let error =
+        ai_errors.AiError(
+          action: "spec_error",
+          error_type: "parse_error",
+          message: "Spec parsing failed: " <> msg,
+          context: dict.from_list([#("parse_error", msg)]),
+          suggestion: "Ensure the spec matches the required schema",
+          recovery_steps: [
+            "Check that all required fields are present (name, description, features, etc.)",
+            "Verify field types match expected types",
+            "Review examples in examples/ directory for reference",
+            "Use 'cue vet' to validate against the schema",
+            "Check for typos in field names",
+          ],
+        )
+      ai_errors.format_text(error)
+    }
+
+    SecurityError(msg) -> {
+      let error =
+        ai_errors.AiError(
+          action: "security_error",
+          error_type: "validation_failed",
+          message: msg,
+          context: dict.from_list([#("security_check", "failed")]),
+          suggestion: "Address the security concern before proceeding",
+          recovery_steps: [
+            "Review the security error message",
+            "Ensure file paths are valid and don't contain malicious patterns",
+            "Check JSON payload size and nesting depth limits",
+            "Contact security team if uncertain about the restriction",
+          ],
+        )
+      ai_errors.format_text(error)
+    }
+  }
+}
+
+/// Extract file path from error message (best effort)
+fn extract_file_from_error(msg: String) -> String {
+  // Try to find .cue file path in error message
+  case string.split(msg, ".cue") {
+    [before, ..] ->
+      case string.split(before, " ") |> list.reverse {
+        [last_word, ..] -> last_word <> ".cue"
+        _ -> "unknown"
+      }
+    _ -> "unknown"
   }
 }

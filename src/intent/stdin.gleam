@@ -1,28 +1,48 @@
 /// Module for reading user input from standard input
-/// Provides functions for interactive command-line prompts
+/// Provides functions for interactive command-line prompts using native stdin package v1
+import gleam/int
+import gleam/io
+import gleam/iterator
+import gleam/list
+import gleam/result
+import gleam/string
+import stdin
 
-@external(erlang, "intent_ffi_stdin", "read_line")
-pub fn read_line() -> Result(String, String)
+/// Read a single line from stdin
+/// Returns Ok(line) with newline removed, or Error on EOF/failure
+pub fn read_line() -> Result(String, String) {
+  stdin.stdin()
+  |> iterator.first()
+  |> result.replace_error("End of input")
+}
 
-@external(erlang, "intent_ffi_stdin", "read_line_trimmed")
-pub fn read_line_trimmed() -> Result(String, String)
+/// Read a single line from stdin and trim whitespace
+/// Returns Ok(trimmed_line) or Error on EOF/failure
+pub fn read_line_trimmed() -> Result(String, String) {
+  read_line()
+  |> result.map(string.trim)
+}
 
 /// Read a single line from stdin, validating it's not empty
 /// Returns error if input is empty or whitespace-only
 pub fn read_non_empty_line() -> Result(String, String) {
   case read_line_trimmed() {
     Ok(line) -> {
-      case string.is_empty(string.trim(line)) {
+      case string.is_empty(line) {
         True -> Error("Input cannot be empty. Please try again.")
-        False -> Ok(string.trim(line))
+        False -> Ok(line)
       }
     }
     Error(reason) -> Error("Failed to read input: " <> reason)
   }
 }
 
+/// Maximum number of lines to prevent memory exhaustion
+const max_lines: Int = 10_000
+
 /// Read multiple lines until user enters a blank line
 /// Useful for collecting multi-line responses
+/// Returns error if more than max_lines are read without blank line
 pub fn read_until_blank() -> Result(String, String) {
   read_until_blank_helper([], 0)
 }
@@ -31,27 +51,36 @@ fn read_until_blank_helper(
   lines: List(String),
   line_count: Int,
 ) -> Result(String, String) {
-  case read_line_trimmed() {
-    Error(_reason) -> {
-      case line_count {
-        0 -> Error("Failed to read input")
-        _ -> Ok(string.join(list.reverse(lines), "\n"))
-      }
-    }
-    Ok(line) -> {
-      case string.is_empty(line) {
-        // User entered blank line - stop collecting
-        True -> {
+  // Safety check: prevent memory exhaustion
+  case line_count >= max_lines {
+    True ->
+      Error(
+        "Input exceeds maximum line limit ("
+        <> int.to_string(max_lines)
+        <> " lines)",
+      )
+    False ->
+      case read_line_trimmed() {
+        Error(_reason) -> {
           case line_count {
-            0 -> Error("No input provided")
+            0 -> Error("Failed to read input")
             _ -> Ok(string.join(list.reverse(lines), "\n"))
           }
         }
-        // Continue collecting
-        False ->
-          read_until_blank_helper([line, ..lines], line_count + 1)
+        Ok(line) -> {
+          case string.is_empty(line) {
+            // User entered blank line - stop collecting
+            True -> {
+              case line_count {
+                0 -> Error("No input provided")
+                _ -> Ok(string.join(list.reverse(lines), "\n"))
+              }
+            }
+            // Continue collecting
+            False -> read_until_blank_helper([line, ..lines], line_count + 1)
+          }
+        }
       }
-    }
   }
 }
 
@@ -76,8 +105,3 @@ pub fn prompt_yes_no(prompt_text: String) -> Result(Bool, String) {
     }
   }
 }
-
-// Required imports
-import gleam/string
-import gleam/list
-import gleam/io
