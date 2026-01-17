@@ -1,16 +1,8 @@
 -module(gleam@httpc).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/gleam/httpc.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([dispatch_bits/2, configure/0, send_bits/1, verify_tls/2, dispatch/2, send/1]).
 -export_type([charlist/0, erl_http_option/0, body_format/0, erl_option/0, socket_opt/0, inet6fb4/0, erl_ssl_option/0, erl_verify_option/0, configuration/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type charlist() :: any().
 
@@ -31,20 +23,16 @@
 
 -opaque configuration() :: {builder, boolean()}.
 
--file("src/gleam/httpc.gleam", 69).
 -spec charlist_header({binary(), binary()}) -> {charlist(), charlist()}.
 charlist_header(Header) ->
     {K, V} = Header,
     {erlang:binary_to_list(K), erlang:binary_to_list(V)}.
 
--file("src/gleam/httpc.gleam", 74).
 -spec string_header({charlist(), charlist()}) -> {binary(), binary()}.
 string_header(Header) ->
     {K, V} = Header,
     {erlang:list_to_binary(K), erlang:list_to_binary(V)}.
 
--file("src/gleam/httpc.gleam", 92).
-?DOC(" Send a HTTP request of binary data.\n").
 -spec dispatch_bits(configuration(), gleam@http@request:request(bitstring())) -> {ok,
         gleam@http@response:response(bitstring())} |
     {error, gleam@dynamic:dynamic_()}.
@@ -124,18 +112,10 @@ dispatch_bits(Config, Req) ->
                     Resp_body}}
         end).
 
--file("src/gleam/httpc.gleam", 149).
-?DOC(" Create a new configuration with the default settings.\n").
 -spec configure() -> configuration().
 configure() ->
     {builder, true}.
 
--file("src/gleam/httpc.gleam", 84).
-?DOC(
-    " Send a HTTP request of binary data using the default configuration.\n"
-    "\n"
-    " If you wish to use some other configuration use `dispatch_bits` instead.\n"
-).
 -spec send_bits(gleam@http@request:request(bitstring())) -> {ok,
         gleam@http@response:response(bitstring())} |
     {error, gleam@dynamic:dynamic_()}.
@@ -143,23 +123,10 @@ send_bits(Req) ->
     _pipe = configure(),
     dispatch_bits(_pipe, Req).
 
--file("src/gleam/httpc.gleam", 162).
-?DOC(
-    " Set whether to verify the TLS certificate of the server.\n"
-    "\n"
-    " This defaults to `True`, meaning that the TLS certificate will be verified\n"
-    " unless you call this function with `False`.\n"
-    "\n"
-    " Setting this to `False` can make your application vulnerable to\n"
-    " man-in-the-middle attacks and other security risks. Do not do this unless\n"
-    " you are sure and you understand the risks.\n"
-).
 -spec verify_tls(configuration(), boolean()) -> configuration().
 verify_tls(_, Which) ->
     {builder, Which}.
 
--file("src/gleam/httpc.gleam", 168).
-?DOC(" Send a HTTP request of unicode data.\n").
 -spec dispatch(configuration(), gleam@http@request:request(binary())) -> {ok,
         gleam@http@response:response(binary())} |
     {error, gleam@dynamic:dynamic_()}.
@@ -179,12 +146,6 @@ dispatch(Config, Request) ->
             end end
     ).
 
--file("src/gleam/httpc.gleam", 186).
-?DOC(
-    " Send a HTTP request of unicode data using the default configuration.\n"
-    "\n"
-    " If you wish to use some other configuration use `dispatch` instead.\n"
-).
 -spec send(gleam@http@request:request(binary())) -> {ok,
         gleam@http@response:response(binary())} |
     {error, gleam@dynamic:dynamic_()}.

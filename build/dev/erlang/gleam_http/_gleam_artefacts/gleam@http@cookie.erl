@@ -1,16 +1,8 @@
 -module(gleam@http@cookie).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/gleam/http/cookie.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([defaults/1, parse/1, set_header/3]).
 -export_type([same_site_policy/0, attributes/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type same_site_policy() :: lax | strict | none.
 
@@ -22,7 +14,6 @@
         boolean(),
         gleam@option:option(same_site_policy())}.
 
--file("src/gleam/http/cookie.gleam", 18).
 -spec same_site_to_string(same_site_policy()) -> binary().
 same_site_to_string(Policy) ->
     case Policy of
@@ -36,12 +27,6 @@ same_site_to_string(Policy) ->
             <<"None"/utf8>>
     end.
 
--file("src/gleam/http/cookie.gleam", 41).
-?DOC(
-    " Helper to create sensible default attributes for a set cookie.\n"
-    "\n"
-    " https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#Attributes\n"
-).
 -spec defaults(gleam@http:scheme()) -> attributes().
 defaults(Scheme) ->
     {attributes,
@@ -52,7 +37,6 @@ defaults(Scheme) ->
         true,
         {some, lax}}.
 
--file("src/gleam/http/cookie.gleam", 117).
 -spec check_token(binary()) -> {ok, nil} | {error, nil}.
 check_token(Token) ->
     case gleam@string:pop_grapheme(Token) of
@@ -78,29 +62,20 @@ check_token(Token) ->
             check_token(Rest)
     end.
 
--file("src/gleam/http/cookie.gleam", 99).
-?DOC(
-    " Parse a list of cookies from a header string. Any malformed cookies will be\n"
-    " discarded.\n"
-).
 -spec parse(binary()) -> list({binary(), binary()}).
 parse(Cookie_string) ->
-    Re@1 = case gleam@regex:from_string(<<"[,;]"/utf8>>) of
-        {ok, Re} -> Re;
+    _assert_subject = gleam@regex:from_string(<<"[,;]"/utf8>>),
+    {ok, Re} = case _assert_subject of
+        {ok, _} -> _assert_subject;
         _assert_fail ->
             erlang:error(#{gleam_error => let_assert,
-                        message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
-                        file => <<?FILEPATH/utf8>>,
+                        message => <<"Assertion pattern match failed"/utf8>>,
+                        value => _assert_fail,
                         module => <<"gleam/http/cookie"/utf8>>,
                         function => <<"parse"/utf8>>,
-                        line => 100,
-                        value => _assert_fail,
-                        start => 2697,
-                        'end' => 2742,
-                        pattern_start => 2708,
-                        pattern_end => 2714})
+                        line => 100})
     end,
-    _pipe = gleam@regex:split(Re@1, Cookie_string),
+    _pipe = gleam@regex:split(Re, Cookie_string),
     gleam@list:filter_map(
         _pipe,
         fun(Pair) ->
@@ -127,7 +102,6 @@ parse(Cookie_string) ->
         end
     ).
 
--file("src/gleam/http/cookie.gleam", 54).
 -spec cookie_attributes_to_list(attributes()) -> list(list(binary())).
 cookie_attributes_to_list(Attributes) ->
     {attributes, Max_age, Domain, Path, Secure, Http_only, Same_site} = Attributes,
@@ -168,7 +142,6 @@ cookie_attributes_to_list(Attributes) ->
         fun(_capture) -> gleam@option:to_result(_capture, nil) end
     ).
 
--file("src/gleam/http/cookie.gleam", 90).
 -spec set_header(binary(), binary(), attributes()) -> binary().
 set_header(Name, Value, Attributes) ->
     _pipe = [[Name, <<"="/utf8>>, Value] |

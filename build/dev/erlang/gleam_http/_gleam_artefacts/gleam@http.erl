@@ -1,25 +1,8 @@
 -module(gleam@http).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/gleam/http.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([parse_method/1, method_to_string/1, scheme_to_string/1, scheme_from_string/1, parse_content_disposition/1, parse_multipart_body/2, method_from_dynamic/1, parse_multipart_headers/2]).
 -export_type([method/0, scheme/0, multipart_headers/0, multipart_body/0, content_disposition/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
-
-?MODULEDOC(
-    " Functions for working with HTTP data structures in Gleam.\n"
-    "\n"
-    " This module makes it easy to create and modify Requests and Responses, data types.\n"
-    " A general HTTP message type is defined that enables functions to work on both requests and responses.\n"
-    "\n"
-    " This module does not implement a HTTP client or HTTP server, but it can be used as a base for them.\n"
-).
 
 -type method() :: get |
     post |
@@ -49,7 +32,6 @@
         binary(),
         list({binary(), binary()})}.
 
--file("src/gleam/http.gleam", 34).
 -spec parse_method(binary()) -> {ok, method()} | {error, nil}.
 parse_method(S) ->
     case gleam@string:lowercase(S) of
@@ -84,7 +66,6 @@ parse_method(S) ->
             {error, nil}
     end.
 
--file("src/gleam/http.gleam", 49).
 -spec method_to_string(method()) -> binary().
 method_to_string(Method) ->
     case Method of
@@ -119,18 +100,6 @@ method_to_string(Method) ->
             S
     end.
 
--file("src/gleam/http.gleam", 81).
-?DOC(
-    " Convert a scheme into a string.\n"
-    "\n"
-    " # Examples\n"
-    "\n"
-    "    > scheme_to_string(Http)\n"
-    "    \"http\"\n"
-    "\n"
-    "    > scheme_to_string(Https)\n"
-    "    \"https\"\n"
-).
 -spec scheme_to_string(scheme()) -> binary().
 scheme_to_string(Scheme) ->
     case Scheme of
@@ -141,18 +110,6 @@ scheme_to_string(Scheme) ->
             <<"https"/utf8>>
     end.
 
--file("src/gleam/http.gleam", 98).
-?DOC(
-    " Parse a HTTP scheme from a string\n"
-    "\n"
-    " # Examples\n"
-    "\n"
-    "    > scheme_from_string(\"http\")\n"
-    "    Ok(Http)\n"
-    "\n"
-    "    > scheme_from_string(\"ftp\")\n"
-    "    Error(Nil)\n"
-).
 -spec scheme_from_string(binary()) -> {ok, scheme()} | {error, nil}.
 scheme_from_string(Scheme) ->
     case gleam@string:lowercase(Scheme) of
@@ -166,7 +123,6 @@ scheme_from_string(Scheme) ->
             {error, nil}
     end.
 
--file("src/gleam/http.gleam", 337).
 -spec skip_whitespace(bitstring()) -> bitstring().
 skip_whitespace(Data) ->
     case Data of
@@ -180,7 +136,6 @@ skip_whitespace(Data) ->
             Data
     end.
 
--file("src/gleam/http.gleam", 427).
 -spec more_please_headers(
     fun((bitstring()) -> {ok, multipart_headers()} | {error, nil}),
     bitstring()
@@ -198,7 +153,6 @@ more_please_headers(Continuation, Existing) ->
                 )
             end}}.
 
--file("src/gleam/http.gleam", 508).
 -spec parse_rfc_2045_parameter_quoted_value(binary(), binary(), binary()) -> {ok,
         {{binary(), binary()}, binary()}} |
     {error, nil}.
@@ -231,7 +185,6 @@ parse_rfc_2045_parameter_quoted_value(Header, Name, Value) ->
             )
     end.
 
--file("src/gleam/http.gleam", 525).
 -spec parse_rfc_2045_parameter_unquoted_value(binary(), binary(), binary()) -> {{binary(),
         binary()},
     binary()}.
@@ -257,7 +210,6 @@ parse_rfc_2045_parameter_unquoted_value(Header, Name, Value) ->
             )
     end.
 
--file("src/gleam/http.gleam", 496).
 -spec parse_rfc_2045_parameter_value(binary(), binary()) -> {ok,
         {{binary(), binary()}, binary()}} |
     {error, nil}.
@@ -274,7 +226,6 @@ parse_rfc_2045_parameter_value(Header, Name) ->
                 parse_rfc_2045_parameter_unquoted_value(Rest@1, Name, Grapheme)}
     end.
 
--file("src/gleam/http.gleam", 485).
 -spec parse_rfc_2045_parameter(binary(), binary()) -> {ok,
         {{binary(), binary()}, binary()}} |
     {error, nil}.
@@ -297,7 +248,6 @@ parse_rfc_2045_parameter(Header, Name) ->
         end
     ).
 
--file("src/gleam/http.gleam", 467).
 -spec parse_rfc_2045_parameters(binary(), list({binary(), binary()})) -> {ok,
         list({binary(), binary()})} |
     {error, nil}.
@@ -326,7 +276,6 @@ parse_rfc_2045_parameters(Header, Parameters) ->
             )
     end.
 
--file("src/gleam/http.gleam", 449).
 -spec parse_content_disposition_type(binary(), binary()) -> {ok,
         content_disposition()} |
     {error, nil}.
@@ -363,13 +312,11 @@ parse_content_disposition_type(Header, Name) ->
             )
     end.
 
--file("src/gleam/http.gleam", 443).
 -spec parse_content_disposition(binary()) -> {ok, content_disposition()} |
     {error, nil}.
 parse_content_disposition(Header) ->
     parse_content_disposition_type(Header, <<""/utf8>>).
 
--file("src/gleam/http.gleam", 543).
 -spec more_please_body(
     fun((bitstring()) -> {ok, multipart_body()} | {error, nil}),
     bitstring(),
@@ -386,7 +333,6 @@ more_please_body(Continuation, Chunk, Existing) ->
     _pipe@1 = {more_required_for_body, Chunk, _pipe},
     {ok, _pipe@1}.
 
--file("src/gleam/http.gleam", 216).
 -spec parse_body_loop(bitstring(), bitstring(), bitstring()) -> {ok,
         multipart_body()} |
     {error, nil}.
@@ -432,13 +378,11 @@ parse_body_loop(Data, Boundary, Body) ->
         _ ->
             erlang:error(#{gleam_error => panic,
                     message => <<"unreachable"/utf8>>,
-                    file => <<?FILEPATH/utf8>>,
                     module => <<"gleam/http"/utf8>>,
                     function => <<"parse_body_loop"/utf8>>,
                     line => 257})
     end.
 
--file("src/gleam/http.gleam", 204).
 -spec parse_body_with_bit_array(bitstring(), bitstring()) -> {ok,
         multipart_body()} |
     {error, nil}.
@@ -453,20 +397,6 @@ parse_body_with_bit_array(Data, Boundary) ->
             parse_body_loop(Data, Boundary, <<>>)
     end.
 
--file("src/gleam/http.gleam", 195).
-?DOC(
-    " Parse the body for part of a multipart message, as defined in RFC 2045. The\n"
-    " body is everything until the next boundary. This function is generally to be\n"
-    " called after calling `parse_multipart_headers` for a given part.\n"
-    "\n"
-    " This function will accept input of any size, it is up to the caller to limit\n"
-    " it if needed.\n"
-    "\n"
-    " To enable streaming parsing of multipart messages, this function will return\n"
-    " a continuation if there is not enough data to fully parse the body, along\n"
-    " with the data that has been parsed so far. Further information is available\n"
-    " in the documentation for `MultipartBody`.\n"
-).
 -spec parse_multipart_body(bitstring(), binary()) -> {ok, multipart_body()} |
     {error, nil}.
 parse_multipart_body(Data, Boundary) ->
@@ -474,7 +404,6 @@ parse_multipart_body(Data, Boundary) ->
     _pipe@1 = gleam_stdlib:identity(_pipe),
     parse_body_with_bit_array(Data, _pipe@1).
 
--file("src/gleam/http.gleam", 106).
 -spec method_from_dynamic(gleam@dynamic:dynamic_()) -> {ok, method()} |
     {error, list(gleam@dynamic:decode_error())}.
 method_from_dynamic(Value) ->
@@ -490,7 +419,6 @@ method_from_dynamic(Value) ->
                         []}]}
     end.
 
--file("src/gleam/http.gleam", 380).
 -spec parse_header_value(
     bitstring(),
     list({binary(), binary()}),
@@ -553,7 +481,6 @@ parse_header_value(Data, Headers, Name, Value) ->
             {error, nil}
     end.
 
--file("src/gleam/http.gleam", 361).
 -spec parse_header_name(bitstring(), list({binary(), binary()}), bitstring()) -> {ok,
         multipart_headers()} |
     {error, nil}.
@@ -574,7 +501,6 @@ parse_header_name(Data, Headers, Name) ->
             )
     end.
 
--file("src/gleam/http.gleam", 345).
 -spec do_parse_headers(bitstring()) -> {ok, multipart_headers()} | {error, nil}.
 do_parse_headers(Data) ->
     case Data of
@@ -594,7 +520,6 @@ do_parse_headers(Data) ->
             {error, nil}
     end.
 
--file("src/gleam/http.gleam", 261).
 -spec parse_headers_after_prelude(bitstring(), bitstring()) -> {ok,
         multipart_headers()} |
     {error, nil}.
@@ -658,7 +583,6 @@ parse_headers_after_prelude(Data, Boundary) ->
         end
     ).
 
--file("src/gleam/http.gleam", 303).
 -spec skip_preamble(bitstring(), bitstring()) -> {ok, multipart_headers()} |
     {error, nil}.
 skip_preamble(Data, Boundary) ->
@@ -695,26 +619,11 @@ skip_preamble(Data, Boundary) ->
         _ ->
             erlang:error(#{gleam_error => panic,
                     message => <<"unreachable"/utf8>>,
-                    file => <<?FILEPATH/utf8>>,
                     module => <<"gleam/http"/utf8>>,
                     function => <<"skip_preamble"/utf8>>,
                     line => 333})
     end.
 
--file("src/gleam/http.gleam", 167).
-?DOC(
-    " Parse the headers for part of a multipart message, as defined in RFC 2045.\n"
-    "\n"
-    " This function skips any preamble before the boundary. The preamble may be\n"
-    " retrieved using `parse_multipart_body`.\n"
-    "\n"
-    " This function will accept input of any size, it is up to the caller to limit\n"
-    " it if needed.\n"
-    "\n"
-    " To enable streaming parsing of multipart messages, this function will return\n"
-    " a continuation if there is not enough data to fully parse the headers.\n"
-    " Further information is available in the documentation for `MultipartBody`.\n"
-).
 -spec parse_multipart_headers(bitstring(), binary()) -> {ok,
         multipart_headers()} |
     {error, nil}.

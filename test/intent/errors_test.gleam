@@ -293,15 +293,18 @@ pub fn format_error_with_nested_field_path_test() {
 
 pub fn format_validation_error_single_failure_test() {
   let error =
-    errors.ValidationError(behavior: "create_user", failures: [
-      errors.FieldFailure(
-        field: "email",
-        rule: "format email",
-        expected: "valid email",
-        actual: "not-an-email",
-        explanation: "Email must be valid",
-      ),
-    ])
+    errors.ValidationError(
+      behavior: "create_user",
+      failures: [
+        errors.FieldFailure(
+          field: "email",
+          rule: "format email",
+          expected: "valid email",
+          actual: "not-an-email",
+          explanation: "Email must be valid",
+        ),
+      ],
+    )
 
   let formatted = errors.format_validation_error(error)
 
@@ -324,29 +327,32 @@ pub fn format_validation_error_single_failure_test() {
 
 pub fn format_validation_error_multiple_failures_test() {
   let error =
-    errors.ValidationError(behavior: "create_user", failures: [
-      errors.FieldFailure(
-        field: "email",
-        rule: "format email",
-        expected: "valid email",
-        actual: "not-an-email",
-        explanation: "Email must be valid",
-      ),
-      errors.FieldFailure(
-        field: "age",
-        rule: "greater_than 0",
-        expected: "> 0",
-        actual: "-5",
-        explanation: "Age must be positive",
-      ),
-      errors.FieldFailure(
-        field: "name",
-        rule: "present",
-        expected: "field to exist",
-        actual: "missing",
-        explanation: "Name is required",
-      ),
-    ])
+    errors.ValidationError(
+      behavior: "create_user",
+      failures: [
+        errors.FieldFailure(
+          field: "email",
+          rule: "format email",
+          expected: "valid email",
+          actual: "not-an-email",
+          explanation: "Email must be valid",
+        ),
+        errors.FieldFailure(
+          field: "age",
+          rule: "greater_than 0",
+          expected: "> 0",
+          actual: "-5",
+          explanation: "Age must be positive",
+        ),
+        errors.FieldFailure(
+          field: "name",
+          rule: "present",
+          expected: "field to exist",
+          actual: "missing",
+          explanation: "Name is required",
+        ),
+      ],
+    )
 
   let formatted = errors.format_validation_error(error)
 
@@ -376,29 +382,32 @@ pub fn format_validation_error_multiple_failures_test() {
 
 pub fn format_validation_error_preserves_failure_order_test() {
   let error =
-    errors.ValidationError(behavior: "test", failures: [
-      errors.FieldFailure(
-        field: "first",
-        rule: "rule1",
-        expected: "exp1",
-        actual: "act1",
-        explanation: "exp1",
-      ),
-      errors.FieldFailure(
-        field: "second",
-        rule: "rule2",
-        expected: "exp2",
-        actual: "act2",
-        explanation: "exp2",
-      ),
-      errors.FieldFailure(
-        field: "third",
-        rule: "rule3",
-        expected: "exp3",
-        actual: "act3",
-        explanation: "exp3",
-      ),
-    ])
+    errors.ValidationError(
+      behavior: "test",
+      failures: [
+        errors.FieldFailure(
+          field: "first",
+          rule: "rule1",
+          expected: "exp1",
+          actual: "act1",
+          explanation: "exp1",
+        ),
+        errors.FieldFailure(
+          field: "second",
+          rule: "rule2",
+          expected: "exp2",
+          actual: "act2",
+          explanation: "exp2",
+        ),
+        errors.FieldFailure(
+          field: "third",
+          rule: "rule3",
+          expected: "exp3",
+          actual: "act3",
+          explanation: "exp3",
+        ),
+      ],
+    )
 
   let formatted = errors.format_validation_error(error)
 
@@ -723,22 +732,25 @@ pub fn contextual_error_with_suggestions_formats_correctly_test() {
 
 pub fn validation_error_with_multiple_field_failures_formats_correctly_test() {
   let error =
-    errors.ValidationError(behavior: "user_registration", failures: [
-      errors.FieldFailure(
-        field: "email",
-        rule: "format email",
-        expected: "valid email",
-        actual: "invalid",
-        explanation: "Must be valid email",
-      ),
-      errors.FieldFailure(
-        field: "password",
-        rule: "min_length 8",
-        expected: "at least 8 characters",
-        actual: "5 characters",
-        explanation: "Password too short",
-      ),
-    ])
+    errors.ValidationError(
+      behavior: "user_registration",
+      failures: [
+        errors.FieldFailure(
+          field: "email",
+          rule: "format email",
+          expected: "valid email",
+          actual: "invalid",
+          explanation: "Must be valid email",
+        ),
+        errors.FieldFailure(
+          field: "password",
+          rule: "min_length 8",
+          expected: "at least 8 characters",
+          actual: "5 characters",
+          explanation: "Password too short",
+        ),
+      ],
+    )
 
   let formatted = errors.format_validation_error(error)
 
@@ -765,7 +777,8 @@ pub fn format_error_integration_with_extract_available_fields_test() {
 
   let available_fields = errors.extract_available_fields(json_response)
 
-  let error = errors.field_not_found("get_user", "user_name", available_fields)
+  let error =
+    errors.field_not_found("get_user", "user_name", available_fields)
 
   let formatted = errors.format_error(error)
 
@@ -815,8 +828,7 @@ pub fn format_validation_error_with_empty_failures_test() {
 }
 
 pub fn format_error_with_very_long_field_path_test() {
-  let long_path =
-    "user.profile.settings.preferences.notifications.email.frequency"
+  let long_path = "user.profile.settings.preferences.notifications.email.frequency"
   let error =
     errors.ContextualError(
       behavior: "test",
@@ -845,15 +857,18 @@ pub fn suggest_next_steps_with_empty_error_type_test() {
 
 pub fn field_failure_with_multiline_expected_and_actual_test() {
   let error =
-    errors.ValidationError(behavior: "test", failures: [
-      errors.FieldFailure(
-        field: "json_body",
-        rule: "matches_json",
-        expected: "{\n  \"key\": \"value\"\n}",
-        actual: "{\n  \"key\": \"other\"\n}",
-        explanation: "JSON mismatch",
-      ),
-    ])
+    errors.ValidationError(
+      behavior: "test",
+      failures: [
+        errors.FieldFailure(
+          field: "json_body",
+          rule: "matches_json",
+          expected: "{\n  \"key\": \"value\"\n}",
+          actual: "{\n  \"key\": \"other\"\n}",
+          explanation: "JSON mismatch",
+        ),
+      ],
+    )
 
   let formatted = errors.format_validation_error(error)
 
@@ -875,6 +890,7 @@ fn suggest_field_names_helper(
   let error = errors.field_not_found("test", target, available)
   error.suggestions
 }
+
 // ============================================================================
 // TODO: Future Improvements
 // ============================================================================

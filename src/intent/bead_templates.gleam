@@ -1,5 +1,6 @@
 /// Bead Templates
 /// Generates work items (beads) from interview sessions for the `bd` issue tracker
+
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/json
@@ -25,9 +26,7 @@ pub type BeadRecord {
 }
 
 /// Generate beads from a completed interview session
-pub fn generate_beads_from_session(
-  session: InterviewSession,
-) -> List(BeadRecord) {
+pub fn generate_beads_from_session(session: InterviewSession) -> List(BeadRecord) {
   let profile_str = profile_to_string(session.profile)
 
   case session.profile {
@@ -41,14 +40,10 @@ pub fn generate_beads_from_session(
 }
 
 /// Generate API endpoint beads
-fn generate_api_beads(
-  session: InterviewSession,
-  profile: String,
-) -> List(BeadRecord) {
-  let endpoint_answers =
-    list.filter(session.answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, ["endpoint", "path"])
-    })
+fn generate_api_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
+  let endpoint_answers = list.filter(session.answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["endpoint", "path"])
+  })
 
   list.map(endpoint_answers, fn(answer) {
     BeadRecord(
@@ -71,14 +66,10 @@ fn generate_api_beads(
 }
 
 /// Generate CLI command beads
-fn generate_cli_beads(
-  session: InterviewSession,
-  profile: String,
-) -> List(BeadRecord) {
-  let command_answers =
-    list.filter(session.answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, ["command", "subcommand"])
-    })
+fn generate_cli_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
+  let command_answers = list.filter(session.answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["command", "subcommand"])
+  })
 
   list.map(command_answers, fn(answer) {
     BeadRecord(
@@ -101,14 +92,10 @@ fn generate_cli_beads(
 }
 
 /// Generate event beads
-fn generate_event_beads(
-  session: InterviewSession,
-  profile: String,
-) -> List(BeadRecord) {
-  let event_answers =
-    list.filter(session.answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, ["event", "message"])
-    })
+fn generate_event_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
+  let event_answers = list.filter(session.answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["event", "message"])
+  })
 
   list.map(event_answers, fn(answer) {
     BeadRecord(
@@ -131,18 +118,10 @@ fn generate_event_beads(
 }
 
 /// Generate data model beads
-fn generate_data_beads(
-  session: InterviewSession,
-  profile: String,
-) -> List(BeadRecord) {
-  let entity_answers =
-    list.filter(session.answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, [
-        "entity",
-        "data model",
-        "schema",
-      ])
-    })
+fn generate_data_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
+  let entity_answers = list.filter(session.answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["entity", "data model", "schema"])
+  })
 
   list.map(entity_answers, fn(answer) {
     BeadRecord(
@@ -165,18 +144,10 @@ fn generate_data_beads(
 }
 
 /// Generate workflow beads
-fn generate_workflow_beads(
-  session: InterviewSession,
-  profile: String,
-) -> List(BeadRecord) {
-  let workflow_answers =
-    list.filter(session.answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, [
-        "workflow",
-        "process",
-        "step",
-      ])
-    })
+fn generate_workflow_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
+  let workflow_answers = list.filter(session.answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["workflow", "process", "step"])
+  })
 
   list.map(workflow_answers, fn(answer) {
     BeadRecord(
@@ -199,18 +170,10 @@ fn generate_workflow_beads(
 }
 
 /// Generate UI screen beads
-fn generate_ui_beads(
-  session: InterviewSession,
-  profile: String,
-) -> List(BeadRecord) {
-  let screen_answers =
-    list.filter(session.answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, [
-        "screen",
-        "view",
-        "interface",
-      ])
-    })
+fn generate_ui_beads(session: InterviewSession, profile: String) -> List(BeadRecord) {
+  let screen_answers = list.filter(session.answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["screen", "view", "interface"])
+  })
 
   list.map(screen_answers, fn(answer) {
     BeadRecord(
@@ -240,10 +203,19 @@ pub fn bead_to_jsonl_line(bead: BeadRecord) -> String {
     #("profile_type", json.string(bead.profile_type)),
     #("priority", json.int(bead.priority)),
     #("issue_type", json.string(bead.issue_type)),
-    #("labels", json.array(bead.labels, json.string)),
+    #(
+      "labels",
+      json.array(bead.labels, json.string),
+    ),
     #("ai_hints", json.string(bead.ai_hints)),
-    #("acceptance_criteria", json.array(bead.acceptance_criteria, json.string)),
-    #("dependencies", json.array(bead.dependencies, json.string)),
+    #(
+      "acceptance_criteria",
+      json.array(bead.acceptance_criteria, json.string),
+    ),
+    #(
+      "dependencies",
+      json.array(bead.dependencies, json.string),
+    ),
   ]
 
   json.object(json_list)
@@ -267,7 +239,9 @@ pub fn filter_beads_by_type(
 
 /// Sort beads by priority (higher number = higher priority)
 pub fn sort_beads_by_priority(beads: List(BeadRecord)) -> List(BeadRecord) {
-  list.sort(beads, fn(a, b) { int.compare(b.priority, a.priority) })
+  list.sort(beads, fn(a, b) {
+    int.compare(b.priority, a.priority)
+  })
 }
 
 /// Add dependency between beads (updates beads in place)
@@ -302,24 +276,26 @@ fn profile_to_string(profile: Profile) -> String {
 
 /// Summary stats for beads
 pub type BeadStats {
-  BeadStats(total: Int, by_type: Dict(String, Int), by_priority: Dict(Int, Int))
+  BeadStats(
+    total: Int,
+    by_type: Dict(String, Int),
+    by_priority: Dict(Int, Int),
+  )
 }
 
 /// Calculate stats for a list of beads
 pub fn bead_stats(beads: List(BeadRecord)) -> BeadStats {
   let total = list.length(beads)
 
-  let by_type =
-    list.fold(beads, dict.new(), fn(acc, bead) {
-      let current = dict.get(acc, bead.issue_type) |> result.unwrap(0)
-      dict.insert(acc, bead.issue_type, current + 1)
-    })
+  let by_type = list.fold(beads, dict.new(), fn(acc, bead) {
+    let current = dict.get(acc, bead.issue_type) |> result.unwrap(0)
+    dict.insert(acc, bead.issue_type, current + 1)
+  })
 
-  let by_priority =
-    list.fold(beads, dict.new(), fn(acc, bead) {
-      let current = dict.get(acc, bead.priority) |> result.unwrap(0)
-      dict.insert(acc, bead.priority, current + 1)
-    })
+  let by_priority = list.fold(beads, dict.new(), fn(acc, bead) {
+    let current = dict.get(acc, bead.priority) |> result.unwrap(0)
+    dict.insert(acc, bead.priority, current + 1)
+  })
 
   BeadStats(total: total, by_type: by_type, by_priority: by_priority)
 }

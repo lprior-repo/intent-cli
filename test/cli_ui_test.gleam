@@ -59,8 +59,7 @@ pub fn header_special_characters_test() {
 
 /// Test: Header with long text
 pub fn header_long_text_test() {
-  let title =
-    "This is a very long header that exceeds normal width expectations"
+  let title = "This is a very long header that exceeds normal width expectations"
   let formatted = ansi.bold(ansi.cyan(title))
 
   formatted
@@ -156,8 +155,7 @@ pub fn warning_message_with_numbers_test() {
 
 /// Test: Warning message with long text
 pub fn warning_message_long_test() {
-  let message =
-    "This is a very long warning message that might wrap across multiple lines in the terminal"
+  let message = "This is a very long warning message that might wrap across multiple lines in the terminal"
   let formatted = ansi.yellow("⚠️  " <> message)
 
   formatted
@@ -513,8 +511,7 @@ pub fn colored_text_empty_test() {
 pub fn badge_green_basic_test() {
   let label = "Passed"
   let count = 42
-  let formatted =
-    ansi.green("[" <> label <> ": " <> string.inspect(count) <> "]")
+  let formatted = ansi.green("[" <> label <> ": " <> string.inspect(count) <> "]")
 
   formatted
   |> string.contains("[Passed: 42]")
@@ -536,8 +533,7 @@ pub fn badge_red_basic_test() {
 pub fn badge_zero_count_test() {
   let label = "Warnings"
   let count = 0
-  let formatted =
-    ansi.yellow("[" <> label <> ": " <> string.inspect(count) <> "]")
+  let formatted = ansi.yellow("[" <> label <> ": " <> string.inspect(count) <> "]")
 
   formatted
   |> string.contains("[Warnings: 0]")
@@ -548,8 +544,7 @@ pub fn badge_zero_count_test() {
 pub fn badge_large_count_test() {
   let label = "Tests"
   let count = 999_999
-  let formatted =
-    ansi.blue("[" <> label <> ": " <> string.inspect(count) <> "]")
+  let formatted = ansi.blue("[" <> label <> ": " <> string.inspect(count) <> "]")
 
   formatted
   |> string.contains("999999")
@@ -571,8 +566,7 @@ pub fn badge_negative_count_test() {
 pub fn badge_empty_label_test() {
   let label = ""
   let count = 10
-  let formatted =
-    ansi.green("[" <> label <> ": " <> string.inspect(count) <> "]")
+  let formatted = ansi.green("[" <> label <> ": " <> string.inspect(count) <> "]")
 
   formatted
   |> string.contains("[: 10]")
@@ -583,8 +577,7 @@ pub fn badge_empty_label_test() {
 pub fn badge_format_structure_test() {
   let label = "Total"
   let count = 100
-  let formatted =
-    ansi.blue("[" <> label <> ": " <> string.inspect(count) <> "]")
+  let formatted = ansi.blue("[" <> label <> ": " <> string.inspect(count) <> "]")
 
   // Should start with [
   formatted
@@ -606,8 +599,7 @@ pub fn badge_format_structure_test() {
 pub fn badge_special_label_test() {
   let label = "HTTP-2xx"
   let count = 25
-  let formatted =
-    ansi.green("[" <> label <> ": " <> string.inspect(count) <> "]")
+  let formatted = ansi.green("[" <> label <> ": " <> string.inspect(count) <> "]")
 
   formatted
   |> string.contains("[HTTP-2xx: 25]")
@@ -679,12 +671,9 @@ pub fn header_with_labeled_content_test() {
 
 /// Test: Badge combinations
 pub fn badge_combinations_test() {
-  let passed_badge =
-    ansi.green("[" <> "Passed" <> ": " <> string.inspect(45) <> "]")
-  let failed_badge =
-    ansi.red("[" <> "Failed" <> ": " <> string.inspect(2) <> "]")
-  let skipped_badge =
-    ansi.yellow("[" <> "Skipped" <> ": " <> string.inspect(3) <> "]")
+  let passed_badge = ansi.green("[" <> "Passed" <> ": " <> string.inspect(45) <> "]")
+  let failed_badge = ansi.red("[" <> "Failed" <> ": " <> string.inspect(2) <> "]")
+  let skipped_badge = ansi.yellow("[" <> "Skipped" <> ": " <> string.inspect(3) <> "]")
 
   passed_badge
   |> string.contains("[Passed: 45]")

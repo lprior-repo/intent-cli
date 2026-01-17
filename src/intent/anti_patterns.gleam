@@ -1,5 +1,6 @@
 /// Anti-pattern detection engine
 /// Checks responses for known anti-patterns defined in the spec
+
 import gleam/dict
 import gleam/dynamic
 import gleam/json.{type Json}

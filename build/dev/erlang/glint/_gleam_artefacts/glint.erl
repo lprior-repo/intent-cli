@@ -1,16 +1,8 @@
 -module(glint).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/glint.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([with_config/2, with_pretty_help/2, without_pretty_help/1, with_name/2, as_gleam_module/1, command/1, description/2, unnamed_args/2, named_args/2, flag/3, flag_tuple/2, flags/2, group_flags/3, global_flags/2, group_flag/4, global_flag/3, global_flag_tuple/2, group_flag_tuple/3, default_pretty_help/0, add/3, new/0, help_flag/0, execute/2, run_and_handle/3, run/2]).
 -export_type([config/0, pretty_help/0, glint/1, args_count/0, command/1, command_input/0, command_node/1, out/1, metadata/0, flag_help/0, command_help/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type config() :: {config,
         gleam@option:option(pretty_help()),
@@ -22,12 +14,12 @@
         gleam_community@colour:colour(),
         gleam_community@colour:colour()}.
 
--opaque glint(KSE) :: {glint, config(), command_node(KSE)}.
+-opaque glint(LBF) :: {glint, config(), command_node(LBF)}.
 
 -type args_count() :: {eq_args, integer()} | {min_args, integer()}.
 
--opaque command(KSF) :: {command,
-        fun((command_input()) -> KSF),
+-opaque command(LBG) :: {command,
+        fun((command_input()) -> LBG),
         gleam@dict:dict(binary(), glint@flag:flag()),
         binary(),
         gleam@option:option(args_count()),
@@ -38,12 +30,12 @@
         gleam@dict:dict(binary(), glint@flag:flag()),
         gleam@dict:dict(binary(), binary())}.
 
--type command_node(KSG) :: {command_node,
-        gleam@option:option(command(KSG)),
-        gleam@dict:dict(binary(), command_node(KSG)),
+-type command_node(LBH) :: {command_node,
+        gleam@option:option(command(LBH)),
+        gleam@dict:dict(binary(), command_node(LBH)),
         gleam@dict:dict(binary(), glint@flag:flag())}.
 
--type out(KSH) :: {out, KSH} | {help, binary()}.
+-type out(LBI) :: {out, LBI} | {help, binary()}.
 
 -type metadata() :: {metadata, binary(), binary()}.
 
@@ -56,324 +48,190 @@
         gleam@option:option(args_count()),
         list(binary())}.
 
--file("src/glint.gleam", 50).
-?DOC(" Add the provided config to the existing command tree\n").
--spec with_config(glint(KSN), config()) -> glint(KSN).
+-spec with_config(glint(LBO), config()) -> glint(LBO).
 with_config(Glint, Config) ->
-    {glint, Config, erlang:element(3, Glint)}.
+    erlang:setelement(2, Glint, Config).
 
--file("src/glint.gleam", 57).
-?DOC(
-    " Enable custom colours for help text headers\n"
-    " For a pre-made colouring use `default_pretty_help()`\n"
-).
--spec with_pretty_help(glint(KSQ), pretty_help()) -> glint(KSQ).
+-spec with_pretty_help(glint(LBR), pretty_help()) -> glint(LBR).
 with_pretty_help(Glint, Pretty) ->
-    _pipe = begin
-        _record = erlang:element(2, Glint),
-        {config,
-            {some, Pretty},
-            erlang:element(3, _record),
-            erlang:element(4, _record)}
-    end,
+    _pipe = erlang:setelement(2, erlang:element(2, Glint), {some, Pretty}),
     with_config(Glint, _pipe).
 
--file("src/glint.gleam", 64).
-?DOC(" Disable custom colours for help text headers\n").
--spec without_pretty_help(glint(KST)) -> glint(KST).
+-spec without_pretty_help(glint(LBU)) -> glint(LBU).
 without_pretty_help(Glint) ->
-    _pipe = begin
-        _record = erlang:element(2, Glint),
-        {config, none, erlang:element(3, _record), erlang:element(4, _record)}
-    end,
+    _pipe = erlang:setelement(2, erlang:element(2, Glint), none),
     with_config(Glint, _pipe).
 
--file("src/glint.gleam", 71).
-?DOC(" Give the current glint application a name\n").
--spec with_name(glint(KSW), binary()) -> glint(KSW).
+-spec with_name(glint(LBX), binary()) -> glint(LBX).
 with_name(Glint, Name) ->
-    _pipe = begin
-        _record = erlang:element(2, Glint),
-        {config,
-            erlang:element(2, _record),
-            {some, Name},
-            erlang:element(4, _record)}
-    end,
+    _pipe = erlang:setelement(3, erlang:element(2, Glint), {some, Name}),
     with_config(Glint, _pipe).
 
--file("src/glint.gleam", 78).
-?DOC(
-    " Adjust the generated help text to reflect that the current glint app should be run as a gleam module.\n"
-    " Use in conjunction with `glint.with_name` to get usage text output like `gleam run -m <name>`\n"
-).
--spec as_gleam_module(glint(KSZ)) -> glint(KSZ).
+-spec as_gleam_module(glint(LCA)) -> glint(LCA).
 as_gleam_module(Glint) ->
-    _pipe = begin
-        _record = erlang:element(2, Glint),
-        {config, erlang:element(2, _record), erlang:element(3, _record), true}
-    end,
+    _pipe = erlang:setelement(4, erlang:element(2, Glint), true),
     with_config(Glint, _pipe).
 
--file("src/glint.gleam", 216).
-?DOC(" Helper for initializing empty commands\n").
 -spec empty_command() -> command_node(any()).
 empty_command() ->
     {command_node, none, gleam@dict:new(), gleam@dict:new()}.
 
--file("src/glint.gleam", 192).
-?DOC(" Recursive traversal of the command tree to find where to puth the provided command\n").
--spec do_add(command_node(KTJ), list(binary()), command(KTJ)) -> command_node(KTJ).
+-spec do_add(command_node(LCK), list(binary()), command(LCK)) -> command_node(LCK).
 do_add(Root, Path, Contents) ->
     case Path of
         [] ->
-            {command_node,
-                {some, Contents},
-                erlang:element(3, Root),
-                erlang:element(4, Root)};
+            erlang:setelement(2, Root, {some, Contents});
 
         [X | Xs] ->
-            {command_node,
-                erlang:element(2, Root),
-                begin
-                    gleam@dict:update(
-                        erlang:element(3, Root),
-                        X,
-                        fun(Node) -> _pipe = Node,
-                            _pipe@1 = gleam@option:lazy_unwrap(
-                                _pipe,
-                                fun empty_command/0
-                            ),
-                            do_add(_pipe@1, Xs, Contents) end
-                    )
-                end,
-                erlang:element(4, Root)}
+            erlang:setelement(
+                3,
+                Root,
+                (gleam@dict:update(
+                    erlang:element(3, Root),
+                    X,
+                    fun(Node) -> _pipe = Node,
+                        _pipe@1 = gleam@option:lazy_unwrap(
+                            _pipe,
+                            fun empty_command/0
+                        ),
+                        do_add(_pipe@1, Xs, Contents) end
+                ))
+            )
     end.
 
--file("src/glint.gleam", 230).
-?DOC(" Create a Command(a) from a Runner(a)\n").
--spec command(fun((command_input()) -> KTS)) -> command(KTS).
+-spec command(fun((command_input()) -> LCT)) -> command(LCT).
 command(Runner) ->
     {command, Runner, gleam@dict:new(), <<""/utf8>>, none, []}.
 
--file("src/glint.gleam", 242).
-?DOC(" Attach a description to a Command(a)\n").
--spec description(command(KTV), binary()) -> command(KTV).
+-spec description(command(LCW), binary()) -> command(LCW).
 description(Cmd, Description) ->
-    {command,
-        erlang:element(2, Cmd),
-        erlang:element(3, Cmd),
-        Description,
-        erlang:element(5, Cmd),
-        erlang:element(6, Cmd)}.
+    erlang:setelement(4, Cmd, Description).
 
--file("src/glint.gleam", 248).
-?DOC(" Specify a specific number of unnamed args that a given command expects\n").
--spec unnamed_args(command(KTY), args_count()) -> command(KTY).
+-spec unnamed_args(command(LCZ), args_count()) -> command(LCZ).
 unnamed_args(Cmd, Count) ->
-    {command,
-        erlang:element(2, Cmd),
-        erlang:element(3, Cmd),
-        erlang:element(4, Cmd),
-        {some, Count},
-        erlang:element(6, Cmd)}.
+    erlang:setelement(5, Cmd, {some, Count}).
 
--file("src/glint.gleam", 258).
-?DOC(
-    " Add a list of named arguments to a Command\n"
-    " These named arguments will be matched with the first N arguments passed to the command\n"
-    " All named arguments must match for a command to succeed\n"
-    " This works in combination with CommandInput.named_args which will contain the matched args in a Dict(String,String)\n"
-    " IMPORTANT: Matched named arguments will not be present in CommandInput.args\n"
-).
--spec named_args(command(KUB), list(binary())) -> command(KUB).
+-spec named_args(command(LDC), list(binary())) -> command(LDC).
 named_args(Cmd, Args) ->
-    {command,
-        erlang:element(2, Cmd),
-        erlang:element(3, Cmd),
-        erlang:element(4, Cmd),
-        erlang:element(5, Cmd),
-        Args}.
+    erlang:setelement(6, Cmd, Args).
 
--file("src/glint.gleam", 264).
-?DOC(" Add a `flag.Flag` to a `Command`\n").
--spec flag(command(KUF), binary(), glint@flag:flag_builder(any())) -> command(KUF).
+-spec flag(command(LDG), binary(), glint@flag:flag_builder(any())) -> command(LDG).
 flag(Cmd, Key, Flag) ->
-    {command,
-        erlang:element(2, Cmd),
-        gleam@dict:insert(erlang:element(3, Cmd), Key, glint@flag:build(Flag)),
-        erlang:element(4, Cmd),
-        erlang:element(5, Cmd),
-        erlang:element(6, Cmd)}.
+    erlang:setelement(
+        3,
+        Cmd,
+        gleam@dict:insert(erlang:element(3, Cmd), Key, glint@flag:build(Flag))
+    ).
 
--file("src/glint.gleam", 276).
-?DOC(
-    " Add a `flag.Flag to a `Command` when the flag name and builder are bundled as a #(String, flag.FlagBuilder(a)).\n"
-    "\n"
-    " This is merely a convenience function and calls `glint.flag` under the hood.\n"
-).
--spec flag_tuple(command(KUK), {binary(), glint@flag:flag_builder(any())}) -> command(KUK).
+-spec flag_tuple(command(LDL), {binary(), glint@flag:flag_builder(any())}) -> command(LDL).
 flag_tuple(Cmd, Tup) ->
     flag(Cmd, erlang:element(1, Tup), erlang:element(2, Tup)).
 
--file("src/glint.gleam", 288).
-?DOC(
-    " Add multiple `Flag`s to a `Command`, note that this function uses `Flag` and not `FlagBuilder(_)`.\n"
-    " The user will need to call `flag.build` before providing the flags here.\n"
-    "\n"
-    " It is recommended to call `glint.flag` instead.\n"
-).
--spec flags(command(KUP), list({binary(), glint@flag:flag()})) -> command(KUP).
+-spec flags(command(LDQ), list({binary(), glint@flag:flag()})) -> command(LDQ).
 flags(Cmd, Flags) ->
     gleam@list:fold(
         Flags,
         Cmd,
         fun(Cmd@1, _use1) ->
             {Key, Flag} = _use1,
-            {command,
-                erlang:element(2, Cmd@1),
-                gleam@dict:insert(erlang:element(3, Cmd@1), Key, Flag),
-                erlang:element(4, Cmd@1),
-                erlang:element(5, Cmd@1),
-                erlang:element(6, Cmd@1)}
+            erlang:setelement(
+                3,
+                Cmd@1,
+                gleam@dict:insert(erlang:element(3, Cmd@1), Key, Flag)
+            )
         end
     ).
 
--file("src/glint.gleam", 380).
-?DOC(
-    " add a group flag to a command node\n"
-    " descend recursively down the command tree to find the node that the flag should be inserted at\n"
-).
 -spec do_group_flag(
-    command_node(KVY),
+    command_node(LEZ),
     list(binary()),
     binary(),
     glint@flag:flag()
-) -> command_node(KVY).
+) -> command_node(LEZ).
 do_group_flag(Node, Path, Name, Flag) ->
     case Path of
         [] ->
-            {command_node,
-                erlang:element(2, Node),
-                erlang:element(3, Node),
-                gleam@dict:insert(erlang:element(4, Node), Name, Flag)};
+            erlang:setelement(
+                4,
+                Node,
+                gleam@dict:insert(erlang:element(4, Node), Name, Flag)
+            );
 
         [Head | Tail] ->
-            {command_node,
-                erlang:element(2, Node),
-                begin
-                    gleam@dict:update(
-                        erlang:element(3, Node),
-                        Head,
-                        fun(Node@1) -> _pipe = Node@1,
-                            _pipe@1 = gleam@option:unwrap(
-                                _pipe,
-                                empty_command()
-                            ),
-                            do_group_flag(_pipe@1, Tail, Name, Flag) end
-                    )
-                end,
-                erlang:element(4, Node)}
+            erlang:setelement(
+                3,
+                Node,
+                (gleam@dict:update(
+                    erlang:element(3, Node),
+                    Head,
+                    fun(Node@1) -> _pipe = Node@1,
+                        _pipe@1 = gleam@option:unwrap(_pipe, empty_command()),
+                        do_group_flag(_pipe@1, Tail, Name, Flag) end
+                ))
+            )
     end.
 
--file("src/glint.gleam", 337).
-?DOC(
-    " Add flags for groups of commands.\n"
-    " It is recommended to use `glint.group_flag` instead if possible\n"
-    "\n"
-    " The provided flags will be available to all commands at or beyond the provided path\n"
-    "\n"
-    " Note: use of this function requires calling `flag.build` yourself on any `flag.FlagBuilder`s you wish to convert to `flag.Flag`s\n"
-).
 -spec group_flags(
-    glint(KVH),
+    glint(LEI),
     list(binary()),
     list({binary(), glint@flag:flag()})
-) -> glint(KVH).
+) -> glint(LEI).
 group_flags(Glint, Path, Flags) ->
     gleam@list:fold(
         Flags,
         Glint,
         fun(Glint@1, Flag) ->
-            {glint,
-                erlang:element(2, Glint@1),
+            erlang:setelement(
+                3,
+                Glint@1,
                 do_group_flag(
                     erlang:element(3, Glint@1),
                     Path,
                     erlang:element(1, Flag),
                     erlang:element(2, Flag)
-                )}
+                )
+            )
         end
     ).
 
--file("src/glint.gleam", 326).
-?DOC(
-    " Add global flags to the existing command tree.\n"
-    "\n"
-    " Like `glint.flags`, this function requires `Flag`s insead of `FlagBuilder(_)`.\n"
-    " This is the equivalent to calling `glint.group_flags` with a path parameter of `[]`.\n"
-    "\n"
-    " Note: use of this function requires calling `flag.build` yourself on any `flag.FlagBuilder`s you wish to convert to `flag.Flag`s\n"
-    " It is recommended to use `glint.global_flag` instead.\n"
-).
--spec global_flags(glint(KVD), list({binary(), glint@flag:flag()})) -> glint(KVD).
+-spec global_flags(glint(LEE), list({binary(), glint@flag:flag()})) -> glint(LEE).
 global_flags(Glint, Flags) ->
     group_flags(Glint, [], Flags).
 
--file("src/glint.gleam", 352).
-?DOC(
-    " Add a flag for a group of commands.\n"
-    " The provided flags will be available to all commands at or beyond the provided path\n"
-).
 -spec group_flag(
-    glint(KVM),
+    glint(LEN),
     list(binary()),
     binary(),
     glint@flag:flag_builder(any())
-) -> glint(KVM).
+) -> glint(LEN).
 group_flag(Glint, Path, Name, Flag) ->
-    {glint,
-        erlang:element(2, Glint),
+    erlang:setelement(
+        3,
+        Glint,
         do_group_flag(
             erlang:element(3, Glint),
             Path,
             Name,
             glint@flag:build(Flag)
-        )}.
+        )
+    ).
 
--file("src/glint.gleam", 298).
-?DOC(
-    " Add global flags to the existing command tree\n"
-    " This is the equivalent to calling `glint.group_flag` with a path parameter of `[]`.\n"
-).
--spec global_flag(glint(KUT), binary(), glint@flag:flag_builder(any())) -> glint(KUT).
+-spec global_flag(glint(LDU), binary(), glint@flag:flag_builder(any())) -> glint(LDU).
 global_flag(Glint, Key, Flag) ->
     group_flag(Glint, [], Key, Flag).
 
--file("src/glint.gleam", 310).
-?DOC(
-    " Add global flags to the existing command tree.\n"
-    " This is the equivalent to calling `glint.group_flag_tuple` with a path parameter of `[]`.\n"
-).
--spec global_flag_tuple(glint(KUY), {binary(), glint@flag:flag_builder(any())}) -> glint(KUY).
+-spec global_flag_tuple(glint(LDZ), {binary(), glint@flag:flag_builder(any())}) -> glint(LDZ).
 global_flag_tuple(Glint, Tup) ->
     group_flag(Glint, [], erlang:element(1, Tup), erlang:element(2, Tup)).
 
--file("src/glint.gleam", 369).
-?DOC(
-    " Add a flag for a group of commands.\n"
-    " The provided flags will be available to all commands at or beyond the provided path\n"
-    "\n"
-    " This is a convenience function and calls `glint.group_flag` under the hood.\n"
-).
 -spec group_flag_tuple(
-    glint(KVS),
+    glint(LET),
     list(binary()),
     {binary(), glint@flag:flag_builder(any())}
-) -> glint(KVS).
+) -> glint(LET).
 group_flag_tuple(Glint, Path, Flag) ->
     group_flag(Glint, Path, erlang:element(1, Flag), erlang:element(2, Flag)).
 
--file("src/glint.gleam", 488).
 -spec args_compare(args_count(), integer()) -> {ok, nil} | {error, snag:snag()}.
 args_compare(Expected, Actual) ->
     _pipe = case Expected of
@@ -401,104 +259,65 @@ args_compare(Expected, Actual) ->
         end
     ).
 
--file("src/glint.gleam", 596).
-?DOC(
-    " Default pretty help heading colouring\n"
-    " mint (r: 182, g: 255, b: 234) colour for usage\n"
-    " pink (r: 255, g: 175, b: 243) colour for flags\n"
-    " buttercup (r: 252, g: 226, b: 174) colour for subcommands\n"
-).
 -spec default_pretty_help() -> pretty_help().
 default_pretty_help() ->
-    Usage_colour@1 = case gleam_community@colour:from_rgb255(182, 255, 234) of
-        {ok, Usage_colour} -> Usage_colour;
+    _assert_subject = gleam_community@colour:from_rgb255(182, 255, 234),
+    {ok, Usage_colour} = case _assert_subject of
+        {ok, _} -> _assert_subject;
         _assert_fail ->
             erlang:error(#{gleam_error => let_assert,
-                        message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
-                        file => <<?FILEPATH/utf8>>,
+                        message => <<"Assertion pattern match failed"/utf8>>,
+                        value => _assert_fail,
                         module => <<"glint"/utf8>>,
                         function => <<"default_pretty_help"/utf8>>,
-                        line => 597,
-                        value => _assert_fail,
-                        start => 16808,
-                        'end' => 16871,
-                        pattern_start => 16819,
-                        pattern_end => 16835})
+                        line => 597})
     end,
-    Flags_colour@1 = case gleam_community@colour:from_rgb255(255, 175, 243) of
-        {ok, Flags_colour} -> Flags_colour;
+    _assert_subject@1 = gleam_community@colour:from_rgb255(255, 175, 243),
+    {ok, Flags_colour} = case _assert_subject@1 of
+        {ok, _} -> _assert_subject@1;
         _assert_fail@1 ->
             erlang:error(#{gleam_error => let_assert,
-                        message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
-                        file => <<?FILEPATH/utf8>>,
+                        message => <<"Assertion pattern match failed"/utf8>>,
+                        value => _assert_fail@1,
                         module => <<"glint"/utf8>>,
                         function => <<"default_pretty_help"/utf8>>,
-                        line => 598,
-                        value => _assert_fail@1,
-                        start => 16874,
-                        'end' => 16937,
-                        pattern_start => 16885,
-                        pattern_end => 16901})
+                        line => 598})
     end,
-    Subcommands_colour@1 = case gleam_community@colour:from_rgb255(
-        252,
-        226,
-        174
-    ) of
-        {ok, Subcommands_colour} -> Subcommands_colour;
+    _assert_subject@2 = gleam_community@colour:from_rgb255(252, 226, 174),
+    {ok, Subcommands_colour} = case _assert_subject@2 of
+        {ok, _} -> _assert_subject@2;
         _assert_fail@2 ->
             erlang:error(#{gleam_error => let_assert,
-                        message => <<"Pattern match failed, no pattern matched the value."/utf8>>,
-                        file => <<?FILEPATH/utf8>>,
+                        message => <<"Assertion pattern match failed"/utf8>>,
+                        value => _assert_fail@2,
                         module => <<"glint"/utf8>>,
                         function => <<"default_pretty_help"/utf8>>,
-                        line => 599,
-                        value => _assert_fail@2,
-                        start => 16940,
-                        'end' => 17009,
-                        pattern_start => 16951,
-                        pattern_end => 16973})
+                        line => 599})
     end,
-    {pretty_help, Usage_colour@1, Flags_colour@1, Subcommands_colour@1}.
+    {pretty_help, Usage_colour, Flags_colour, Subcommands_colour}.
 
--file("src/glint.gleam", 617).
-?DOC(" Helper for filtering out empty strings\n").
 -spec is_not_empty(binary()) -> boolean().
 is_not_empty(S) ->
     S /= <<""/utf8>>.
 
--file("src/glint.gleam", 222).
-?DOC(" Trim each path element and remove any resulting empty strings.\n").
 -spec sanitize_path(list(binary())) -> list(binary()).
 sanitize_path(Path) ->
     _pipe = Path,
     _pipe@1 = gleam@list:map(_pipe, fun gleam@string:trim/1),
     gleam@list:filter(_pipe@1, fun is_not_empty/1).
 
--file("src/glint.gleam", 177).
-?DOC(
-    " Adds a new command to be run at the specified path.\n"
-    "\n"
-    " If the path is `[]`, the root command is set with the provided function and\n"
-    " flags.\n"
-    "\n"
-    " Note: all command paths are sanitized by stripping whitespace and removing any empty string elements.\n"
-).
--spec add(glint(KTE), list(binary()), command(KTE)) -> glint(KTE).
+-spec add(glint(LCF), list(binary()), command(LCF)) -> glint(LCF).
 add(Glint, Path, Contents) ->
-    {glint,
-        erlang:element(2, Glint),
+    erlang:setelement(
+        3,
+        Glint,
         begin
             _pipe = Path,
             _pipe@1 = sanitize_path(_pipe),
             do_add(erlang:element(3, Glint), _pipe@1, Contents)
-        end}.
+        end
+    ).
 
--file("src/glint.gleam", 648).
-?DOC(
-    " Style heading text with the provided rgb colouring\n"
-    " this is only intended for use within glint itself.\n"
-).
 -spec heading_style(binary(), gleam_community@colour:colour()) -> binary().
 heading_style(Heading, Colour) ->
     _pipe = Heading,
@@ -511,8 +330,6 @@ heading_style(Heading, Colour) ->
     ),
     gleam_community@ansi:reset(_pipe@4).
 
--file("src/glint.gleam", 718).
-?DOC(" generate the string representation for the type of a flag\n").
 -spec flag_type_info(glint@flag:flag()) -> binary().
 flag_type_info(Flag) ->
     case erlang:element(2, Flag) of
@@ -525,21 +342,19 @@ flag_type_info(Flag) ->
         {f, _} ->
             <<"FLOAT"/utf8>>;
 
-        {l_f, _} ->
+        {lf, _} ->
             <<"FLOAT_LIST"/utf8>>;
 
-        {l_i, _} ->
+        {li, _} ->
             <<"INT_LIST"/utf8>>;
 
-        {l_s, _} ->
+        {ls, _} ->
             <<"STRING_LIST"/utf8>>;
 
         {s, _} ->
             <<"STRING"/utf8>>
     end.
 
--file("src/glint.gleam", 732).
-?DOC(" build the help representation for a list of flags\n").
 -spec build_flags_help(gleam@dict:dict(binary(), glint@flag:flag())) -> list(flag_help()).
 build_flags_help(Flag) ->
     gleam@dict:fold(
@@ -553,8 +368,6 @@ build_flags_help(Flag) ->
         end
     ).
 
--file("src/glint.gleam", 745).
-?DOC(" build the help representation for a list of subcommands\n").
 -spec build_subcommands_help(gleam@dict:dict(binary(), command_node(any()))) -> list(metadata()).
 build_subcommands_help(Subcommands) ->
     gleam@dict:fold(
@@ -575,8 +388,6 @@ build_subcommands_help(Subcommands) ->
         end
     ).
 
--file("src/glint.gleam", 693).
-?DOC(" build the help representation for a subtree of commands\n").
 -spec build_command_help_metadata(binary(), command_node(any())) -> command_help().
 build_command_help_metadata(Name, Node) ->
     {Description, Flags, Unnamed_args, Named_args} = case erlang:element(
@@ -604,8 +415,6 @@ build_command_help_metadata(Name, Node) ->
         Unnamed_args,
         Named_args}.
 
--file("src/glint.gleam", 808).
-?DOC(" convert an ArgsCount to a string for usage text\n").
 -spec args_count_to_usage_string(args_count()) -> binary().
 args_count_to_usage_string(Count) ->
     case Count of
@@ -624,7 +433,6 @@ args_count_to_usage_string(Count) ->
                 " or more arguments ]"/utf8>>
     end.
 
--file("src/glint.gleam", 817).
 -spec args_to_usage_string(gleam@option:option(args_count()), list(binary())) -> binary().
 args_to_usage_string(Unnamed, Named) ->
     Named_args = begin
@@ -653,8 +461,6 @@ args_to_usage_string(Unnamed, Named) ->
             <<<<Named_args/binary, " "/utf8>>/binary, Unnamed_args/binary>>
     end.
 
--file("src/glint.gleam", 885).
-?DOC(" generate the help text for a flag without a description\n").
 -spec flag_help_to_string(flag_help()) -> binary().
 flag_help_to_string(Help) ->
     <<<<<<<<(<<"--"/utf8>>)/binary,
@@ -663,16 +469,12 @@ flag_help_to_string(Help) ->
             (erlang:element(3, Help))/binary>>/binary,
         ">"/utf8>>.
 
--file("src/glint.gleam", 786).
-?DOC(" convert a List(FlagHelp) to a list of strings for use in usage text\n").
 -spec flags_help_to_usage_strings(list(flag_help())) -> list(binary()).
 flags_help_to_usage_strings(Help) ->
     _pipe = Help,
     _pipe@1 = gleam@list:map(_pipe, fun flag_help_to_string/1),
     gleam@list:sort(_pipe@1, fun gleam@string:compare/2).
 
--file("src/glint.gleam", 794).
-?DOC(" generate the usage help text for the flags of a command\n").
 -spec flags_help_to_usage_string(list(flag_help())) -> binary().
 flags_help_to_usage_string(Help) ->
     gleam@bool:guard(Help =:= [], <<""/utf8>>, fun() -> _pipe = Help,
@@ -683,15 +485,11 @@ flags_help_to_usage_string(Help) ->
             _pipe@5 = gleam@string_builder:append(_pipe@4, <<" ]"/utf8>>),
             gleam@string_builder:to_string(_pipe@5) end).
 
--file("src/glint.gleam", 891).
-?DOC(" generate the help text for a flag with a description\n").
 -spec flag_help_to_string_with_description(flag_help()) -> binary().
 flag_help_to_string_with_description(Help) ->
     <<<<(flag_help_to_string(Help))/binary, "\t\t"/utf8>>/binary,
         (erlang:element(3, erlang:element(2, Help)))/binary>>.
 
--file("src/glint.gleam", 917).
-?DOC(" generate the help text for a single subcommand given its name and description\n").
 -spec subcommand_help_to_string(metadata()) -> binary().
 subcommand_help_to_string(Help) ->
     case erlang:element(3, Help) of
@@ -703,7 +501,6 @@ subcommand_help_to_string(Help) ->
                 (erlang:element(3, Help))/binary>>
     end.
 
--file("src/glint.gleam", 924).
 -spec string_map(binary(), fun((binary()) -> binary())) -> binary().
 string_map(S, F) ->
     case S of
@@ -714,14 +511,10 @@ string_map(S, F) ->
             F(S)
     end.
 
--file("src/glint.gleam", 166).
-?DOC(" Creates a new command tree.\n").
 -spec new() -> glint(any()).
 new() ->
     {glint, {config, none, none, false}, empty_command()}.
 
--file("src/glint.gleam", 899).
-?DOC(" generate the styled help text for a list of subcommands\n").
 -spec subcommands_help_to_string(list(metadata()), config()) -> binary().
 subcommands_help_to_string(Help, Config) ->
     gleam@bool:guard(
@@ -756,8 +549,6 @@ subcommands_help_to_string(Help, Config) ->
                 end)/binary>> end
     ).
 
--file("src/glint.gleam", 839).
-?DOC(" convert a CommandHelp to a styled usage block\n").
 -spec command_help_to_usage_string(command_help(), config()) -> binary().
 command_help_to_usage_string(Help, Config) ->
     App_name = case erlang:element(3, Config) of
@@ -797,17 +588,10 @@ command_help_to_usage_string(Help, Config) ->
                     <<<<" "/utf8, Args/binary>>/binary, " "/utf8>>
             end)/binary>>/binary, Flags/binary>>.
 
--file("src/glint.gleam", 628).
-?DOC(
-    " Function to create the help flag string\n"
-    " Exported for testing purposes only\n"
-).
 -spec help_flag() -> binary().
 help_flag() ->
     <<(<<"--"/utf8>>)/binary, "help"/utf8>>.
 
--file("src/glint.gleam", 868).
-?DOC(" generate the usage help string for a command\n").
 -spec flags_help_to_string(list(flag_help()), config()) -> binary().
 flags_help_to_string(Help, Config) ->
     gleam@bool:guard(
@@ -839,8 +623,6 @@ flags_help_to_string(Help, Config) ->
                 end)/binary>> end
     ).
 
--file("src/glint.gleam", 764).
-?DOC(" convert a CommandHelp to a styled string\n").
 -spec command_help_to_string(command_help(), config()) -> binary().
 command_help_to_string(Help, Config) ->
     Header_items = begin
@@ -856,8 +638,6 @@ command_help_to_string(Help, Config) ->
     _pipe@3 = gleam@list:filter(_pipe@2, fun is_not_empty/1),
     gleam@string:join(_pipe@3, <<"\n\n"/utf8>>).
 
--file("src/glint.gleam", 635).
-?DOC(" generate the help text for a command\n").
 -spec cmd_help(list(binary()), command_node(any()), config()) -> binary().
 cmd_help(Path, Cmd, Config) ->
     _pipe = Path,
@@ -866,111 +646,106 @@ cmd_help(Path, Cmd, Config) ->
     _pipe@3 = build_command_help_metadata(_pipe@2, Cmd),
     command_help_to_string(_pipe@3, Config).
 
--file("src/glint.gleam", 504).
-?DOC(" Executes the current root command.\n").
 -spec execute_root(
     list(binary()),
     config(),
-    command_node(KWO),
+    command_node(LFP),
     list(binary()),
     list(binary())
-) -> {ok, out(KWO)} | {error, binary()}.
+) -> {ok, out(LFP)} | {error, binary()}.
 execute_root(Path, Config, Cmd, Args, Flag_inputs) ->
     Res = begin
-        _pipe@7 = begin
-            gleam@option:map(
-                erlang:element(2, Cmd),
-                fun(Contents) ->
-                    gleam@result:'try'(
-                        gleam@list:try_fold(
-                            Flag_inputs,
-                            gleam@dict:merge(
-                                erlang:element(4, Cmd),
-                                erlang:element(3, Contents)
-                            ),
-                            fun glint@flag:update_flags/2
+        _pipe@7 = (gleam@option:map(
+            erlang:element(2, Cmd),
+            fun(Contents) ->
+                gleam@result:'try'(
+                    gleam@list:try_fold(
+                        Flag_inputs,
+                        gleam@dict:merge(
+                            erlang:element(4, Cmd),
+                            erlang:element(3, Contents)
                         ),
-                        fun(New_flags) ->
-                            gleam@result:'try'(
-                                begin
-                                    Named = gleam@list:zip(
-                                        erlang:element(6, Contents),
-                                        Args
-                                    ),
-                                    case erlang:length(Named) =:= erlang:length(
-                                        erlang:element(6, Contents)
-                                    ) of
-                                        true ->
-                                            {ok, maps:from_list(Named)};
+                        fun glint@flag:update_flags/2
+                    ),
+                    fun(New_flags) ->
+                        gleam@result:'try'(
+                            begin
+                                Named = gleam@list:zip(
+                                    erlang:element(6, Contents),
+                                    Args
+                                ),
+                                case erlang:length(Named) =:= erlang:length(
+                                    erlang:element(6, Contents)
+                                ) of
+                                    true ->
+                                        {ok, maps:from_list(Named)};
 
-                                        false ->
-                                            snag:error(
-                                                <<"unmatched named arguments: "/utf8,
-                                                    (begin
-                                                        _pipe = erlang:element(
-                                                            6,
-                                                            Contents
-                                                        ),
-                                                        _pipe@1 = gleam@list:drop(
-                                                            _pipe,
-                                                            erlang:length(Named)
-                                                        ),
-                                                        _pipe@2 = gleam@list:map(
-                                                            _pipe@1,
-                                                            fun(S) ->
-                                                                <<<<"'"/utf8,
-                                                                        S/binary>>/binary,
-                                                                    "'"/utf8>>
-                                                            end
-                                                        ),
-                                                        gleam@string:join(
-                                                            _pipe@2,
-                                                            <<", "/utf8>>
-                                                        )
-                                                    end)/binary>>
-                                            )
-                                    end
-                                end,
-                                fun(Named_args) ->
-                                    Args@1 = gleam@list:drop(
-                                        Args,
-                                        maps:size(Named_args)
-                                    ),
-                                    gleam@result:map(
-                                        case erlang:element(5, Contents) of
-                                            {some, Count} ->
-                                                _pipe@3 = Count,
-                                                _pipe@4 = args_compare(
-                                                    _pipe@3,
-                                                    erlang:length(Args@1)
-                                                ),
-                                                snag:context(
-                                                    _pipe@4,
-                                                    <<"invalid number of arguments provided"/utf8>>
-                                                );
-
-                                            none ->
-                                                {ok, nil}
-                                        end,
-                                        fun(_) ->
-                                            _pipe@5 = {command_input,
-                                                Args@1,
-                                                New_flags,
-                                                Named_args},
-                                            _pipe@6 = (erlang:element(
-                                                2,
-                                                Contents
-                                            ))(_pipe@5),
-                                            {out, _pipe@6}
-                                        end
-                                    )
+                                    false ->
+                                        snag:error(
+                                            <<"unmatched named arguments: "/utf8,
+                                                (begin
+                                                    _pipe = erlang:element(
+                                                        6,
+                                                        Contents
+                                                    ),
+                                                    _pipe@1 = gleam@list:drop(
+                                                        _pipe,
+                                                        erlang:length(Named)
+                                                    ),
+                                                    _pipe@2 = gleam@list:map(
+                                                        _pipe@1,
+                                                        fun(S) ->
+                                                            <<<<"'"/utf8,
+                                                                    S/binary>>/binary,
+                                                                "'"/utf8>>
+                                                        end
+                                                    ),
+                                                    gleam@string:join(
+                                                        _pipe@2,
+                                                        <<", "/utf8>>
+                                                    )
+                                                end)/binary>>
+                                        )
                                 end
-                            )
-                        end
-                    )
-                end
-            )
-        end,
+                            end,
+                            fun(Named_args) ->
+                                Args@1 = gleam@list:drop(
+                                    Args,
+                                    maps:size(Named_args)
+                                ),
+                                gleam@result:map(
+                                    case erlang:element(5, Contents) of
+                                        {some, Count} ->
+                                            _pipe@3 = Count,
+                                            _pipe@4 = args_compare(
+                                                _pipe@3,
+                                                erlang:length(Args@1)
+                                            ),
+                                            snag:context(
+                                                _pipe@4,
+                                                <<"invalid number of arguments provided"/utf8>>
+                                            );
+
+                                        none ->
+                                            {ok, nil}
+                                    end,
+                                    fun(_) ->
+                                        _pipe@5 = {command_input,
+                                            Args@1,
+                                            New_flags,
+                                            Named_args},
+                                        _pipe@6 = (erlang:element(2, Contents))(
+                                            _pipe@5
+                                        ),
+                                        {out, _pipe@6}
+                                    end
+                                )
+                            end
+                        )
+                    end
+                )
+            end
+        )),
         _pipe@8 = gleam@option:unwrap(
             _pipe@7,
             snag:error(<<"command not found"/utf8>>)
@@ -992,16 +767,14 @@ execute_root(Path, Config, Cmd, Args, Flag_inputs) ->
                     Help/binary>>}
     end.
 
--file("src/glint.gleam", 437).
-?DOC(" Find which command to execute and run it with computed flags and args\n").
 -spec do_execute(
-    command_node(KWG),
+    command_node(LFH),
     config(),
     list(binary()),
     list(binary()),
     boolean(),
     list(binary())
-) -> {ok, out(KWG)} | {error, binary()}.
+) -> {ok, out(LFH)} | {error, binary()}.
 do_execute(Cmd, Config, Args, Flags, Help, Command_path) ->
     case Args of
         [] when Help ->
@@ -1016,13 +789,14 @@ do_execute(Cmd, Config, Args, Flags, Help, Command_path) ->
         [Arg | Rest] ->
             case gleam@dict:get(erlang:element(3, Cmd), Arg) of
                 {ok, Sub_command} ->
-                    Sub_command@1 = {command_node,
-                        erlang:element(2, Sub_command),
-                        erlang:element(3, Sub_command),
+                    Sub_command@1 = erlang:setelement(
+                        4,
+                        Sub_command,
                         gleam@dict:merge(
                             erlang:element(4, Cmd),
                             erlang:element(4, Sub_command)
-                        )},
+                        )
+                    ),
                     do_execute(
                         Sub_command@1,
                         Config,
@@ -1043,18 +817,7 @@ do_execute(Cmd, Config, Args, Flags, Help, Command_path) ->
             end
     end.
 
--file("src/glint.gleam", 418).
-?DOC(
-    " Determines which command to run and executes it.\n"
-    "\n"
-    " Sets any provided flags if necessary.\n"
-    "\n"
-    " Each value prefixed with `--` is parsed as a flag.\n"
-    "\n"
-    " This function does not print its output and is mainly intended for use within `glint` itself.\n"
-    " If you would like to print or handle the output of a command please see the `run_and_handle` function.\n"
-).
--spec execute(glint(KWC), list(binary())) -> {ok, out(KWC)} | {error, binary()}.
+-spec execute(glint(LFD), list(binary())) -> {ok, out(LFD)} | {error, binary()}.
 execute(Glint, Args) ->
     Help_flag = help_flag(),
     {Help, Args@2} = case gleam@list:pop(Args, fun(S) -> S =:= Help_flag end) of
@@ -1077,12 +840,7 @@ execute(Glint, Args) ->
         []
     ).
 
--file("src/glint.gleam", 577).
-?DOC(
-    " A wrapper for `execute` that prints any errors enountered or the help text if requested.\n"
-    " This function calls the provided handler with the value returned by the command that was run.\n"
-).
--spec run_and_handle(glint(KWW), list(binary()), fun((KWW) -> any())) -> nil.
+-spec run_and_handle(glint(LFX), list(binary()), fun((LFX) -> any())) -> nil.
 run_and_handle(Glint, Args, Handle) ->
     case execute(Glint, Args) of
         {error, S} ->
@@ -1096,12 +854,6 @@ run_and_handle(Glint, Args, Handle) ->
             nil
     end.
 
--file("src/glint.gleam", 570).
-?DOC(
-    " A wrapper for `execute` that prints any errors enountered or the help text if requested.\n"
-    " This function ignores any value returned by the command that was run.\n"
-    " If you would like to do something with the command output please see the run_and_handle function.\n"
-).
 -spec run(glint(any()), list(binary())) -> nil.
 run(Glint, Args) ->
     run_and_handle(Glint, Args, fun(_) -> nil end).

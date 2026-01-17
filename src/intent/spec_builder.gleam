@@ -1,5 +1,6 @@
 /// Spec Builder
 /// Converts interview session answers into valid CUE specifications
+
 import gleam/dict
 import gleam/int
 import gleam/json
@@ -23,25 +24,24 @@ pub type GeneratedCUE {
 /// Build a CUE spec from a completed interview session
 pub fn build_spec_from_session(session: InterviewSession) -> String {
   let features = extract_features_from_answers(session.answers)
-  let behaviors =
-    extract_behaviors_from_answers(session.answers, session.profile)
+  let behaviors = extract_behaviors_from_answers(session.answers, session.profile)
   let constraints = extract_constraints_from_answers(session.answers)
   let security = extract_security_requirements(session.answers)
-  let non_functional = extract_non_functional_requirements(session.answers)
+  let non_functional =
+    extract_non_functional_requirements(session.answers)
 
   // Build a minimal Spec type for CUE generation
-  let spec =
-    GeneratedCUE(
-      package: "package api",
-      imports: [],
-      body: build_spec_body(
-        features,
-        behaviors,
-        constraints,
-        security,
-        non_functional,
-      ),
-    )
+  let spec = GeneratedCUE(
+    package: "package api",
+    imports: [],
+    body: build_spec_body(
+      features,
+      behaviors,
+      constraints,
+      security,
+      non_functional,
+    ),
+  )
 
   spec.package <> "\n\n" <> spec.body
 }
@@ -67,14 +67,9 @@ pub fn extract_behaviors_from_answers(
   answers: List(Answer),
   _profile: Profile,
 ) -> String {
-  let api_answers =
-    list.filter(answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, [
-        "endpoint",
-        "path",
-        "method",
-      ])
-    })
+  let api_answers = list.filter(answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["endpoint", "path", "method"])
+  })
 
   case api_answers {
     [] ->
@@ -82,13 +77,18 @@ pub fn extract_behaviors_from_answers(
 behaviors: {
   // Add endpoint definitions
 }"
-    answers -> "// API behaviors from interview
+    answers ->
+      "// API behaviors from interview
 behaviors: {
-" <> {
-        list.map(answers, fn(answer) { "  // " <> answer.question_text <> "
-  // " <> string.trim(answer.response) })
+"
+      <> {
+        list.map(answers, fn(answer) {
+          "  // " <> answer.question_text <> "
+  // " <> string.trim(answer.response)
+        })
         |> string.join("\n")
-      } <> "\n}"
+      }
+      <> "\n}"
   }
 }
 
@@ -96,26 +96,19 @@ behaviors: {
 pub fn extract_constraints_from_answers(answers: List(Answer)) -> List(String) {
   answers
   |> list.filter(fn(answer) {
-    contains_any_ignore_case(answer.question_text, [
-      "constraint",
-      "limit",
-      "requirement",
-    ])
+    contains_any_ignore_case(answer.question_text, ["constraint", "limit", "requirement"])
   })
-  |> list.map(fn(answer) { string.trim(answer.response) })
+  |> list.map(fn(answer) {
+    string.trim(answer.response)
+  })
   |> list.filter(fn(s) { s != "" })
 }
 
 /// Extract security requirements from answers
 pub fn extract_security_requirements(answers: List(Answer)) -> String {
-  let security_answers =
-    list.filter(answers, fn(answer) {
-      contains_any_ignore_case(answer.question_text, [
-        "auth",
-        "security",
-        "permission",
-      ])
-    })
+  let security_answers = list.filter(answers, fn(answer) {
+    contains_any_ignore_case(answer.question_text, ["auth", "security", "permission"])
+  })
 
   case security_answers {
     [] ->
@@ -123,30 +116,29 @@ pub fn extract_security_requirements(answers: List(Answer)) -> String {
   authentication: \"todo\"
   authorization: \"todo\"
 }"
-    answers -> "security: {
-" <> {
-        list.map(answers, fn(answer) { "  // " <> answer.question_text <> "
-  requirement: \"" <> string.trim(answer.response) <> "\"" })
+    answers ->
+      "security: {
+"
+      <> {
+        list.map(answers, fn(answer) {
+          "  // " <> answer.question_text <> "
+  requirement: \"" <> string.trim(answer.response) <> "\""
+        })
         |> string.join("\n")
-      } <> "\n}"
+      }
+      <> "\n}"
   }
 }
 
 /// Extract non-functional requirements (SLA, scale, monitoring)
-pub fn extract_non_functional_requirements(
-  answers: List(Answer),
-) -> List(String) {
+pub fn extract_non_functional_requirements(answers: List(Answer)) -> List(String) {
   answers
   |> list.filter(fn(answer) {
-    contains_any_ignore_case(answer.question_text, [
-      "sla",
-      "scale",
-      "performance",
-      "monitoring",
-      "latency",
-    ])
+    contains_any_ignore_case(answer.question_text, ["sla", "scale", "performance", "monitoring", "latency"])
   })
-  |> list.map(fn(answer) { string.trim(answer.response) })
+  |> list.map(fn(answer) {
+    string.trim(answer.response)
+  })
   |> list.filter(fn(s) { s != "" })
 }
 
@@ -164,30 +156,39 @@ fn build_spec_body(
 features: {
   // Add feature definitions
 }"
-    features -> "// Features extracted from interview
+    features ->
+      "// Features extracted from interview
 features: {
 " <> {
-        list.map(features, fn(feature) { "  \"" <> feature <> "\": true" })
+        list.map(features, fn(feature) {
+          "  \"" <> feature <> "\": true"
+        })
         |> string.join("\n")
       } <> "\n}"
   }
 
   let constraints_section = case constraints {
     [] -> ""
-    constraints -> "\n\n// Constraints and requirements
+    constraints ->
+      "\n\n// Constraints and requirements
 constraints: {
 " <> {
-        list.map(constraints, fn(constraint) { "  // " <> constraint })
+        list.map(constraints, fn(constraint) {
+          "  // " <> constraint
+        })
         |> string.join("\n")
       } <> "\n}"
   }
 
   let non_functional_section = case non_functional {
     [] -> ""
-    nf -> "\n\n// Non-functional requirements
+    nf ->
+      "\n\n// Non-functional requirements
 nonFunctional: {
 " <> {
-        list.map(nf, fn(requirement) { "  // " <> requirement })
+        list.map(nf, fn(requirement) {
+          "  // " <> requirement
+        })
         |> string.join("\n")
       } <> "\n}"
   }
@@ -207,35 +208,18 @@ pub fn create_test_spec(behavior_count: Int) -> Spec {
     list.range(1, behavior_count)
     |> list.map(fn(i) { make_behavior("b" <> int.to_string(i)) })
   Spec(
-    name: "test",
-    description: "test",
-    audience: "test",
-    version: "1.0.0",
-    success_criteria: [],
-    config: Config("http://test", 1000, dict.new()),
+    name: "test", description: "test", audience: "test", version: "1.0.0",
+    success_criteria: [], config: Config("http://test", 1000, dict.new()),
     features: [Feature("test-feature", "test", behaviors)],
-    rules: [],
-    anti_patterns: [],
-    ai_hints: AIHints(
-      ImplementationHints([]),
-      dict.new(),
-      SecurityHints("", "", "", ""),
-      [],
-    ),
+    rules: [], anti_patterns: [],
+    ai_hints: AIHints(ImplementationHints([]), dict.new(), SecurityHints("", "", "", ""), []),
   )
 }
 
 fn make_behavior(name: String) -> Behavior {
-  Behavior(
-    name:,
-    intent: "test",
-    notes: "",
-    requires: [],
-    tags: [],
+  Behavior(name:, intent: "test", notes: "", requires: [], tags: [],
     request: Request(Get, "/", dict.new(), dict.new(), json.null()),
-    response: Response(200, json.null(), dict.new(), dict.new()),
-    captures: dict.new(),
-  )
+    response: Response(200, json.null(), dict.new(), dict.new()), captures: dict.new())
 }
 
 /// Batch check behaviors against results - pure map operation

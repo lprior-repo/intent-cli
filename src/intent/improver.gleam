@@ -1,5 +1,6 @@
 /// Interactive specification refinement
 /// Suggests improvements based on quality analysis and linting results
+
 import gleam/dict
 import gleam/int
 import gleam/json
@@ -8,7 +9,7 @@ import gleam/result
 import gleam/string
 import intent/quality_analyzer.{type QualityReport}
 import intent/spec_linter.{type LintResult}
-import intent/types.{type Behavior, type Spec}
+import intent/types.{type Spec, type Behavior}
 
 /// Improvement suggestion with reasoning and impact
 pub type ImprovementSuggestion {
@@ -41,14 +42,14 @@ pub type ImprovementContext {
 }
 
 /// Generate improvement suggestions from analysis results
-pub fn suggest_improvements(
-  context: ImprovementContext,
-) -> List(ImprovementSuggestion) {
+pub fn suggest_improvements(context: ImprovementContext) -> List(ImprovementSuggestion) {
   let mut_suggestions = []
 
   // Suggestions from quality issues
-  let quality_suggestions =
-    suggest_from_quality_issues(context.quality_report, context.spec)
+  let quality_suggestions = suggest_from_quality_issues(
+    context.quality_report,
+    context.spec,
+  )
   let mut_suggestions = list.append(mut_suggestions, quality_suggestions)
 
   // Suggestions from linting warnings
@@ -57,7 +58,9 @@ pub fn suggest_improvements(
 
   // Sort by impact score (highest first)
   mut_suggestions
-  |> list.sort(fn(a, b) { int.compare(b.impact_score, a.impact_score) })
+  |> list.sort(fn(a, b) {
+    int.compare(b.impact_score, a.impact_score)
+  })
 }
 
 /// Generate suggestions based on quality analysis
@@ -90,23 +93,27 @@ fn append_coverage_suggestions(
       }
     })
 
-  let has_error_tests = list.any(behaviors, fn(b) { b.response.status >= 400 })
+  let has_error_tests =
+    list.any(behaviors, fn(b) { b.response.status >= 400 })
 
   case has_missing_error_tests && !has_error_tests {
     False -> suggestions
     True -> {
-      list.append(suggestions, [
-        ImprovementSuggestion(
-          title: "Add error case tests",
-          description: "No behaviors test error responses (4xx, 5xx status codes)",
-          reasoning: "Testing error cases ensures the API handles failures gracefully and helps AI understand error conditions",
-          impact_score: 25,
-          proposed_change: AddMissingTest(
-            "test-error-not-found",
-            "Test 404 Not Found response for missing resource",
+      list.append(
+        suggestions,
+        [
+          ImprovementSuggestion(
+            title: "Add error case tests",
+            description: "No behaviors test error responses (4xx, 5xx status codes)",
+            reasoning: "Testing error cases ensures the API handles failures gracefully and helps AI understand error conditions",
+            impact_score: 25,
+            proposed_change: AddMissingTest(
+              "test-error-not-found",
+              "Test 404 Not Found response for missing resource",
+            ),
           ),
-        ),
-      ])
+        ],
+      )
     }
   }
 }
@@ -135,20 +142,22 @@ fn append_clarity_suggestions(
   case has_clarity_issues && missing_count > 0 {
     False -> suggestions
     True -> {
-      list.append(suggestions, [
-        ImprovementSuggestion(
-          title: "Add intent descriptions",
-          description: int.to_string(missing_count)
-            <> " behavior(s) lack intent descriptions",
-          reasoning: "Intent descriptions explain WHY a test exists, helping both humans and AI understand the business logic",
-          impact_score: 15,
-          proposed_change: AddExplanation(
-            first_behavior_name,
-            "intent",
-            "Verify successful operation with valid input",
+      list.append(
+        suggestions,
+        [
+          ImprovementSuggestion(
+            title: "Add intent descriptions",
+            description: int.to_string(missing_count) <> " behavior(s) lack intent descriptions",
+            reasoning: "Intent descriptions explain WHY a test exists, helping both humans and AI understand the business logic",
+            impact_score: 15,
+            proposed_change: AddExplanation(
+              first_behavior_name,
+              "intent",
+              "Verify successful operation with valid input",
+            ),
           ),
-        ),
-      ])
+        ],
+      )
     }
   }
 }
@@ -169,7 +178,9 @@ fn append_testability_suggestions(
 
   let behaviors_missing_examples =
     behaviors
-    |> list.filter(fn(b) { b.response.example == json.null() })
+    |> list.filter(fn(b) {
+      b.response.example == json.null()
+    })
 
   let missing_count = list.length(behaviors_missing_examples)
 
@@ -182,16 +193,18 @@ fn append_testability_suggestions(
   case has_no_examples_issue && missing_count > 0 {
     False -> suggestions
     True -> {
-      list.append(suggestions, [
-        ImprovementSuggestion(
-          title: "Add response examples",
-          description: int.to_string(missing_count)
-            <> " behavior(s) lack response examples",
-          reasoning: "Examples make the spec executable and give AI concrete data structures to work with",
-          impact_score: 20,
-          proposed_change: AddResponseExample(first_behavior_name),
-        ),
-      ])
+      list.append(
+        suggestions,
+        [
+          ImprovementSuggestion(
+            title: "Add response examples",
+            description: int.to_string(missing_count) <> " behavior(s) lack response examples",
+            reasoning: "Examples make the spec executable and give AI concrete data structures to work with",
+            impact_score: 20,
+            proposed_change: AddResponseExample(first_behavior_name),
+          ),
+        ],
+      )
     }
   }
 }
@@ -229,28 +242,28 @@ fn append_ai_readiness_suggestions(
   case has_missing_explanations && missing_why_count > 0 {
     False -> suggestions
     True -> {
-      list.append(suggestions, [
-        ImprovementSuggestion(
-          title: "Add validation explanations",
-          description: int.to_string(missing_why_count)
-            <> " validation rule(s) lack 'why' explanations",
-          reasoning: "Explanations help AI understand the business logic behind each validation check",
-          impact_score: 18,
-          proposed_change: AddExplanation(
-            first_behavior_name,
-            "why",
-            "Ensures email field contains valid RFC 5322 compliant email address",
+      list.append(
+        suggestions,
+        [
+          ImprovementSuggestion(
+            title: "Add validation explanations",
+            description: int.to_string(missing_why_count) <> " validation rule(s) lack 'why' explanations",
+            reasoning: "Explanations help AI understand the business logic behind each validation check",
+            impact_score: 18,
+            proposed_change: AddExplanation(
+              first_behavior_name,
+              "why",
+              "Ensures email field contains valid RFC 5322 compliant email address",
+            ),
           ),
-        ),
-      ])
+        ],
+      )
     }
   }
 }
 
 /// Generate suggestions from lint warnings
-fn suggest_from_lint_warnings(
-  lint_result: LintResult,
-) -> List(ImprovementSuggestion) {
+fn suggest_from_lint_warnings(lint_result: LintResult) -> List(ImprovementSuggestion) {
   case lint_result {
     spec_linter.LintValid -> []
     spec_linter.LintWarnings(warnings) -> {
@@ -258,100 +271,87 @@ fn suggest_from_lint_warnings(
       |> list.filter_map(fn(warning) {
         case warning {
           spec_linter.VagueRule(behavior, field, _rule) -> {
-            Ok(ImprovementSuggestion(
-              title: "Clarify validation rule",
-              description: "Behavior '"
-                <> behavior
-                <> "', field '"
-                <> field
-                <> "' uses vague language",
-              reasoning: "Specific validation rules are more testable and easier for AI to implement",
-              impact_score: 22,
-              proposed_change: RefineVagueRule(
-                behavior,
-                field,
-                "email | format:email or similar concrete format",
+            Ok(
+              ImprovementSuggestion(
+                title: "Clarify validation rule",
+                description: "Behavior '" <> behavior <> "', field '" <> field <> "' uses vague language",
+                reasoning: "Specific validation rules are more testable and easier for AI to implement",
+                impact_score: 22,
+                proposed_change: RefineVagueRule(
+                  behavior,
+                  field,
+                  "email | format:email or similar concrete format",
+                ),
               ),
-            ))
+            )
           }
 
           spec_linter.MissingExample(behavior) -> {
-            Ok(ImprovementSuggestion(
-              title: "Add response example",
-              description: "Behavior '"
-                <> behavior
-                <> "' has no response example",
-              reasoning: "Examples make specifications executable and concrete",
-              impact_score: 20,
-              proposed_change: AddResponseExample(behavior),
-            ))
+            Ok(
+              ImprovementSuggestion(
+                title: "Add response example",
+                description: "Behavior '" <> behavior <> "' has no response example",
+                reasoning: "Examples make specifications executable and concrete",
+                impact_score: 20,
+                proposed_change: AddResponseExample(behavior),
+              ),
+            )
           }
 
           spec_linter.NamingConvention(behavior, suggestion) -> {
-            Ok(ImprovementSuggestion(
-              title: "Improve naming",
-              description: suggestion,
-              reasoning: "Consistent naming conventions make specs easier to read and navigate",
-              impact_score: 10,
-              proposed_change: RenameForClarity(
-                behavior,
-                string.replace(behavior, "_", "-"),
+            Ok(
+              ImprovementSuggestion(
+                title: "Improve naming",
+                description: suggestion,
+                reasoning: "Consistent naming conventions make specs easier to read and navigate",
+                impact_score: 10,
+                proposed_change: RenameForClarity(behavior, string.replace(behavior, "_", "-")),
               ),
-            ))
+            )
           }
 
           spec_linter.UnusedAntiPattern(pattern) -> {
-            Ok(ImprovementSuggestion(
-              title: "Remove unused anti-pattern",
-              description: "Anti-pattern '"
-                <> pattern
-                <> "' is not tested by any behavior",
-              reasoning: "Unused anti-patterns add clutter without providing test coverage",
-              impact_score: 5,
-              proposed_change: RefineVagueRule(
-                pattern,
-                "pattern",
-                "remove from spec",
+            Ok(
+              ImprovementSuggestion(
+                title: "Remove unused anti-pattern",
+                description: "Anti-pattern '" <> pattern <> "' is not tested by any behavior",
+                reasoning: "Unused anti-patterns add clutter without providing test coverage",
+                impact_score: 5,
+                proposed_change: RefineVagueRule(pattern, "pattern", "remove from spec"),
               ),
-            ))
+            )
           }
 
           spec_linter.AntiPatternDetected(behavior, pattern, _details) -> {
-            Ok(ImprovementSuggestion(
-              title: "Fix anti-pattern in response",
-              description: "Behavior '"
-                <> behavior
-                <> "' contains anti-pattern '"
-                <> pattern
-                <> "'",
-              reasoning: "Anti-patterns represent bad responses that should not be in examples",
-              impact_score: 30,
-              proposed_change: RefineVagueRule(
-                behavior,
-                "response.example",
-                "Remove keys matching anti-pattern bad_example",
+            Ok(
+              ImprovementSuggestion(
+                title: "Fix anti-pattern in response",
+                description: "Behavior '" <> behavior <> "' contains anti-pattern '" <> pattern <> "'",
+                reasoning: "Anti-patterns represent bad responses that should not be in examples",
+                impact_score: 30,
+                proposed_change: RefineVagueRule(
+                  behavior,
+                  "response.example",
+                  "Remove keys matching anti-pattern bad_example",
+                ),
               ),
-            ))
+            )
           }
 
           spec_linter.DuplicateBehavior(behavior1, behavior2, similarity) -> {
-            Ok(ImprovementSuggestion(
-              title: "Consolidate duplicate behaviors",
-              description: "Behaviors '"
-                <> behavior1
-                <> "' and '"
-                <> behavior2
-                <> "' are similar ("
-                <> similarity
-                <> ")",
-              reasoning: "Duplicate behaviors increase maintenance burden and reduce clarity",
-              impact_score: 25,
-              proposed_change: RefineVagueRule(
-                behavior1,
-                "consolidation",
-                "Merge with " <> behavior2 <> " or clarify differences",
+            Ok(
+              ImprovementSuggestion(
+                title: "Consolidate duplicate behaviors",
+                description: "Behaviors '" <> behavior1 <> "' and '" <> behavior2 <> "' are similar (" <> similarity <> ")",
+                reasoning: "Duplicate behaviors increase maintenance burden and reduce clarity",
+                impact_score: 25,
+                proposed_change: RefineVagueRule(
+                  behavior1,
+                  "consolidation",
+                  "Merge with " <> behavior2 <> " or clarify differences",
+                ),
               ),
-            ))
+            )
           }
         }
       })
@@ -384,8 +384,7 @@ pub fn format_improvements(suggestions: List(ImprovementSuggestion)) -> String {
         |> list.index_map(fn(suggestion, i) {
           let idx = i + 1
           let impact_bar = string.repeat("█", suggestion.impact_score / 10)
-          let impact_empty =
-            string.repeat("░", 10 - suggestion.impact_score / 10)
+          let impact_empty = string.repeat("░", 10 - suggestion.impact_score / 10)
 
           idx
           |> int.to_string
@@ -408,3 +407,5 @@ pub fn format_improvements(suggestions: List(ImprovementSuggestion)) -> String {
     }
   }
 }
+
+
