@@ -71,6 +71,19 @@ pub fn main() {
     False -> Nil
   }
 
+  // If no arguments or only flags provided, show help
+  let final_args = case args {
+    [] -> ["--help"]
+    args -> {
+      let has_command =
+        list.any(args, fn(arg) { !string.starts_with(arg, "-") })
+      case has_command {
+        True -> args
+        False -> list.append(args, ["--help"])
+      }
+    }
+  }
+
   glint.new()
   |> glint.with_name("intent")
   |> glint.with_pretty_help(glint.default_pretty_help())
@@ -116,7 +129,7 @@ pub fn main() {
   // Context scanning
   // TODO: Re-enable when context_scan_command is implemented
   // |> glint.add(at: ["context-scan"], do: context_scan_command())
-  |> glint.run(argv.load().arguments)
+  |> glint.run(final_args)
 }
 
 /// The `check` command - run spec against a target
@@ -971,12 +984,29 @@ fn interview_command() -> glint.Command(Nil) {
   })
   |> glint.description(
     "Guided specification discovery through structured interview\n\n"
-    <> "Examples:\n"
+    <> "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    <> "🤖 FOR AI AGENTS - NON-INTERACTIVE Q&A LOOP\n"
+    <> "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    <> "STEP 1: Start interview (outputs CUE with session.id + question):\n"
+    <> "   intent interview --cue=true --profile=api\n\n"
+    <> "STEP 2: Parse output, extract session.id and question.text\n\n"
+    <> "STEP 3: Submit answer (outputs next question OR completion):\n"
+    <> "   intent interview --cue=true \\\n"
+    <> "     --session=\"interview-XXXXX\" \\\n"
+    <> "     --answer=\"THE SYSTEM SHALL authenticate users via JWT\"\n\n"
+    <> "STEP 4: REPEAT steps 2-3 until action=\"interview_complete\"\n\n"
+    <> "Output format: CUE (structured, AI-parseable)\n"
+    <> "Fields: {action, question: {text, pattern, examples, hint}, progress, session}\n"
+    <> "Profiles: api|cli|event|data|workflow|ui\n"
+    <> "EARS: THE SYSTEM SHALL [x] | WHEN [event] THE SYSTEM SHALL [x] | ...\n\n"
+    <> "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    <> "Interactive mode (for humans):\n"
     <> "  intent interview\n"
-    <> "  intent interview --profile api\n"
-    <> "  intent interview --profile cli --export spec.cue\n"
-    <> "  intent interview --resume session-123\n"
-    <> "  intent interview --answers answers.json --export spec.cue",
+    <> "  intent interview --profile=api\n"
+    <> "  intent interview --profile=cli --export=spec.cue\n"
+    <> "  intent interview --resume=session-123\n\n"
+    <> "Pre-filled answers from file:\n"
+    <> "  intent interview --answers=answers.json --export=spec.cue",
   )
   |> glint.flag(
     "profile",
@@ -1019,21 +1049,23 @@ fn interview_command() -> glint.Command(Nil) {
     flag.bool()
       |> flag.default(False)
       |> flag.description(
-        "Output CUE directives for AI agents (non-interactive)",
+        "🤖 AI AGENT MODE - Output JSON (no interactive prompts). Use with --session + --answer for Q&A loop",
       ),
   )
   |> glint.flag(
     "session",
     flag.string()
       |> flag.default("")
-      |> flag.description("Session ID for CUE mode (use with --cue)"),
+      |> flag.description(
+        "🤖 Session ID from first response (use with --cue --answer)",
+      ),
   )
   |> glint.flag(
     "answer",
     flag.string()
       |> flag.default("")
       |> flag.description(
-        "Submit answer to current question (use with --cue --session)",
+        "🤖 Answer text in EARS format: 'THE SYSTEM SHALL...' (requires --cue --session)",
       ),
   )
 }
@@ -2582,9 +2614,7 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error(
-                          "✗ Failed to update session: " <> err,
-                        )
+                        io.println_error("✗ Failed to update session: " <> err)
                         halt(exit_error)
                       }
                     }
@@ -3320,9 +3350,7 @@ fn kirk_compact_command() -> glint.Command(Nil) {
                 let #(full, compact_tokens, savings) =
                   compact_format.compare_token_usage(spec)
                 io.println("")
-                io.println(
-                  "─────────────────────────────────────",
-                )
+                io.println("─────────────────────────────────────")
                 io.println("Token Analysis:")
                 io.println(
                   "  Full JSON:    ~" <> string.inspect(full) <> " tokens",
@@ -4048,9 +4076,7 @@ fn generate_contract_command() -> glint.Command(Nil) {
         io.println("Contract elements:")
         io.println("  • Preconditions - What must be true before execution")
         io.println("  • Postconditions - What must be true after execution")
-        io.println(
-          "  • Second-Order Effects - What happens after this action",
-        )
+        io.println("  • Second-Order Effects - What happens after this action")
         io.println("")
         io.println("Options:")
         io.println("  --json    Output as JSON instead of human-readable")
@@ -4237,9 +4263,7 @@ fn plan_structure_command() -> glint.Command(Nil) {
         io.println(
           "  • Epic: High-level grouping (e.g., Authentication System)",
         )
-        io.println(
-          "  • Feature: Cohesive set of behaviors (e.g., User Login)",
-        )
+        io.println("  • Feature: Cohesive set of behaviors (e.g., User Login)")
         io.println("  • Task: Individual implementable unit")
         io.println("")
         io.println(

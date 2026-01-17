@@ -11,6 +11,63 @@
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
 
+## 🤖 AI AGENT INTERVIEW MODE
+
+**FOR AI AGENTS**: Intent has a special CUE mode designed for AI agents to conduct requirements interviews non-interactively.
+
+### Quick Start for AI Agents
+
+**1. Start Interview (outputs JSON with session ID and first question):**
+```bash
+intent interview --cue --profile api
+```
+
+**2. Submit Answer (outputs JSON with next question or completion):**
+```bash
+intent interview --cue --session "interview-abc123" --answer "THE SYSTEM SHALL authenticate users via JWT tokens"
+```
+
+**3. Repeat step 2 until you receive `"action": "interview_complete"`**
+
+### Key Points
+- **Always use `--cue` flag** for AI-friendly JSON output
+- **Session ID** is provided in the first response - use it for all subsequent answers
+- **EARS format** - answers should follow patterns like "THE SYSTEM SHALL [behavior]"
+- **5 rounds** - interview progresses through discovery, refinement, and validation automatically
+- **Progress tracking** - each response includes `progress.current_step` and `progress.total_steps`
+
+### Example Response Format
+```json
+{
+  "action": "ask_question",
+  "question": {
+    "text": "In one sentence, what should this API do?",
+    "pattern": "ubiquitous",
+    "examples": ["THE SYSTEM SHALL provide user authentication"],
+    "hint": "Start with 'THE SYSTEM SHALL' and describe the core behavior"
+  },
+  "progress": {
+    "current_step": 1,
+    "total_steps": 25,
+    "percent_complete": 0
+  },
+  "session": {
+    "id": "interview-abc123",
+    "profile": "api"
+  }
+}
+```
+
+### Available Profiles
+- `api` - REST/HTTP APIs
+- `cli` - Command-line tools
+- `event` - Event-driven systems
+- `data` - Data systems
+- `workflow` - Business workflows
+- `ui` - User interfaces
+
+**Full documentation:** See `docs/AI_PROTOCOL_QUICKSTART.md` for complete details.
+
 ## Quick Reference
 
 ### Moon CI/CD (MANDATORY)
