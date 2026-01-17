@@ -12,9 +12,9 @@ import intent/spec_linter.{
 }
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
-  type Feature, type Request, type Response, type Spec, AIHints, AntiPattern,
-  Behavior, Check, Config, Feature, Get, ImplementationHints, Post, Request,
-  Response, SecurityHints, Spec,
+  type Request, type Response, type Spec, AIHints, AntiPattern, Behavior, Check,
+  Config, Feature, Get, ImplementationHints, Post, Request, Response,
+  SecurityHints, Spec,
 }
 
 // ============================================================================

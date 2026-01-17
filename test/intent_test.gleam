@@ -1892,7 +1892,6 @@ pub fn boolean_to_status_test() {
   let passed = True
   let status = case passed {
     True -> "PASS"
-    False -> "FAIL"
   }
 
   status |> should.equal("PASS")

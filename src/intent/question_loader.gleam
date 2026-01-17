@@ -1,6 +1,7 @@
 /// Question Loader
 /// Loads interview questions from CUE files at runtime
 /// Supports custom questions from .intent/custom-questions.cue
+import envoy
 import gleam/dynamic.{type Dynamic}
 import gleam/json
 import gleam/list
@@ -13,6 +14,7 @@ import intent/question_types.{
 }
 import intent/security
 import shellout
+import simplifile
 
 /// Error types for question loading
 pub type QuestionLoadError {
@@ -91,10 +93,42 @@ pub fn load_questions(
   }
 }
 
+/// Resolve the path to the schema directory
+/// Tries multiple locations in order:
+/// 1. ~/.local/share/intent/schema/ (installed location)
+/// 2. schema/ (local development)
+fn resolve_schema_path(filename: String) -> List(String) {
+  case envoy.get("HOME") {
+    Ok(home) -> {
+      let installed_path = home <> "/.local/share/intent/schema/" <> filename
+      // Try installed first, then local dev
+      [installed_path, "schema/" <> filename]
+    }
+    Error(_) -> ["schema/" <> filename]
+  }
+}
+
+/// Try loading questions from multiple paths
+fn try_load_from_paths(
+  paths: List(String),
+) -> Result(QuestionsDatabase, QuestionLoadError) {
+  case paths {
+    [] -> Error(FileNotFound("No schema paths available"))
+    [path, ..rest] ->
+      case load_questions(path) {
+        Ok(db) -> Ok(db)
+        Error(_) -> try_load_from_paths(rest)
+      }
+  }
+}
+
 /// Load questions from the default schema path, merging with custom questions
 pub fn load_default_questions() -> Result(QuestionsDatabase, QuestionLoadError) {
-  // Load built-in questions first
-  case load_questions("schema/questions.cue") {
+  // Resolve possible paths to questions.cue
+  let questions_paths = resolve_schema_path("questions.cue")
+
+  // Try loading built-in questions from available paths
+  case try_load_from_paths(questions_paths) {
     Ok(db) -> {
       // Try to load custom questions and merge them
       case load_custom_questions(custom_questions_path) {

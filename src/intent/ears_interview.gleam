@@ -273,11 +273,10 @@ pub fn advance_pattern(session: EarsSession) -> EarsSession {
     // Stay on Complex (interview complete)
   }
 
-  EarsSession(
-    ..session,
-    current_pattern: next_pattern,
-    completed_patterns: [session.current_pattern, ..session.completed_patterns],
-  )
+  EarsSession(..session, current_pattern: next_pattern, completed_patterns: [
+    session.current_pattern,
+    ..session.completed_patterns
+  ])
 }
 
 /// Check if the interview is complete

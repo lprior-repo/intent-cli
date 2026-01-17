@@ -114,12 +114,14 @@ const owasp_categories = [
     "A05",
     "Security Misconfiguration",
     ["default", "error", "stack", "verbose", "config"],
-  ), #("A06", "Vulnerable Components", ["version", "dependency", "library"]),
+  ),
+  #("A06", "Vulnerable Components", ["version", "dependency", "library"]),
   #(
     "A07",
     "Auth Failures",
     ["auth", "login", "session", "token", "jwt", "brute"],
-  ), #("A08", "Data Integrity", ["integrity", "serializ", "csrf", "tamper"]),
+  ),
+  #("A08", "Data Integrity", ["integrity", "serializ", "csrf", "tamper"]),
   #("A09", "Logging Failures", ["log", "audit", "monitor", "alert"]),
   #("A10", "SSRF", ["ssrf", "redirect", "url", "fetch", "request"]),
 ]
@@ -447,11 +449,7 @@ fn format_paths(paths: Dict(String, List(Method))) -> String {
     })
     |> string.join("\n")
 
-  "🛤️  Paths ("
-  <> int.to_string(dict.size(paths))
-  <> "):\n"
-  <> items
-  <> "\n\n"
+  "🛤️  Paths (" <> int.to_string(dict.size(paths)) <> "):\n" <> items <> "\n\n"
 }
 
 fn format_edge_cases(edge_cases: EdgeCaseCoverage) -> String {

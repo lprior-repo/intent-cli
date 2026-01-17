@@ -351,6 +351,80 @@ pub fn interpolation_error(
   )
 }
 
+/// Session directory creation error
+pub fn session_directory_error(path: String, reason: String) -> AiError {
+  AiError(
+    action: "session_error",
+    error_type: "directory_creation_failed",
+    message: "Failed to create session directory: " <> reason,
+    context: dict.from_list([#("path", path), #("reason", reason)]),
+    suggestion: "Ensure you have write permissions in the current directory",
+    recovery_steps: [
+      "Check directory permissions: ls -la .",
+      "Verify disk space: df -h",
+      "Try creating directory manually: mkdir -p " <> path,
+      "Check if parent directory exists and is writable",
+    ],
+  )
+}
+
+/// Session file write error
+pub fn session_file_write_error(path: String, reason: String) -> AiError {
+  AiError(
+    action: "session_error",
+    error_type: "file_write_failed",
+    message: "Failed to write session file: " <> reason,
+    context: dict.from_list([#("path", path), #("reason", reason)]),
+    suggestion: "Check file permissions and disk space",
+    recovery_steps: [
+      "Verify file permissions: ls -la " <> extract_directory(path),
+      "Check disk space: df -h",
+      "Ensure directory exists: mkdir -p " <> extract_directory(path),
+      "Try writing manually: echo 'test' > " <> path,
+    ],
+  )
+}
+
+/// Session file read error
+pub fn session_file_read_error(path: String, reason: String) -> AiError {
+  AiError(
+    action: "session_error",
+    error_type: "file_read_failed",
+    message: "Failed to read session file: " <> reason,
+    context: dict.from_list([#("path", path), #("reason", reason)]),
+    suggestion: "Verify the session file exists and is readable",
+    recovery_steps: [
+      "Check if file exists: ls -la " <> path,
+      "Verify file permissions: ls -la " <> path,
+      "Check file is not corrupted: cat " <> path,
+      "List all sessions: intent interview --list",
+    ],
+  )
+}
+
+/// Invalid JSONL format error
+pub fn invalid_jsonl_error(path: String, line_number: Int) -> AiError {
+  AiError(
+    action: "session_error",
+    error_type: "invalid_jsonl",
+    message: "Invalid JSONL format at line " <> string.inspect(line_number),
+    context: dict.from_list([
+      #("path", path),
+      #("line", string.inspect(line_number)),
+    ]),
+    suggestion: "Fix the JSONL syntax error in the session file",
+    recovery_steps: [
+      "View the problematic line: sed -n '"
+        <> string.inspect(line_number)
+        <> "p' "
+        <> path,
+      "Validate JSON syntax for that line",
+      "Backup and recreate the file if corrupted",
+      "Start a new interview session if recovery fails",
+    ],
+  )
+}
+
 // =============================================================================
 // Helper Functions
 // =============================================================================

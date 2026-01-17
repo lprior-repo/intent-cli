@@ -440,17 +440,13 @@ pub fn analyze_session(
   case all_analyses {
     Ok(analyses) ->
       Ok(
-        LatticeSession(
-          ..session,
-          analyses: analyses,
-          completed_models: [
-            Inversion,
-            SecondOrder,
-            PreMortem,
-            Checklist,
-            CircleOfCompetence,
-          ],
-        ),
+        LatticeSession(..session, analyses: analyses, completed_models: [
+          Inversion,
+          SecondOrder,
+          PreMortem,
+          Checklist,
+          CircleOfCompetence,
+        ]),
       )
     Error(err) -> Error(err)
   }

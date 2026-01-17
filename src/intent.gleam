@@ -12,6 +12,7 @@ import gleam/result
 import gleam/string
 import glint
 import glint/flag
+import intent/ai_errors
 import intent/answer_loader
 import intent/bd_integration
 import intent/bead_feedback
@@ -1643,13 +1644,26 @@ fn parse_profile(profile_str: String) -> Result(interview.Profile, String) {
   }
 }
 
-/// Output a CUE error directive
+/// Output a CUE error directive using AI-friendly error format
+fn output_cue_ai_error(error: ai_errors.AiError) -> Nil {
+  io.println(ai_errors.format_cue(error))
+}
+
+/// Legacy helper: convert string message to AI error
 fn output_cue_error(message: String) -> Nil {
-  io.println(
-    "{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \""
-    <> escape_cue_string(message)
-    <> "\"\n\t\tsuggestion: \"Check your input and try again\"\n\t\tretry_allowed: true\n\t}\n}",
-  )
+  let error =
+    ai_errors.AiError(
+      action: "validation_error",
+      error_type: "generic_error",
+      message: message,
+      context: dict.new(),
+      suggestion: "Check your input and try again",
+      recovery_steps: [
+        "Review the error message",
+        "Verify all required parameters are provided",
+      ],
+    )
+  output_cue_ai_error(error)
 }
 
 /// Start a new interview session in CUE mode
@@ -1677,7 +1691,10 @@ fn run_interview_cue_start(profile: interview.Profile) -> Nil {
       }
     }
     Error(err) -> {
-      output_cue_error("Failed to save session: " <> err)
+      output_cue_ai_error(ai_errors.session_file_write_error(
+        ".interview/sessions.jsonl",
+        err,
+      ))
       halt(exit_error)
     }
   }
@@ -1691,8 +1708,11 @@ fn run_interview_cue_resume(session_id: String) -> Nil {
       session_id,
     )
   {
-    Error(err) -> {
-      output_cue_error("Session not found: " <> err)
+    Error(_) -> {
+      output_cue_ai_error(ai_errors.session_not_found(
+        session_id,
+        ".interview/sessions.jsonl",
+      ))
       halt(exit_error)
     }
     Ok(session) -> {
@@ -1761,8 +1781,11 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
       session_id,
     )
   {
-    Error(err) -> {
-      output_cue_error("Session not found: " <> err)
+    Error(_) -> {
+      output_cue_ai_error(ai_errors.session_not_found(
+        session_id,
+        ".interview/sessions.jsonl",
+      ))
       halt(exit_error)
     }
     Ok(session) -> {
@@ -1833,7 +1856,10 @@ fn run_interview_cue_answer(session_id: String, answer_text: String) -> Nil {
                 )
               {
                 Error(err) -> {
-                  output_cue_error("Failed to save session: " <> err)
+                  output_cue_ai_error(ai_errors.session_file_write_error(
+                    ".interview/sessions.jsonl",
+                    err,
+                  ))
                   halt(exit_error)
                 }
                 Ok(_) -> {
