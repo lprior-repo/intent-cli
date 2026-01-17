@@ -989,7 +989,7 @@ pub fn rules_engine_check_when_status_equals_test() {
     types.Rule(
       name: "Check 200 OK",
       description: "Verify 200 response",
-      when: types.When(status: "== 200", method: types.Get, path: "/users"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/users"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -998,7 +998,7 @@ pub fn rules_engine_check_when_status_equals_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response = make_execution_result(200, "ok", types.Get, "/users")
@@ -1019,7 +1019,7 @@ pub fn rules_engine_check_when_status_greater_than_test() {
     types.Rule(
       name: "Check 4xx error",
       description: "Verify error status",
-      when: types.When(status: "> 399", method: types.Post, path: "/create"),
+      when: option.Some(types.When(status: option.Some("> 399"), method: option.Some(types.Post), path: option.Some("/create"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1028,7 +1028,7 @@ pub fn rules_engine_check_when_status_greater_than_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1050,7 +1050,7 @@ pub fn rules_engine_check_when_status_less_than_test() {
     types.Rule(
       name: "Check success range",
       description: "Verify 2xx status",
-      when: types.When(status: "< 300", method: types.Get, path: "/data"),
+      when: option.Some(types.When(status: option.Some("< 300"), method: option.Some(types.Get), path: option.Some("/data"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1059,7 +1059,7 @@ pub fn rules_engine_check_when_status_less_than_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response = make_execution_result(201, "created", types.Get, "/data")
@@ -1077,7 +1077,7 @@ pub fn rules_engine_check_when_method_mismatch_test() {
     types.Rule(
       name: "POST rule",
       description: "Only for POST",
-      when: types.When(status: "== 200", method: types.Post, path: "/create"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Post), path: option.Some("/create"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1086,7 +1086,7 @@ pub fn rules_engine_check_when_method_mismatch_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response = make_execution_result(200, "ok", types.Get, "/create")
@@ -1103,7 +1103,7 @@ pub fn rules_engine_check_when_path_exact_match_test() {
     types.Rule(
       name: "Exact path rule",
       description: "Check exact path",
-      when: types.When(status: "== 200", method: types.Get, path: "/exact/path"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/exact/path"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1112,7 +1112,7 @@ pub fn rules_engine_check_when_path_exact_match_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response = make_execution_result(200, "ok", types.Get, "/exact/path")
@@ -1130,7 +1130,7 @@ pub fn rules_engine_check_when_path_regex_match_test() {
     types.Rule(
       name: "Regex path rule",
       description: "Check regex path",
-      when: types.When(status: "== 200", method: types.Get, path: "^/users/.*"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("^/users/.*"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1139,7 +1139,7 @@ pub fn rules_engine_check_when_path_regex_match_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response = make_execution_result(200, "ok", types.Get, "/users/123")
@@ -1157,7 +1157,7 @@ pub fn rules_engine_check_body_must_contain_test() {
     types.Rule(
       name: "Body content rule",
       description: "Verify body contains text",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: ["success"],
@@ -1166,7 +1166,7 @@ pub fn rules_engine_check_body_must_contain_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1185,7 +1185,7 @@ pub fn rules_engine_check_body_must_not_contain_test() {
     types.Rule(
       name: "No error rule",
       description: "Verify no error in body",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
       check: types.RuleCheck(
         body_must_not_contain: ["error"],
         body_must_contain: [],
@@ -1194,7 +1194,7 @@ pub fn rules_engine_check_body_must_not_contain_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1213,7 +1213,7 @@ pub fn rules_engine_check_body_must_not_contain_violation_test() {
     types.Rule(
       name: "No error rule",
       description: "Verify no error in body",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
       check: types.RuleCheck(
         body_must_not_contain: ["error"],
         body_must_contain: [],
@@ -1222,7 +1222,7 @@ pub fn rules_engine_check_body_must_not_contain_violation_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1244,7 +1244,7 @@ pub fn rules_engine_check_body_must_contain_violation_test() {
     types.Rule(
       name: "Required text rule",
       description: "Verify required text",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: ["required"],
@@ -1253,7 +1253,7 @@ pub fn rules_engine_check_body_must_contain_violation_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1274,7 +1274,7 @@ pub fn rules_engine_check_multiple_rules_test() {
     types.Rule(
       name: "Rule 1",
       description: "First rule",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1283,14 +1283,14 @@ pub fn rules_engine_check_multiple_rules_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let rule2 =
     types.Rule(
       name: "Rule 2",
       description: "Second rule",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1299,7 +1299,7 @@ pub fn rules_engine_check_multiple_rules_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response = make_execution_result(200, "ok", types.Get, "/test")
@@ -1429,11 +1429,11 @@ pub fn rules_engine_empty_body_test() {
     types.Rule(
       name: "Empty body rule",
       description: "Handle empty response",
-      when: types.When(
-        status: "== 204",
-        method: types.Delete,
-        path: "/resource",
-      ),
+      when: option.Some(types.When(
+        status: option.Some("== 204"),
+        method: option.Some(types.Delete),
+        path: option.Some("/resource"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1442,7 +1442,7 @@ pub fn rules_engine_empty_body_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1469,7 +1469,7 @@ pub fn rules_engine_null_json_value_test() {
     types.Rule(
       name: "Null handling rule",
       description: "Handle null values",
-      when: types.When(status: "== 200", method: types.Get, path: "/nullable"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/nullable"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1478,7 +1478,7 @@ pub fn rules_engine_null_json_value_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1505,7 +1505,7 @@ pub fn rules_engine_whitespace_body_test() {
     types.Rule(
       name: "Whitespace rule",
       description: "Handle whitespace body",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
       check: types.RuleCheck(
         body_must_not_contain: ["error"],
         body_must_contain: [],
@@ -1514,7 +1514,7 @@ pub fn rules_engine_whitespace_body_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1541,7 +1541,7 @@ pub fn rules_engine_nested_null_field_test() {
     types.Rule(
       name: "Nested null rule",
       description: "Check nested fields",
-      when: types.When(status: "== 200", method: types.Get, path: "/nested"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/nested"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1550,7 +1550,7 @@ pub fn rules_engine_nested_null_field_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1577,7 +1577,7 @@ pub fn rules_engine_empty_object_test() {
     types.Rule(
       name: "Empty object rule",
       description: "Handle empty objects",
-      when: types.When(status: "== 200", method: types.Get, path: "/data"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/data"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1586,7 +1586,7 @@ pub fn rules_engine_empty_object_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1643,7 +1643,7 @@ pub fn rules_engine_unicode_body_content_test() {
     types.Rule(
       name: "Unicode content rule",
       description: "Check for Unicode in response",
-      when: types.When(status: "== 200", method: types.Get, path: "/message"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/message"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: ["✓"],
@@ -1652,7 +1652,7 @@ pub fn rules_engine_unicode_body_content_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =
@@ -1679,7 +1679,7 @@ pub fn rules_engine_emoji_in_description_test() {
     types.Rule(
       name: "emoji_test",
       description: "Check emoji support 🚀 in descriptions",
-      when: types.When(status: "== 200", method: types.Get, path: "/status"),
+      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/status"))),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1688,7 +1688,7 @@ pub fn rules_engine_emoji_in_description_test() {
         header_must_exist: "",
         header_must_not_exist: "",
       ),
-      example: json.null(),
+      example: option.Some(json.null()),
     )
 
   let response =

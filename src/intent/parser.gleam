@@ -213,44 +213,42 @@ fn parse_rule(data: Dynamic) -> Result(Rule, List(DecodeError)) {
   use description <- result.try(dynamic.field("description", dynamic.string)(
     data,
   ))
-  use when <- result.try(dynamic.field("when", parse_when)(data))
+  use when <- result.try(dynamic.optional_field("when", parse_when)(data))
   use check <- result.try(dynamic.field("check", parse_rule_check)(data))
-  use example <- result.try(dynamic.field("example", parse_json_value)(data))
+  use example <- result.try(dynamic.optional_field("example", parse_json_value)(
+    data,
+  ))
   Ok(Rule(name, description, when, check, example))
 }
 
 fn parse_when(data: Dynamic) -> Result(When, List(DecodeError)) {
-  use status <- result.try(dynamic.field("status", dynamic.string)(data))
-  use method <- result.try(dynamic.field("method", parse_method)(data))
-  use path <- result.try(dynamic.field("path", dynamic.string)(data))
+  use status <- result.try(dynamic.optional_field("status", dynamic.string)(
+    data,
+  ))
+  use method <- result.try(dynamic.optional_field("method", parse_method)(data))
+  use path <- result.try(dynamic.optional_field("path", dynamic.string)(data))
   Ok(When(status, method, path))
 }
 
 fn parse_rule_check(data: Dynamic) -> Result(RuleCheck, List(DecodeError)) {
-  use body_must_not_contain <- result.try(dynamic.field(
-    "body_must_not_contain",
-    dynamic.list(dynamic.string),
-  )(data))
-  use body_must_contain <- result.try(dynamic.field(
-    "body_must_contain",
-    dynamic.list(dynamic.string),
-  )(data))
-  use fields_must_exist <- result.try(dynamic.field(
-    "fields_must_exist",
-    dynamic.list(dynamic.string),
-  )(data))
-  use fields_must_not_exist <- result.try(dynamic.field(
-    "fields_must_not_exist",
-    dynamic.list(dynamic.string),
-  )(data))
-  use header_must_exist <- result.try(dynamic.field(
-    "header_must_exist",
-    dynamic.string,
-  )(data))
-  use header_must_not_exist <- result.try(dynamic.field(
-    "header_must_not_exist",
-    dynamic.string,
-  )(data))
+  let body_must_not_contain =
+    dynamic.field("body_must_not_contain", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  let body_must_contain =
+    dynamic.field("body_must_contain", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  let fields_must_exist =
+    dynamic.field("fields_must_exist", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  let fields_must_not_exist =
+    dynamic.field("fields_must_not_exist", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  let header_must_exist =
+    dynamic.field("header_must_exist", dynamic.string)(data)
+    |> result.unwrap("")
+  let header_must_not_exist =
+    dynamic.field("header_must_not_exist", dynamic.string)(data)
+    |> result.unwrap("")
   Ok(RuleCheck(
     body_must_not_contain,
     body_must_contain,
