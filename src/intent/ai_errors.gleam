@@ -5,7 +5,6 @@
 /// - Machine-parseable context
 /// - Actionable recovery steps
 /// - Retry guidance
-
 import gleam/dict.{type Dict}
 import gleam/io
 import gleam/json.{type Json}
@@ -361,7 +360,11 @@ pub fn to_json(error: StructuredError) -> Json {
 
 /// Format error as human-readable text
 pub fn format_text(error: StructuredError) -> String {
-  let header = "Error: " <> error.message
+  let header =
+    "Error (exit code "
+    <> string.inspect(error.exit_code)
+    <> "): "
+    <> error.message
   let suggestion_text = "\nSuggestion: " <> error.suggestion
   let recovery_text =
     "\nRecovery Steps:\n"
