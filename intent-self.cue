@@ -35,11 +35,13 @@ spec: {
 						path:   "/validate/valid"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
 						example: null
 						checks:  {}
+						headers: {}
 					}
 					notes:    "Returns 200 when spec is valid"
 					requires: []
@@ -54,11 +56,13 @@ spec: {
 						path:   "/validate/invalid"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  400
 						example: null
 						checks:  {}
+						headers: {}
 					}
 					notes:    "Returns 400 when spec has validation errors"
 					requires: []
@@ -79,6 +83,7 @@ spec: {
 						path:   "/spec/parse"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
@@ -89,6 +94,7 @@ spec: {
 								why:  "Specs must be parseable for validation and execution"
 							}
 						}
+						headers: {}
 					}
 					notes:    "Exports spec to JSON representation"
 					requires: []
@@ -109,6 +115,7 @@ spec: {
 						path:   "/execute"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
@@ -119,6 +126,7 @@ spec: {
 								why:  "Should execute and return results for each behavior"
 							}
 						}
+						headers: {}
 					}
 					notes:    "Runs behaviors in dependency order"
 					requires: []
@@ -133,6 +141,7 @@ spec: {
 						path:   "/execute/unreachable"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  503
@@ -143,6 +152,7 @@ spec: {
 								why:  "Should report connection failures clearly"
 							}
 						}
+						headers: {}
 					}
 					notes:    "Timeout or connection errors should fail gracefully"
 					requires: []
@@ -157,11 +167,13 @@ spec: {
 						path:   "/execute/filtered"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
 						example: null
 						checks:  {}
+						headers: {}
 					}
 					notes:    "Supports feature and behavior filtering"
 					requires: ["execute_behaviors"]
@@ -182,11 +194,13 @@ spec: {
 						path:   "/output/text"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
 						example: null
 						checks:  {}
+						headers: {}
 					}
 					notes:    "Pretty-printed text output for CLI"
 					requires: []
@@ -201,6 +215,7 @@ spec: {
 						path:   "/output/json"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
@@ -211,6 +226,7 @@ spec: {
 								why:  "JSON output enables integration with other tools"
 							}
 						}
+						headers: {}
 					}
 					notes:    "Structured JSON for programmatic access"
 					requires: ["output_human_readable"]
@@ -231,6 +247,7 @@ spec: {
 						path:   "/quality/score"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
@@ -241,6 +258,7 @@ spec: {
 								why:  "Quality metrics must be meaningful and quantifiable"
 							}
 						}
+						headers: {}
 					}
 					notes:    "Scores coverage, clarity, testability, AI readiness"
 					requires: []
@@ -255,11 +273,13 @@ spec: {
 						path:   "/quality/lint"
 						headers: {}
 						query:   {}
+						body:    null
 					}
 					response: {
 						status:  200
 						example: null
 						checks:  {}
+						headers: {}
 					}
 					notes:    "Detects naming, documentation, and structure issues"
 					requires: []
