@@ -13,12 +13,20 @@ import intent/output_mode.{type OutputMode}
 pub fn print_header(title: String, mode: OutputMode) {
   case output_mode.is_interactive(mode) {
     True -> {
-  io.println("")
-  io.println(ansi.bold(ansi.cyan("═══════════════════════════════════════════════════════════════════")))
-  io.println(ansi.bold(ansi.cyan(title)))
-  io.println(ansi.bold(ansi.cyan("═══════════════════════════════════════════════════════════════════")))
-  io.println("")
-}
+      io.println("")
+      io.println(
+        ansi.bold(ansi.cyan(
+          "═══════════════════════════════════════════════════════════════════",
+        )),
+      )
+      io.println(ansi.bold(ansi.cyan(title)))
+      io.println(
+        ansi.bold(ansi.cyan(
+          "═══════════════════════════════════════════════════════════════════",
+        )),
+      )
+      io.println("")
+    }
     False -> Nil
   }
 }
@@ -74,12 +82,12 @@ pub fn print_labeled(label: String, value: String, mode: OutputMode) {
 pub fn print_list_item(item: String, indent: Int, mode: OutputMode) {
   case output_mode.is_interactive(mode) {
     True -> {
-  let padding = case indent {
-    0 -> ""
-    n -> string.repeat(" ", n * 2)
-  }
-  io.println(padding <> "• " <> item)
-}
+      let padding = case indent {
+        0 -> ""
+        n -> string.repeat(" ", n * 2)
+      }
+      io.println(padding <> "• " <> item)
+    }
     False -> Nil
   }
 }

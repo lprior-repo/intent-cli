@@ -108,8 +108,10 @@ pub fn dynamic_to_json_dict_multiple_entries_test() {
   let dyn = dynamic.from(dict_val)
   let json_result = parser.dynamic_to_json(dyn)
   let json_str = json.to_string(json_result)
-  {string.contains(json_str, "\"name\"")
-  && string.contains(json_str, "\"Alice\"")}
+  {
+    string.contains(json_str, "\"name\"")
+    && string.contains(json_str, "\"Alice\"")
+  }
   |> should.be_true
 }
 
@@ -127,8 +129,10 @@ pub fn dynamic_to_json_nested_dict_test() {
   let dyn = dynamic.from(outer_dict)
   let json_result = parser.dynamic_to_json(dyn)
   let json_str = json.to_string(json_result)
-  {string.contains(json_str, "\"outer_key\"")
-  && string.contains(json_str, "\"inner_key\"")}
+  {
+    string.contains(json_str, "\"outer_key\"")
+    && string.contains(json_str, "\"inner_key\"")
+  }
   |> should.be_true
 }
 
@@ -283,7 +287,8 @@ pub fn parse_spec_behavior_path_test() {
       case spec.features {
         [feature, ..] -> {
           case feature.behaviors {
-            [behavior, ..] -> behavior.request.path |> should.equal("/api/users")
+            [behavior, ..] ->
+              behavior.request.path |> should.equal("/api/users")
             _ -> should.fail()
           }
         }
@@ -342,8 +347,7 @@ pub fn parse_spec_rule_name_test() {
   case parser.parse_spec(dynamic.from(minimal_spec_data("GET"))) {
     Ok(spec) -> {
       case spec.rules {
-        [rule, ..] ->
-          rule.name |> should.equal("Always Include Auth Header")
+        [rule, ..] -> rule.name |> should.equal("Always Include Auth Header")
         _ -> should.fail()
       }
     }
@@ -362,8 +366,7 @@ pub fn parse_spec_anti_pattern_name_test() {
   case parser.parse_spec(dynamic.from(minimal_spec_data("GET"))) {
     Ok(spec) -> {
       case spec.anti_patterns {
-        [pattern, ..] ->
-          pattern.name |> should.equal("Missing Error Handling")
+        [pattern, ..] -> pattern.name |> should.equal("Missing Error Handling")
         _ -> should.fail()
       }
     }
@@ -386,54 +389,62 @@ pub fn parse_spec_ai_hints_stack_length_test() {
 // ============================================================================
 
 pub fn parse_spec_missing_name_test() {
-  let spec_data = dict.from_list([
-    #("description", dynamic.from("Test")),
-    #("audience", dynamic.from("Test")),
-    #("version", dynamic.from("1.0.0")),
-    #("success_criteria", dynamic.from([])),
-    #("config", dynamic.from(dict.new())),
-    #("features", dynamic.from([])),
-    #("rules", dynamic.from([])),
-    #("anti_patterns", dynamic.from([])),
-    #("ai_hints", dynamic.from(dict.new())),
-  ])
+  let spec_data =
+    dict.from_list([
+      #("description", dynamic.from("Test")),
+      #("audience", dynamic.from("Test")),
+      #("version", dynamic.from("1.0.0")),
+      #("success_criteria", dynamic.from([])),
+      #("config", dynamic.from(dict.new())),
+      #("features", dynamic.from([])),
+      #("rules", dynamic.from([])),
+      #("anti_patterns", dynamic.from([])),
+      #("ai_hints", dynamic.from(dict.new())),
+    ])
   parser.parse_spec(dynamic.from(spec_data))
   |> should.be_error
 }
 
 pub fn parse_spec_missing_description_test() {
-  let spec_data = dict.from_list([
-    #("name", dynamic.from("Test")),
-    #("audience", dynamic.from("Test")),
-    #("version", dynamic.from("1.0.0")),
-    #("success_criteria", dynamic.from([])),
-    #("config", dynamic.from(dict.new())),
-    #("features", dynamic.from([])),
-    #("rules", dynamic.from([])),
-    #("anti_patterns", dynamic.from([])),
-    #("ai_hints", dynamic.from(dict.new())),
-  ])
+  let spec_data =
+    dict.from_list([
+      #("name", dynamic.from("Test")),
+      #("audience", dynamic.from("Test")),
+      #("version", dynamic.from("1.0.0")),
+      #("success_criteria", dynamic.from([])),
+      #("config", dynamic.from(dict.new())),
+      #("features", dynamic.from([])),
+      #("rules", dynamic.from([])),
+      #("anti_patterns", dynamic.from([])),
+      #("ai_hints", dynamic.from(dict.new())),
+    ])
   parser.parse_spec(dynamic.from(spec_data))
   |> should.be_error
 }
 
 pub fn parse_spec_wrong_type_timeout_test() {
-  let spec_data = dict.from_list([
-    #("name", dynamic.from("Test")),
-    #("description", dynamic.from("Test")),
-    #("audience", dynamic.from("Test")),
-    #("version", dynamic.from("1.0.0")),
-    #("success_criteria", dynamic.from([])),
-    #("config", dynamic.from(dict.from_list([
-      #("base_url", dynamic.from("http://localhost")),
-      #("timeout_ms", dynamic.from("5000")),
-      #("headers", dynamic.from(dict.new())),
-    ]))),
-    #("features", dynamic.from([])),
-    #("rules", dynamic.from([])),
-    #("anti_patterns", dynamic.from([])),
-    #("ai_hints", dynamic.from(dict.new())),
-  ])
+  let spec_data =
+    dict.from_list([
+      #("name", dynamic.from("Test")),
+      #("description", dynamic.from("Test")),
+      #("audience", dynamic.from("Test")),
+      #("version", dynamic.from("1.0.0")),
+      #("success_criteria", dynamic.from([])),
+      #(
+        "config",
+        dynamic.from(
+          dict.from_list([
+            #("base_url", dynamic.from("http://localhost")),
+            #("timeout_ms", dynamic.from("5000")),
+            #("headers", dynamic.from(dict.new())),
+          ]),
+        ),
+      ),
+      #("features", dynamic.from([])),
+      #("rules", dynamic.from([])),
+      #("anti_patterns", dynamic.from([])),
+      #("ai_hints", dynamic.from(dict.new())),
+    ])
   parser.parse_spec(dynamic.from(spec_data))
   |> should.be_error
 }
@@ -449,77 +460,153 @@ fn minimal_spec_data(method: String) {
     #("audience", dynamic.from("Test Audience")),
     #("version", dynamic.from("1.0.0")),
     #("success_criteria", dynamic.from(["Criterion 1", "Criterion 2"])),
-    #("config", dynamic.from(dict.from_list([
-      #("base_url", dynamic.from("http://localhost:8080")),
-      #("timeout_ms", dynamic.from(5000)),
-      #("headers", dynamic.from(dict.from_list([
-        #("Authorization", dynamic.from("Bearer token123")),
-      ]))),
-    ]))),
-    #("features", dynamic.from([dict.from_list([
-      #("name", dynamic.from("User Management")),
-      #("description", dynamic.from("User management features")),
-      #("behaviors", dynamic.from([dict.from_list([
-        #("name", dynamic.from("Get User")),
-        #("intent", dynamic.from("Retrieve user details")),
-        #("notes", dynamic.from("")),
-        #("requires", dynamic.from([])),
-        #("tags", dynamic.from(["read"])),
-        #("request", dynamic.from(dict.from_list([
-          #("method", dynamic.from(method)),
-          #("path", dynamic.from("/api/users")),
-          #("headers", dynamic.from(dict.from_list([
-            #("Content-Type", dynamic.from("application/json")),
-          ]))),
-          #("query", dynamic.from(dict.from_list([]))),
-          #("body", dynamic.from(json.null())),
-        ]))),
-        #("response", dynamic.from(dict.from_list([
-          #("status", dynamic.from(200)),
+    #(
+      "config",
+      dynamic.from(
+        dict.from_list([
+          #("base_url", dynamic.from("http://localhost:8080")),
+          #("timeout_ms", dynamic.from(5000)),
+          #(
+            "headers",
+            dynamic.from(
+              dict.from_list([
+                #("Authorization", dynamic.from("Bearer token123")),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    ),
+    #(
+      "features",
+      dynamic.from([
+        dict.from_list([
+          #("name", dynamic.from("User Management")),
+          #("description", dynamic.from("User management features")),
+          #(
+            "behaviors",
+            dynamic.from([
+              dict.from_list([
+                #("name", dynamic.from("Get User")),
+                #("intent", dynamic.from("Retrieve user details")),
+                #("notes", dynamic.from("")),
+                #("requires", dynamic.from([])),
+                #("tags", dynamic.from(["read"])),
+                #(
+                  "request",
+                  dynamic.from(
+                    dict.from_list([
+                      #("method", dynamic.from(method)),
+                      #("path", dynamic.from("/api/users")),
+                      #(
+                        "headers",
+                        dynamic.from(
+                          dict.from_list([
+                            #("Content-Type", dynamic.from("application/json")),
+                          ]),
+                        ),
+                      ),
+                      #("query", dynamic.from(dict.from_list([]))),
+                      #("body", dynamic.from(json.null())),
+                    ]),
+                  ),
+                ),
+                #(
+                  "response",
+                  dynamic.from(
+                    dict.from_list([
+                      #("status", dynamic.from(200)),
+                      #("example", dynamic.from(json.null())),
+                      #("checks", dynamic.from(dict.from_list([]))),
+                      #("headers", dynamic.from(dict.from_list([]))),
+                    ]),
+                  ),
+                ),
+                #("captures", dynamic.from(dict.from_list([]))),
+              ]),
+            ]),
+          ),
+        ]),
+      ]),
+    ),
+    #(
+      "rules",
+      dynamic.from([
+        dict.from_list([
+          #("name", dynamic.from("Always Include Auth Header")),
+          #(
+            "description",
+            dynamic.from("All requests must include Authorization"),
+          ),
+          #(
+            "when",
+            dynamic.from(
+              dict.from_list([
+                #("status", dynamic.from("2xx")),
+                #("method", dynamic.from("GET")),
+                #("path", dynamic.from("/api/*")),
+              ]),
+            ),
+          ),
+          #(
+            "check",
+            dynamic.from(
+              dict.from_list([
+                #("body_must_not_contain", dynamic.from([])),
+                #("body_must_contain", dynamic.from([])),
+                #("fields_must_exist", dynamic.from([])),
+                #("fields_must_not_exist", dynamic.from([])),
+                #("header_must_exist", dynamic.from("Authorization")),
+                #("header_must_not_exist", dynamic.from("")),
+              ]),
+            ),
+          ),
           #("example", dynamic.from(json.null())),
-          #("checks", dynamic.from(dict.from_list([]))),
-          #("headers", dynamic.from(dict.from_list([]))),
-        ]))),
-        #("captures", dynamic.from(dict.from_list([]))),
-      ])])),
-    ])])),
-    #("rules", dynamic.from([dict.from_list([
-      #("name", dynamic.from("Always Include Auth Header")),
-      #("description", dynamic.from("All requests must include Authorization")),
-      #("when", dynamic.from(dict.from_list([
-        #("status", dynamic.from("2xx")),
-        #("method", dynamic.from("GET")),
-        #("path", dynamic.from("/api/*")),
-      ]))),
-      #("check", dynamic.from(dict.from_list([
-        #("body_must_not_contain", dynamic.from([])),
-        #("body_must_contain", dynamic.from([])),
-        #("fields_must_exist", dynamic.from([])),
-        #("fields_must_not_exist", dynamic.from([])),
-        #("header_must_exist", dynamic.from("Authorization")),
-        #("header_must_not_exist", dynamic.from("")),
-      ]))),
-      #("example", dynamic.from(json.null())),
-    ])])),
-    #("anti_patterns", dynamic.from([dict.from_list([
-      #("name", dynamic.from("Missing Error Handling")),
-      #("description", dynamic.from("Endpoints should handle errors gracefully")),
-      #("bad_example", dynamic.from(json.null())),
-      #("good_example", dynamic.from(json.null())),
-      #("why", dynamic.from("Error handling is critical")),
-    ])])),
-    #("ai_hints", dynamic.from(dict.from_list([
-      #("implementation", dynamic.from(dict.from_list([
-        #("suggested_stack", dynamic.from(["Node.js", "Express"])),
-      ]))),
-      #("entities", dynamic.from(dict.from_list([]))),
-      #("security", dynamic.from(dict.from_list([
-        #("password_hashing", dynamic.from("bcrypt")),
-        #("jwt_algorithm", dynamic.from("HS256")),
-        #("jwt_expiry", dynamic.from("24h")),
-        #("rate_limiting", dynamic.from("100 per minute")),
-      ]))),
-      #("pitfalls", dynamic.from([])),
-    ]))),
+        ]),
+      ]),
+    ),
+    #(
+      "anti_patterns",
+      dynamic.from([
+        dict.from_list([
+          #("name", dynamic.from("Missing Error Handling")),
+          #(
+            "description",
+            dynamic.from("Endpoints should handle errors gracefully"),
+          ),
+          #("bad_example", dynamic.from(json.null())),
+          #("good_example", dynamic.from(json.null())),
+          #("why", dynamic.from("Error handling is critical")),
+        ]),
+      ]),
+    ),
+    #(
+      "ai_hints",
+      dynamic.from(
+        dict.from_list([
+          #(
+            "implementation",
+            dynamic.from(
+              dict.from_list([
+                #("suggested_stack", dynamic.from(["Node.js", "Express"])),
+              ]),
+            ),
+          ),
+          #("entities", dynamic.from(dict.from_list([]))),
+          #(
+            "security",
+            dynamic.from(
+              dict.from_list([
+                #("password_hashing", dynamic.from("bcrypt")),
+                #("jwt_algorithm", dynamic.from("HS256")),
+                #("jwt_expiry", dynamic.from("24h")),
+                #("rate_limiting", dynamic.from("100 per minute")),
+              ]),
+            ),
+          ),
+          #("pitfalls", dynamic.from([])),
+        ]),
+      ),
+    ),
   ])
 }

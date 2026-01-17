@@ -1,7 +1,6 @@
 /// Variable interpolation for captured values
 /// Handles ${variable} syntax in strings
 /// Supports array indexing: ${items[0].id}, ${array[-1]}, etc.
-
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/int
@@ -93,11 +92,22 @@ fn interpolate_matches_with_depth(
           case list.contains(visited, var_path) {
             True -> Error("Circular variable reference detected: " <> var_path)
             False -> {
-              case resolve_path_with_depth(ctx, var_path, depth + 1, [var_path, ..visited]) {
+              case
+                resolve_path_with_depth(ctx, var_path, depth + 1, [
+                  var_path,
+                  ..visited
+                ])
+              {
                 Ok(value) -> {
                   let value_str = json_to_string(value)
                   let new_s = string.replace(s, match.content, value_str)
-                  interpolate_matches_with_depth(ctx, new_s, rest, depth, visited)
+                  interpolate_matches_with_depth(
+                    ctx,
+                    new_s,
+                    rest,
+                    depth,
+                    visited,
+                  )
                 }
                 Error(e) -> Error(e)
               }
@@ -121,7 +131,9 @@ fn resolve_path_with_depth(
     Ok(value) -> {
       // If the value is a string, try to interpolate it recursively
       let value_str = json.to_string(value)
-      case string.starts_with(value_str, "\"") && string.contains(value_str, "${") {
+      case
+        string.starts_with(value_str, "\"") && string.contains(value_str, "${")
+      {
         True -> {
           // It's a JSON string that might contain variables
           // Remove quotes and interpolate
@@ -223,16 +235,24 @@ fn get_array_element_from_json(json: Json, index: Int) -> Result(Json, String) {
         }
         Error(_) ->
           Error(
-            "Array index " <> int.to_string(index) <> " out of bounds (length: " <> int.to_string(list.length(lst)) <> ")",
+            "Array index "
+            <> int.to_string(index)
+            <> " out of bounds (length: "
+            <> int.to_string(list.length(lst))
+            <> ")",
           )
       }
     }
-    Error(_) -> Error("Cannot index non-array with [" <> int.to_string(index) <> "]")
+    Error(_) ->
+      Error("Cannot index non-array with [" <> int.to_string(index) <> "]")
   }
 }
 
 /// Get array element by negative index from JSON
-fn get_array_element_last_from_json(json: Json, from_end: Int) -> Result(Json, String) {
+fn get_array_element_last_from_json(
+  json: Json,
+  from_end: Int,
+) -> Result(Json, String) {
   let json_str = json.to_string(json)
   case json.decode(json_str, dynamic.list(dynamic.dynamic)) {
     Ok(lst) -> {
@@ -241,7 +261,11 @@ fn get_array_element_last_from_json(json: Json, from_end: Int) -> Result(Json, S
       case actual_index >= 0 && actual_index < length {
         False ->
           Error(
-            "Array index -" <> int.to_string(from_end) <> " out of bounds (length: " <> int.to_string(length) <> ")",
+            "Array index -"
+            <> int.to_string(from_end)
+            <> " out of bounds (length: "
+            <> int.to_string(length)
+            <> ")",
           )
         True -> {
           case list.drop(lst, actual_index) |> list.first {

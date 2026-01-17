@@ -103,7 +103,11 @@ pub fn make_test_behavior_with_status(
 
 /// Create a feature from a list of behaviors
 pub fn make_test_feature(name: String, behaviors: List(Behavior)) -> Feature {
-  Feature(name: name, description: "Test feature: " <> name, behaviors: behaviors)
+  Feature(
+    name: name,
+    description: "Test feature: " <> name,
+    behaviors: behaviors,
+  )
 }
 
 // ============================================================================

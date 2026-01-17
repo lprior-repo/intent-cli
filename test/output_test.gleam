@@ -258,11 +258,9 @@ pub fn spec_result_to_json_with_failures_test() {
 
 pub fn spec_result_to_json_with_blocked_test() {
   let result =
-    output.SpecResult(
-      ..make_passing_result(),
-      blocked: 1,
-      blocked_behaviors: [make_blocked_behavior()],
-    )
+    output.SpecResult(..make_passing_result(), blocked: 1, blocked_behaviors: [
+      make_blocked_behavior(),
+    ])
 
   let json_output = output.spec_result_to_json(result)
   let json_str = json.to_string(json_output)
@@ -278,10 +276,9 @@ pub fn spec_result_to_json_with_blocked_test() {
 
 pub fn spec_result_to_json_with_rule_violations_test() {
   let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      rule_violations: [make_rule_violation()],
-    )
+    output.SpecResult(..make_failing_result(), rule_violations: [
+      make_rule_violation(),
+    ])
 
   let json_output = output.spec_result_to_json(result)
   let json_str = json.to_string(json_output)
@@ -306,10 +303,9 @@ pub fn spec_result_to_json_with_anti_patterns_test() {
     )
 
   let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      anti_patterns_detected: [anti_pattern],
-    )
+    output.SpecResult(..make_failing_result(), anti_patterns_detected: [
+      anti_pattern,
+    ])
 
   let json_output = output.spec_result_to_json(result)
   let json_str = json.to_string(json_output)
@@ -357,10 +353,7 @@ pub fn behavior_failure_to_json_complete_test() {
 
   let json_output =
     output.spec_result_to_json(
-      output.SpecResult(
-        ..make_failing_result(),
-        failures: [failure],
-      ),
+      output.SpecResult(..make_failing_result(), failures: [failure]),
     )
   let json_str = json.to_string(json_output)
 
@@ -387,32 +380,26 @@ pub fn behavior_failure_to_json_complete_test() {
 
 pub fn behavior_failure_multiple_problems_test() {
   let failure =
-    output.BehaviorFailure(
-      ..make_test_failure(),
-      problems: [
-        output.Problem(
-          field: "$.name",
-          rule: "exists",
-          expected: "present",
-          actual: "missing",
-          explanation: "Name field is required",
-        ),
-        output.Problem(
-          field: "$.age",
-          rule: "greater than 0",
-          expected: "> 0",
-          actual: "-5",
-          explanation: "Age must be positive",
-        ),
-      ],
-    )
+    output.BehaviorFailure(..make_test_failure(), problems: [
+      output.Problem(
+        field: "$.name",
+        rule: "exists",
+        expected: "present",
+        actual: "missing",
+        explanation: "Name field is required",
+      ),
+      output.Problem(
+        field: "$.age",
+        rule: "greater than 0",
+        expected: "> 0",
+        actual: "-5",
+        explanation: "Age must be positive",
+      ),
+    ])
 
   let json_output =
     output.spec_result_to_json(
-      output.SpecResult(
-        ..make_failing_result(),
-        failures: [failure],
-      ),
+      output.SpecResult(..make_failing_result(), failures: [failure]),
     )
   let json_str = json.to_string(json_output)
 
@@ -533,11 +520,9 @@ pub fn spec_result_to_text_shows_failures_section_test() {
 
 pub fn spec_result_to_text_shows_blocked_section_test() {
   let result =
-    output.SpecResult(
-      ..make_passing_result(),
-      blocked: 1,
-      blocked_behaviors: [make_blocked_behavior()],
-    )
+    output.SpecResult(..make_passing_result(), blocked: 1, blocked_behaviors: [
+      make_blocked_behavior(),
+    ])
   let text = output.spec_result_to_text(result)
 
   text
@@ -551,10 +536,9 @@ pub fn spec_result_to_text_shows_blocked_section_test() {
 
 pub fn spec_result_to_text_shows_rule_violations_section_test() {
   let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      rule_violations: [make_rule_violation()],
-    )
+    output.SpecResult(..make_failing_result(), rule_violations: [
+      make_rule_violation(),
+    ])
   let text = output.spec_result_to_text(result)
 
   text
@@ -577,10 +561,9 @@ pub fn spec_result_to_text_shows_anti_patterns_section_test() {
     )
 
   let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      anti_patterns_detected: [anti_pattern],
-    )
+    output.SpecResult(..make_failing_result(), anti_patterns_detected: [
+      anti_pattern,
+    ])
   let text = output.spec_result_to_text(result)
 
   text
@@ -678,11 +661,7 @@ pub fn behavior_failure_formatting_includes_hint_test() {
       hint: "Try checking the API documentation",
     )
 
-  let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      failures: [failure],
-    )
+  let result = output.SpecResult(..make_failing_result(), failures: [failure])
   let text = output.spec_result_to_text(result)
 
   text
@@ -693,11 +672,7 @@ pub fn behavior_failure_formatting_includes_hint_test() {
 pub fn behavior_failure_formatting_no_hint_when_empty_test() {
   let failure = output.BehaviorFailure(..make_test_failure(), hint: "")
 
-  let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      failures: [failure],
-    )
+  let result = output.SpecResult(..make_failing_result(), failures: [failure])
   let text = output.spec_result_to_text(result)
 
   text
@@ -707,31 +682,24 @@ pub fn behavior_failure_formatting_no_hint_when_empty_test() {
 
 pub fn behavior_failure_multiple_problems_formatted_test() {
   let failure =
-    output.BehaviorFailure(
-      ..make_test_failure(),
-      problems: [
-        output.Problem(
-          field: "$.field1",
-          rule: "rule1",
-          expected: "val1",
-          actual: "wrong1",
-          explanation: "Field 1 problem",
-        ),
-        output.Problem(
-          field: "$.field2",
-          rule: "rule2",
-          expected: "val2",
-          actual: "wrong2",
-          explanation: "Field 2 problem",
-        ),
-      ],
-    )
+    output.BehaviorFailure(..make_test_failure(), problems: [
+      output.Problem(
+        field: "$.field1",
+        rule: "rule1",
+        expected: "val1",
+        actual: "wrong1",
+        explanation: "Field 1 problem",
+      ),
+      output.Problem(
+        field: "$.field2",
+        rule: "rule2",
+        expected: "val2",
+        actual: "wrong2",
+        explanation: "Field 2 problem",
+      ),
+    ])
 
-  let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      failures: [failure],
-    )
+  let result = output.SpecResult(..make_failing_result(), failures: [failure])
   let text = output.spec_result_to_text(result)
 
   text
@@ -764,11 +732,9 @@ pub fn blocked_behavior_formatting_test() {
     )
 
   let result =
-    output.SpecResult(
-      ..make_passing_result(),
-      blocked: 1,
-      blocked_behaviors: [blocked],
-    )
+    output.SpecResult(..make_passing_result(), blocked: 1, blocked_behaviors: [
+      blocked,
+    ])
   let text = output.spec_result_to_text(result)
 
   text
@@ -793,11 +759,9 @@ pub fn blocked_behavior_formatting_no_hint_test() {
     )
 
   let result =
-    output.SpecResult(
-      ..make_passing_result(),
-      blocked: 1,
-      blocked_behaviors: [blocked],
-    )
+    output.SpecResult(..make_passing_result(), blocked: 1, blocked_behaviors: [
+      blocked,
+    ])
   let text = output.spec_result_to_text(result)
 
   text
@@ -833,10 +797,7 @@ pub fn rule_violation_formatting_test() {
     )
 
   let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      rule_violations: [violation],
-    )
+    output.SpecResult(..make_failing_result(), rule_violations: [violation])
   let text = output.spec_result_to_text(result)
 
   text
@@ -880,10 +841,7 @@ pub fn rule_violation_multiple_behaviors_test() {
     )
 
   let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      rule_violations: [violation],
-    )
+    output.SpecResult(..make_failing_result(), rule_violations: [violation])
   let text = output.spec_result_to_text(result)
 
   text
@@ -901,8 +859,7 @@ pub fn rule_violation_multiple_behaviors_test() {
 
 pub fn create_failure_basic_test() {
   let behavior = make_test_behavior("test-create", [])
-  let check_result =
-    make_check_result([], [], True, 200, 200)
+  let check_result = make_check_result([], [], True, 200, 200)
   let execution = make_execution_result(200)
 
   let failure =
@@ -926,8 +883,7 @@ pub fn create_failure_basic_test() {
 
 pub fn create_failure_includes_status_mismatch_test() {
   let behavior = make_test_behavior("test-status", [])
-  let check_result =
-    make_check_result([], [], False, 200, 404)
+  let check_result = make_check_result([], [], False, 200, 404)
   let execution = make_execution_result(404)
 
   let failure =
@@ -965,8 +921,7 @@ pub fn create_failure_includes_check_failures_test() {
       explanation: "Name is required",
     ),
   ]
-  let check_result =
-    make_check_result([], failed_checks, True, 200, 200)
+  let check_result = make_check_result([], failed_checks, True, 200, 200)
   let execution = make_execution_result(200)
 
   let failure =
@@ -1000,8 +955,7 @@ pub fn create_failure_combines_status_and_check_failures_test() {
       explanation: "Email format invalid",
     ),
   ]
-  let check_result =
-    make_check_result([], failed_checks, False, 200, 400)
+  let check_result = make_check_result([], failed_checks, False, 200, 400)
   let execution = make_execution_result(400)
 
   let failure =
@@ -1020,8 +974,7 @@ pub fn create_failure_combines_status_and_check_failures_test() {
 
 pub fn create_failure_constructs_url_test() {
   let behavior = make_test_behavior("test-url", [])
-  let check_result =
-    make_check_result([], [], True, 200, 200)
+  let check_result = make_check_result([], [], True, 200, 200)
   let execution = make_execution_result(200)
 
   let failure =
@@ -1039,8 +992,7 @@ pub fn create_failure_constructs_url_test() {
 
 pub fn create_failure_includes_requires_test() {
   let behavior = make_test_behavior("test-deps", ["dep1", "dep2"])
-  let check_result =
-    make_check_result([], [], True, 200, 200)
+  let check_result = make_check_result([], [], True, 200, 200)
   let execution = make_execution_result(200)
 
   let failure =
@@ -1058,8 +1010,7 @@ pub fn create_failure_includes_requires_test() {
 
 pub fn create_failure_generates_hint_for_404_test() {
   let behavior = make_test_behavior("test-404", [])
-  let check_result =
-    make_check_result([], [], False, 200, 404)
+  let check_result = make_check_result([], [], False, 200, 404)
   let execution = make_execution_result(404)
 
   let failure =
@@ -1078,8 +1029,7 @@ pub fn create_failure_generates_hint_for_404_test() {
 
 pub fn create_failure_generates_hint_for_401_test() {
   let behavior = make_test_behavior("test-401", [])
-  let check_result =
-    make_check_result([], [], False, 200, 401)
+  let check_result = make_check_result([], [], False, 200, 401)
   let execution = make_execution_result(401)
 
   let failure =
@@ -1098,8 +1048,7 @@ pub fn create_failure_generates_hint_for_401_test() {
 
 pub fn create_failure_generates_hint_for_403_test() {
   let behavior = make_test_behavior("test-403", [])
-  let check_result =
-    make_check_result([], [], False, 200, 403)
+  let check_result = make_check_result([], [], False, 200, 403)
   let execution = make_execution_result(403)
 
   let failure =
@@ -1118,8 +1067,7 @@ pub fn create_failure_generates_hint_for_403_test() {
 
 pub fn create_failure_generates_hint_for_500_test() {
   let behavior = make_test_behavior("test-500", [])
-  let check_result =
-    make_check_result([], [], False, 200, 500)
+  let check_result = make_check_result([], [], False, 200, 500)
   let execution = make_execution_result(500)
 
   let failure =
@@ -1147,8 +1095,7 @@ pub fn create_failure_generates_hint_for_field_failures_test() {
       explanation: "Name is required",
     ),
   ]
-  let check_result =
-    make_check_result([], failed_checks, True, 200, 200)
+  let check_result = make_check_result([], failed_checks, True, 200, 200)
   let execution = make_execution_result(200)
 
   let failure =
@@ -1167,8 +1114,7 @@ pub fn create_failure_generates_hint_for_field_failures_test() {
 
 pub fn create_failure_no_hint_for_unknown_status_test() {
   let behavior = make_test_behavior("test-unknown", [])
-  let check_result =
-    make_check_result([], [], False, 200, 418)
+  let check_result = make_check_result([], [], False, 200, 418)
   let execution = make_execution_result(418)
 
   let failure =
@@ -1285,11 +1231,7 @@ pub fn spec_result_empty_summary_test() {
 pub fn behavior_failure_empty_problems_list_test() {
   let failure = output.BehaviorFailure(..make_test_failure(), problems: [])
 
-  let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      failures: [failure],
-    )
+  let result = output.SpecResult(..make_failing_result(), failures: [failure])
   let text = output.spec_result_to_text(result)
 
   // Should still format correctly even with no problems
@@ -1311,10 +1253,7 @@ pub fn behavior_failure_empty_headers_test() {
 
   let json_output =
     output.spec_result_to_json(
-      output.SpecResult(
-        ..make_failing_result(),
-        failures: [failure],
-      ),
+      output.SpecResult(..make_failing_result(), failures: [failure]),
     )
   let json_str = json.to_string(json_output)
 
@@ -1339,11 +1278,10 @@ pub fn multiple_failures_formatted_test() {
     )
 
   let result =
-    output.SpecResult(
-      ..make_failing_result(),
-      failed: 2,
-      failures: [failure1, failure2],
-    )
+    output.SpecResult(..make_failing_result(), failed: 2, failures: [
+      failure1,
+      failure2,
+    ])
   let text = output.spec_result_to_text(result)
 
   text
@@ -1459,10 +1397,7 @@ pub fn behavior_violation_with_response_json_test() {
 
   let json_output =
     output.spec_result_to_json(
-      output.SpecResult(
-        ..make_failing_result(),
-        rule_violations: [violation],
-      ),
+      output.SpecResult(..make_failing_result(), rule_violations: [violation]),
     )
   let json_str = json.to_string(json_output)
 
@@ -1491,10 +1426,7 @@ pub fn behavior_violation_without_response_test() {
 
   let json_output =
     output.spec_result_to_json(
-      output.SpecResult(
-        ..make_failing_result(),
-        rule_violations: [violation],
-      ),
+      output.SpecResult(..make_failing_result(), rule_violations: [violation]),
     )
   let json_str = json.to_string(json_output)
 
@@ -1505,10 +1437,9 @@ pub fn behavior_violation_without_response_test() {
 
 pub fn anti_pattern_no_anti_patterns_serialization_test() {
   let result =
-    output.SpecResult(
-      ..make_passing_result(),
-      anti_patterns_detected: [anti_patterns.NoAntiPatterns],
-    )
+    output.SpecResult(..make_passing_result(), anti_patterns_detected: [
+      anti_patterns.NoAntiPatterns,
+    ])
 
   let json_output = output.spec_result_to_json(result)
   let json_str = json.to_string(json_output)

@@ -1,0 +1,24 @@
+{
+  "version": "0.1.0",
+  "build_date": "2026-01-17T15:13:00Z",
+  "platform": "windows",
+  "erlang_version_required": "27.0+",
+  "build_type": "escript-only",
+  "packages": {
+    "escript": {
+      "path": "escript/",
+      "files": ["intent", "intent.cmd", "intent.ps1"],
+      "requires_erlang": true,
+      "description": "Cross-platform escript with Windows wrappers (CMD and PowerShell)"
+    }
+  },
+  "usage": {
+    "cmd": "escript\\intent.cmd <command> [options]",
+    "powershell": "escript\\intent.ps1 <command> [options]",
+    "direct_escript": "escript escript\\intent <command> [options]"
+  },
+  "notes": [
+    "OTP 28 has known issues on Windows - use OTP 27",
+    "See: https://github.com/erlang/otp/issues/9872"
+  ]
+}

@@ -522,16 +522,21 @@ pub fn ffi_trim_preserves_spaces_test() {
 pub fn error_messages_actionable_test() {
   // Error messages should tell user what to do
   let messages = [
-    "Input cannot be empty. Please try again.",  // Action: try again
-    "Failed to read input: EOF",  // Explains what happened
-    "No input provided",  // Explains what's wrong
-    "Please enter 'y' or 'n'",  // Action: enter valid option
+    "Input cannot be empty. Please try again.",
+    // Action: try again
+    "Failed to read input: EOF",
+    // Explains what happened
+    "No input provided",
+    // Explains what's wrong
+    "Please enter 'y' or 'n'",
+    // Action: enter valid option
   ]
 
   messages
   |> list.each(fn(msg) {
     // All messages should be user-friendly
-    let is_friendly = !string.contains(msg, "error:")
+    let is_friendly =
+      !string.contains(msg, "error:")
       && !string.contains(msg, "Error:")
       && !string.contains(msg, "panic")
 

@@ -1,0 +1,194 @@
+[0m[38;5;13m  Compiling[0m intent
+[0m[1m[38;5;11mwarning[0m[1m: Inefficient use of `list.length`[0m
+    [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/bead_generator.gleam:102:36
+    [0m[34m│[0m
+[0m[34m102[0m [0m[34m│[0m         list.any(epics, fn(epic) { [0m[33mlist.length(epic.features) > 0[0m })
+    [0m[34m│[0m                                    [0m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+
+The `list.length` function has to iterate across the whole
+list to calculate the length, which is wasteful if you only
+need to know if the list is empty or not.
+
+Hint: You can use `the_list != []` instead.
+
+[0m[1m[38;5;11mwarning[0m[1m: Inefficient use of `list.length`[0m
+    [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/kirk/effects_analyzer.gleam:458:26
+    [0m[34m│[0m
+[0m[34m458[0m [0m[34m│[0m     ResourceLifecycle -> [0m[33mlist.length(required_behaviors) > 0[0m
+    [0m[34m│[0m                          [0m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+
+The `list.length` function has to iterate across the whole
+list to calculate the length, which is wasteful if you only
+need to know if the list is empty or not.
+
+Hint: You can use `the_list != []` instead.
+
+[0m[1m[38;5;11mwarning[0m[1m: Inefficient use of `list.length`[0m
+    [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/kirk/effects_analyzer.gleam:594:26
+    [0m[34m│[0m
+[0m[34m594[0m [0m[34m│[0m   |> list.filter(fn(b) { [0m[33mlist.length(b.requires) > 0[0m })
+    [0m[34m│[0m                          [0m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+
+The `list.length` function has to iterate across the whole
+list to calculate the length, which is wasteful if you only
+need to know if the list is empty or not.
+
+Hint: You can use `the_list != []` instead.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported item[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/loader.gleam:11:33
+   [0m[34m│[0m
+[0m[34m11[0m [0m[34m│[0m import intent/types.{type Spec, [0m[33mSpec[0m}
+   [0m[34m│[0m                                 [0m[33m^^^^[0m [0m[33mThis imported constructor is never used[0m
+
+Hint: You can safely remove it.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused variable[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1062:9
+     [0m[34m│[0m
+[0m[34m1062[0m [0m[34m│[0m     let [0m[33mskip_to[0m =
+     [0m[34m│[0m         [0m[33m^^^^^^^[0m [0m[33mThis variable is never used[0m
+
+Hint: You can ignore it with an underscore: `_skip_to`.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused variable[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1066:9
+     [0m[34m│[0m
+[0m[34m1066[0m [0m[34m│[0m     let [0m[33mbulk_answer_file[0m =
+     [0m[34m│[0m         [0m[33m^^^^^^^^^^^^^^^^[0m [0m[33mThis variable is never used[0m
+
+Hint: You can ignore it with an underscore: `_bulk_answer_file`.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused variable[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1070:9
+     [0m[34m│[0m
+[0m[34m1070[0m [0m[34m│[0m     let [0m[33mrequired_only[0m =
+     [0m[34m│[0m         [0m[33m^^^^^^^^^^^^^[0m [0m[33mThis variable is never used[0m
+
+Hint: You can ignore it with an underscore: `_required_only`.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused variable[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1074:9
+     [0m[34m│[0m
+[0m[34m1074[0m [0m[34m│[0m     let [0m[33mcategory_filter[0m =
+     [0m[34m│[0m         [0m[33m^^^^^^^^^^^^^^^[0m [0m[33mThis variable is never used[0m
+
+Hint: You can ignore it with an underscore: `_category_filter`.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused variable[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1078:9
+     [0m[34m│[0m
+[0m[34m1078[0m [0m[34m│[0m     let [0m[33mdry_run[0m =
+     [0m[34m│[0m         [0m[33m^^^^^^^[0m [0m[33mThis variable is never used[0m
+
+Hint: You can ignore it with an underscore: `_dry_run`.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused variable[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1082:9
+     [0m[34m│[0m
+[0m[34m1082[0m [0m[34m│[0m     let [0m[33myes_flag[0m =
+     [0m[34m│[0m         [0m[33m^^^^^^^^[0m [0m[33mThis variable is never used[0m
+
+Hint: You can ignore it with an underscore: `_yes_flag`.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused variable[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1086:9
+     [0m[34m│[0m
+[0m[34m1086[0m [0m[34m│[0m     let [0m[33moutput_path[0m =
+     [0m[34m│[0m         [0m[33m^^^^^^^^^^^[0m [0m[33mThis variable is never used[0m
+
+Hint: You can ignore it with an underscore: `_output_path`.
+
+[0m[1m[38;5;9merror[0m[1m: Unknown variable[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:96:38
+   [0m[34m│[0m
+[0m[34m96[0m [0m[34m│[0m   |> glint.add(at: ["manifest"], do: [0m[31mmanifest_command[0m())
+   [0m[34m│[0m                                      [0m[31m^^^^^^^^^^^^^^^^[0m [0m[31mDid you mean `diff_command`?[0m
+
+The name `manifest_command` is not in scope here.
+
+[0m[1m[38;5;9merror[0m[1m: Unknown variable[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:97:38
+   [0m[34m│[0m
+[0m[34m97[0m [0m[34m│[0m   |> glint.add(at: ["protocol"], do: [0m[31mprotocol_command[0m())
+   [0m[34m│[0m                                      [0m[31m^^^^^^^^^^^^^^^^[0m [0m[31mDid you mean `lint_command`?[0m
+
+The name `protocol_command` is not in scope here.
+
+[0m[1m[38;5;9merror[0m[1m: Incorrect arity[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1126:17
+     [0m[34m│[0m  
+[0m[34m1126[0m [0m[34m│[0m [0m[31m╭[0m                 [0m[31mrun_interview([0m
+[0m[34m1127[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  interview.Api,[0m
+[0m[34m1128[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  answers_file,[0m
+[0m[34m1129[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  strict_mode,[0m
+     [0m[34m·[0m [0m[31m│[0m
+[0m[34m1134[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  category_filter,[0m
+[0m[34m1135[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                )[0m
+     [0m[34m│[0m [0m[31m╰[0m[0m[31m─────────────────^ Expected 4 arguments, got 8[0m
+
+
+[0m[1m[38;5;9merror[0m[1m: Incorrect arity[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1137:17
+     [0m[34m│[0m  
+[0m[34m1137[0m [0m[34m│[0m [0m[31m╭[0m                 [0m[31mrun_interview([0m
+[0m[34m1138[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  interview.Cli,[0m
+[0m[34m1139[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  answers_file,[0m
+[0m[34m1140[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  strict_mode,[0m
+     [0m[34m·[0m [0m[31m│[0m
+[0m[34m1145[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  category_filter,[0m
+[0m[34m1146[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                )[0m
+     [0m[34m│[0m [0m[31m╰[0m[0m[31m─────────────────^ Expected 4 arguments, got 8[0m
+
+
+[0m[1m[38;5;9merror[0m[1m: Incorrect arity[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1148:17
+     [0m[34m│[0m  
+[0m[34m1148[0m [0m[34m│[0m [0m[31m╭[0m                 [0m[31mrun_interview([0m
+[0m[34m1149[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  interview.Event,[0m
+[0m[34m1150[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  answers_file,[0m
+[0m[34m1151[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  strict_mode,[0m
+     [0m[34m·[0m [0m[31m│[0m
+[0m[34m1156[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  category_filter,[0m
+[0m[34m1157[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                )[0m
+     [0m[34m│[0m [0m[31m╰[0m[0m[31m─────────────────^ Expected 4 arguments, got 8[0m
+
+
+[0m[1m[38;5;9merror[0m[1m: Incorrect arity[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1159:17
+     [0m[34m│[0m  
+[0m[34m1159[0m [0m[34m│[0m [0m[31m╭[0m                 [0m[31mrun_interview([0m
+[0m[34m1160[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  interview.Data,[0m
+[0m[34m1161[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  answers_file,[0m
+[0m[34m1162[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  strict_mode,[0m
+     [0m[34m·[0m [0m[31m│[0m
+[0m[34m1167[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  category_filter,[0m
+[0m[34m1168[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                )[0m
+     [0m[34m│[0m [0m[31m╰[0m[0m[31m─────────────────^ Expected 4 arguments, got 8[0m
+
+
+[0m[1m[38;5;9merror[0m[1m: Incorrect arity[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1170:17
+     [0m[34m│[0m  
+[0m[34m1170[0m [0m[34m│[0m [0m[31m╭[0m                 [0m[31mrun_interview([0m
+[0m[34m1171[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  interview.Workflow,[0m
+[0m[34m1172[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  answers_file,[0m
+[0m[34m1173[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  strict_mode,[0m
+     [0m[34m·[0m [0m[31m│[0m
+[0m[34m1178[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  category_filter,[0m
+[0m[34m1179[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                )[0m
+     [0m[34m│[0m [0m[31m╰[0m[0m[31m─────────────────^ Expected 4 arguments, got 8[0m
+
+
+[0m[1m[38;5;9merror[0m[1m: Incorrect arity[0m
+     [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent.gleam:1181:17
+     [0m[34m│[0m  
+[0m[34m1181[0m [0m[34m│[0m [0m[31m╭[0m                 [0m[31mrun_interview([0m
+[0m[34m1182[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  interview.UI,[0m
+[0m[34m1183[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  answers_file,[0m
+[0m[34m1184[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  strict_mode,[0m
+     [0m[34m·[0m [0m[31m│[0m
+[0m[34m1189[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                  category_filter,[0m
+[0m[34m1190[0m [0m[34m│[0m [0m[31m│[0m [0m[31m                )[0m
+     [0m[34m│[0m [0m[31m╰[0m[0m[31m─────────────────^ Expected 4 arguments, got 8[0m
+

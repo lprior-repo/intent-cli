@@ -333,15 +333,14 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     || string.contains(combined, "queue")
   {
     True ->
-      list.append(
-        effects,
-        [SecondOrderEffect(
+      list.append(effects, [
+        SecondOrderEffect(
           description: "Background job is queued for processing",
           severity: Warning,
           category: ExternalDependency,
           has_verification: False,
-        )],
-      )
+        ),
+      ])
     False -> effects
   }
 
@@ -352,15 +351,14 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     || string.contains(combined, "notify")
   {
     True ->
-      list.append(
-        effects,
-        [SecondOrderEffect(
+      list.append(effects, [
+        SecondOrderEffect(
           description: "External notification system is triggered",
           severity: Warning,
           category: ExternalDependency,
           has_verification: False,
-        )],
-      )
+        ),
+      ])
     False -> effects
   }
 
@@ -371,15 +369,14 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     || string.contains(combined, "billing")
   {
     True ->
-      list.append(
-        effects,
-        [SecondOrderEffect(
+      list.append(effects, [
+        SecondOrderEffect(
           description: "Financial transaction is recorded",
           severity: Critical,
           category: DataIntegrity,
           has_verification: False,
-        )],
-      )
+        ),
+      ])
     False -> effects
   }
 
@@ -388,15 +385,14 @@ fn infer_from_behavior_name(behavior: Behavior) -> List(SecondOrderEffect) {
     string.contains(combined, "lock") || string.contains(combined, "unlock")
   {
     True ->
-      list.append(
-        effects,
-        [SecondOrderEffect(
+      list.append(effects, [
+        SecondOrderEffect(
           description: "Concurrent access patterns are affected",
           severity: Warning,
           category: SystemState,
           has_verification: False,
-        )],
-      )
+        ),
+      ])
     False -> effects
   }
 

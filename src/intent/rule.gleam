@@ -1,6 +1,5 @@
 /// Rule expression parser and types
 /// Parses human-friendly rule strings like "equals foo" or "integer >= 5"
-
 import gleam/float
 import gleam/int
 import gleam/list
@@ -78,34 +77,34 @@ pub fn parse(rule: String) -> RuleExpr {
       let rule = string.trim(rule)
 
       // Try each parser in order
-  case try_parse_equals(rule) {
-    Some(expr) -> expr
-    None ->
-      case try_parse_type(rule) {
+      case try_parse_equals(rule) {
         Some(expr) -> expr
         None ->
-          case try_parse_string_pattern(rule) {
+          case try_parse_type(rule) {
             Some(expr) -> expr
             None ->
-              case try_parse_number(rule) {
+              case try_parse_string_pattern(rule) {
                 Some(expr) -> expr
                 None ->
-                  case try_parse_presence(rule) {
+                  case try_parse_number(rule) {
                     Some(expr) -> expr
                     None ->
-                      case try_parse_array(rule) {
+                      case try_parse_presence(rule) {
                         Some(expr) -> expr
                         None ->
-                          case try_parse_compound(rule) {
+                          case try_parse_array(rule) {
                             Some(expr) -> expr
-                            None -> Raw(rule)
+                            None ->
+                              case try_parse_compound(rule) {
+                                Some(expr) -> expr
+                                None -> Raw(rule)
+                              }
                           }
                       }
                   }
               }
           }
       }
-  }
     }
   }
 }
@@ -337,7 +336,8 @@ fn try_parse_array(rule: String) -> Option(RuleExpr) {
                         True -> string.drop_left(inner, 3)
                         False ->
                           case string.starts_with(inner, "matches ") {
-                            True -> "string matching " <> string.drop_left(inner, 8)
+                            True ->
+                              "string matching " <> string.drop_left(inner, 8)
                             False -> inner
                           }
                       }

@@ -204,7 +204,6 @@ pub fn runner_custom_target_url_test() {
   // Verify the runner attempted to execute (total should be 1)
   result.total
   |> should.equal(1)
-
   // Note: Network errors may be classified as BehaviorError (not BehaviorFailed)
   // which means failed count might be 0 even though execution didn't succeed.
   // The important thing is that the behavior was attempted.

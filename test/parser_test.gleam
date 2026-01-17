@@ -158,12 +158,14 @@ pub fn dynamic_to_json_complex_structure_test() {
   let data =
     dynamic.from(
       dict.from_list([
-        #("numbers", json.array([json.int(1), json.int(2), json.int(3)], fn(x) {
-          x
-        })),
-        #("strings", json.array([json.string("a"), json.string("b")], fn(x) {
-          x
-        })),
+        #(
+          "numbers",
+          json.array([json.int(1), json.int(2), json.int(3)], fn(x) { x }),
+        ),
+        #(
+          "strings",
+          json.array([json.string("a"), json.string("b")], fn(x) { x }),
+        ),
       ]),
     )
   let result = parser.dynamic_to_json(data)
@@ -1097,7 +1099,6 @@ pub fn parse_check_missing_why_test() {
   }
 }
 
-
 /// Test parsing valid rule
 pub fn parse_rule_valid_test() {
   let json_str =
@@ -1172,8 +1173,7 @@ pub fn parse_anti_pattern_valid_test() {
 // ============================================================================
 
 fn test_method_parsing(method_str: String, expected: types.Method) {
-  let json_str =
-    "{
+  let json_str = "{
       \"method\": \"" <> method_str <> "\",
       \"path\": \"/\",
       \"headers\": {},

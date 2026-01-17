@@ -1,6 +1,5 @@
 /// Output formatters for Intent results
 /// Generates JSON and human-readable output
-
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/json.{type Json}
@@ -217,7 +216,8 @@ pub fn spec_result_to_text(result: SpecResult) -> String {
   let failures_text = case result.failures {
     [] -> ""
     failures ->
-      "\n\nFAILURES:\n" <> string.join(list.map(failures, format_failure), "\n\n")
+      "\n\nFAILURES:\n"
+      <> string.join(list.map(failures, format_failure), "\n\n")
   }
 
   let blocked_text = case result.blocked_behaviors {
@@ -329,9 +329,8 @@ pub fn create_failure(
       case check {
         checker.CheckFailed(field, rule, expected, actual, explanation) ->
           Problem(field, rule, expected, actual, explanation)
-        checker.CheckPassed(_, _) ->
-          Problem("", "", "", "", "")
-          // Shouldn't happen
+        checker.CheckPassed(_, _) -> Problem("", "", "", "", "")
+        // Shouldn't happen
       }
     })
 
@@ -378,9 +377,12 @@ fn generate_hint(
   case check_result.status_ok {
     False ->
       case check_result.status_actual {
-        404 -> "The resource might not exist. Check that prerequisite behaviors ran successfully."
-        401 -> "Authentication may be required. Check that the auth token is being passed correctly."
-        403 -> "Access denied. Check permissions and that the correct user is authenticated."
+        404 ->
+          "The resource might not exist. Check that prerequisite behaviors ran successfully."
+        401 ->
+          "Authentication may be required. Check that the auth token is being passed correctly."
+        403 ->
+          "Access denied. Check permissions and that the correct user is authenticated."
         500 -> "Server error. Check server logs for details."
         _ -> ""
       }

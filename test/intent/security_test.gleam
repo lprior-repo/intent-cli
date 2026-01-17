@@ -66,7 +66,8 @@ pub fn validate_file_path_valid_file_test() {
   // Should return FileNotAccessible or InvalidPath for nonexistent files
   case result {
     Error(security.FileNotAccessible(_)) -> Nil
-    Error(security.InvalidPath(_, _)) -> Nil  // Also acceptable
+    Error(security.InvalidPath(_, _)) -> Nil
+    // Also acceptable
     Ok(_) -> {
       should.fail()
       Nil
@@ -90,7 +91,8 @@ pub fn validate_file_path_rejects_parent_ref_test() {
 pub fn validate_file_path_rejects_url_encoded_dot_test() {
   case security.validate_file_path("test%2e%2e/passwd") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // % is not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // % is not in safe chars
     _ -> should.fail()
   }
 }
@@ -98,7 +100,8 @@ pub fn validate_file_path_rejects_url_encoded_dot_test() {
 pub fn validate_file_path_rejects_url_encoded_slash_test() {
   case security.validate_file_path("test%2fpasswd") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // % is not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // % is not in safe chars
     _ -> should.fail()
   }
 }
@@ -106,7 +109,8 @@ pub fn validate_file_path_rejects_url_encoded_slash_test() {
 pub fn validate_file_path_rejects_url_encoded_backslash_test() {
   case security.validate_file_path("test%5cpasswd") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // % is not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // % is not in safe chars
     _ -> should.fail()
   }
 }
@@ -114,7 +118,8 @@ pub fn validate_file_path_rejects_url_encoded_backslash_test() {
 pub fn validate_file_path_rejects_backslash_traversal_test() {
   case security.validate_file_path("test\\..\\passwd") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // Backslash not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // Backslash not in safe chars
     _ -> should.fail()
   }
 }
@@ -122,7 +127,8 @@ pub fn validate_file_path_rejects_backslash_traversal_test() {
 pub fn validate_file_path_rejects_null_byte_url_encoded_test() {
   case security.validate_file_path("test%00.txt") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // % is not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // % is not in safe chars
     _ -> should.fail()
   }
 }
@@ -131,8 +137,10 @@ pub fn validate_file_path_rejects_null_byte_literal_test() {
   // Test literal null byte (path truncation attack)
   // Create a path with a null byte using utf_codepoint
   let null_byte_path = case string.utf_codepoint(0) {
-    Ok(null_cp) -> "/etc/passwd" <> string.from_utf_codepoints([null_cp]) <> ".txt"
-    Error(_) -> "/etc/passwd.txt"  // fallback if null creation fails
+    Ok(null_cp) ->
+      "/etc/passwd" <> string.from_utf_codepoints([null_cp]) <> ".txt"
+    Error(_) -> "/etc/passwd.txt"
+    // fallback if null creation fails
   }
 
   case security.validate_file_path(null_byte_path) {
@@ -144,7 +152,8 @@ pub fn validate_file_path_rejects_null_byte_literal_test() {
 pub fn validate_file_path_rejects_double_encoded_test() {
   case security.validate_file_path("test%252e%252e/passwd") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // % is not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // % is not in safe chars
     _ -> should.fail()
   }
 }
@@ -321,7 +330,8 @@ pub fn format_shell_metacharacters_error_test() {
 
 pub fn validate_file_paths_all_invalid_test() {
   case security.validate_file_paths(["../etc/passwd", "$(whoami).txt"]) {
-    Error(_) -> Nil  // Should fail on first invalid path
+    Error(_) -> Nil
+    // Should fail on first invalid path
     _ -> should.fail()
   }
 }
@@ -330,9 +340,12 @@ pub fn validate_file_paths_mixed_test() {
   // All will fail since files don't exist, but testing traversal detection
   let result = security.validate_file_paths(["valid.txt", "../etc/passwd"])
   case result {
-    Error(security.PathTraversalAttempt(_)) -> Nil  // Should catch traversal on second item
-    Error(security.FileNotAccessible(_)) -> Nil  // Or file not found on valid.txt
-    Error(security.InvalidPath(_, _)) -> Nil  // Or invalid path on valid.txt
+    Error(security.PathTraversalAttempt(_)) -> Nil
+    // Should catch traversal on second item
+    Error(security.FileNotAccessible(_)) -> Nil
+    // Or file not found on valid.txt
+    Error(security.InvalidPath(_, _)) -> Nil
+    // Or invalid path on valid.txt
     Error(security.ShellMetacharactersDetected(_)) -> Nil
     Ok(_) -> {
       should.fail()
@@ -362,7 +375,8 @@ pub fn validate_file_path_case_insensitive_encoding_test() {
   // Test uppercase URL encoding
   case security.validate_file_path("test%2E%2E/passwd") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // % is not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // % is not in safe chars
     _ -> should.fail()
   }
 }
@@ -370,7 +384,8 @@ pub fn validate_file_path_case_insensitive_encoding_test() {
 pub fn validate_file_path_mixed_case_encoding_test() {
   case security.validate_file_path("test%2e%2F../passwd") {
     Error(security.PathTraversalAttempt(_)) -> Nil
-    Error(security.ShellMetacharactersDetected(_)) -> Nil  // % is not in safe chars
+    Error(security.ShellMetacharactersDetected(_)) -> Nil
+    // % is not in safe chars
     _ -> should.fail()
   }
 }
@@ -384,7 +399,11 @@ pub fn validate_regex_pattern_complex_safe_pattern_test() {
 }
 
 pub fn validate_regex_pattern_email_like_safe_test() {
-  case security.validate_regex_pattern("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") {
+  case
+    security.validate_regex_pattern(
+      "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    )
+  {
     Ok(_) -> Nil
     _ -> should.fail()
   }
@@ -396,7 +415,8 @@ pub fn is_safe_path_empty_string_test() {
 }
 
 pub fn is_safe_path_only_dots_test() {
-  security.is_safe_path("...") |> should.be_true()  // Three dots is ok, four is not
+  security.is_safe_path("...") |> should.be_true()
+  // Three dots is ok, four is not
 }
 
 pub fn validate_regex_pattern_empty_pattern_test() {
