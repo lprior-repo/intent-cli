@@ -1,15 +1,15 @@
 /// CLI UI helpers using gleam_community_ansi for rich terminal output
 /// Provides colored headers, status messages, and formatted text
 /// Respects NO_COLOR environment variable for disabling colors (type-safe)
-import gleam/erlang/os
+import envoy
 import gleam/io
 import gleam/result
 import gleam_community/ansi
 
 /// Check if colors should be disabled (NO_COLOR environment variable)
-/// Type-safe check using gleam/erlang/os
+/// Type-safe check using envoy package
 fn colors_disabled() -> Bool {
-  os.get_env("NO_COLOR")
+  envoy.get("NO_COLOR")
   |> result.is_ok()
 }
 

@@ -1,8 +1,8 @@
 /// Intent CLI - Human-writes, AI-verifies, AI-implements
 /// Contract-driven API testing tool
 import argv
+import envoy
 import gleam/dict
-import gleam/erlang/os
 import gleam/float
 import gleam/io
 import gleam/json
@@ -5108,13 +5108,13 @@ fn current_timestamp() -> String
 
 /// Set NO_COLOR environment variable to disable colored output
 fn set_no_color_env() -> Nil {
-  os.set_env("NO_COLOR", "1")
+  envoy.set("NO_COLOR", "1")
 }
 
 /// Get environment variable as string with default (type-safe)
-/// Uses gleam/erlang/os for reliable cross-platform access
+/// Uses envoy for reliable cross-platform access
 fn env_string(key: String, default: String) -> String {
-  os.get_env(key)
+  envoy.get(key)
   |> result.unwrap(default)
 }
 
@@ -5122,7 +5122,7 @@ fn env_string(key: String, default: String) -> String {
 /// Accepts: true/false, yes/no, 1/0 (case-insensitive)
 /// Invalid values return the default
 fn env_bool(key: String, default: Bool) -> Bool {
-  case os.get_env(key) {
+  case envoy.get(key) {
     Ok(value) -> {
       let lower = string.lowercase(string.trim(value))
       case lower {
