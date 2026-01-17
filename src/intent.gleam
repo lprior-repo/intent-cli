@@ -49,8 +49,65 @@ const exit_invalid = 3
 
 const exit_error = 4
 
+/// Normalize flag syntax to support both --flag=value and --flag value
+/// Glint only supports --flag=value, so we pre-process args to convert
+/// --flag value into --flag=value before passing to glint
+pub fn normalize_flag_syntax(args: List(String)) -> List(String) {
+  do_normalize(args)
+}
+
+fn do_normalize(args: List(String)) -> List(String) {
+  case args {
+    // Empty list
+    [] -> []
+
+    // Single argument
+    [arg] -> {
+      case string.starts_with(arg, "--") {
+        True -> [arg]
+        // Boolean flag or flag with equals
+        False -> [arg]
+        // Positional argument
+      }
+    }
+
+    // Two or more arguments
+    [first, second, ..rest] -> {
+      case string.starts_with(first, "--") {
+        True -> {
+          // First is a flag
+          case string.contains(first, "=") {
+            True -> {
+              // Flag already has equals (--flag=value)
+              [first, ..do_normalize([second, ..rest])]
+            }
+            False -> {
+              // Flag doesn't have equals, check if second is a value or flag
+              case string.starts_with(second, "--") {
+                True -> {
+                  // Second is also a flag (first is boolean)
+                  [first, ..do_normalize([second, ..rest])]
+                }
+                False -> {
+                  // Second is a value, merge with first
+                  [first <> "=" <> second, ..do_normalize(rest)]
+                }
+              }
+            }
+          }
+        }
+        False -> {
+          // First is not a flag (positional argument)
+          [first, ..do_normalize([second, ..rest])]
+        }
+      }
+    }
+  }
+}
+
 pub fn main() {
-  let args = argv.load().arguments
+  let raw_args = argv.load().arguments
+  let args = normalize_flag_syntax(raw_args)
 
   let app =
     glint.new()
@@ -83,9 +140,9 @@ pub fn main() {
     |> glint.add(at: ["plan"], do: plan_command())
     |> glint.add(at: ["plan-approve"], do: plan_approve_command())
     |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
-    // Context scanning
-    // TODO: Re-enable when context_scan_command is implemented
-    // |> glint.add(at: ["context-scan"], do: context_scan_command())
+  // Context scanning
+  // TODO: Re-enable when context_scan_command is implemented
+  // |> glint.add(at: ["context-scan"], do: context_scan_command())
 
   // Use run_and_handle to properly handle errors with correct exit codes
   glint.run_and_handle(from: app, for: args, with: fn(_result) {
