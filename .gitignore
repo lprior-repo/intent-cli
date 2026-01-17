@@ -1,0 +1,26 @@
+# Gleam build artifacts
+build/
+_build/
+
+# Erlang artifacts
+*.beam
+*.app
+erl_crash.dump
+
+# JJZ workspace builds
+.jjz/
+
+# Editor/IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test results
+*.cover
+cover/
