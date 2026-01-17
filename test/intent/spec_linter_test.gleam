@@ -12,9 +12,9 @@ import intent/spec_linter.{
 }
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
-  type Request, type Response, type Spec, AIHints, AntiPattern, Behavior, Check,
-  Config, Feature, Get, ImplementationHints, Post, Request, Response,
-  SecurityHints, Spec,
+  type Feature, type Request, type Response, type Spec, AIHints, AntiPattern,
+  Behavior, Check, Config, Feature, Get, ImplementationHints, Post, Request,
+  Response, SecurityHints, Spec,
 }
 
 // ============================================================================
@@ -189,8 +189,7 @@ pub fn lint_no_anti_pattern_when_keys_differ_test() {
       has_anti_pattern_warning
       |> should.be_false
     }
-    LintValid -> should.fail()
-    // Should have UnusedAntiPattern warning
+    LintValid -> should.fail()  // Should have UnusedAntiPattern warning
   }
 }
 
