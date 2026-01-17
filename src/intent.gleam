@@ -185,6 +185,7 @@ fn check_command() -> glint.Command(Nil) {
     let allow_localhost =
       flag.get_bool(input.flags, "allow-localhost")
       |> result.unwrap(False)
+      || is_localhost_allowed_by_env()
 
     case input.args {
       [spec_path, ..] -> {
@@ -3418,3 +3419,14 @@ fn generate_uuid() -> String
 
 @external(erlang, "intent_ffi", "current_timestamp")
 fn current_timestamp() -> String
+
+@external(erlang, "intent_ffi", "get_env")
+fn get_env(name: String) -> Result(String, Nil)
+
+/// Check if localhost is allowed via environment variable
+fn is_localhost_allowed_by_env() -> Bool {
+  case get_env("INTENT_ALLOW_LOCALHOST") {
+    Ok("true") | Ok("1") | Ok("yes") -> True
+    _ -> False
+  }
+}
