@@ -95,42 +95,7 @@ pub fn main() {
   })
 }
 
-/// Check for unknown flags in arguments
-/// Returns Error with flag name if unknown flag found, Ok otherwise
-fn check_for_unknown_flags(args: List(String)) -> Result(Nil, String) {
-  // Find all args starting with -- that aren't --help
-  let unknown_flag =
-    args
-    |> list.filter(fn(arg) { string.starts_with(arg, "--") })
-    |> list.filter(fn(arg) { arg != "--help" })
-    |> list.find(fn(arg) {
-      // Extract flag name (before = if present)
-      let flag_name = case string.split(arg, "=") {
-        [name, ..] -> name
-        [] -> arg
-      }
-
-      // Check if it's NOT a known flag
-      !is_known_flag(flag_name)
-    })
-
-  case unknown_flag {
-    Ok(flag) -> Error(flag)
-    Error(Nil) -> Ok(Nil)
-  }
-}
-
-/// Check if a flag name is known/valid
-fn is_known_flag(flag: String) -> Bool {
-  // Common flags across all commands
-  case flag {
-    "--target" | "--json" | "--verbose" | "--quiet" | "--feature" | "--only"
-    | "--dry-run" | "--junit" | "--tap" | "--sarif" | "--cue" | "--profile"
-    | "--session" | "--answer" | "--round" | "--perspective" | "--file"
-    | "--status" | "--format" -> True
-    _ -> False
-  }
-}
+// Removed unused check_for_unknown_flags and is_known_flag functions
 
 /// The `check` command - run spec against a target
 fn check_command() -> glint.Command(Nil) {

@@ -1,7 +1,7 @@
 /// AI-Friendly Interview Helpers
 /// Simplified wrappers around existing interview functionality
 import gleam/json
-import gleam/result
+// Removed unused import
 import intent/interview.{type Profile}
 
 /// Simplified response type for AI

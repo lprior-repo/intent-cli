@@ -2,7 +2,7 @@
 /// Provides rich, structured output for machine-readable interview sessions
 /// Maintains ALL rigor while enabling simple request/response flow
 import gleam/dict
-import gleam/int
+// Removed unused import
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
