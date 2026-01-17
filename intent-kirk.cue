@@ -47,6 +47,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/quality"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -70,6 +73,7 @@ spec: intent.#Spec & {
 								why:  "Overall score must be non-negative"
 							}
 						}
+						headers: {}
 					}
 				},
 				{
@@ -79,6 +83,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/quality?format=json"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -88,6 +95,7 @@ spec: intent.#Spec & {
 							"completeness": {rule: "is number"}
 							"issues": {rule: "is array"}
 						}
+						headers: {}
 					}
 				},
 			]
@@ -107,6 +115,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/invert"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -126,6 +137,7 @@ spec: intent.#Spec & {
 								why:  "Lists specific security inversions missing"
 							}
 						}
+						headers: {}
 					}
 				},
 				{
@@ -135,6 +147,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/invert"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -146,6 +161,7 @@ spec: intent.#Spec & {
 								why:  "Concrete suggestions for improvement"
 							}
 						}
+						headers: {}
 					}
 				},
 			]
@@ -165,6 +181,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/coverage"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -186,6 +205,7 @@ spec: intent.#Spec & {
 								why:  "Lists uncovered OWASP categories"
 							}
 						}
+						headers: {}
 					}
 				},
 				{
@@ -195,6 +215,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/coverage"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -210,6 +233,7 @@ spec: intent.#Spec & {
 								why:  "Map of status category -> count"
 							}
 						}
+						headers: {}
 					}
 				},
 			]
@@ -229,6 +253,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/gaps"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -253,6 +280,7 @@ spec: intent.#Spec & {
 								why:  "Breakdown by severity level"
 							}
 						}
+						headers: {}
 					}
 				},
 				{
@@ -262,6 +290,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/gaps"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -271,6 +302,7 @@ spec: intent.#Spec & {
 							"inversion_gaps": {rule: "is array"}
 							"security_gaps": {rule: "is array"}
 						}
+						headers: {}
 					}
 				},
 			]
@@ -290,6 +322,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/compact"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -301,6 +336,7 @@ spec: intent.#Spec & {
 								why:  "Should save at least 30% tokens"
 							}
 						}
+						headers: {}
 					}
 				},
 			]
@@ -320,6 +356,9 @@ spec: intent.#Spec & {
 					request: {
 						method: "GET"
 						path:   "/prototext"
+						headers: {}
+						query:   {}
+						body:    null
 					}
 
 					response: {
@@ -331,6 +370,7 @@ spec: intent.#Spec & {
 								why:  "Should produce output"
 							}
 						}
+						headers: {}
 					}
 				},
 			]
