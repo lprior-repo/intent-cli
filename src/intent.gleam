@@ -106,9 +106,9 @@ fn do_normalize(args: List(String)) -> List(String) {
 
 pub fn main() {
   let raw_args = argv.load().arguments
-  let args = normalize_flag_syntax(raw_args)
+  let _args = normalize_flag_syntax(raw_args)
 
-  let app =
+  let _app =
     glint.new()
     |> glint.with_name("intent")
     |> glint.with_pretty_help(glint.default_pretty_help())
@@ -3181,8 +3181,6 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       |> flag.description("Spec name for CUE output"),
   )
 }
-
-import gleam/float
 
 // =============================================================================
 // PARSE COMMAND
