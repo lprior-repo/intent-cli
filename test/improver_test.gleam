@@ -10,9 +10,8 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/improver.{
-  type ImprovementContext, type ImprovementSuggestion, AddExplanation,
-  AddMissingTest, AddResponseExample, ImprovementContext, ImprovementSuggestion,
-  RefineVagueRule, RenameForClarity,
+  type ImprovementContext, AddExplanation, AddMissingTest, AddResponseExample,
+  ImprovementContext, ImprovementSuggestion, RefineVagueRule, RenameForClarity,
 }
 import intent/quality_analyzer.{
   type QualityIssue, type QualityReport, MissingAIHints,
@@ -861,7 +860,6 @@ pub fn format_improvements_impact_bar_rendering_test() {
     |> should.equal(expected_filled)
   })
 }
-
 // TODO: Add tests for apply_improvements when implementation is complete
 // TODO: Add tests for more complex ProposedChange scenarios (SimplifyRule)
 // TODO: Add tests for suggestion priority when impact scores are equal
