@@ -7,8 +7,8 @@ import gleam/list
 import gleeunit
 import gleeunit/should
 import intent/array_indexing.{
-  All, Index, LastN, NoArray, get_all_array_elements,
-  navigate_path, parse_path_component, split_path, validate_path,
+  All, Index, LastN, NoArray, get_all_array_elements, navigate_path,
+  parse_path_component, split_path, validate_path,
 }
 
 pub fn main() {

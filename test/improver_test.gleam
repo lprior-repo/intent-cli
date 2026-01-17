@@ -861,7 +861,6 @@ pub fn format_improvements_impact_bar_rendering_test() {
     |> should.equal(expected_filled)
   })
 }
-
 // TODO: Add tests for apply_improvements when implementation is complete
 // TODO: Add tests for more complex ProposedChange scenarios (SimplifyRule)
 // TODO: Add tests for suggestion priority when impact scores are equal

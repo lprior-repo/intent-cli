@@ -1,12 +1,21 @@
 -module(gleam@option).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
-
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
+-define(FILEPATH, "src/gleam/option.gleam").
 -export([all/1, is_some/1, is_none/1, to_result/2, from_result/1, unwrap/2, lazy_unwrap/2, map/2, flatten/1, then/2, 'or'/2, lazy_or/2, values/1]).
 -export_type([option/1]).
 
--type option(GB) :: {some, GB} | none.
+-if(?OTP_RELEASE >= 27).
+-define(MODULEDOC(Str), -moduledoc(Str)).
+-define(DOC(Str), -doc(Str)).
+-else.
+-define(MODULEDOC(Str), -compile([])).
+-define(DOC(Str), -compile([])).
+-endif.
 
--spec do_all(list(option(GC)), list(GC)) -> option(list(GC)).
+-type option(FG) :: {some, FG} | none.
+
+-file("src/gleam/option.gleam", 24).
+-spec do_all(list(option(FH)), list(FH)) -> option(list(FH)).
 do_all(List, Acc) ->
     case List of
         [] ->
@@ -23,19 +32,85 @@ do_all(List, Acc) ->
             Accumulate(do_all(Rest, Acc), X)
     end.
 
--spec all(list(option(GI))) -> option(list(GI)).
+-file("src/gleam/option.gleam", 55).
+?DOC(
+    " Combines a list of `Option`s into a single `Option`.\n"
+    " If all elements in the list are `Some` then returns a `Some` holding the list of values.\n"
+    " If any element is `None` then returns`None`.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " all([Some(1), Some(2)])\n"
+    " // -> Some([1, 2])\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " all([Some(1), None])\n"
+    " // -> None\n"
+    " ```\n"
+).
+-spec all(list(option(FN))) -> option(list(FN)).
 all(List) ->
     do_all(List, []).
 
+-file("src/gleam/option.gleam", 73).
+?DOC(
+    " Checks whether the `Option` is a `Some` value.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " is_some(Some(1))\n"
+    " // -> True\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " is_some(None)\n"
+    " // -> False\n"
+    " ```\n"
+).
 -spec is_some(option(any())) -> boolean().
 is_some(Option) ->
     Option /= none.
 
+-file("src/gleam/option.gleam", 91).
+?DOC(
+    " Checks whether the `Option` is a `None` value.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " is_none(Some(1))\n"
+    " // -> False\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " is_none(None)\n"
+    " // -> True\n"
+    " ```\n"
+).
 -spec is_none(option(any())) -> boolean().
 is_none(Option) ->
     Option =:= none.
 
--spec to_result(option(GR), GU) -> {ok, GR} | {error, GU}.
+-file("src/gleam/option.gleam", 109).
+?DOC(
+    " Converts an `Option` type to a `Result` type.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " to_result(Some(1), \"some_error\")\n"
+    " // -> Ok(1)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " to_result(None, \"some_error\")\n"
+    " // -> Error(\"some_error\")\n"
+    " ```\n"
+).
+-spec to_result(option(FW), FZ) -> {ok, FW} | {error, FZ}.
 to_result(Option, E) ->
     case Option of
         {some, A} ->
@@ -45,7 +120,23 @@ to_result(Option, E) ->
             {error, E}
     end.
 
--spec from_result({ok, GX} | {error, any()}) -> option(GX).
+-file("src/gleam/option.gleam", 130).
+?DOC(
+    " Converts a `Result` type to an `Option` type.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " from_result(Ok(1))\n"
+    " // -> Some(1)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " from_result(Error(\"some_error\"))\n"
+    " // -> None\n"
+    " ```\n"
+).
+-spec from_result({ok, GC} | {error, any()}) -> option(GC).
 from_result(Result) ->
     case Result of
         {ok, A} ->
@@ -55,7 +146,23 @@ from_result(Result) ->
             none
     end.
 
--spec unwrap(option(HC), HC) -> HC.
+-file("src/gleam/option.gleam", 151).
+?DOC(
+    " Extracts the value from an `Option`, returning a default value if there is none.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " unwrap(Some(1), 0)\n"
+    " // -> 1\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " unwrap(None, 0)\n"
+    " // -> 0\n"
+    " ```\n"
+).
+-spec unwrap(option(GH), GH) -> GH.
 unwrap(Option, Default) ->
     case Option of
         {some, X} ->
@@ -65,7 +172,23 @@ unwrap(Option, Default) ->
             Default
     end.
 
--spec lazy_unwrap(option(HE), fun(() -> HE)) -> HE.
+-file("src/gleam/option.gleam", 172).
+?DOC(
+    " Extracts the value from an `Option`, evaluating the default function if the option is `None`.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " lazy_unwrap(Some(1), fn() { 0 })\n"
+    " // -> 1\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " lazy_unwrap(None, fn() { 0 })\n"
+    " // -> 0\n"
+    " ```\n"
+).
+-spec lazy_unwrap(option(GJ), fun(() -> GJ)) -> GJ.
 lazy_unwrap(Option, Default) ->
     case Option of
         {some, X} ->
@@ -75,7 +198,27 @@ lazy_unwrap(Option, Default) ->
             Default()
     end.
 
--spec map(option(HG), fun((HG) -> HI)) -> option(HI).
+-file("src/gleam/option.gleam", 197).
+?DOC(
+    " Updates a value held within the `Some` of an `Option` by calling a given function\n"
+    " on it.\n"
+    "\n"
+    " If the `Option` is a `None` rather than `Some`, the function is not called and the\n"
+    " `Option` stays the same.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " map(over: Some(1), with: fn(x) { x + 1 })\n"
+    " // -> Some(2)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " map(over: None, with: fn(x) { x + 1 })\n"
+    " // -> None\n"
+    " ```\n"
+).
+-spec map(option(GL), fun((GL) -> GN)) -> option(GN).
 map(Option, Fun) ->
     case Option of
         {some, X} ->
@@ -85,7 +228,28 @@ map(Option, Fun) ->
             none
     end.
 
--spec flatten(option(option(HK))) -> option(HK).
+-file("src/gleam/option.gleam", 223).
+?DOC(
+    " Merges a nested `Option` into a single layer.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " flatten(Some(Some(1)))\n"
+    " // -> Some(1)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " flatten(Some(None))\n"
+    " // -> None\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " flatten(None)\n"
+    " // -> None\n"
+    " ```\n"
+).
+-spec flatten(option(option(GP))) -> option(GP).
 flatten(Option) ->
     case Option of
         {some, X} ->
@@ -95,7 +259,41 @@ flatten(Option) ->
             none
     end.
 
--spec then(option(HO), fun((HO) -> option(HQ))) -> option(HQ).
+-file("src/gleam/option.gleam", 262).
+?DOC(
+    " Updates a value held within the `Some` of an `Option` by calling a given function\n"
+    " on it, where the given function also returns an `Option`. The two options are\n"
+    " then merged together into one `Option`.\n"
+    "\n"
+    " If the `Option` is a `None` rather than `Some` the function is not called and the\n"
+    " option stays the same.\n"
+    "\n"
+    " This function is the equivalent of calling `map` followed by `flatten`, and\n"
+    " it is useful for chaining together multiple functions that return `Option`.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " then(Some(1), fn(x) { Some(x + 1) })\n"
+    " // -> Some(2)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " then(Some(1), fn(x) { Some(#(\"a\", x)) })\n"
+    " // -> Some(#(\"a\", 1))\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " then(Some(1), fn(_) { None })\n"
+    " // -> None\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " then(None, fn(x) { Some(x + 1) })\n"
+    " // -> None\n"
+    " ```\n"
+).
+-spec then(option(GT), fun((GT) -> option(GV))) -> option(GV).
 then(Option, Fun) ->
     case Option of
         {some, X} ->
@@ -105,7 +303,33 @@ then(Option, Fun) ->
             none
     end.
 
--spec 'or'(option(HT), option(HT)) -> option(HT).
+-file("src/gleam/option.gleam", 293).
+?DOC(
+    " Returns the first value if it is `Some`, otherwise returns the second value.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " or(Some(1), Some(2))\n"
+    " // -> Some(1)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " or(Some(1), None)\n"
+    " // -> Some(1)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " or(None, Some(2))\n"
+    " // -> Some(2)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " or(None, None)\n"
+    " // -> None\n"
+    " ```\n"
+).
+-spec 'or'(option(GY), option(GY)) -> option(GY).
 'or'(First, Second) ->
     case First of
         {some, _} ->
@@ -115,7 +339,33 @@ then(Option, Fun) ->
             Second
     end.
 
--spec lazy_or(option(HX), fun(() -> option(HX))) -> option(HX).
+-file("src/gleam/option.gleam", 324).
+?DOC(
+    " Returns the first value if it is `Some`, otherwise evaluates the given function for a fallback value.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " lazy_or(Some(1), fn() { Some(2) })\n"
+    " // -> Some(1)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " lazy_or(Some(1), fn() { None })\n"
+    " // -> Some(1)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " lazy_or(None, fn() { Some(2) })\n"
+    " // -> Some(2)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " lazy_or(None, fn() { None })\n"
+    " // -> None\n"
+    " ```\n"
+).
+-spec lazy_or(option(HC), fun(() -> option(HC))) -> option(HC).
 lazy_or(First, Second) ->
     case First of
         {some, _} ->
@@ -125,7 +375,8 @@ lazy_or(First, Second) ->
             Second()
     end.
 
--spec do_values(list(option(IB)), list(IB)) -> list(IB).
+-file("src/gleam/option.gleam", 331).
+-spec do_values(list(option(HG)), list(HG)) -> list(HG).
 do_values(List, Acc) ->
     case List of
         [] ->
@@ -142,6 +393,18 @@ do_values(List, Acc) ->
             Accumulate(do_values(Xs, Acc), X)
     end.
 
--spec values(list(option(IG))) -> list(IG).
+-file("src/gleam/option.gleam", 356).
+?DOC(
+    " Given a list of `Option`s,\n"
+    " returns only the values inside `Some`.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " values([Some(1), None, Some(3)])\n"
+    " // -> [1, 3]\n"
+    " ```\n"
+).
+-spec values(list(option(HL))) -> list(HL).
 values(Options) ->
     do_values(Options, []).

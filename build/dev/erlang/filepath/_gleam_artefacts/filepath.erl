@@ -1,8 +1,25 @@
 -module(filepath).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
-
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
+-define(FILEPATH, "src/filepath.gleam").
 -export([join/2, split_unix/1, split_windows/1, split/1, base_name/1, extension/1, strip_extension/1, directory_name/1, is_absolute/1, expand/1]).
 
+-if(?OTP_RELEASE >= 27).
+-define(MODULEDOC(Str), -moduledoc(Str)).
+-define(DOC(Str), -doc(Str)).
+-else.
+-define(MODULEDOC(Str), -compile([])).
+-define(DOC(Str), -compile([])).
+-endif.
+
+?MODULEDOC(
+    " Work with file paths in Gleam!\n"
+    "\n"
+    " This library expects paths to be valid unicode. If you need to work with\n"
+    " non-unicode paths you will need to convert them to unicode before using\n"
+    " this library.\n"
+).
+
+-file("src/filepath.gleam", 48).
 -spec relative(binary()) -> binary().
 relative(Path) ->
     case Path of
@@ -13,6 +30,7 @@ relative(Path) ->
             Path
     end.
 
+-file("src/filepath.gleam", 55).
 -spec remove_trailing_slash(binary()) -> binary().
 remove_trailing_slash(Path) ->
     case gleam@string:ends_with(Path, <<"/"/utf8>>) of
@@ -23,6 +41,20 @@ remove_trailing_slash(Path) ->
             Path
     end.
 
+-file("src/filepath.gleam", 35).
+?DOC(
+    " Join two paths together.\n"
+    "\n"
+    " This function does not expand `..` or `.` segments, use the `expand`\n"
+    " function to do this.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " join(\"/usr/local\", \"bin\")\n"
+    " // -> \"/usr/local/bin\"\n"
+    " ```\n"
+).
 -spec join(binary(), binary()) -> binary().
 join(Left, Right) ->
     _pipe@2 = case {Left, Right} of
@@ -42,6 +74,21 @@ join(Left, Right) ->
     end,
     remove_trailing_slash(_pipe@2).
 
+-file("src/filepath.gleam", 96).
+?DOC(
+    " Split a path into its segments, using `/` as the path separator.\n"
+    "\n"
+    " Typically you would want to use `split` instead of this function, but if you\n"
+    " want non-Windows path behaviour on a Windows system then you can use this\n"
+    " function.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " split(\"/usr/local/bin\", \"bin\")\n"
+    " // -> [\"/\", \"usr\", \"local\", \"bin\"]\n"
+    " ```\n"
+).
 -spec split_unix(binary()) -> list(binary()).
 split_unix(Path) ->
     _pipe = case gleam@string:split(Path, <<"/"/utf8>>) of
@@ -56,6 +103,7 @@ split_unix(Path) ->
     end,
     gleam@list:filter(_pipe, fun(X) -> X /= <<""/utf8>> end).
 
+-file("src/filepath.gleam", 138).
 -spec pop_windows_drive_specifier(binary()) -> {gleam@option:option(binary()),
     binary()}.
 pop_windows_drive_specifier(Path) ->
@@ -73,6 +121,22 @@ pop_windows_drive_specifier(Path) ->
             {none, Path}
     end.
 
+-file("src/filepath.gleam", 119).
+?DOC(
+    " Split a path into its segments, using `/` and `\\` as the path separators. If\n"
+    " there is a drive letter at the start of the path then it is lowercased.\n"
+    "\n"
+    " Typically you would want to use `split` instead of this function, but if you\n"
+    " want Windows path behaviour on a non-Windows system then you can use this\n"
+    " function.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " split(\"/usr/local/bin\", \"bin\")\n"
+    " // -> [\"/\", \"usr\", \"local\", \"bin\"]\n"
+    " ```\n"
+).
 -spec split_windows(binary()) -> list(binary()).
 split_windows(Path) ->
     {Drive, Path@1} = pop_windows_drive_specifier(Path),
@@ -101,6 +165,21 @@ split_windows(Path) ->
             Rest@1
     end.
 
+-file("src/filepath.gleam", 76).
+?DOC(
+    " Split a path into its segments.\n"
+    "\n"
+    " When running on Windows both `/` and `\\` are treated as path separators, and \n"
+    " if the path starts with a drive letter then the drive letter then it is\n"
+    " lowercased.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " split(\"/usr/local/bin\", \"bin\")\n"
+    " // -> [\"/\", \"usr\", \"local\", \"bin\"]\n"
+    " ```\n"
+).
 -spec split(binary()) -> list(binary()).
 split(Path) ->
     case filepath_ffi:is_windows() of
@@ -111,6 +190,18 @@ split(Path) ->
             split_unix(Path)
     end.
 
+-file("src/filepath.gleam", 218).
+?DOC(
+    " Get the base name of a path, that is the name of the file without the\n"
+    " containing directory.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " base_name(\"/usr/local/bin\")\n"
+    " // -> \"bin\"\n"
+    " ```\n"
+).
 -spec base_name(binary()) -> binary().
 base_name(Path) ->
     gleam@bool:guard(Path =:= <<"/"/utf8>>, <<""/utf8>>, fun() -> _pipe = Path,
@@ -118,6 +209,22 @@ base_name(Path) ->
             _pipe@2 = gleam@list:last(_pipe@1),
             gleam@result:unwrap(_pipe@2, <<""/utf8>>) end).
 
+-file("src/filepath.gleam", 168).
+?DOC(
+    " Get the file extension of a path.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " extension(\"src/main.gleam\")\n"
+    " // -> Ok(\"gleam\")\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " extension(\"package.tar.gz\")\n"
+    " // -> Ok(\"gz\")\n"
+    " ```\n"
+).
 -spec extension(binary()) -> {ok, binary()} | {error, nil}.
 extension(Path) ->
     File = base_name(Path),
@@ -135,6 +242,27 @@ extension(Path) ->
             {error, nil}
     end.
 
+-file("src/filepath.gleam", 197).
+?DOC(
+    " Remove the extension from a file, if it has any.\n"
+    " \n"
+    " ## Examples\n"
+    " \n"
+    " ```gleam\n"
+    " strip_extension(\"src/main.gleam\")\n"
+    " // -> \"src/main\"\n"
+    " ```\n"
+    " \n"
+    " ```gleam\n"
+    " strip_extension(\"package.tar.gz\")\n"
+    " // -> \"package.tar\"\n"
+    " ```\n"
+    " \n"
+    " ```gleam\n"
+    " strip_extension(\"src/gleam\")\n"
+    " // -> \"src/gleam\"\n"
+    " ```\n"
+).
 -spec strip_extension(binary()) -> binary().
 strip_extension(Path) ->
     case extension(Path) of
@@ -145,6 +273,7 @@ strip_extension(Path) ->
             Path
     end.
 
+-file("src/filepath.gleam", 245).
 -spec get_directory_name(list(binary()), binary(), binary()) -> binary().
 get_directory_name(Path, Acc, Segment) ->
     case Path of
@@ -162,6 +291,17 @@ get_directory_name(Path, Acc, Segment) ->
             Acc
     end.
 
+-file("src/filepath.gleam", 237).
+?DOC(
+    " Get the directory name of a path, that is the path without the file name.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " directory_name(\"/usr/local/bin\")\n"
+    " // -> \"/usr/local\"\n"
+    " ```\n"
+).
 -spec directory_name(binary()) -> binary().
 directory_name(Path) ->
     Path@1 = remove_trailing_slash(Path),
@@ -181,10 +321,27 @@ directory_name(Path) ->
             )
     end.
 
+-file("src/filepath.gleam", 272).
+?DOC(
+    " Check if a path is absolute.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " is_absolute(\"/usr/local/bin\")\n"
+    " // -> True\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " is_absolute(\"usr/local/bin\")\n"
+    " // -> False\n"
+    " ```\n"
+).
 -spec is_absolute(binary()) -> boolean().
 is_absolute(Path) ->
     gleam@string:starts_with(Path, <<"/"/utf8>>).
 
+-file("src/filepath.gleam", 316).
 -spec expand_segments(list(binary()), list(binary())) -> {ok, binary()} |
     {error, nil}.
 expand_segments(Path, Base) ->
@@ -208,6 +365,7 @@ expand_segments(Path, Base) ->
             {ok, gleam@string:join(lists:reverse(Base), <<"/"/utf8>>)}
     end.
 
+-file("src/filepath.gleam", 341).
 -spec root_slash_to_empty(list(binary())) -> list(binary()).
 root_slash_to_empty(Segments) ->
     case Segments of
@@ -218,6 +376,33 @@ root_slash_to_empty(Segments) ->
             Segments
     end.
 
+-file("src/filepath.gleam", 302).
+?DOC(
+    " Expand `..` and `.` segments in a path.\n"
+    "\n"
+    " If the path has a `..` segment that would go up past the root of the path\n"
+    " then an error is returned. This may be useful to example to ensure that a\n"
+    " path specified by a user does not go outside of a directory.\n"
+    "\n"
+    " If the path is absolute then the result will always be absolute.\n"
+    "\n"
+    " ## Examples\n"
+    "\n"
+    " ```gleam\n"
+    " expand(\"/usr/local/../bin\")\n"
+    " // -> Ok(\"/usr/bin\")\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " expand(\"/tmp/../..\")\n"
+    " // -> Error(Nil)\n"
+    " ```\n"
+    "\n"
+    " ```gleam\n"
+    " expand(\"src/../..\")\n"
+    " // -> Error(\"..\")\n"
+    " ```\n"
+).
 -spec expand(binary()) -> {ok, binary()} | {error, nil}.
 expand(Path) ->
     Is_absolute = is_absolute(Path),

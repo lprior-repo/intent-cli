@@ -1,8 +1,16 @@
 -module(gleeunit).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
-
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
+-define(FILEPATH, "src/gleeunit.gleam").
 -export([main/0]).
 -export_type([atom_/0, encoding/0, report_module_name/0, gleeunit_progress_option/0, eunit_option/0]).
+
+-if(?OTP_RELEASE >= 27).
+-define(MODULEDOC(Str), -moduledoc(Str)).
+-define(DOC(Str), -doc(Str)).
+-else.
+-define(MODULEDOC(Str), -compile([])).
+-define(DOC(Str), -compile([])).
+-endif.
 
 -type atom_() :: any().
 
@@ -16,6 +24,7 @@
     no_tty |
     {report, {report_module_name(), list(gleeunit_progress_option())}}.
 
+-file("src/gleeunit.gleam", 36).
 -spec gleam_to_erlang_module_name(binary()) -> binary().
 gleam_to_erlang_module_name(Path) ->
     _pipe = Path,
@@ -23,6 +32,7 @@ gleam_to_erlang_module_name(Path) ->
     _pipe@2 = gleam@string:replace(_pipe@1, <<".erl"/utf8>>, <<""/utf8>>),
     gleam@string:replace(_pipe@2, <<"/"/utf8>>, <<"@"/utf8>>).
 
+-file("src/gleeunit.gleam", 17).
 -spec do_main() -> nil.
 do_main() ->
     Options = [verbose,
@@ -49,6 +59,16 @@ do_main() ->
     end,
     erlang:halt(Code).
 
+-file("src/gleeunit.gleam", 12).
+?DOC(
+    " Find and run all test functions for the current project using Erlang's EUnit\n"
+    " test framework.\n"
+    "\n"
+    " Any Erlang or Gleam function in the `test` directory with a name ending in\n"
+    " `_test` is considered a test function and will be run.\n"
+    "\n"
+    " If running on JavaScript tests will be run with a custom test runner.\n"
+).
 -spec main() -> nil.
 main() ->
     do_main().

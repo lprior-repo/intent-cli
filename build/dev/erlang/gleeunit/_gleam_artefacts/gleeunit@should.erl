@@ -1,25 +1,46 @@
 -module(gleeunit@should).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
-
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
+-define(FILEPATH, "src/gleeunit/should.gleam").
 -export([equal/2, not_equal/2, be_ok/1, be_error/1, be_some/1, be_none/1, be_true/1, be_false/1, fail/0]).
 
--spec equal(KII, KII) -> nil.
+-if(?OTP_RELEASE >= 27).
+-define(MODULEDOC(Str), -moduledoc(Str)).
+-define(DOC(Str), -doc(Str)).
+-else.
+-define(MODULEDOC(Str), -compile([])).
+-define(DOC(Str), -compile([])).
+-endif.
+
+?MODULEDOC(
+    " A module for testing your Gleam code. The functions found here are\n"
+    " compatible with the Erlang eunit test framework.\n"
+    "\n"
+    " More information on running eunit can be found in [the rebar3\n"
+    " documentation](https://rebar3.org/docs/testing/eunit/).\n"
+).
+
+-file("src/gleeunit/should.gleam", 11).
+-spec equal(JZL, JZL) -> nil.
 equal(A, B) ->
     gleeunit_ffi:should_equal(A, B).
 
--spec not_equal(KIJ, KIJ) -> nil.
+-file("src/gleeunit/should.gleam", 25).
+-spec not_equal(JZM, JZM) -> nil.
 not_equal(A, B) ->
     gleeunit_ffi:should_not_equal(A, B).
 
--spec be_ok({ok, KIK} | {error, any()}) -> KIK.
+-file("src/gleeunit/should.gleam", 39).
+-spec be_ok({ok, JZN} | {error, any()}) -> JZN.
 be_ok(A) ->
     gleeunit_ffi:should_be_ok(A).
 
--spec be_error({ok, any()} | {error, KIP}) -> KIP.
+-file("src/gleeunit/should.gleam", 47).
+-spec be_error({ok, any()} | {error, JZS}) -> JZS.
 be_error(A) ->
     gleeunit_ffi:should_be_error(A).
 
--spec be_some(gleam@option:option(KIS)) -> KIS.
+-file("src/gleeunit/should.gleam", 54).
+-spec be_some(gleam@option:option(JZV)) -> JZV.
 be_some(A) ->
     case A of
         {some, Value} ->
@@ -32,11 +53,13 @@ be_some(A) ->
                             gleam@string:inspect(A),
                             <<"\nshould be some"/utf8>>]
                     ),
+                    file => <<?FILEPATH/utf8>>,
                     module => <<"gleeunit/should"/utf8>>,
                     function => <<"be_some"/utf8>>,
                     line => 57})
     end.
 
+-file("src/gleeunit/should.gleam", 61).
 -spec be_none(gleam@option:option(any())) -> nil.
 be_none(A) ->
     case A of
@@ -50,21 +73,25 @@ be_none(A) ->
                             gleam@string:inspect(A),
                             <<"\nshould be none"/utf8>>]
                     ),
+                    file => <<?FILEPATH/utf8>>,
                     module => <<"gleeunit/should"/utf8>>,
                     function => <<"be_none"/utf8>>,
                     line => 64})
     end.
 
+-file("src/gleeunit/should.gleam", 68).
 -spec be_true(boolean()) -> nil.
 be_true(Actual) ->
     _pipe = Actual,
     gleeunit_ffi:should_equal(_pipe, true).
 
+-file("src/gleeunit/should.gleam", 73).
 -spec be_false(boolean()) -> nil.
 be_false(Actual) ->
     _pipe = Actual,
     gleeunit_ffi:should_equal(_pipe, false).
 
+-file("src/gleeunit/should.gleam", 78).
 -spec fail() -> nil.
 fail() ->
     be_true(false).

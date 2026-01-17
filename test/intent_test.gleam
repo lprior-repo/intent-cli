@@ -5,6 +5,10 @@ import gleam/option.{None, Some}
 import gleam/string
 import gleeunit
 import gleeunit/should
+import intent/bead_templates
+import intent/checker
+import intent/formats
+import intent/http_client
 import intent/interpolate
 import intent/interview
 import intent/interview_questions
@@ -17,10 +21,6 @@ import intent/question_types.{
 import intent/resolver
 import intent/rules_engine
 import intent/types
-import intent/http_client
-import intent/bead_templates
-import intent/formats
-import intent/checker
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -319,7 +319,11 @@ pub fn interview_get_questions_cli_round_1_test() {
 
 pub fn interview_create_session_test() {
   let session =
-    interview.create_session("test-session-1", interview.Api, "2024-01-01T00:00:00Z")
+    interview.create_session(
+      "test-session-1",
+      interview.Api,
+      "2024-01-01T00:00:00Z",
+    )
 
   session.id |> should.equal("test-session-1")
   session.profile |> should.equal(interview.Api)
@@ -391,7 +395,10 @@ pub fn interview_detect_gaps_with_answers_test() {
       perspective: Developer,
       round: 1,
       response: "Users, Tokens",
-      extracted: dict.from_list([#("entities", "Users, Tokens"), #("base_url", "http://localhost:8080")]),
+      extracted: dict.from_list([
+        #("entities", "Users, Tokens"),
+        #("base_url", "http://localhost:8080"),
+      ]),
       confidence: 0.85,
       notes: "",
       timestamp: "2024-01-01T00:00:00Z",
@@ -462,15 +469,17 @@ pub fn interview_detect_conflicts_cap_theorem_test() {
   ]
 
   let conflicts = interview.detect_conflicts(answers)
-  conflicts |> list.any(fn(c) { c.id == "conflict-cap" })
+  conflicts
+  |> list.any(fn(c) { c.id == "conflict-cap" })
   |> should.be_true()
 }
 
 pub fn interview_calculate_confidence_high_test() {
-  let extracted = dict.from_list([
-    #("auth_method", "jwt"),
-    #("audience", "mobile"),
-  ])
+  let extracted =
+    dict.from_list([
+      #("auth_method", "jwt"),
+      #("audience", "mobile"),
+    ])
   let confidence =
     interview.calculate_confidence(
       "q1",
@@ -482,19 +491,21 @@ pub fn interview_calculate_confidence_high_test() {
 }
 
 pub fn interview_add_answer_test() {
-  let session = interview.create_session("test-1", interview.Api, "2024-01-01T00:00:00Z")
+  let session =
+    interview.create_session("test-1", interview.Api, "2024-01-01T00:00:00Z")
 
-  let answer = interview.Answer(
-    question_id: "q1",
-    question_text: "Test",
-    perspective: User,
-    round: 1,
-    response: "Test response",
-    extracted: dict.from_list([]),
-    confidence: 0.8,
-    notes: "",
-    timestamp: "2024-01-01T00:01:00Z",
-  )
+  let answer =
+    interview.Answer(
+      question_id: "q1",
+      question_text: "Test",
+      perspective: User,
+      round: 1,
+      response: "Test response",
+      extracted: dict.from_list([]),
+      confidence: 0.8,
+      notes: "",
+      timestamp: "2024-01-01T00:01:00Z",
+    )
 
   let updated = interview.add_answer(session, answer)
   updated.answers |> list.length() |> should.equal(1)
@@ -502,7 +513,8 @@ pub fn interview_add_answer_test() {
 }
 
 pub fn interview_complete_round_test() {
-  let session = interview.create_session("test-1", interview.Api, "2024-01-01T00:00:00Z")
+  let session =
+    interview.create_session("test-1", interview.Api, "2024-01-01T00:00:00Z")
   let after_round_1 = interview.complete_round(session)
 
   after_round_1.rounds_completed |> should.equal(1)
@@ -511,20 +523,21 @@ pub fn interview_complete_round_test() {
 }
 
 pub fn interview_format_question_critical_test() {
-  let question = Question(
-    id: "q1",
-    round: 1,
-    perspective: User,
-    category: HappyPath,
-    priority: Critical,
-    question: "What should this do?",
-    context: "Start simple",
-    example: "Example here",
-    expected_type: "text",
-    extract_into: [],
-    depends_on: [],
-    blocks: [],
-  )
+  let question =
+    Question(
+      id: "q1",
+      round: 1,
+      perspective: User,
+      category: HappyPath,
+      priority: Critical,
+      question: "What should this do?",
+      context: "Start simple",
+      example: "Example here",
+      expected_type: "text",
+      extract_into: [],
+      depends_on: [],
+      blocks: [],
+    )
 
   let formatted = interview.format_question(question)
   formatted |> string.contains("[CRITICAL]") |> should.be_true()
@@ -537,19 +550,21 @@ pub fn interview_format_question_critical_test() {
 
 pub fn http_client_url_construction_simple_test() {
   // Test simple URL construction without interpolation
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/users/123",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/users/123",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -566,19 +581,21 @@ pub fn http_client_url_construction_simple_test() {
 
 pub fn http_client_path_interpolation_test() {
   // Test path interpolation with variables
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/users/${user_id}",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/users/${user_id}",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx =
     interpolate.new_context()
@@ -596,19 +613,21 @@ pub fn http_client_path_interpolation_test() {
 
 pub fn http_client_missing_variable_interpolation_test() {
   // Test that missing variables in path cause interpolation errors
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/users/${unknown_var}",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/users/${unknown_var}",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -622,19 +641,21 @@ pub fn http_client_missing_variable_interpolation_test() {
 
 pub fn http_client_header_interpolation_test() {
   // Test header interpolation with variables
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.from_list([#("X-Default", "default-value")]),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.from_list([#("X-Default", "default-value")]),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/users",
-    headers: dict.from_list([#("X-Token", "${auth_token}")]),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/users",
+      headers: dict.from_list([#("X-Token", "${auth_token}")]),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx =
     interpolate.new_context()
@@ -651,22 +672,24 @@ pub fn http_client_header_interpolation_test() {
 
 pub fn http_client_header_merge_test() {
   // Test that request headers override config headers
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.from_list([
-      #("X-Default", "config-value"),
-      #("X-Config-Only", "config"),
-    ]),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.from_list([
+        #("X-Default", "config-value"),
+        #("X-Config-Only", "config"),
+      ]),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/users",
-    headers: dict.from_list([#("X-Default", "request-value")]),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/users",
+      headers: dict.from_list([#("X-Default", "request-value")]),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -681,11 +704,12 @@ pub fn http_client_header_merge_test() {
 
 pub fn http_client_body_json_interpolation_test() {
   // Test body interpolation with JSON content
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
   let body_json =
     json.object([
@@ -693,13 +717,14 @@ pub fn http_client_body_json_interpolation_test() {
       #("email", json.string("user@example.com")),
     ])
 
-  let request = types.Request(
-    method: types.Post,
-    path: "/users",
-    headers: dict.new(),
-    query: dict.new(),
-    body: body_json,
-  )
+  let request =
+    types.Request(
+      method: types.Post,
+      path: "/users",
+      headers: dict.new(),
+      query: dict.new(),
+      body: body_json,
+    )
 
   let ctx =
     interpolate.new_context()
@@ -716,19 +741,21 @@ pub fn http_client_body_json_interpolation_test() {
 
 pub fn http_client_invalid_url_test() {
   // Test invalid URL handling
-  let config = types.Config(
-    base_url: "not a valid url at all",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "not a valid url at all",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/users",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/users",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -742,19 +769,21 @@ pub fn http_client_invalid_url_test() {
 
 pub fn http_client_https_url_test() {
   // Test HTTPS URL handling
-  let config = types.Config(
-    base_url: "https://api.example.com",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "https://api.example.com",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/secure-endpoint",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/secure-endpoint",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -769,19 +798,21 @@ pub fn http_client_https_url_test() {
 
 pub fn http_client_custom_port_test() {
   // Test URL with custom port
-  let config = types.Config(
-    base_url: "http://localhost:3000",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:3000",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/health",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/health",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -796,20 +827,22 @@ pub fn http_client_custom_port_test() {
 
 pub fn http_client_path_leading_slash_test() {
   // Test that paths are normalized with leading slash
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
   // Path without leading slash
-  let request = types.Request(
-    method: types.Get,
-    path: "users/123",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "users/123",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -824,19 +857,21 @@ pub fn http_client_path_leading_slash_test() {
 
 pub fn http_client_method_conversion_get_test() {
   // Test that GET method is handled correctly
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/users",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/users",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -851,19 +886,21 @@ pub fn http_client_method_conversion_get_test() {
 
 pub fn http_client_method_conversion_post_test() {
   // Test that POST method with body is handled correctly
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.new(),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.new(),
+    )
 
-  let request = types.Request(
-    method: types.Post,
-    path: "/users",
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.object([#("name", json.string("John"))]),
-  )
+  let request =
+    types.Request(
+      method: types.Post,
+      path: "/users",
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.object([#("name", json.string("John"))]),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -878,25 +915,27 @@ pub fn http_client_method_conversion_post_test() {
 
 pub fn http_client_multiple_header_merge_test() {
   // Test merging multiple headers from both config and request
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.from_list([
-      #("X-API-Version", "v1"),
-      #("User-Agent", "intent-cli"),
-    ]),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.from_list([
+        #("X-API-Version", "v1"),
+        #("User-Agent", "intent-cli"),
+      ]),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/data",
-    headers: dict.from_list([
-      #("Authorization", "Bearer token"),
-      #("X-Request-ID", "123"),
-    ]),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/data",
+      headers: dict.from_list([
+        #("Authorization", "Bearer token"),
+        #("X-Request-ID", "123"),
+      ]),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -932,20 +971,21 @@ fn make_execution_result(
 
 pub fn rules_engine_check_when_status_equals_test() {
   // Test status condition with exact match (== 200)
-  let rule = types.Rule(
-    name: "Check 200 OK",
-    description: "Verify 200 response",
-    when: types.When(status: "== 200", method: types.Get, path: "/users"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Check 200 OK",
+      description: "Verify 200 response",
+      when: types.When(status: "== 200", method: types.Get, path: "/users"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
   let response = make_execution_result(200, "ok", types.Get, "/users")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
@@ -961,22 +1001,24 @@ pub fn rules_engine_check_when_status_equals_test() {
 
 pub fn rules_engine_check_when_status_greater_than_test() {
   // Test status condition with > operator
-  let rule = types.Rule(
-    name: "Check 4xx error",
-    description: "Verify error status",
-    when: types.When(status: "> 399", method: types.Post, path: "/create"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Check 4xx error",
+      description: "Verify error status",
+      when: types.When(status: "> 399", method: types.Post, path: "/create"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = make_execution_result(400, "bad request", types.Post, "/create")
+  let response =
+    make_execution_result(400, "bad request", types.Post, "/create")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
   list.length(results)
@@ -990,20 +1032,21 @@ pub fn rules_engine_check_when_status_greater_than_test() {
 
 pub fn rules_engine_check_when_status_less_than_test() {
   // Test status condition with < operator
-  let rule = types.Rule(
-    name: "Check success range",
-    description: "Verify 2xx status",
-    when: types.When(status: "< 300", method: types.Get, path: "/data"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Check success range",
+      description: "Verify 2xx status",
+      when: types.When(status: "< 300", method: types.Get, path: "/data"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
   let response = make_execution_result(201, "created", types.Get, "/data")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
@@ -1016,20 +1059,21 @@ pub fn rules_engine_check_when_status_less_than_test() {
 
 pub fn rules_engine_check_when_method_mismatch_test() {
   // Test that rule doesn't apply when method doesn't match
-  let rule = types.Rule(
-    name: "POST rule",
-    description: "Only for POST",
-    when: types.When(status: "== 200", method: types.Post, path: "/create"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "POST rule",
+      description: "Only for POST",
+      when: types.When(status: "== 200", method: types.Post, path: "/create"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
   let response = make_execution_result(200, "ok", types.Get, "/create")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
@@ -1041,20 +1085,21 @@ pub fn rules_engine_check_when_method_mismatch_test() {
 
 pub fn rules_engine_check_when_path_exact_match_test() {
   // Test exact path matching
-  let rule = types.Rule(
-    name: "Exact path rule",
-    description: "Check exact path",
-    when: types.When(status: "== 200", method: types.Get, path: "/exact/path"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Exact path rule",
+      description: "Check exact path",
+      when: types.When(status: "== 200", method: types.Get, path: "/exact/path"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
   let response = make_execution_result(200, "ok", types.Get, "/exact/path")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
@@ -1067,20 +1112,21 @@ pub fn rules_engine_check_when_path_exact_match_test() {
 
 pub fn rules_engine_check_when_path_regex_match_test() {
   // Test regex path matching
-  let rule = types.Rule(
-    name: "Regex path rule",
-    description: "Check regex path",
-    when: types.When(status: "== 200", method: types.Get, path: "^/users/.*"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Regex path rule",
+      description: "Check regex path",
+      when: types.When(status: "== 200", method: types.Get, path: "^/users/.*"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
   let response = make_execution_result(200, "ok", types.Get, "/users/123")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
@@ -1093,22 +1139,24 @@ pub fn rules_engine_check_when_path_regex_match_test() {
 
 pub fn rules_engine_check_body_must_contain_test() {
   // Test body_must_contain check
-  let rule = types.Rule(
-    name: "Body content rule",
-    description: "Verify body contains text",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: ["success"],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Body content rule",
+      description: "Verify body contains text",
+      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: ["success"],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = make_execution_result(200, "Operation was a success", types.Get, "/test")
+  let response =
+    make_execution_result(200, "Operation was a success", types.Get, "/test")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
   case results {
@@ -1119,22 +1167,24 @@ pub fn rules_engine_check_body_must_contain_test() {
 
 pub fn rules_engine_check_body_must_not_contain_test() {
   // Test body_must_not_contain check
-  let rule = types.Rule(
-    name: "No error rule",
-    description: "Verify no error in body",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
-    check: types.RuleCheck(
-      body_must_not_contain: ["error"],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "No error rule",
+      description: "Verify no error in body",
+      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      check: types.RuleCheck(
+        body_must_not_contain: ["error"],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = make_execution_result(200, "This is clean data", types.Get, "/test")
+  let response =
+    make_execution_result(200, "This is clean data", types.Get, "/test")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
   case results {
@@ -1145,20 +1195,21 @@ pub fn rules_engine_check_body_must_not_contain_test() {
 
 pub fn rules_engine_check_body_must_not_contain_violation_test() {
   // Test body_must_not_contain violation
-  let rule = types.Rule(
-    name: "No error rule",
-    description: "Verify no error in body",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
-    check: types.RuleCheck(
-      body_must_not_contain: ["error"],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "No error rule",
+      description: "Verify no error in body",
+      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      check: types.RuleCheck(
+        body_must_not_contain: ["error"],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
   let response =
     make_execution_result(200, "This has an error in it", types.Get, "/test")
@@ -1175,22 +1226,24 @@ pub fn rules_engine_check_body_must_not_contain_violation_test() {
 
 pub fn rules_engine_check_body_must_contain_violation_test() {
   // Test body_must_contain violation
-  let rule = types.Rule(
-    name: "Required text rule",
-    description: "Verify required text",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: ["required"],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Required text rule",
+      description: "Verify required text",
+      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: ["required"],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = make_execution_result(200, "This is missing it", types.Get, "/test")
+  let response =
+    make_execution_result(200, "This is missing it", types.Get, "/test")
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
   case results {
@@ -1203,38 +1256,41 @@ pub fn rules_engine_check_body_must_contain_violation_test() {
 
 pub fn rules_engine_check_multiple_rules_test() {
   // Test multiple rules applied in sequence
-  let rule1 = types.Rule(
-    name: "Rule 1",
-    description: "First rule",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule1 =
+    types.Rule(
+      name: "Rule 1",
+      description: "First rule",
+      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let rule2 = types.Rule(
-    name: "Rule 2",
-    description: "Second rule",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule2 =
+    types.Rule(
+      name: "Rule 2",
+      description: "Second rule",
+      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
   let response = make_execution_result(200, "ok", types.Get, "/test")
-  let results = rules_engine.check_rules([rule1, rule2], response, "test_behavior")
+  let results =
+    rules_engine.check_rules([rule1, rule2], response, "test_behavior")
 
   list.length(results) |> should.equal(2)
 }
@@ -1355,30 +1411,36 @@ pub fn resolver_deep_chain_test() {
 
 pub fn rules_engine_empty_body_test() {
   // Test rule application with empty response body
-  let rule = types.Rule(
-    name: "Empty body rule",
-    description: "Handle empty response",
-    when: types.When(status: "== 204", method: types.Delete, path: "/resource"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Empty body rule",
+      description: "Handle empty response",
+      when: types.When(
+        status: "== 204",
+        method: types.Delete,
+        path: "/resource",
+      ),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = http_client.ExecutionResult(
-    status: 204,
-    headers: dict.new(),
-    body: json.null(),
-    raw_body: "",
-    elapsed_ms: 50,
-    request_method: types.Delete,
-    request_path: "/resource",
-  )
+  let response =
+    http_client.ExecutionResult(
+      status: 204,
+      headers: dict.new(),
+      body: json.null(),
+      raw_body: "",
+      elapsed_ms: 50,
+      request_method: types.Delete,
+      request_path: "/resource",
+    )
 
   let results = rules_engine.check_rules([rule], response, "test")
   case results {
@@ -1389,30 +1451,32 @@ pub fn rules_engine_empty_body_test() {
 
 pub fn rules_engine_null_json_value_test() {
   // Test handling of null JSON values
-  let rule = types.Rule(
-    name: "Null handling rule",
-    description: "Handle null values",
-    when: types.When(status: "== 200", method: types.Get, path: "/nullable"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Null handling rule",
+      description: "Handle null values",
+      when: types.When(status: "== 200", method: types.Get, path: "/nullable"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = http_client.ExecutionResult(
-    status: 200,
-    headers: dict.new(),
-    body: json.object([#("value", json.null())]),
-    raw_body: "{\"value\":null}",
-    elapsed_ms: 60,
-    request_method: types.Get,
-    request_path: "/nullable",
-  )
+  let response =
+    http_client.ExecutionResult(
+      status: 200,
+      headers: dict.new(),
+      body: json.object([#("value", json.null())]),
+      raw_body: "{\"value\":null}",
+      elapsed_ms: 60,
+      request_method: types.Get,
+      request_path: "/nullable",
+    )
 
   let results = rules_engine.check_rules([rule], response, "test")
   case results {
@@ -1423,30 +1487,32 @@ pub fn rules_engine_null_json_value_test() {
 
 pub fn rules_engine_whitespace_body_test() {
   // Test handling of whitespace-only body
-  let rule = types.Rule(
-    name: "Whitespace rule",
-    description: "Handle whitespace body",
-    when: types.When(status: "== 200", method: types.Get, path: "/test"),
-    check: types.RuleCheck(
-      body_must_not_contain: ["error"],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Whitespace rule",
+      description: "Handle whitespace body",
+      when: types.When(status: "== 200", method: types.Get, path: "/test"),
+      check: types.RuleCheck(
+        body_must_not_contain: ["error"],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = http_client.ExecutionResult(
-    status: 200,
-    headers: dict.new(),
-    body: json.null(),
-    raw_body: "   \n\t  ",
-    elapsed_ms: 40,
-    request_method: types.Get,
-    request_path: "/test",
-  )
+  let response =
+    http_client.ExecutionResult(
+      status: 200,
+      headers: dict.new(),
+      body: json.null(),
+      raw_body: "   \n\t  ",
+      elapsed_ms: 40,
+      request_method: types.Get,
+      request_path: "/test",
+    )
 
   let results = rules_engine.check_rules([rule], response, "test")
   case results {
@@ -1457,30 +1523,32 @@ pub fn rules_engine_whitespace_body_test() {
 
 pub fn rules_engine_nested_null_field_test() {
   // Test checking for null in nested fields
-  let rule = types.Rule(
-    name: "Nested null rule",
-    description: "Check nested fields",
-    when: types.When(status: "== 200", method: types.Get, path: "/nested"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: ["user"],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Nested null rule",
+      description: "Check nested fields",
+      when: types.When(status: "== 200", method: types.Get, path: "/nested"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: ["user"],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = http_client.ExecutionResult(
-    status: 200,
-    headers: dict.new(),
-    body: json.object([#("user", json.null())]),
-    raw_body: "{\"user\":null}",
-    elapsed_ms: 55,
-    request_method: types.Get,
-    request_path: "/nested",
-  )
+  let response =
+    http_client.ExecutionResult(
+      status: 200,
+      headers: dict.new(),
+      body: json.object([#("user", json.null())]),
+      raw_body: "{\"user\":null}",
+      elapsed_ms: 55,
+      request_method: types.Get,
+      request_path: "/nested",
+    )
 
   let results = rules_engine.check_rules([rule], response, "test")
   case results {
@@ -1491,30 +1559,32 @@ pub fn rules_engine_nested_null_field_test() {
 
 pub fn rules_engine_empty_object_test() {
   // Test handling of empty objects
-  let rule = types.Rule(
-    name: "Empty object rule",
-    description: "Handle empty objects",
-    when: types.When(status: "== 200", method: types.Get, path: "/data"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: ["data"],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Empty object rule",
+      description: "Handle empty objects",
+      when: types.When(status: "== 200", method: types.Get, path: "/data"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: ["data"],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = http_client.ExecutionResult(
-    status: 200,
-    headers: dict.new(),
-    body: json.object([#("data", json.object([]))]),
-    raw_body: "{\"data\":{}}",
-    elapsed_ms: 65,
-    request_method: types.Get,
-    request_path: "/data",
-  )
+  let response =
+    http_client.ExecutionResult(
+      status: 200,
+      headers: dict.new(),
+      body: json.object([#("data", json.object([]))]),
+      raw_body: "{\"data\":{}}",
+      elapsed_ms: 65,
+      request_method: types.Get,
+      request_path: "/data",
+    )
 
   let results = rules_engine.check_rules([rule], response, "test")
   case results {
@@ -1555,30 +1625,32 @@ pub fn interpolate_unicode_in_path_test() {
 
 pub fn rules_engine_unicode_body_content_test() {
   // Test body checks with Unicode characters
-  let rule = types.Rule(
-    name: "Unicode content rule",
-    description: "Check for Unicode in response",
-    when: types.When(status: "== 200", method: types.Get, path: "/message"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: ["✓"],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "Unicode content rule",
+      description: "Check for Unicode in response",
+      when: types.When(status: "== 200", method: types.Get, path: "/message"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: ["✓"],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = http_client.ExecutionResult(
-    status: 200,
-    headers: dict.new(),
-    body: json.null(),
-    raw_body: "Status: ✓ All systems operational",
-    elapsed_ms: 50,
-    request_method: types.Get,
-    request_path: "/message",
-  )
+  let response =
+    http_client.ExecutionResult(
+      status: 200,
+      headers: dict.new(),
+      body: json.null(),
+      raw_body: "Status: ✓ All systems operational",
+      elapsed_ms: 50,
+      request_method: types.Get,
+      request_path: "/message",
+    )
 
   let results = rules_engine.check_rules([rule], response, "test")
   case results {
@@ -1589,36 +1661,37 @@ pub fn rules_engine_unicode_body_content_test() {
 
 pub fn rules_engine_emoji_in_description_test() {
   // Test emoji in rule descriptions
-  let rule = types.Rule(
-    name: "emoji_test",
-    description: "Check emoji support 🚀 in descriptions",
-    when: types.When(status: "== 200", method: types.Get, path: "/status"),
-    check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
-    ),
-    example: json.null(),
-  )
+  let rule =
+    types.Rule(
+      name: "emoji_test",
+      description: "Check emoji support 🚀 in descriptions",
+      when: types.When(status: "== 200", method: types.Get, path: "/status"),
+      check: types.RuleCheck(
+        body_must_not_contain: [],
+        body_must_contain: [],
+        fields_must_exist: [],
+        fields_must_not_exist: [],
+        header_must_exist: "",
+        header_must_not_exist: "",
+      ),
+      example: json.null(),
+    )
 
-  let response = http_client.ExecutionResult(
-    status: 200,
-    headers: dict.new(),
-    body: json.null(),
-    raw_body: "ok",
-    elapsed_ms: 50,
-    request_method: types.Get,
-    request_path: "/status",
-  )
+  let response =
+    http_client.ExecutionResult(
+      status: 200,
+      headers: dict.new(),
+      body: json.null(),
+      raw_body: "ok",
+      elapsed_ms: 50,
+      request_method: types.Get,
+      request_path: "/status",
+    )
 
   let results = rules_engine.check_rules([rule], response, "test")
   // Description should contain emoji but not affect rule execution
   case results {
-    [rules_engine.RulePassed(name)] ->
-      name |> should.equal("emoji_test")
+    [rules_engine.RulePassed(name)] -> name |> should.equal("emoji_test")
     _ -> should.fail()
   }
 }
@@ -1638,19 +1711,21 @@ pub fn interpolate_special_characters_test() {
 
 pub fn http_client_unicode_header_test() {
   // Test Unicode in HTTP headers
-  let config = types.Config(
-    base_url: "http://localhost:8080",
-    timeout_ms: 5000,
-    headers: dict.from_list([#("X-Custom", "café")]),
-  )
+  let config =
+    types.Config(
+      base_url: "http://localhost:8080",
+      timeout_ms: 5000,
+      headers: dict.from_list([#("X-Custom", "café")]),
+    )
 
-  let request = types.Request(
-    method: types.Get,
-    path: "/test",
-    headers: dict.from_list([#("X-Greeting", "こんにちは")]),
-    query: dict.new(),
-    body: json.null(),
-  )
+  let request =
+    types.Request(
+      method: types.Get,
+      path: "/test",
+      headers: dict.from_list([#("X-Greeting", "こんにちは")]),
+      query: dict.new(),
+      body: json.null(),
+    )
 
   let ctx = interpolate.new_context()
 
@@ -1669,11 +1744,12 @@ pub fn http_client_unicode_header_test() {
 
 pub fn json_encoding_test() {
   // Test JSON encoding of various values
-  let value = json.object([
-    #("name", json.string("Test")),
-    #("count", json.int(42)),
-    #("enabled", json.bool(True)),
-  ])
+  let value =
+    json.object([
+      #("name", json.string("Test")),
+      #("count", json.int(42)),
+      #("enabled", json.bool(True)),
+    ])
 
   let json_str = json.to_string(value)
 
@@ -1718,7 +1794,13 @@ pub fn error_message_formatting_test() {
   let actual = "404"
 
   let message =
-    "Field '" <> field <> "' expected '" <> expected <> "' but got '" <> actual <> "'"
+    "Field '"
+    <> field
+    <> "' expected '"
+    <> expected
+    <> "' but got '"
+    <> actual
+    <> "'"
 
   message
   |> string.contains("status")
@@ -1766,42 +1848,43 @@ pub fn json_null_handling_test() {
 
 pub fn bead_generation_api_profile_test() {
   // Test generating beads from API profile session
-  let session = interview.InterviewSession(
-    id: "test-api-session",
-    profile: interview.Api,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "What API endpoints do you need?",
-        response: "GET /users and POST /users for user management",
-        round: 1,
-        perspective: User,
-        confidence: 0.95,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-      interview.Answer(
-        question_id: "q2",
-        question_text: "What is the endpoint path?",
-        response: "/users",
-        round: 1,
-        perspective: Developer,
-        confidence: 0.9,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "API interview notes",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "test-api-session",
+      profile: interview.Api,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "What API endpoints do you need?",
+          response: "GET /users and POST /users for user management",
+          round: 1,
+          perspective: User,
+          confidence: 0.95,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+        interview.Answer(
+          question_id: "q2",
+          question_text: "What is the endpoint path?",
+          response: "/users",
+          round: 1,
+          perspective: Developer,
+          confidence: 0.9,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "API interview notes",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
 
@@ -1821,55 +1904,56 @@ pub fn bead_generation_api_profile_test() {
 
 pub fn bead_generation_cli_profile_test() {
   // Test generating beads from CLI profile session
-  let session = interview.InterviewSession(
-    id: "test-cli-session",
-    profile: interview.Cli,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "What commands do you need?",
-        response: "list command to show all users",
-        round: 1,
-        perspective: User,
-        confidence: 0.9,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "CLI interview notes",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "test-cli-session",
+      profile: interview.Cli,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "What commands do you need?",
+          response: "list command to show all users",
+          round: 1,
+          perspective: User,
+          confidence: 0.9,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "CLI interview notes",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
   list.is_empty(beads) |> should.equal(False)
 
   case list.first(beads) {
-    Ok(first_bead) ->
-      first_bead.profile_type |> should.equal("cli")
+    Ok(first_bead) -> first_bead.profile_type |> should.equal("cli")
     Error(_) -> should.fail()
   }
 }
 
 pub fn bead_to_jsonl_format_test() {
   // Test bead to JSONL conversion
-  let bead = bead_templates.BeadRecord(
-    title: "Test Implementation",
-    description: "A test bead for validation",
-    profile_type: "api",
-    priority: 2,
-    issue_type: "api_endpoint",
-    labels: ["api", "test"],
-    ai_hints: "Implement according to spec",
-    acceptance_criteria: ["Works correctly", "Passes tests"],
-    dependencies: [],
-  )
+  let bead =
+    bead_templates.BeadRecord(
+      title: "Test Implementation",
+      description: "A test bead for validation",
+      profile_type: "api",
+      priority: 2,
+      issue_type: "api_endpoint",
+      labels: ["api", "test"],
+      ai_hints: "Implement according to spec",
+      acceptance_criteria: ["Works correctly", "Passes tests"],
+      dependencies: [],
+    )
 
   let jsonl_line = bead_templates.bead_to_jsonl_line(bead)
 
@@ -2118,19 +2202,20 @@ pub fn add_bead_dependency_test() {
 
 pub fn empty_session_beads_test() {
   // Test generating beads from session with no answers
-  let session = interview.InterviewSession(
-    id: "empty-session",
-    profile: interview.Api,
-    stage: interview.Complete,
-    rounds_completed: 0,
-    answers: [],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "empty-session",
+      profile: interview.Api,
+      stage: interview.Complete,
+      rounds_completed: 0,
+      answers: [],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
 
@@ -2140,31 +2225,32 @@ pub fn empty_session_beads_test() {
 
 pub fn interview_session_to_json_test() {
   // Test conversion of interview session to JSON for storage
-  let session = interview.InterviewSession(
-    id: "test-session-123",
-    profile: interview.Api,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "Test question",
-        response: "Test response",
-        round: 1,
-        perspective: User,
-        confidence: 0.85,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "Test notes",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "test-session-123",
+      profile: interview.Api,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "Test question",
+          response: "Test response",
+          round: 1,
+          perspective: User,
+          confidence: 0.85,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "Test notes",
+    )
 
   let json = interview_storage.session_to_json(session)
   let json_str = json.to_string(json)
@@ -2178,169 +2264,170 @@ pub fn interview_session_to_json_test() {
 
 pub fn bead_generation_event_profile_test() {
   // Test generating beads from Event profile session
-  let session = interview.InterviewSession(
-    id: "test-event-session",
-    profile: interview.Event,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "What events should be emitted?",
-        response: "user.created and user.updated events",
-        round: 1,
-        perspective: Developer,
-        confidence: 0.92,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "Event interview notes",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "test-event-session",
+      profile: interview.Event,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "What events should be emitted?",
+          response: "user.created and user.updated events",
+          round: 1,
+          perspective: Developer,
+          confidence: 0.92,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "Event interview notes",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
   list.is_empty(beads) |> should.equal(False)
 
   case list.first(beads) {
-    Ok(first_bead) ->
-      first_bead.profile_type |> should.equal("event")
+    Ok(first_bead) -> first_bead.profile_type |> should.equal("event")
     Error(_) -> should.fail()
   }
 }
 
 pub fn bead_generation_data_profile_test() {
   // Test generating beads from Data profile session
-  let session = interview.InterviewSession(
-    id: "test-data-session",
-    profile: interview.Data,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "What data models are needed?",
-        response: "User model with id, name, email fields",
-        round: 1,
-        perspective: Developer,
-        confidence: 0.88,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "Data interview notes",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "test-data-session",
+      profile: interview.Data,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "What data models are needed?",
+          response: "User model with id, name, email fields",
+          round: 1,
+          perspective: Developer,
+          confidence: 0.88,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "Data interview notes",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
   list.is_empty(beads) |> should.equal(False)
 
   case list.first(beads) {
-    Ok(first_bead) ->
-      first_bead.profile_type |> should.equal("data")
+    Ok(first_bead) -> first_bead.profile_type |> should.equal("data")
     Error(_) -> should.fail()
   }
 }
 
 pub fn bead_generation_workflow_profile_test() {
   // Test generating beads from Workflow profile session
-  let session = interview.InterviewSession(
-    id: "test-workflow-session",
-    profile: interview.Workflow,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "What workflows exist?",
-        response: "User signup workflow with email verification",
-        round: 1,
-        perspective: Business,
-        confidence: 0.9,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "Workflow interview notes",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "test-workflow-session",
+      profile: interview.Workflow,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "What workflows exist?",
+          response: "User signup workflow with email verification",
+          round: 1,
+          perspective: Business,
+          confidence: 0.9,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "Workflow interview notes",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
   list.is_empty(beads) |> should.equal(False)
 
   case list.first(beads) {
-    Ok(first_bead) ->
-      first_bead.profile_type |> should.equal("workflow")
+    Ok(first_bead) -> first_bead.profile_type |> should.equal("workflow")
     Error(_) -> should.fail()
   }
 }
 
 pub fn bead_generation_ui_profile_test() {
   // Test generating beads from UI profile session
-  let session = interview.InterviewSession(
-    id: "test-ui-session",
-    profile: interview.UI,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "What UI screens do you need?",
-        response: "User dashboard and settings screen",
-        round: 1,
-        perspective: User,
-        confidence: 0.87,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "UI interview notes",
-  )
+  let session =
+    interview.InterviewSession(
+      id: "test-ui-session",
+      profile: interview.UI,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "What UI screens do you need?",
+          response: "User dashboard and settings screen",
+          round: 1,
+          perspective: User,
+          confidence: 0.87,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "UI interview notes",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
   list.is_empty(beads) |> should.equal(False)
 
   case list.first(beads) {
-    Ok(first_bead) ->
-      first_bead.profile_type |> should.equal("ui")
+    Ok(first_bead) -> first_bead.profile_type |> should.equal("ui")
     Error(_) -> should.fail()
   }
 }
 
 pub fn bead_record_required_fields_test() {
   // Test that bead records have all required fields
-  let bead = bead_templates.BeadRecord(
-    title: "Required fields test",
-    description: "Testing all required fields present",
-    profile_type: "api",
-    priority: 1,
-    issue_type: "endpoint",
-    labels: ["test"],
-    ai_hints: "Test hints",
-    acceptance_criteria: ["Criterion 1"],
-    dependencies: ["dependency1"],
-  )
+  let bead =
+    bead_templates.BeadRecord(
+      title: "Required fields test",
+      description: "Testing all required fields present",
+      profile_type: "api",
+      priority: 1,
+      issue_type: "endpoint",
+      labels: ["test"],
+      ai_hints: "Test hints",
+      acceptance_criteria: ["Criterion 1"],
+      dependencies: ["dependency1"],
+    )
 
   // Verify all fields are non-empty strings or have sensible values
   string.is_empty(bead.title) |> should.equal(False)
@@ -2395,32 +2482,34 @@ pub fn bead_multiple_dependencies_test() {
 
 pub fn bead_generation_preserves_answer_content_test() {
   // Test that bead generation uses interview answer content
-  let answer_text = "Create an API endpoint at /api/users that returns a list of all users with pagination support"
-  let session = interview.InterviewSession(
-    id: "test-content-session",
-    profile: interview.Api,
-    stage: interview.Complete,
-    rounds_completed: 5,
-    answers: [
-      interview.Answer(
-        question_id: "q1",
-        question_text: "Describe the endpoint",
-        response: answer_text,
-        round: 1,
-        perspective: Developer,
-        confidence: 0.95,
-        extracted: dict.new(),
-        notes: "",
-        timestamp: "2026-01-05T00:00:00Z",
-      ),
-    ],
-    gaps: [],
-    conflicts: [],
-    created_at: "2026-01-05T00:00:00Z",
-    updated_at: "2026-01-05T00:00:00Z",
-    completed_at: "2026-01-05T00:00:00Z",
-    raw_notes: "Content preservation test notes",
-  )
+  let answer_text =
+    "Create an API endpoint at /api/users that returns a list of all users with pagination support"
+  let session =
+    interview.InterviewSession(
+      id: "test-content-session",
+      profile: interview.Api,
+      stage: interview.Complete,
+      rounds_completed: 5,
+      answers: [
+        interview.Answer(
+          question_id: "q1",
+          question_text: "Describe the endpoint",
+          response: answer_text,
+          round: 1,
+          perspective: Developer,
+          confidence: 0.95,
+          extracted: dict.new(),
+          notes: "",
+          timestamp: "2026-01-05T00:00:00Z",
+        ),
+      ],
+      gaps: [],
+      conflicts: [],
+      created_at: "2026-01-05T00:00:00Z",
+      updated_at: "2026-01-05T00:00:00Z",
+      completed_at: "2026-01-05T00:00:00Z",
+      raw_notes: "Content preservation test notes",
+    )
 
   let beads = bead_templates.generate_beads_from_session(session)
 
@@ -2727,7 +2816,10 @@ pub fn formats_validate_iso8601_valid_space_separator_test() {
 // ============================================================================
 
 // Helper function to create a minimal Response for testing
-fn make_test_response(status: Int, checks: Dict(String, types.Check)) -> types.Response {
+fn make_test_response(
+  status: Int,
+  checks: Dict(String, types.Check),
+) -> types.Response {
   types.Response(
     status: status,
     example: json.null(),
@@ -2737,7 +2829,11 @@ fn make_test_response(status: Int, checks: Dict(String, types.Check)) -> types.R
 }
 
 // Helper to create ExecutionResult
-fn make_test_execution(status: Int, body_json: Json, headers: Dict(String, String)) -> http_client.ExecutionResult {
+fn make_test_execution(
+  status: Int,
+  body_json: Json,
+  headers: Dict(String, String),
+) -> http_client.ExecutionResult {
   http_client.ExecutionResult(
     status: status,
     headers: headers,
@@ -2779,9 +2875,10 @@ pub fn checker_status_code_mismatch_test() {
 // --- Field Check Tests ---
 
 pub fn checker_field_equals_string_pass_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "equals John", why: "Name must match"))
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "equals John", why: "Name must match")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.string("John"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2792,9 +2889,10 @@ pub fn checker_field_equals_string_pass_test() {
 }
 
 pub fn checker_field_equals_string_fail_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "equals John", why: "Name must match"))
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "equals John", why: "Name must match")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.string("Jane"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2805,9 +2903,10 @@ pub fn checker_field_equals_string_fail_test() {
 }
 
 pub fn checker_field_equals_int_pass_test() {
-  let checks = dict.from_list([
-    #("age", types.Check(rule: "equals 25", why: "Age must match"))
-  ])
+  let checks =
+    dict.from_list([
+      #("age", types.Check(rule: "equals 25", why: "Age must match")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("age", json.int(25))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2818,9 +2917,10 @@ pub fn checker_field_equals_int_pass_test() {
 }
 
 pub fn checker_field_is_string_pass_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "string", why: "Must be string"))
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "string", why: "Must be string")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.string("test"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2831,9 +2931,10 @@ pub fn checker_field_is_string_pass_test() {
 }
 
 pub fn checker_field_is_string_fail_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "string", why: "Must be string"))
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "string", why: "Must be string")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.int(123))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2844,9 +2945,10 @@ pub fn checker_field_is_string_fail_test() {
 }
 
 pub fn checker_field_is_integer_pass_test() {
-  let checks = dict.from_list([
-    #("count", types.Check(rule: "integer", why: "Must be integer"))
-  ])
+  let checks =
+    dict.from_list([
+      #("count", types.Check(rule: "integer", why: "Must be integer")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("count", json.int(42))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2856,9 +2958,10 @@ pub fn checker_field_is_integer_pass_test() {
 }
 
 pub fn checker_field_is_boolean_pass_test() {
-  let checks = dict.from_list([
-    #("active", types.Check(rule: "boolean", why: "Must be boolean"))
-  ])
+  let checks =
+    dict.from_list([
+      #("active", types.Check(rule: "boolean", why: "Must be boolean")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("active", json.bool(True))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2868,11 +2971,15 @@ pub fn checker_field_is_boolean_pass_test() {
 }
 
 pub fn checker_field_is_array_pass_test() {
-  let checks = dict.from_list([
-    #("items", types.Check(rule: "array", why: "Must be array"))
-  ])
+  let checks =
+    dict.from_list([
+      #("items", types.Check(rule: "array", why: "Must be array")),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([#("items", json.array([json.int(1), json.int(2)], fn(x) { x }))])
+  let body =
+    json.object([
+      #("items", json.array([json.int(1), json.int(2)], fn(x) { x })),
+    ])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -2880,11 +2987,13 @@ pub fn checker_field_is_array_pass_test() {
 }
 
 pub fn checker_field_is_object_pass_test() {
-  let checks = dict.from_list([
-    #("data", types.Check(rule: "object", why: "Must be object"))
-  ])
+  let checks =
+    dict.from_list([
+      #("data", types.Check(rule: "object", why: "Must be object")),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([#("data", json.object([#("key", json.string("value"))]))])
+  let body =
+    json.object([#("data", json.object([#("key", json.string("value"))]))])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -2892,9 +3001,10 @@ pub fn checker_field_is_object_pass_test() {
 }
 
 pub fn checker_field_present_pass_test() {
-  let checks = dict.from_list([
-    #("id", types.Check(rule: "present", why: "ID must be present"))
-  ])
+  let checks =
+    dict.from_list([
+      #("id", types.Check(rule: "present", why: "ID must be present")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("id", json.string("abc-123"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2905,9 +3015,10 @@ pub fn checker_field_present_pass_test() {
 }
 
 pub fn checker_field_present_fail_test() {
-  let checks = dict.from_list([
-    #("id", types.Check(rule: "present", why: "ID must be present"))
-  ])
+  let checks =
+    dict.from_list([
+      #("id", types.Check(rule: "present", why: "ID must be present")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.string("test"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2918,9 +3029,13 @@ pub fn checker_field_present_fail_test() {
 }
 
 pub fn checker_field_absent_pass_test() {
-  let checks = dict.from_list([
-    #("password", types.Check(rule: "absent", why: "Password should not be returned"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "password",
+        types.Check(rule: "absent", why: "Password should not be returned"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.string("test"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2931,9 +3046,13 @@ pub fn checker_field_absent_pass_test() {
 }
 
 pub fn checker_field_absent_fail_test() {
-  let checks = dict.from_list([
-    #("password", types.Check(rule: "absent", why: "Password should not be returned"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "password",
+        types.Check(rule: "absent", why: "Password should not be returned"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("password", json.string("secret"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2944,9 +3063,13 @@ pub fn checker_field_absent_fail_test() {
 }
 
 pub fn checker_field_non_empty_string_pass_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "non-empty string", why: "Name must not be empty"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "name",
+        types.Check(rule: "non-empty string", why: "Name must not be empty"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.string("John"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2956,9 +3079,13 @@ pub fn checker_field_non_empty_string_pass_test() {
 }
 
 pub fn checker_field_non_empty_string_fail_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "non-empty string", why: "Name must not be empty"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "name",
+        types.Check(rule: "non-empty string", why: "Name must not be empty"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("name", json.string(""))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2969,9 +3096,10 @@ pub fn checker_field_non_empty_string_fail_test() {
 }
 
 pub fn checker_field_is_email_pass_test() {
-  let checks = dict.from_list([
-    #("email", types.Check(rule: "email", why: "Must be valid email"))
-  ])
+  let checks =
+    dict.from_list([
+      #("email", types.Check(rule: "email", why: "Must be valid email")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("email", json.string("user@example.com"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2981,9 +3109,10 @@ pub fn checker_field_is_email_pass_test() {
 }
 
 pub fn checker_field_is_email_fail_test() {
-  let checks = dict.from_list([
-    #("email", types.Check(rule: "email", why: "Must be valid email"))
-  ])
+  let checks =
+    dict.from_list([
+      #("email", types.Check(rule: "email", why: "Must be valid email")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("email", json.string("not-an-email"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -2994,11 +3123,13 @@ pub fn checker_field_is_email_fail_test() {
 }
 
 pub fn checker_field_is_uuid_pass_test() {
-  let checks = dict.from_list([
-    #("id", types.Check(rule: "uuid", why: "Must be valid UUID"))
-  ])
+  let checks =
+    dict.from_list([
+      #("id", types.Check(rule: "uuid", why: "Must be valid UUID")),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([#("id", json.string("550e8400-e29b-41d4-a716-446655440000"))])
+  let body =
+    json.object([#("id", json.string("550e8400-e29b-41d4-a716-446655440000"))])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3006,9 +3137,10 @@ pub fn checker_field_is_uuid_pass_test() {
 }
 
 pub fn checker_field_is_uuid_fail_test() {
-  let checks = dict.from_list([
-    #("id", types.Check(rule: "uuid", why: "Must be valid UUID"))
-  ])
+  let checks =
+    dict.from_list([
+      #("id", types.Check(rule: "uuid", why: "Must be valid UUID")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("id", json.string("not-a-uuid"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3019,9 +3151,13 @@ pub fn checker_field_is_uuid_fail_test() {
 }
 
 pub fn checker_field_is_iso8601_pass_test() {
-  let checks = dict.from_list([
-    #("created_at", types.Check(rule: "iso8601 datetime", why: "Must be valid datetime"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "created_at",
+        types.Check(rule: "iso8601 datetime", why: "Must be valid datetime"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("created_at", json.string("2024-01-15T10:30:00Z"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3033,9 +3169,10 @@ pub fn checker_field_is_iso8601_pass_test() {
 // --- Numeric Comparison Tests ---
 
 pub fn checker_field_integer_gte_pass_test() {
-  let checks = dict.from_list([
-    #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5"))
-  ])
+  let checks =
+    dict.from_list([
+      #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("count", json.int(10))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3045,9 +3182,10 @@ pub fn checker_field_integer_gte_pass_test() {
 }
 
 pub fn checker_field_integer_gte_fail_test() {
-  let checks = dict.from_list([
-    #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5"))
-  ])
+  let checks =
+    dict.from_list([
+      #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("count", json.int(3))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3057,9 +3195,13 @@ pub fn checker_field_integer_gte_fail_test() {
 }
 
 pub fn checker_field_integer_lte_pass_test() {
-  let checks = dict.from_list([
-    #("count", types.Check(rule: "integer <= 100", why: "Must not exceed 100"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "count",
+        types.Check(rule: "integer <= 100", why: "Must not exceed 100"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("count", json.int(50))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3069,9 +3211,16 @@ pub fn checker_field_integer_lte_pass_test() {
 }
 
 pub fn checker_field_number_between_pass_test() {
-  let checks = dict.from_list([
-    #("age", types.Check(rule: "number between 18.0 and 65.0", why: "Age must be in range"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "age",
+        types.Check(
+          rule: "number between 18.0 and 65.0",
+          why: "Age must be in range",
+        ),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("age", json.int(30))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3081,9 +3230,16 @@ pub fn checker_field_number_between_pass_test() {
 }
 
 pub fn checker_field_number_between_fail_test() {
-  let checks = dict.from_list([
-    #("age", types.Check(rule: "number between 18.0 and 65.0", why: "Age must be in range"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "age",
+        types.Check(
+          rule: "number between 18.0 and 65.0",
+          why: "Age must be in range",
+        ),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("age", json.int(17))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3095,9 +3251,13 @@ pub fn checker_field_number_between_fail_test() {
 // --- String Pattern Tests ---
 
 pub fn checker_string_starts_with_pass_test() {
-  let checks = dict.from_list([
-    #("code", types.Check(rule: "string starting with ERR-", why: "Error code format"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "code",
+        types.Check(rule: "string starting with ERR-", why: "Error code format"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("code", json.string("ERR-001"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3107,9 +3267,13 @@ pub fn checker_string_starts_with_pass_test() {
 }
 
 pub fn checker_string_ends_with_pass_test() {
-  let checks = dict.from_list([
-    #("file", types.Check(rule: "string ending with .json", why: "Must be JSON file"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "file",
+        types.Check(rule: "string ending with .json", why: "Must be JSON file"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("file", json.string("config.json"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3119,11 +3283,19 @@ pub fn checker_string_ends_with_pass_test() {
 }
 
 pub fn checker_string_containing_pass_test() {
-  let checks = dict.from_list([
-    #("message", types.Check(rule: "string containing success", why: "Should mention success"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "message",
+        types.Check(
+          rule: "string containing success",
+          why: "Should mention success",
+        ),
+      ),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([#("message", json.string("Operation success complete"))])
+  let body =
+    json.object([#("message", json.string("Operation success complete"))])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3133,9 +3305,10 @@ pub fn checker_string_containing_pass_test() {
 // --- Array Tests ---
 
 pub fn checker_non_empty_array_pass_test() {
-  let checks = dict.from_list([
-    #("items", types.Check(rule: "non-empty array", why: "Must have items"))
-  ])
+  let checks =
+    dict.from_list([
+      #("items", types.Check(rule: "non-empty array", why: "Must have items")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("items", json.array([json.int(1)], fn(x) { x }))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3145,9 +3318,10 @@ pub fn checker_non_empty_array_pass_test() {
 }
 
 pub fn checker_non_empty_array_fail_test() {
-  let checks = dict.from_list([
-    #("items", types.Check(rule: "non-empty array", why: "Must have items"))
-  ])
+  let checks =
+    dict.from_list([
+      #("items", types.Check(rule: "non-empty array", why: "Must have items")),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("items", json.array([], fn(x) { x }))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3157,11 +3331,21 @@ pub fn checker_non_empty_array_fail_test() {
 }
 
 pub fn checker_array_of_length_pass_test() {
-  let checks = dict.from_list([
-    #("coords", types.Check(rule: "array of length 3", why: "Must have 3 elements"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "coords",
+        types.Check(rule: "array of length 3", why: "Must have 3 elements"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([#("coords", json.array([json.int(1), json.int(2), json.int(3)], fn(x) { x }))])
+  let body =
+    json.object([
+      #(
+        "coords",
+        json.array([json.int(1), json.int(2), json.int(3)], fn(x) { x }),
+      ),
+    ])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3169,11 +3353,24 @@ pub fn checker_array_of_length_pass_test() {
 }
 
 pub fn checker_array_min_items_pass_test() {
-  let checks = dict.from_list([
-    #("tags", types.Check(rule: "array with min 2 items", why: "Need at least 2 tags"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "tags",
+        types.Check(rule: "array with min 2 items", why: "Need at least 2 tags"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([#("tags", json.array([json.string("a"), json.string("b"), json.string("c")], fn(x) { x }))])
+  let body =
+    json.object([
+      #(
+        "tags",
+        json.array(
+          [json.string("a"), json.string("b"), json.string("c")],
+          fn(x) { x },
+        ),
+      ),
+    ])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3183,9 +3380,16 @@ pub fn checker_array_min_items_pass_test() {
 // --- One Of Tests ---
 
 pub fn checker_one_of_pass_test() {
-  let checks = dict.from_list([
-    #("status", types.Check(rule: "one of [active, inactive, pending]", why: "Valid status"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "status",
+        types.Check(
+          rule: "one of [active, inactive, pending]",
+          why: "Valid status",
+        ),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("status", json.string("active"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3195,9 +3399,16 @@ pub fn checker_one_of_pass_test() {
 }
 
 pub fn checker_one_of_fail_test() {
-  let checks = dict.from_list([
-    #("status", types.Check(rule: "one of [active, inactive, pending]", why: "Valid status"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "status",
+        types.Check(
+          rule: "one of [active, inactive, pending]",
+          why: "Valid status",
+        ),
+      ),
+    ])
   let expected = make_test_response(200, checks)
   let body = json.object([#("status", json.string("unknown"))])
   let actual = make_test_execution(200, body, dict.new())
@@ -3209,13 +3420,19 @@ pub fn checker_one_of_fail_test() {
 // --- Header Check Tests ---
 
 pub fn checker_header_present_pass_test() {
-  let expected = types.Response(
-    status: 200,
-    example: json.null(),
-    checks: dict.new(),
-    headers: dict.from_list([#("Content-Type", "application/json")]),
-  )
-  let actual = make_test_execution(200, json.null(), dict.from_list([#("Content-Type", "application/json")]))
+  let expected =
+    types.Response(
+      status: 200,
+      example: json.null(),
+      checks: dict.new(),
+      headers: dict.from_list([#("Content-Type", "application/json")]),
+    )
+  let actual =
+    make_test_execution(
+      200,
+      json.null(),
+      dict.from_list([#("Content-Type", "application/json")]),
+    )
   let result = checker.check_response(expected, actual, empty_context())
 
   list.length(result.passed) |> should.equal(1)
@@ -3223,13 +3440,19 @@ pub fn checker_header_present_pass_test() {
 }
 
 pub fn checker_header_value_mismatch_test() {
-  let expected = types.Response(
-    status: 200,
-    example: json.null(),
-    checks: dict.new(),
-    headers: dict.from_list([#("Content-Type", "application/json")]),
-  )
-  let actual = make_test_execution(200, json.null(), dict.from_list([#("Content-Type", "text/html")]))
+  let expected =
+    types.Response(
+      status: 200,
+      example: json.null(),
+      checks: dict.new(),
+      headers: dict.from_list([#("Content-Type", "application/json")]),
+    )
+  let actual =
+    make_test_execution(
+      200,
+      json.null(),
+      dict.from_list([#("Content-Type", "text/html")]),
+    )
   let result = checker.check_response(expected, actual, empty_context())
 
   list.length(result.passed) |> should.equal(0)
@@ -3237,12 +3460,13 @@ pub fn checker_header_value_mismatch_test() {
 }
 
 pub fn checker_header_missing_test() {
-  let expected = types.Response(
-    status: 200,
-    example: json.null(),
-    checks: dict.new(),
-    headers: dict.from_list([#("X-Request-Id", "abc-123")]),
-  )
+  let expected =
+    types.Response(
+      status: 200,
+      example: json.null(),
+      checks: dict.new(),
+      headers: dict.from_list([#("X-Request-Id", "abc-123")]),
+    )
   let actual = make_test_execution(200, json.null(), dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3251,13 +3475,19 @@ pub fn checker_header_missing_test() {
 }
 
 pub fn checker_header_case_insensitive_test() {
-  let expected = types.Response(
-    status: 200,
-    example: json.null(),
-    checks: dict.new(),
-    headers: dict.from_list([#("content-type", "application/json")]),
-  )
-  let actual = make_test_execution(200, json.null(), dict.from_list([#("Content-Type", "application/json")]))
+  let expected =
+    types.Response(
+      status: 200,
+      example: json.null(),
+      checks: dict.new(),
+      headers: dict.from_list([#("content-type", "application/json")]),
+    )
+  let actual =
+    make_test_execution(
+      200,
+      json.null(),
+      dict.from_list([#("Content-Type", "application/json")]),
+    )
   let result = checker.check_response(expected, actual, empty_context())
 
   list.length(result.passed) |> should.equal(1)
@@ -3266,13 +3496,16 @@ pub fn checker_header_case_insensitive_test() {
 // --- Nested Field Tests ---
 
 pub fn checker_nested_field_pass_test() {
-  let checks = dict.from_list([
-    #("user.name", types.Check(rule: "equals John", why: "User name must match"))
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "user.name",
+        types.Check(rule: "equals John", why: "User name must match"),
+      ),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([
-    #("user", json.object([#("name", json.string("John"))]))
-  ])
+  let body =
+    json.object([#("user", json.object([#("name", json.string("John"))]))])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3280,13 +3513,13 @@ pub fn checker_nested_field_pass_test() {
 }
 
 pub fn checker_nested_field_missing_test() {
-  let checks = dict.from_list([
-    #("user.email", types.Check(rule: "is email", why: "Must have email"))
-  ])
+  let checks =
+    dict.from_list([
+      #("user.email", types.Check(rule: "is email", why: "Must have email")),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([
-    #("user", json.object([#("name", json.string("John"))]))
-  ])
+  let body =
+    json.object([#("user", json.object([#("name", json.string("John"))]))])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3296,19 +3529,21 @@ pub fn checker_nested_field_missing_test() {
 // --- Multiple Checks Test ---
 
 pub fn checker_multiple_checks_test() {
-  let checks = dict.from_list([
-    #("id", types.Check(rule: "uuid", why: "ID must be UUID")),
-    #("name", types.Check(rule: "non-empty string", why: "Name required")),
-    #("email", types.Check(rule: "email", why: "Email required")),
-    #("age", types.Check(rule: "integer >= 0", why: "Age must be positive")),
-  ])
+  let checks =
+    dict.from_list([
+      #("id", types.Check(rule: "uuid", why: "ID must be UUID")),
+      #("name", types.Check(rule: "non-empty string", why: "Name required")),
+      #("email", types.Check(rule: "email", why: "Email required")),
+      #("age", types.Check(rule: "integer >= 0", why: "Age must be positive")),
+    ])
   let expected = make_test_response(200, checks)
-  let body = json.object([
-    #("id", json.string("550e8400-e29b-41d4-a716-446655440000")),
-    #("name", json.string("John")),
-    #("email", json.string("john@example.com")),
-    #("age", json.int(30)),
-  ])
+  let body =
+    json.object([
+      #("id", json.string("550e8400-e29b-41d4-a716-446655440000")),
+      #("name", json.string("John")),
+      #("email", json.string("john@example.com")),
+      #("age", json.int(30)),
+    ])
   let actual = make_test_execution(200, body, dict.new())
   let result = checker.check_response(expected, actual, empty_context())
 
@@ -3340,10 +3575,11 @@ fn make_test_question(id: String, round: Int, question_text: String) -> Question
 
 pub fn question_loader_merge_empty_custom_returns_base_test() {
   // When custom questions are empty (None), base should be returned unchanged
-  let base = question_loader.ProfileQuestions(
-    round_1: [make_test_question("q1", 1, "Question 1")],
-    round_2: [make_test_question("q2", 2, "Question 2")],
-  )
+  let base =
+    question_loader.ProfileQuestions(
+      round_1: [make_test_question("q1", 1, "Question 1")],
+      round_2: [make_test_question("q2", 2, "Question 2")],
+    )
   let custom = None
 
   let result = merge_profile_test(base, custom)
@@ -3354,14 +3590,16 @@ pub fn question_loader_merge_empty_custom_returns_base_test() {
 
 pub fn question_loader_merge_adds_new_questions_test() {
   // Custom questions with new IDs should be added
-  let base = question_loader.ProfileQuestions(
-    round_1: [make_test_question("q1", 1, "Question 1")],
-    round_2: [],
-  )
-  let custom = Some(question_loader.CustomProfileQuestions(
-    round_1: Some([make_test_question("q-new", 1, "New Question")]),
-    round_2: None,
-  ))
+  let base =
+    question_loader.ProfileQuestions(
+      round_1: [make_test_question("q1", 1, "Question 1")],
+      round_2: [],
+    )
+  let custom =
+    Some(question_loader.CustomProfileQuestions(
+      round_1: Some([make_test_question("q-new", 1, "New Question")]),
+      round_2: None,
+    ))
 
   let result = merge_profile_test(base, custom)
 
@@ -3371,14 +3609,16 @@ pub fn question_loader_merge_adds_new_questions_test() {
 
 pub fn question_loader_merge_overrides_by_id_test() {
   // Custom question with same ID should override the base
-  let base = question_loader.ProfileQuestions(
-    round_1: [make_test_question("q1", 1, "Original Question")],
-    round_2: [],
-  )
-  let custom = Some(question_loader.CustomProfileQuestions(
-    round_1: Some([make_test_question("q1", 1, "Overridden Question")]),
-    round_2: None,
-  ))
+  let base =
+    question_loader.ProfileQuestions(
+      round_1: [make_test_question("q1", 1, "Original Question")],
+      round_2: [],
+    )
+  let custom =
+    Some(question_loader.CustomProfileQuestions(
+      round_1: Some([make_test_question("q1", 1, "Overridden Question")]),
+      round_2: None,
+    ))
 
   let result = merge_profile_test(base, custom)
 
@@ -3394,18 +3634,20 @@ pub fn question_loader_merge_overrides_by_id_test() {
 
 pub fn question_loader_merge_preserves_non_overridden_test() {
   // Questions not overridden should remain
-  let base = question_loader.ProfileQuestions(
-    round_1: [
-      make_test_question("q1", 1, "Question 1"),
-      make_test_question("q2", 1, "Question 2"),
-      make_test_question("q3", 1, "Question 3"),
-    ],
-    round_2: [],
-  )
-  let custom = Some(question_loader.CustomProfileQuestions(
-    round_1: Some([make_test_question("q2", 1, "Overridden Q2")]),
-    round_2: None,
-  ))
+  let base =
+    question_loader.ProfileQuestions(
+      round_1: [
+        make_test_question("q1", 1, "Question 1"),
+        make_test_question("q2", 1, "Question 2"),
+        make_test_question("q3", 1, "Question 3"),
+      ],
+      round_2: [],
+    )
+  let custom =
+    Some(question_loader.CustomProfileQuestions(
+      round_1: Some([make_test_question("q2", 1, "Overridden Q2")]),
+      round_2: None,
+    ))
 
   let result = merge_profile_test(base, custom)
 
@@ -3422,16 +3664,18 @@ pub fn question_loader_merge_preserves_non_overridden_test() {
 
 pub fn question_loader_merge_common_rounds_test() {
   // Test merging common questions (rounds 3-5)
-  let base = question_loader.CommonQuestions(
-    round_3: [make_test_question("r3-q1", 3, "Round 3 Q1")],
-    round_4: [make_test_question("r4-q1", 4, "Round 4 Q1")],
-    round_5: [],
-  )
-  let custom = Some(question_loader.CustomCommonQuestions(
-    round_3: None,
-    round_4: Some([make_test_question("r4-q1", 4, "Overridden R4 Q1")]),
-    round_5: Some([make_test_question("r5-new", 5, "New Round 5 Q")]),
-  ))
+  let base =
+    question_loader.CommonQuestions(
+      round_3: [make_test_question("r3-q1", 3, "Round 3 Q1")],
+      round_4: [make_test_question("r4-q1", 4, "Round 4 Q1")],
+      round_5: [],
+    )
+  let custom =
+    Some(question_loader.CustomCommonQuestions(
+      round_3: None,
+      round_4: Some([make_test_question("r4-q1", 4, "Overridden R4 Q1")]),
+      round_5: Some([make_test_question("r5-new", 5, "New Round 5 Q")]),
+    ))
 
   let result = merge_common_test(base, custom)
 
@@ -3467,10 +3711,11 @@ fn merge_profile_test(
 ) -> question_loader.ProfileQuestions {
   case custom {
     None -> base
-    Some(c) -> question_loader.ProfileQuestions(
-      round_1: merge_question_list_test(base.round_1, c.round_1),
-      round_2: merge_question_list_test(base.round_2, c.round_2),
-    )
+    Some(c) ->
+      question_loader.ProfileQuestions(
+        round_1: merge_question_list_test(base.round_1, c.round_1),
+        round_2: merge_question_list_test(base.round_2, c.round_2),
+      )
   }
 }
 
@@ -3480,11 +3725,12 @@ fn merge_common_test(
 ) -> question_loader.CommonQuestions {
   case custom {
     None -> base
-    Some(c) -> question_loader.CommonQuestions(
-      round_3: merge_question_list_test(base.round_3, c.round_3),
-      round_4: merge_question_list_test(base.round_4, c.round_4),
-      round_5: merge_question_list_test(base.round_5, c.round_5),
-    )
+    Some(c) ->
+      question_loader.CommonQuestions(
+        round_3: merge_question_list_test(base.round_3, c.round_3),
+        round_4: merge_question_list_test(base.round_4, c.round_4),
+        round_5: merge_question_list_test(base.round_5, c.round_5),
+      )
   }
 }
 
@@ -3496,7 +3742,8 @@ fn merge_question_list_test(
     None -> base
     Some(custom_questions) -> {
       let custom_ids = list.map(custom_questions, fn(q) { q.id })
-      let filtered_base = list.filter(base, fn(q) { !list.contains(custom_ids, q.id) })
+      let filtered_base =
+        list.filter(base, fn(q) { !list.contains(custom_ids, q.id) })
       list.append(filtered_base, custom_questions)
     }
   }
@@ -3572,13 +3819,14 @@ fn make_test_conflict(id: String, chosen: Int) -> interview.Conflict {
 }
 
 pub fn diff_sessions_no_changes_test() {
-  let session = make_test_interview_session(
-    "session-1",
-    [make_test_answer("q1", "Answer 1")],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session =
+    make_test_interview_session(
+      "session-1",
+      [make_test_answer("q1", "Answer 1")],
+      [],
+      [],
+      interview.Discovery,
+    )
 
   let diff = interview_storage.diff_sessions(session, session)
 
@@ -3589,24 +3837,26 @@ pub fn diff_sessions_no_changes_test() {
 }
 
 pub fn diff_sessions_answer_added_test() {
-  let session1 = make_test_interview_session(
-    "session-1",
-    [make_test_answer("q1", "Answer 1")],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session1 =
+    make_test_interview_session(
+      "session-1",
+      [make_test_answer("q1", "Answer 1")],
+      [],
+      [],
+      interview.Discovery,
+    )
 
-  let session2 = make_test_interview_session(
-    "session-1",
-    [
-      make_test_answer("q1", "Answer 1"),
-      make_test_answer("q2", "Answer 2"),
-    ],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session2 =
+    make_test_interview_session(
+      "session-1",
+      [
+        make_test_answer("q1", "Answer 1"),
+        make_test_answer("q2", "Answer 2"),
+      ],
+      [],
+      [],
+      interview.Discovery,
+    )
 
   let diff = interview_storage.diff_sessions(session1, session2)
 
@@ -3616,21 +3866,23 @@ pub fn diff_sessions_answer_added_test() {
 }
 
 pub fn diff_sessions_answer_modified_test() {
-  let session1 = make_test_interview_session(
-    "session-1",
-    [make_test_answer("q1", "Original answer")],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session1 =
+    make_test_interview_session(
+      "session-1",
+      [make_test_answer("q1", "Original answer")],
+      [],
+      [],
+      interview.Discovery,
+    )
 
-  let session2 = make_test_interview_session(
-    "session-1",
-    [make_test_answer("q1", "Modified answer")],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session2 =
+    make_test_interview_session(
+      "session-1",
+      [make_test_answer("q1", "Modified answer")],
+      [],
+      [],
+      interview.Discovery,
+    )
 
   let diff = interview_storage.diff_sessions(session1, session2)
 
@@ -3650,24 +3902,26 @@ pub fn diff_sessions_answer_modified_test() {
 }
 
 pub fn diff_sessions_answer_removed_test() {
-  let session1 = make_test_interview_session(
-    "session-1",
-    [
-      make_test_answer("q1", "Answer 1"),
-      make_test_answer("q2", "Answer 2"),
-    ],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session1 =
+    make_test_interview_session(
+      "session-1",
+      [
+        make_test_answer("q1", "Answer 1"),
+        make_test_answer("q2", "Answer 2"),
+      ],
+      [],
+      [],
+      interview.Discovery,
+    )
 
-  let session2 = make_test_interview_session(
-    "session-1",
-    [make_test_answer("q1", "Answer 1")],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session2 =
+    make_test_interview_session(
+      "session-1",
+      [make_test_answer("q1", "Answer 1")],
+      [],
+      [],
+      interview.Discovery,
+    )
 
   let diff = interview_storage.diff_sessions(session1, session2)
 
@@ -3678,21 +3932,11 @@ pub fn diff_sessions_answer_removed_test() {
 }
 
 pub fn diff_sessions_stage_changed_test() {
-  let session1 = make_test_interview_session(
-    "session-1",
-    [],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session1 =
+    make_test_interview_session("session-1", [], [], [], interview.Discovery)
 
-  let session2 = make_test_interview_session(
-    "session-1",
-    [],
-    [],
-    [],
-    interview.Refinement,
-  )
+  let session2 =
+    make_test_interview_session("session-1", [], [], [], interview.Refinement)
 
   let diff = interview_storage.diff_sessions(session1, session2)
 
@@ -3706,21 +3950,23 @@ pub fn diff_sessions_stage_changed_test() {
 }
 
 pub fn diff_sessions_gaps_resolved_test() {
-  let session1 = make_test_interview_session(
-    "session-1",
-    [],
-    [make_test_gap("gap1", False), make_test_gap("gap2", False)],
-    [],
-    interview.Discovery,
-  )
+  let session1 =
+    make_test_interview_session(
+      "session-1",
+      [],
+      [make_test_gap("gap1", False), make_test_gap("gap2", False)],
+      [],
+      interview.Discovery,
+    )
 
-  let session2 = make_test_interview_session(
-    "session-1",
-    [],
-    [make_test_gap("gap1", True), make_test_gap("gap2", False)],
-    [],
-    interview.Discovery,
-  )
+  let session2 =
+    make_test_interview_session(
+      "session-1",
+      [],
+      [make_test_gap("gap1", True), make_test_gap("gap2", False)],
+      [],
+      interview.Discovery,
+    )
 
   let diff = interview_storage.diff_sessions(session1, session2)
 
@@ -3728,21 +3974,25 @@ pub fn diff_sessions_gaps_resolved_test() {
 }
 
 pub fn diff_sessions_conflicts_resolved_test() {
-  let session1 = make_test_interview_session(
-    "session-1",
-    [],
-    [],
-    [make_test_conflict("c1", -1)],  // -1 means unresolved
-    interview.Discovery,
-  )
+  let session1 =
+    make_test_interview_session(
+      "session-1",
+      [],
+      [],
+      [make_test_conflict("c1", -1)],
+      // -1 means unresolved
+      interview.Discovery,
+    )
 
-  let session2 = make_test_interview_session(
-    "session-1",
-    [],
-    [],
-    [make_test_conflict("c1", 0)],  // 0 means first option chosen
-    interview.Discovery,
-  )
+  let session2 =
+    make_test_interview_session(
+      "session-1",
+      [],
+      [],
+      [make_test_conflict("c1", 0)],
+      // 0 means first option chosen
+      interview.Discovery,
+    )
 
   let diff = interview_storage.diff_sessions(session1, session2)
 
@@ -3750,16 +4000,17 @@ pub fn diff_sessions_conflicts_resolved_test() {
 }
 
 pub fn create_snapshot_test() {
-  let session = make_test_interview_session(
-    "session-1",
-    [
-      make_test_answer("q1", "Answer 1"),
-      make_test_answer("q2", "Answer 2"),
-    ],
-    [make_test_gap("gap1", False)],
-    [],
-    interview.Discovery,
-  )
+  let session =
+    make_test_interview_session(
+      "session-1",
+      [
+        make_test_answer("q1", "Answer 1"),
+        make_test_answer("q2", "Answer 2"),
+      ],
+      [make_test_gap("gap1", False)],
+      [],
+      interview.Discovery,
+    )
 
   let snapshot = interview_storage.create_snapshot(session, "Test snapshot")
 
@@ -3770,24 +4021,26 @@ pub fn create_snapshot_test() {
 }
 
 pub fn format_diff_produces_output_test() {
-  let session1 = make_test_interview_session(
-    "session-1",
-    [make_test_answer("q1", "Original")],
-    [],
-    [],
-    interview.Discovery,
-  )
+  let session1 =
+    make_test_interview_session(
+      "session-1",
+      [make_test_answer("q1", "Original")],
+      [],
+      [],
+      interview.Discovery,
+    )
 
-  let session2 = make_test_interview_session(
-    "session-1",
-    [
-      make_test_answer("q1", "Modified"),
-      make_test_answer("q2", "New answer"),
-    ],
-    [],
-    [],
-    interview.Refinement,
-  )
+  let session2 =
+    make_test_interview_session(
+      "session-1",
+      [
+        make_test_answer("q1", "Modified"),
+        make_test_answer("q2", "New answer"),
+      ],
+      [],
+      [],
+      interview.Refinement,
+    )
 
   let diff = interview_storage.diff_sessions(session1, session2)
   let formatted = interview_storage.format_diff(diff)

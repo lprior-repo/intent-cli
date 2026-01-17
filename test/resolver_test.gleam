@@ -127,12 +127,7 @@ pub fn resolve_diamond_dependencies_test() {
       // A must come first
       // B and C must come after A
       // D must come after both B and C
-      case
-        a_idx < b_idx
-        && a_idx < c_idx
-        && b_idx < d_idx
-        && c_idx < d_idx
-      {
+      case a_idx < b_idx && a_idx < c_idx && b_idx < d_idx && c_idx < d_idx {
         True -> Nil
         False -> should.fail()
       }
@@ -166,10 +161,8 @@ pub fn resolve_multiple_features_test() {
       }
 
       // Check feature names are preserved
-      let a_resolved =
-        list.find(resolved, fn(rb) { rb.behavior.name == "a" })
-      let b_resolved =
-        list.find(resolved, fn(rb) { rb.behavior.name == "b" })
+      let a_resolved = list.find(resolved, fn(rb) { rb.behavior.name == "a" })
+      let b_resolved = list.find(resolved, fn(rb) { rb.behavior.name == "b" })
 
       case a_resolved, b_resolved {
         Ok(a_rb), Ok(b_rb) -> {

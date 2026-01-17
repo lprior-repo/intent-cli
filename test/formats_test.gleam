@@ -77,13 +77,17 @@ pub fn validate_email_empty_test() {
 pub fn validate_email_no_at_test() {
   formats.validate_email("userexample.com")
   |> should.be_error
-  |> should.equal("'userexample.com' is not a valid email address (invalid @ format)")
+  |> should.equal(
+    "'userexample.com' is not a valid email address (invalid @ format)",
+  )
 }
 
 pub fn validate_email_multiple_at_test() {
   formats.validate_email("user@domain@example.com")
   |> should.be_error
-  |> should.equal("'user@domain@example.com' is not a valid email address (invalid @ format)")
+  |> should.equal(
+    "'user@domain@example.com' is not a valid email address (invalid @ format)",
+  )
 }
 
 pub fn validate_email_empty_local_test() {
@@ -141,19 +145,25 @@ pub fn validate_email_domain_no_dot_test() {
 pub fn validate_email_domain_consecutive_dots_test() {
   formats.validate_email("user@example..com")
   |> should.be_error
-  |> should.equal("Email domain contains empty label (consecutive or trailing dots)")
+  |> should.equal(
+    "Email domain contains empty label (consecutive or trailing dots)",
+  )
 }
 
 pub fn validate_email_domain_starts_with_dot_test() {
   formats.validate_email("user@.example.com")
   |> should.be_error
-  |> should.equal("Email domain contains empty label (consecutive or trailing dots)")
+  |> should.equal(
+    "Email domain contains empty label (consecutive or trailing dots)",
+  )
 }
 
 pub fn validate_email_domain_ends_with_dot_test() {
   formats.validate_email("user@example.com.")
   |> should.be_error
-  |> should.equal("Email domain contains empty label (consecutive or trailing dots)")
+  |> should.equal(
+    "Email domain contains empty label (consecutive or trailing dots)",
+  )
 }
 
 pub fn validate_email_domain_invalid_chars_test() {
@@ -241,31 +251,41 @@ pub fn validate_uuid_empty_test() {
 pub fn validate_uuid_missing_segments_test() {
   formats.validate_uuid("550e8400-e29b-41d4-a716")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-a716' is not a valid UUID (invalid segment count)")
+  |> should.equal(
+    "'550e8400-e29b-41d4-a716' is not a valid UUID (invalid segment count)",
+  )
 }
 
 pub fn validate_uuid_too_many_segments_test() {
   formats.validate_uuid("550e8400-e29b-41d4-a716-446655440000-extra")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-a716-446655440000-extra' is not a valid UUID (invalid segment count)")
+  |> should.equal(
+    "'550e8400-e29b-41d4-a716-446655440000-extra' is not a valid UUID (invalid segment count)",
+  )
 }
 
 pub fn validate_uuid_wrong_segment_lengths_test() {
   formats.validate_uuid("550e840-e29b-41d4-a716-446655440000")
   |> should.be_error
-  |> should.equal("'550e840-e29b-41d4-a716-446655440000' has invalid UUID segment lengths (expected 8-4-4-4-12)")
+  |> should.equal(
+    "'550e840-e29b-41d4-a716-446655440000' has invalid UUID segment lengths (expected 8-4-4-4-12)",
+  )
 }
 
 pub fn validate_uuid_segment1_too_long_test() {
   formats.validate_uuid("550e84000-e29b-41d4-a716-446655440000")
   |> should.be_error
-  |> should.equal("'550e84000-e29b-41d4-a716-446655440000' has invalid UUID segment lengths (expected 8-4-4-4-12)")
+  |> should.equal(
+    "'550e84000-e29b-41d4-a716-446655440000' has invalid UUID segment lengths (expected 8-4-4-4-12)",
+  )
 }
 
 pub fn validate_uuid_segment5_too_short_test() {
   formats.validate_uuid("550e8400-e29b-41d4-a716-44665544000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-a716-44665544000' has invalid UUID segment lengths (expected 8-4-4-4-12)")
+  |> should.equal(
+    "'550e8400-e29b-41d4-a716-44665544000' has invalid UUID segment lengths (expected 8-4-4-4-12)",
+  )
 }
 
 // --- Invalid UUID Tests - Non-hex Characters ---
@@ -273,13 +293,17 @@ pub fn validate_uuid_segment5_too_short_test() {
 pub fn validate_uuid_invalid_chars_test() {
   formats.validate_uuid("550e8400-e29b-41d4-a716-44665544000g")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-a716-44665544000g' contains non-hexadecimal characters")
+  |> should.equal(
+    "'550e8400-e29b-41d4-a716-44665544000g' contains non-hexadecimal characters",
+  )
 }
 
 pub fn validate_uuid_special_chars_test() {
   formats.validate_uuid("550e8400-e29b-41d4-a716-4466554400!0")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-a716-4466554400!0' contains non-hexadecimal characters")
+  |> should.equal(
+    "'550e8400-e29b-41d4-a716-4466554400!0' contains non-hexadecimal characters",
+  )
 }
 
 // --- Invalid UUID Tests - Version Issues ---
@@ -287,19 +311,25 @@ pub fn validate_uuid_special_chars_test() {
 pub fn validate_uuid_invalid_version_0_test() {
   formats.validate_uuid("550e8400-e29b-01d4-a716-446655440000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-01d4-a716-446655440000' has invalid UUID version (expected 1-5, got 0)")
+  |> should.equal(
+    "'550e8400-e29b-01d4-a716-446655440000' has invalid UUID version (expected 1-5, got 0)",
+  )
 }
 
 pub fn validate_uuid_invalid_version_6_test() {
   formats.validate_uuid("550e8400-e29b-61d4-a716-446655440000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-61d4-a716-446655440000' has invalid UUID version (expected 1-5, got 6)")
+  |> should.equal(
+    "'550e8400-e29b-61d4-a716-446655440000' has invalid UUID version (expected 1-5, got 6)",
+  )
 }
 
 pub fn validate_uuid_invalid_version_f_test() {
   formats.validate_uuid("550e8400-e29b-f1d4-a716-446655440000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-f1d4-a716-446655440000' has invalid UUID version (expected 1-5, got f)")
+  |> should.equal(
+    "'550e8400-e29b-f1d4-a716-446655440000' has invalid UUID version (expected 1-5, got f)",
+  )
 }
 
 // --- Invalid UUID Tests - Variant Issues ---
@@ -307,25 +337,33 @@ pub fn validate_uuid_invalid_version_f_test() {
 pub fn validate_uuid_invalid_variant_0_test() {
   formats.validate_uuid("550e8400-e29b-41d4-0716-446655440000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-0716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)")
+  |> should.equal(
+    "'550e8400-e29b-41d4-0716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)",
+  )
 }
 
 pub fn validate_uuid_invalid_variant_7_test() {
   formats.validate_uuid("550e8400-e29b-41d4-7716-446655440000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-7716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)")
+  |> should.equal(
+    "'550e8400-e29b-41d4-7716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)",
+  )
 }
 
 pub fn validate_uuid_invalid_variant_c_test() {
   formats.validate_uuid("550e8400-e29b-41d4-c716-446655440000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-c716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)")
+  |> should.equal(
+    "'550e8400-e29b-41d4-c716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)",
+  )
 }
 
 pub fn validate_uuid_invalid_variant_f_test() {
   formats.validate_uuid("550e8400-e29b-41d4-f716-446655440000")
   |> should.be_error
-  |> should.equal("'550e8400-e29b-41d4-f716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)")
+  |> should.equal(
+    "'550e8400-e29b-41d4-f716-446655440000' has invalid RFC 4122 variant (expected 8,9,a,b variant bits)",
+  )
 }
 
 // ============================================================================
@@ -370,7 +408,9 @@ pub fn validate_uri_with_fragment_test() {
 }
 
 pub fn validate_uri_complex_test() {
-  formats.validate_uri("https://user:pass@example.com:8080/path?query=1#fragment")
+  formats.validate_uri(
+    "https://user:pass@example.com:8080/path?query=1#fragment",
+  )
   |> should.be_ok
 }
 
@@ -681,7 +721,9 @@ pub fn validate_iso8601_day_not_number_test() {
 pub fn validate_iso8601_invalid_separator_test() {
   formats.validate_iso8601("2024-01-15X14:30:00")
   |> should.be_error
-  |> should.equal("'2024-01-15X14:30:00' is not a valid ISO8601 datetime (invalid separator, expected T or space)")
+  |> should.equal(
+    "'2024-01-15X14:30:00' is not a valid ISO8601 datetime (invalid separator, expected T or space)",
+  )
 }
 
 pub fn validate_iso8601_hour_24_test() {
@@ -793,7 +835,9 @@ pub fn validate_email_single_letter_domain_label_test() {
 }
 
 pub fn validate_email_very_long_valid_test() {
-  formats.validate_email("very.long.email.address.with.many.dots@subdomain.example.company.com")
+  formats.validate_email(
+    "very.long.email.address.with.many.dots@subdomain.example.company.com",
+  )
   |> should.be_ok
 }
 

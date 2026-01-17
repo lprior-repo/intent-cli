@@ -1,6 +1,5 @@
 /// Core types for the Intent specification
 /// These types mirror the CUE schema definitions
-
 import gleam/dict.{type Dict}
 import gleam/json.{type Json}
 
