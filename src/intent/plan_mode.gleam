@@ -218,7 +218,7 @@ pub fn format_plan_json(plan: ExecutionPlan) -> String {
   <> "}"
 }
 
-/// Format error as human-readable string
+/// Format error as human-readable string (legacy)
 pub fn format_error(error: PlanError) -> String {
   case error {
     SessionNotFound(id) ->
@@ -233,6 +233,213 @@ pub fn format_error(error: PlanError) -> String {
       "Cyclic dependency detected involving: " <> string.join(beads, ", ")
     MissingDependency(bead, missing) ->
       "Bead '" <> bead <> "' requires '" <> missing <> "' which does not exist"
+  }
+}
+
+/// Format error as CUE structure for AI agents
+pub fn format_error_ai(error: PlanError) -> String {
+  case error {
+    SessionNotFound(session_id) -> {
+      let session_path = ".intent/session-" <> session_id <> ".cue"
+      "{\n"
+      <> "    action: \"file_error\"\n"
+      <> "    error: {\n"
+      <> "        type: \"session_not_found\"\n"
+      <> "        message: \"Session file not found\"\n"
+      <> "        context: {\n"
+      <> "            session_id: \""
+      <> escape_json_string(session_id)
+      <> "\"\n"
+      <> "            expected_path: \""
+      <> escape_json_string(session_path)
+      <> "\"\n"
+      <> "            operation: \"execution_plan\"\n"
+      <> "        }\n"
+      <> "    }\n"
+      <> "    suggestion: \"Create the session or verify the session ID\"\n"
+      <> "    recovery: [\n"
+      <> "        \"Check if the session ID is correct\",\n"
+      <> "        \"List available sessions: ls .intent/session-*.cue\",\n"
+      <> "        \"Start a new interview: intent interview --profile <type>\",\n"
+      <> "        \"Verify .intent directory exists: mkdir -p .intent\"\n"
+      <> "    ]\n"
+      <> "}"
+    }
+
+    ParseError(msg) ->
+      "{\n"
+      <> "    action: \"parse_error\"\n"
+      <> "    error: {\n"
+      <> "        type: \"session_parse_error\"\n"
+      <> "        message: \"Failed to parse session CUE file\"\n"
+      <> "        context: {\n"
+      <> "            parse_error: \""
+      <> escape_json_string(msg)
+      <> "\"\n"
+      <> "            operation: \"bead_extraction\"\n"
+      <> "            parser: \"simplified_cue_parser\"\n"
+      <> "        }\n"
+      <> "    }\n"
+      <> "    suggestion: \"Validate session CUE syntax and export to JSON\"\n"
+      <> "    recovery: [\n"
+      <> "        \"Check CUE syntax: cue vet .intent/session-<id>.cue\",\n"
+      <> "        \"Export to JSON: cue export .intent/session-<id>.cue -e session.beads\",\n"
+      <> "        \"Verify session file has 'beads' array field\",\n"
+      <> "        \"Check for syntax errors in the session file\"\n"
+      <> "    ]\n"
+      <> "}"
+
+    CyclicDependency(beads) -> {
+      let cycle = string.join(beads, " -> ")
+      let cycle_json = json_string_array(beads)
+      "{\n"
+      <> "    action: \"dependency_error\"\n"
+      <> "    error: {\n"
+      <> "        type: \"circular_dependency\"\n"
+      <> "        message: \"Circular dependency detected in bead dependencies\"\n"
+      <> "        context: {\n"
+      <> "            cycle_path: \""
+      <> escape_json_string(cycle)
+      <> "\"\n"
+      <> "            beads_involved: "
+      <> cycle_json
+      <> "\n"
+      <> "            cycle_length: "
+      <> int.to_string(list.length(beads))
+      <> "\n"
+      <> "        }\n"
+      <> "    }\n"
+      <> "    suggestion: \"Break the circular dependency by removing one 'requires' link\"\n"
+      <> "    recovery: [\n"
+      <> "        \"Review the 'requires' field for each bead in the cycle\",\n"
+      <> "        \"Identify which dependency can be safely removed\",\n"
+      <> "        \"Consider reordering bead execution to avoid the cycle\",\n"
+      <> "        \"Ensure dependencies form a Directed Acyclic Graph (DAG)\",\n"
+      <> "        \"Regenerate session with corrected dependencies\"\n"
+      <> "    ]\n"
+      <> "}"
+    }
+
+    MissingDependency(bead, missing) ->
+      "{\n"
+      <> "    action: \"dependency_error\"\n"
+      <> "    error: {\n"
+      <> "        type: \"missing_dependency\"\n"
+      <> "        message: \"Bead requires a dependency that does not exist\"\n"
+      <> "        context: {\n"
+      <> "            bead_id: \""
+      <> escape_json_string(bead)
+      <> "\"\n"
+      <> "            missing_dependency: \""
+      <> escape_json_string(missing)
+      <> "\"\n"
+      <> "            dependency_type: \"bead\"\n"
+      <> "        }\n"
+      <> "    }\n"
+      <> "    suggestion: \"Add the missing bead or remove the dependency reference\"\n"
+      <> "    recovery: [\n"
+      <> "        \"Check if '"
+      <> escape_json_string(missing)
+      <> "' is defined in the session\",\n"
+      <> "        \"Verify the bead ID is spelled correctly\",\n"
+      <> "        \"Add a new bead with ID '"
+      <> escape_json_string(missing)
+      <> "' if needed\",\n"
+      <> "        \"Remove '"
+      <> escape_json_string(missing)
+      <> "' from the 'requires' list of '"
+      <> escape_json_string(bead)
+      <> "'\",\n"
+      <> "        \"Regenerate session to ensure all dependencies exist\"\n"
+      <> "    ]\n"
+      <> "}"
+  }
+}
+
+/// Format error as human-readable text with context and recovery steps
+pub fn format_error_text(error: PlanError) -> String {
+  case error {
+    SessionNotFound(session_id) -> {
+      let session_path = ".intent/session-" <> session_id <> ".cue"
+      "Error: Session file not found\n\n"
+      <> "Context:\n"
+      <> "  session_id: "
+      <> session_id
+      <> "\n"
+      <> "  expected_path: "
+      <> session_path
+      <> "\n"
+      <> "  operation: execution_plan\n\n"
+      <> "Suggestion: Create the session or verify the session ID\n\n"
+      <> "Recovery Steps:\n"
+      <> "  1. Check if the session ID is correct\n"
+      <> "  2. List available sessions: ls .intent/session-*.cue\n"
+      <> "  3. Start a new interview: intent interview --profile <type>\n"
+      <> "  4. Verify .intent directory exists: mkdir -p .intent"
+    }
+
+    ParseError(msg) ->
+      "Error: Failed to parse session CUE file\n\n"
+      <> "Context:\n"
+      <> "  parse_error: "
+      <> msg
+      <> "\n"
+      <> "  operation: bead_extraction\n"
+      <> "  parser: simplified_cue_parser\n\n"
+      <> "Suggestion: Validate session CUE syntax and export to JSON\n\n"
+      <> "Recovery Steps:\n"
+      <> "  1. Check CUE syntax: cue vet .intent/session-<id>.cue\n"
+      <> "  2. Export to JSON: cue export .intent/session-<id>.cue -e session.beads\n"
+      <> "  3. Verify session file has 'beads' array field\n"
+      <> "  4. Check for syntax errors in the session file"
+
+    CyclicDependency(beads) -> {
+      let cycle = string.join(beads, " -> ")
+      "Error: Circular dependency detected in bead dependencies\n\n"
+      <> "Context:\n"
+      <> "  cycle_path: "
+      <> cycle
+      <> "\n"
+      <> "  beads_involved: "
+      <> string.join(beads, ", ")
+      <> "\n"
+      <> "  cycle_length: "
+      <> int.to_string(list.length(beads))
+      <> "\n\n"
+      <> "Suggestion: Break the circular dependency by removing one 'requires' link\n\n"
+      <> "Recovery Steps:\n"
+      <> "  1. Review the 'requires' field for each bead in the cycle\n"
+      <> "  2. Identify which dependency can be safely removed\n"
+      <> "  3. Consider reordering bead execution to avoid the cycle\n"
+      <> "  4. Ensure dependencies form a Directed Acyclic Graph (DAG)\n"
+      <> "  5. Regenerate session with corrected dependencies"
+    }
+
+    MissingDependency(bead, missing) ->
+      "Error: Bead requires a dependency that does not exist\n\n"
+      <> "Context:\n"
+      <> "  bead_id: "
+      <> bead
+      <> "\n"
+      <> "  missing_dependency: "
+      <> missing
+      <> "\n"
+      <> "  dependency_type: bead\n\n"
+      <> "Suggestion: Add the missing bead or remove the dependency reference\n\n"
+      <> "Recovery Steps:\n"
+      <> "  1. Check if '"
+      <> missing
+      <> "' is defined in the session\n"
+      <> "  2. Verify the bead ID is spelled correctly\n"
+      <> "  3. Add a new bead with ID '"
+      <> missing
+      <> "' if needed\n"
+      <> "  4. Remove '"
+      <> missing
+      <> "' from the 'requires' list of '"
+      <> bead
+      <> "'\n"
+      <> "  5. Regenerate session to ensure all dependencies exist"
   }
 }
 
@@ -481,8 +688,7 @@ fn format_phase_human(phase: ExecutionPhase) -> String {
     |> list.map(fn(id) { "│  • " <> id })
     |> string.join("\n")
 
-  let footer =
-    "└────────────────────────────────────────\n"
+  let footer = "└────────────────────────────────────────\n"
 
   header <> beads_list <> "\n" <> footer
 }
@@ -542,6 +748,7 @@ fn escape_json_string(s: String) -> String {
   |> string.replace("\"", "\\\"")
   |> string.replace("\n", "\\n")
   |> string.replace("\t", "\\t")
+  |> string.replace("\r", "\\r")
 }
 
 // =============================================================================
@@ -581,3 +788,16 @@ fn extract_beads_simple(_content: String) -> Result(List(PlanBead), PlanError) {
 
 @external(erlang, "intent_ffi", "current_iso8601_timestamp")
 fn current_iso8601_timestamp() -> String
+
+// =============================================================================
+// PRIVATE: Error Formatting Helpers
+// =============================================================================
+
+/// Convert list of strings to JSON array format
+fn json_string_array(items: List(String)) -> String {
+  let escaped =
+    items
+    |> list.map(fn(s) { "\"" <> escape_json_string(s) <> "\"" })
+    |> string.join(", ")
+  "[" <> escaped <> "]"
+}
