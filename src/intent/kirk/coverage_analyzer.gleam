@@ -7,7 +7,7 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/string
-import intent/types.{type Spec, type Behavior, type Method}
+import intent/types.{type Behavior, type Method, type Spec}
 
 // =============================================================================
 // TYPES
@@ -25,10 +25,7 @@ pub type CoverageReport {
 }
 
 pub type EdgeCaseCoverage {
-  EdgeCaseCoverage(
-    tested: List(String),
-    suggested: List(String),
-  )
+  EdgeCaseCoverage(tested: List(String), suggested: List(String))
 }
 
 pub type OWASPCoverage {
@@ -41,13 +38,33 @@ pub type OWASPCoverage {
 
 // OWASP Top 10 2021
 const owasp_categories = [
-  #("A01", "Broken Access Control", ["unauthorized", "forbidden", "access", "privilege", "403", "401"]),
-  #("A02", "Cryptographic Failures", ["password", "encrypt", "hash", "secret", "sensitive", "expose"]),
-  #("A03", "Injection", ["injection", "sql", "xss", "script", "command", "ldap"]),
+  #(
+    "A01",
+    "Broken Access Control",
+    ["unauthorized", "forbidden", "access", "privilege", "403", "401"],
+  ),
+  #(
+    "A02",
+    "Cryptographic Failures",
+    ["password", "encrypt", "hash", "secret", "sensitive", "expose"],
+  ),
+  #(
+    "A03",
+    "Injection",
+    ["injection", "sql", "xss", "script", "command", "ldap"],
+  ),
   #("A04", "Insecure Design", ["validation", "business", "logic", "workflow"]),
-  #("A05", "Security Misconfiguration", ["default", "error", "stack", "verbose", "config"]),
+  #(
+    "A05",
+    "Security Misconfiguration",
+    ["default", "error", "stack", "verbose", "config"],
+  ),
   #("A06", "Vulnerable Components", ["version", "dependency", "library"]),
-  #("A07", "Auth Failures", ["auth", "login", "session", "token", "jwt", "brute"]),
+  #(
+    "A07",
+    "Auth Failures",
+    ["auth", "login", "session", "token", "jwt", "brute"],
+  ),
   #("A08", "Data Integrity", ["integrity", "serializ", "csrf", "tamper"]),
   #("A09", "Logging Failures", ["log", "audit", "monitor", "alert"]),
   #("A10", "SSRF", ["ssrf", "redirect", "url", "fetch", "request"]),
@@ -74,23 +91,33 @@ const edge_case_patterns = [
 pub fn analyze_coverage(spec: Spec) -> CoverageReport {
   let behaviors = get_all_behaviors(spec)
 
+  // Graceful degradation: Handle empty specs
+  let is_empty = list.is_empty(behaviors)
+
   let methods = count_methods(behaviors)
   let status_codes = count_status_codes(behaviors)
   let paths = map_paths_to_methods(behaviors)
   let edge_cases = analyze_edge_cases(behaviors)
   let owasp = analyze_owasp_coverage(spec)
 
-  // Calculate overall score
-  let method_score = calculate_method_score(methods)
-  let status_score = calculate_status_score(status_codes)
-  let edge_score = calculate_edge_score(edge_cases)
-  let owasp_score = owasp.score
+  // Calculate overall score (0 if empty, otherwise weighted average)
+  let overall_score = case is_empty {
+    True -> 0.0
+    False -> {
+      let method_score = calculate_method_score(methods)
+      let status_score = calculate_status_score(status_codes)
+      let edge_score = calculate_edge_score(edge_cases)
+      let owasp_score = owasp.score
 
-  let overall_score = {
-    method_score *. 0.2 +.
-    status_score *. 0.2 +.
-    edge_score *. 0.2 +.
-    owasp_score *. 0.4
+      method_score
+      *. 0.2
+      +. status_score
+      *. 0.2
+      +. edge_score
+      *. 0.2
+      +. owasp_score
+      *. 0.4
+    }
   }
 
   CoverageReport(
@@ -122,7 +149,10 @@ fn count_methods(behaviors: List(Behavior)) -> Dict(String, Int) {
 fn calculate_method_score(methods: Dict(String, Int)) -> Float {
   // Basic methods: GET, POST, PUT, DELETE, PATCH
   let basic_methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
-  let covered = basic_methods |> list.filter(fn(m) { dict.has_key(methods, m) }) |> list.length()
+  let covered =
+    basic_methods
+    |> list.filter(fn(m) { dict.has_key(methods, m) })
+    |> list.length()
   int.to_float(covered) /. int.to_float(list.length(basic_methods)) *. 100.0
 }
 
@@ -182,8 +212,7 @@ fn normalize_path(path: String) -> String {
   |> string.replace("${", "{")
   |> fn(s) {
     case string.split(s, "}") {
-      [first, rest, ..] ->
-        first <> "}" <> normalize_path(rest)
+      [first, rest, ..] -> first <> "}" <> normalize_path(rest)
       _ -> s
     }
   }
@@ -205,9 +234,8 @@ fn analyze_edge_cases(behaviors: List(Behavior)) -> EdgeCaseCoverage {
     edge_case_patterns
     |> list.filter_map(fn(pattern) {
       let #(name, keywords) = pattern
-      let is_tested = list.any(keywords, fn(kw) {
-        string.contains(all_text, kw)
-      })
+      let is_tested =
+        list.any(keywords, fn(kw) { string.contains(all_text, kw) })
       case is_tested {
         True -> Ok(name)
         False -> Error(Nil)
@@ -219,9 +247,8 @@ fn analyze_edge_cases(behaviors: List(Behavior)) -> EdgeCaseCoverage {
     edge_case_patterns
     |> list.filter_map(fn(pattern) {
       let #(name, keywords) = pattern
-      let is_tested = list.any(keywords, fn(kw) {
-        string.contains(all_text, kw)
-      })
+      let is_tested =
+        list.any(keywords, fn(kw) { string.contains(all_text, kw) })
       case is_tested {
         True -> Error(Nil)
         False -> Ok(name)
@@ -270,9 +297,8 @@ fn analyze_owasp_coverage(spec: Spec) -> OWASPCoverage {
     owasp_categories
     |> list.map(fn(cat) {
       let #(code, _name, keywords) = cat
-      let is_covered = list.any(keywords, fn(kw) {
-        string.contains(all_text, kw)
-      })
+      let is_covered =
+        list.any(keywords, fn(kw) { string.contains(all_text, kw) })
       #(code, is_covered)
     })
 
@@ -286,9 +312,8 @@ fn analyze_owasp_coverage(spec: Spec) -> OWASPCoverage {
     owasp_categories
     |> list.filter_map(fn(cat) {
       let #(code, name, keywords) = cat
-      let is_covered = list.any(keywords, fn(kw) {
-        string.contains(all_text, kw)
-      })
+      let is_covered =
+        list.any(keywords, fn(kw) { string.contains(all_text, kw) })
       case is_covered {
         True -> Error(Nil)
         False -> Ok(code <> ": " <> name)
@@ -303,11 +328,24 @@ fn analyze_owasp_coverage(spec: Spec) -> OWASPCoverage {
 // =============================================================================
 
 pub fn format_report(report: CoverageReport) -> String {
-  let header = "╔══════════════════════════════════════╗\n"
+  let header =
+    "╔══════════════════════════════════════╗\n"
     <> "║      KIRK Coverage Analysis          ║\n"
     <> "╚══════════════════════════════════════╝\n\n"
 
-  let overall = "📊 Overall Coverage: " <> int.to_string(float.round(report.overall_score)) <> "%\n\n"
+  // Check if spec is empty/partial
+  let is_empty = dict.is_empty(report.methods)
+  let warning = case is_empty {
+    True ->
+      "⚠️  PARTIAL SPEC: No behaviors found for analysis\n"
+      <> "   Add features and behaviors to get meaningful coverage metrics\n\n"
+    False -> ""
+  }
+
+  let overall =
+    "📊 Overall Coverage: "
+    <> int.to_string(float.round(report.overall_score))
+    <> "%\n\n"
 
   let methods_section = format_methods(report.methods)
   let status_section = format_status_codes(report.status_codes)
@@ -315,7 +353,14 @@ pub fn format_report(report: CoverageReport) -> String {
   let edge_section = format_edge_cases(report.edge_cases)
   let owasp_section = format_owasp(report.owasp)
 
-  header <> overall <> methods_section <> status_section <> paths_section <> edge_section <> owasp_section
+  header
+  <> warning
+  <> overall
+  <> methods_section
+  <> status_section
+  <> paths_section
+  <> edge_section
+  <> owasp_section
 }
 
 fn format_methods(methods: Dict(String, Int)) -> String {
@@ -358,7 +403,8 @@ fn format_paths(paths: Dict(String, List(Method))) -> String {
     |> dict.to_list()
     |> list.map(fn(pair) {
       let #(path, methods) = pair
-      let method_str = methods |> list.map(types.method_to_string) |> string.join(", ")
+      let method_str =
+        methods |> list.map(types.method_to_string) |> string.join(", ")
       "  " <> path <> " [" <> method_str <> "]"
     })
     |> string.join("\n")
@@ -369,21 +415,32 @@ fn format_paths(paths: Dict(String, List(Method))) -> String {
 fn format_edge_cases(edge_cases: EdgeCaseCoverage) -> String {
   let tested_str = case list.is_empty(edge_cases.tested) {
     True -> "  (none)"
-    False -> edge_cases.tested |> list.map(fn(t) { "  ✅ " <> t }) |> string.join("\n")
+    False ->
+      edge_cases.tested |> list.map(fn(t) { "  ✅ " <> t }) |> string.join("\n")
   }
 
   let suggested_str = case list.is_empty(edge_cases.suggested) {
     True -> ""
     False ->
       "\n  Suggested:\n"
-      <> { edge_cases.suggested |> list.take(5) |> list.map(fn(s) { "  💡 " <> s }) |> string.join("\n") }
+      <> {
+        edge_cases.suggested
+        |> list.take(5)
+        |> list.map(fn(s) { "  💡 " <> s })
+        |> string.join("\n")
+      }
   }
 
   "🎯 Edge Cases:\n" <> tested_str <> suggested_str <> "\n\n"
 }
 
 fn format_owasp(owasp: OWASPCoverage) -> String {
-  let score_str = "  Score: " <> int.to_string(float.round(owasp.score)) <> "% (" <> int.to_string(10 - list.length(owasp.missing)) <> "/10)\n"
+  let score_str =
+    "  Score: "
+    <> int.to_string(float.round(owasp.score))
+    <> "% ("
+    <> int.to_string(10 - list.length(owasp.missing))
+    <> "/10)\n"
 
   let coverage_str =
     owasp.categories
@@ -403,8 +460,15 @@ fn format_owasp(owasp: OWASPCoverage) -> String {
     True -> ""
     False ->
       "\n  Missing:\n"
-      <> { owasp.missing |> list.map(fn(m) { "    • " <> m }) |> string.join("\n") }
+      <> {
+        owasp.missing |> list.map(fn(m) { "    • " <> m }) |> string.join("\n")
+      }
   }
 
-  "🔐 OWASP Top 10:\n" <> score_str <> "  " <> coverage_str <> missing_str <> "\n"
+  "🔐 OWASP Top 10:\n"
+  <> score_str
+  <> "  "
+  <> coverage_str
+  <> missing_str
+  <> "\n"
 }
