@@ -5108,7 +5108,7 @@ fn current_timestamp() -> String
 @external(erlang, "intent_ffi", "set_env")
 fn set_env(key: String, value: String) -> Nil
 
-@external(erlang, "os", "getenv")
+@external(erlang, "intent_ffi", "get_env")
 fn get_env(key: String) -> Result(String, Nil)
 
 /// Set NO_COLOR environment variable to disable colored output
