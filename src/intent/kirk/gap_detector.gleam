@@ -6,7 +6,7 @@ import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/string
-import intent/types.{type Spec, type Behavior}
+import intent/types.{type Behavior, type Spec}
 
 // =============================================================================
 // TYPES
@@ -50,12 +50,7 @@ pub type GapSeverity {
 }
 
 pub type SeverityBreakdown {
-  SeverityBreakdown(
-    critical: Int,
-    high: Int,
-    medium: Int,
-    low: Int,
-  )
+  SeverityBreakdown(critical: Int, high: Int, medium: Int, low: Int)
 }
 
 // =============================================================================
@@ -98,19 +93,38 @@ const security_checklist = [
 pub fn detect_gaps(spec: Spec) -> GapReport {
   let behaviors = get_all_behaviors(spec)
 
+  // Graceful degradation: Check if spec is empty/partial
+  let is_empty_spec = list.is_empty(behaviors)
+
   let inversion_gaps = find_inversion_gaps(behaviors, spec)
   let second_order_gaps = find_second_order_gaps(behaviors)
   let checklist_gaps = find_checklist_gaps(behaviors)
   let coverage_gaps = find_coverage_gaps(behaviors)
   let security_gaps = find_security_gaps(spec)
 
-  let all_gaps = list.concat([
-    inversion_gaps,
-    second_order_gaps,
-    checklist_gaps,
-    coverage_gaps,
-    security_gaps,
-  ])
+  // Add gap for completely empty spec
+  let partial_spec_gaps = case is_empty_spec {
+    True -> [
+      Gap(
+        gap_type: CoverageGap,
+        description: "Spec has no behaviors defined - this appears to be a partial or incomplete spec",
+        severity: Critical,
+        suggestion: "Add at least one feature with behaviors to perform meaningful gap analysis",
+        mental_model: "Coverage",
+      ),
+    ]
+    False -> []
+  }
+
+  let all_gaps =
+    list.concat([
+      partial_spec_gaps,
+      inversion_gaps,
+      second_order_gaps,
+      checklist_gaps,
+      coverage_gaps,
+      security_gaps,
+    ])
 
   let severity_breakdown = count_severities(all_gaps)
 
@@ -131,9 +145,11 @@ fn get_all_behaviors(spec: Spec) -> List(Behavior) {
 }
 
 fn count_severities(gaps: List(Gap)) -> SeverityBreakdown {
-  let critical = gaps |> list.filter(fn(g) { g.severity == Critical }) |> list.length()
+  let critical =
+    gaps |> list.filter(fn(g) { g.severity == Critical }) |> list.length()
   let high = gaps |> list.filter(fn(g) { g.severity == High }) |> list.length()
-  let medium = gaps |> list.filter(fn(g) { g.severity == Medium }) |> list.length()
+  let medium =
+    gaps |> list.filter(fn(g) { g.severity == Medium }) |> list.length()
   let low = gaps |> list.filter(fn(g) { g.severity == Low }) |> list.length()
 
   SeverityBreakdown(critical: critical, high: high, medium: medium, low: low)
@@ -159,34 +175,45 @@ fn find_inversion_gaps(behaviors: List(Behavior), spec: Spec) -> List(Gap) {
   }
 
   let gaps = case ratio <. 0.2 {
-    True ->
-      [Gap(
+    True -> [
+      Gap(
         gap_type: InversionGap,
-        description: "Only " <> int.to_string(error_behaviors) <> " of " <> int.to_string(total_behaviors) <> " behaviors test error cases",
+        description: "Only "
+          <> int.to_string(error_behaviors)
+          <> " of "
+          <> int.to_string(total_behaviors)
+          <> " behaviors test error cases",
         severity: High,
         suggestion: "Add more error case behaviors (aim for 30%+ coverage)",
         mental_model: "Inversion",
-      )]
+      ),
+    ]
     _ -> []
   }
 
   // Check anti-patterns
   let ap_count = list.length(spec.anti_patterns)
   let anti_pattern_gaps = case ap_count {
-    0 -> [Gap(
-      gap_type: InversionGap,
-      description: "No anti-patterns defined",
-      severity: Medium,
-      suggestion: "Add anti-patterns to document what NOT to do",
-      mental_model: "Inversion",
-    )]
-    _ if ap_count < 3 -> [Gap(
-      gap_type: InversionGap,
-      description: "Only " <> int.to_string(ap_count) <> " anti-patterns defined",
-      severity: Low,
-      suggestion: "Consider adding more anti-patterns for common mistakes",
-      mental_model: "Inversion",
-    )]
+    0 -> [
+      Gap(
+        gap_type: InversionGap,
+        description: "No anti-patterns defined",
+        severity: Medium,
+        suggestion: "Add anti-patterns to document what NOT to do",
+        mental_model: "Inversion",
+      ),
+    ]
+    _ if ap_count < 3 -> [
+      Gap(
+        gap_type: InversionGap,
+        description: "Only "
+          <> int.to_string(ap_count)
+          <> " anti-patterns defined",
+        severity: Low,
+        suggestion: "Consider adding more anti-patterns for common mistakes",
+        mental_model: "Inversion",
+      ),
+    ]
     _ -> []
   }
 
@@ -224,7 +251,9 @@ fn find_second_order_gaps(behaviors: List(Behavior)) -> List(Gap) {
           types.Delete ->
             Ok(Gap(
               gap_type: SecondOrderGap,
-              description: "Delete '" <> m.name <> "' has no verification behavior",
+              description: "Delete '"
+                <> m.name
+                <> "' has no verification behavior",
               severity: Medium,
               suggestion: "Add behavior to verify resource is actually deleted (GET returns 404)",
               mental_model: "Second-Order Thinking",
@@ -264,18 +293,22 @@ fn find_checklist_gaps(behaviors: List(Behavior)) -> List(Gap) {
     api_behavior_checklist
     |> list.filter_map(fn(item) {
       let #(name, method_pattern, message) = item
-      let has_method = list.any(methods, fn(m) {
-        string.contains(method_pattern, m)
-      })
+      let has_method =
+        list.any(methods, fn(m) { string.contains(method_pattern, m) })
       case has_method {
         True -> Error(Nil)
-        False -> Ok(Gap(
-          gap_type: ChecklistGap,
-          description: message,
-          severity: Medium,
-          suggestion: "Add " <> method_pattern <> " behavior for " <> name <> " operation",
-          mental_model: "Checklist",
-        ))
+        False ->
+          Ok(Gap(
+            gap_type: ChecklistGap,
+            description: message,
+            severity: Medium,
+            suggestion: "Add "
+              <> method_pattern
+              <> " behavior for "
+              <> name
+              <> " operation",
+            mental_model: "Checklist",
+          ))
       }
     })
 
@@ -297,7 +330,9 @@ fn find_checklist_gaps(behaviors: List(Behavior)) -> List(Gap) {
             gap_type: ChecklistGap,
             description: message <> " (status " <> int.to_string(status) <> ")",
             severity: severity,
-            suggestion: "Add behavior that expects " <> int.to_string(status) <> " status",
+            suggestion: "Add behavior that expects "
+              <> int.to_string(status)
+              <> " status",
             mental_model: "Checklist",
           ))
         }
@@ -375,9 +410,8 @@ fn find_security_gaps(spec: Spec) -> List(Gap) {
   security_checklist
   |> list.filter_map(fn(item) {
     let #(category, keywords) = item
-    let is_covered = list.any(keywords, fn(kw) {
-      string.contains(combined, kw)
-    })
+    let is_covered =
+      list.any(keywords, fn(kw) { string.contains(combined, kw) })
     case is_covered {
       True -> Error(Nil)
       False -> {
@@ -403,7 +437,8 @@ fn find_security_gaps(spec: Spec) -> List(Gap) {
 // =============================================================================
 
 pub fn format_report(report: GapReport) -> String {
-  let header = "╔══════════════════════════════════════╗\n"
+  let header =
+    "╔══════════════════════════════════════╗\n"
     <> "║        KIRK Gap Detection            ║\n"
     <> "║   Finding what's missing             ║\n"
     <> "╚══════════════════════════════════════╝\n\n"
@@ -411,13 +446,29 @@ pub fn format_report(report: GapReport) -> String {
   let summary = format_summary(report)
   let severity_section = format_severity_breakdown(report.severity_breakdown)
 
-  let inversion_section = format_gap_section("🔄 Inversion Gaps", report.inversion_gaps, "Inversion")
-  let second_order_section = format_gap_section("🎯 Second-Order Gaps", report.second_order_gaps, "Second-Order")
-  let checklist_section = format_gap_section("✅ Checklist Gaps", report.checklist_gaps, "Checklist")
-  let coverage_section = format_gap_section("📊 Coverage Gaps", report.coverage_gaps, "Coverage")
-  let security_section = format_gap_section("🔒 Security Gaps", report.security_gaps, "Security")
+  let inversion_section =
+    format_gap_section("🔄 Inversion Gaps", report.inversion_gaps, "Inversion")
+  let second_order_section =
+    format_gap_section(
+      "🎯 Second-Order Gaps",
+      report.second_order_gaps,
+      "Second-Order",
+    )
+  let checklist_section =
+    format_gap_section("✅ Checklist Gaps", report.checklist_gaps, "Checklist")
+  let coverage_section =
+    format_gap_section("📊 Coverage Gaps", report.coverage_gaps, "Coverage")
+  let security_section =
+    format_gap_section("🔒 Security Gaps", report.security_gaps, "Security")
 
-  header <> summary <> severity_section <> inversion_section <> second_order_section <> checklist_section <> coverage_section <> security_section
+  header
+  <> summary
+  <> severity_section
+  <> inversion_section
+  <> second_order_section
+  <> checklist_section
+  <> coverage_section
+  <> security_section
 }
 
 fn format_summary(report: GapReport) -> String {
@@ -433,17 +484,28 @@ fn format_summary(report: GapReport) -> String {
 
 fn format_severity_breakdown(sb: SeverityBreakdown) -> String {
   "Severity Breakdown:\n"
-    <> "  🚨 Critical: " <> int.to_string(sb.critical) <> "\n"
-    <> "  ❌ High:     " <> int.to_string(sb.high) <> "\n"
-    <> "  ⚠️  Medium:   " <> int.to_string(sb.medium) <> "\n"
-    <> "  ℹ️  Low:      " <> int.to_string(sb.low) <> "\n\n"
+  <> "  🚨 Critical: "
+  <> int.to_string(sb.critical)
+  <> "\n"
+  <> "  ❌ High:     "
+  <> int.to_string(sb.high)
+  <> "\n"
+  <> "  ⚠️  Medium:   "
+  <> int.to_string(sb.medium)
+  <> "\n"
+  <> "  ℹ️  Low:      "
+  <> int.to_string(sb.low)
+  <> "\n\n"
 }
 
 fn format_gap_section(title: String, gaps: List(Gap), _model: String) -> String {
   case list.is_empty(gaps) {
     True -> title <> ": None\n\n"
     False ->
-      title <> " (" <> int.to_string(list.length(gaps)) <> "):\n"
+      title
+      <> " ("
+      <> int.to_string(list.length(gaps))
+      <> "):\n"
       <> { gaps |> list.map(format_gap) |> string.join("\n") }
       <> "\n\n"
   }
@@ -456,8 +518,7 @@ fn format_gap(gap: Gap) -> String {
     Medium -> "⚠️"
     Low -> "ℹ️"
   }
-  "  " <> icon <> " " <> gap.description <> "\n"
-  <> "     💡 " <> gap.suggestion
+  "  " <> icon <> " " <> gap.description <> "\n" <> "     💡 " <> gap.suggestion
 }
 
 pub fn gap_type_to_string(gt: GapType) -> String {

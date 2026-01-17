@@ -6,7 +6,7 @@ import gleam/string
 import gleam_community/ansi
 import intent/parser
 import intent/security
-import intent/types.{type Spec, Spec}
+import intent/types.{type Spec}
 import shellout
 import spinner
 
@@ -91,7 +91,21 @@ fn export_and_parse(path: String) -> Result(Spec, LoadError) {
   // Try to export as full spec first
   case shellout.command("cue", ["export", path, "-e", "spec"], ".", []) {
     Ok(json_str) -> parse_json_spec(json_str)
-    Error(#(_, stderr)) -> Error(CueExportError(stderr))
+    Error(#(_, stderr)) -> {
+      // If export with -e spec fails, try without it to get more context
+      case shellout.command("cue", ["export", path], ".", []) {
+        Ok(_partial_json) ->
+          Error(CueExportError(
+            stderr
+            <> "\n\nHint: The CUE file may be missing required 'spec' field or has incomplete structure.\n"
+            <> "      For partial spec analysis, ensure all required fields exist even if empty:\n"
+            <> "      - spec.features (can be empty list [])\n"
+            <> "      - spec.config, spec.rules, spec.anti_patterns\n"
+            <> "      Run 'intent validate' to see detailed field requirements.",
+          ))
+        Error(_) -> Error(CueExportError(stderr))
+      }
+    }
   }
 }
 

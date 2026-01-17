@@ -1,27 +1,53 @@
 #!/usr/bin/env escript
+-mode(compile).
 
 % TODO: Don't concurrently print warnings and errors
 % TODO: Some tests
 
--record(arguments, {lib = "./", out = "./", modules = []}).
+main(_) ->
+    ok = io:setopts([binary, {encoding, utf8}]),
+    ok = configure_logging(),
+    compile_package_loop().
 
-main(Args) ->
-    #arguments{out = Out, lib = Lib, modules = Modules} = parse(Args),
+compile_package_loop() ->
+    case io:get_line("") of
+        eof -> ok;
+        Line ->
+            Chars = unicode:characters_to_list(Line),
+            {ok, Tokens, _} = erl_scan:string(Chars),
+            {ok, {Lib, Out, Modules}} = erl_parse:parse_term(Tokens),
+            case compile_package(Lib, Out, Modules) of
+                {ok, ModuleNames} ->
+                    PrintModuleName = fun(ModuleName) ->
+                        io:put_chars("gleam-compile-module:" ++ atom_to_list(ModuleName) ++ "\n")
+                    end,
+                    lists:map(PrintModuleName, ModuleNames),
+                    io:put_chars("gleam-compile-result-ok\n");
+                err ->
+                    io:put_chars("gleam-compile-result-error\n")
+            end,
+            compile_package_loop()
+    end.
+
+compile_package(Lib, Out, Modules) ->
     IsElixirModule = fun(Module) ->
         filename:extension(Module) =:= ".ex"
     end,
     {ElixirModules, ErlangModules} = lists:partition(IsElixirModule, Modules),
-    ok = configure_logging(),
-    ok = add_lib_to_erlang_path(Lib),
     ok = filelib:ensure_dir([Out, $/]),
-    {ErlangOk, _ErlangBeams} = compile_erlang(ErlangModules, Out),
-    {ElixirOk, _ElixirBeams} = case ErlangOk of
+    ok = add_lib_to_erlang_path(Lib),
+    {ErlangOk, ErlangBeams} = compile_erlang(ErlangModules, Out),
+    {ElixirOk, ElixirBeams} = case ErlangOk of
         true -> compile_elixir(ElixirModules, Out);
         false -> {false, []}
     end,
-    case ErlangOk and ElixirOk of
-        true -> ok;
-        false -> erlang:halt(1)
+    ok = del_lib_from_erlang_path(Lib),
+    case ErlangOk andalso ElixirOk of
+        true ->
+            ModuleNames = proplists:get_keys(ErlangBeams ++ ElixirBeams),
+            {ok, ModuleNames};
+        false ->
+            err
     end.
 
 compile_erlang(Modules, Out) ->
@@ -31,7 +57,7 @@ compile_erlang(Modules, Out) ->
 
 collect_results(Acc = {Result, Beams}) ->
     receive
-        {compiled, Beam} -> collect_results({Result, [Beam | Beams]});
+        {compiled, ModuleName, Beam} -> collect_results({Result, [{ModuleName, Beam} | Beams]});
         failed -> collect_results({false, Beams})
         after 0 -> Acc
     end.
@@ -67,7 +93,7 @@ worker_loop(Parent, Out) ->
             case compile:file(Module, Options) of
                 {ok, ModuleName} ->
                     Beam = filename:join(Out, ModuleName) ++ ".beam",
-                    Message = {compiled, Beam},
+                    Message = {compiled, ModuleName, Beam},
                     log(Message),
                     erlang:send(Parent, Message);
                 error ->
@@ -88,11 +114,9 @@ compile_elixir(Modules, Out) ->
     case Modules of
         [] -> {true, []};
         _ ->
-            log({starting, "compiler.app"}),
-            ok = application:start(compiler),
-            log({starting, "elixir.app"}),
-            case application:start(elixir) of
-                ok -> do_compile_elixir(Modules, Out);
+            log({starting, "compiler.app,elixir.app"}),
+            case application:ensure_all_started([compiler, elixir]) of
+                {ok, _} -> do_compile_elixir(Modules, Out);
                 _ ->
                     io:put_chars(standard_error, [Error, $\n]),
                     {false, []}
@@ -105,7 +129,7 @@ do_compile_elixir(Modules, Out) ->
         list_to_binary(Module)
     end, Modules),
     OutBin = list_to_binary(Out),
-    Options = [{dest, OutBin}],
+    Options = [{dest, OutBin}, {return_diagnostics, true}],
     % Silence "redefining module" warnings.
     % Compiled modules in the build directory are added to the code path.
     % These warnings result from recompiling loaded modules.
@@ -116,7 +140,7 @@ do_compile_elixir(Modules, Out) ->
             ToBeam = fun(ModuleAtom) ->
                 Beam = filename:join(Out, atom_to_list(ModuleAtom)) ++ ".beam",
                 log({compiled, Beam}),
-                Beam
+                {ModuleAtom, Beam}
             end,
             {true, lists:map(ToBeam, ModuleAtoms)};
         {error, Errors, _} ->
@@ -132,19 +156,18 @@ do_compile_elixir(Modules, Out) ->
     end.
 
 add_lib_to_erlang_path(Lib) ->
-    code:add_paths(filelib:wildcard([Lib, "/*/ebin"])).
+    code:add_paths(expand_lib_paths(Lib)).
 
-parse(Args) ->
-    parse(Args, #arguments{}).
+-if(?OTP_RELEASE >= 26).
+del_lib_from_erlang_path(Lib) ->
+    code:del_paths(expand_lib_paths(Lib)).
+-else.
+del_lib_from_erlang_path(Lib) ->
+    lists:foreach(fun code:del_path/1, expand_lib_paths(Lib)).
+-endif.
 
-parse([], Arguments) ->
-    Arguments;
-parse(["--lib", Lib | Rest], Arguments) ->
-    parse(Rest, Arguments#arguments{lib = Lib});
-parse(["--out", Out | Rest], Arguments) ->
-    parse(Rest, Arguments#arguments{out = Out});
-parse([Module | Rest], Arguments = #arguments{modules = Modules}) ->
-    parse(Rest, Arguments#arguments{modules = [Module | Modules]}).
+expand_lib_paths(Lib) ->
+    filelib:wildcard([Lib, "/*/ebin"]).
 
 configure_logging() ->
     Enabled = os:getenv("GLEAM_LOG") /= false,
@@ -152,6 +175,6 @@ configure_logging() ->
 
 log(Term) ->
     case persistent_term:get(gleam_logging_enabled) of
-        true -> erlang:display(Term), ok;
+        true -> io:fwrite("~p~n", [Term]), ok;
         false -> ok
     end.

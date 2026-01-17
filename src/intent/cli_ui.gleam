@@ -1,15 +1,22 @@
 /// CLI UI helpers using gleam_community_ansi for rich terminal output
 /// Provides colored headers, status messages, and formatted text
-
 import gleam/io
 import gleam_community/ansi
 
 /// Print a bold, colored section header
 pub fn print_header(title: String) {
   io.println("")
-  io.println(ansi.bold(ansi.cyan("═══════════════════════════════════════════════════════════════════")))
+  io.println(
+    ansi.bold(ansi.cyan(
+      "═══════════════════════════════════════════════════════════════════",
+    )),
+  )
   io.println(ansi.bold(ansi.cyan(title)))
-  io.println(ansi.bold(ansi.cyan("═══════════════════════════════════════════════════════════════════")))
+  io.println(
+    ansi.bold(ansi.cyan(
+      "═══════════════════════════════════════════════════════════════════",
+    )),
+  )
   io.println("")
 }
 
@@ -53,7 +60,11 @@ pub fn print_colored(color_fn: fn(String) -> String, text: String) {
 }
 
 /// Format a number as a badge with color
-pub fn badge(label: String, count: Int, color_fn: fn(String) -> String) -> String {
+pub fn badge(
+  label: String,
+  count: Int,
+  color_fn: fn(String) -> String,
+) -> String {
   color_fn("[" <> label <> ": " <> string.inspect(count) <> "]")
 }
 

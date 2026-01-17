@@ -1,29 +1,32 @@
 -module(gleam@http@service).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
-
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
+-define(FILEPATH, "src/gleam/http/service.gleam").
 -export([map_response_body/2, prepend_response_header/3, method_override/1]).
 
+-file("src/gleam/http/service.gleam", 17).
 -spec map_response_body(
-    fun((IFA) -> gleam@http@response:response(IEM)),
-    fun((IEM) -> IEN)
-) -> fun((IFA) -> gleam@http@response:response(IEN)).
+    fun((HXD) -> gleam@http@response:response(HWP)),
+    fun((HWP) -> HWQ)
+) -> fun((HXD) -> gleam@http@response:response(HWQ)).
 map_response_body(Service, Mapper) ->
     fun(Req) -> _pipe = Req,
         _pipe@1 = Service(_pipe),
         gleam@http@response:map(_pipe@1, Mapper) end.
 
+-file("src/gleam/http/service.gleam", 26).
 -spec prepend_response_header(
-    fun((IFE) -> gleam@http@response:response(IFG)),
+    fun((HXH) -> gleam@http@response:response(HXJ)),
     binary(),
     binary()
-) -> fun((IFE) -> gleam@http@response:response(IFG)).
+) -> fun((HXH) -> gleam@http@response:response(HXJ)).
 prepend_response_header(Service, Key, Value) ->
     fun(Req) -> _pipe = Req,
         _pipe@1 = Service(_pipe),
         gleam@http@response:prepend_header(_pipe@1, Key, Value) end.
 
--spec ensure_post(gleam@http@request:request(IER)) -> {ok,
-        gleam@http@request:request(IER)} |
+-file("src/gleam/http/service.gleam", 34).
+-spec ensure_post(gleam@http@request:request(HWU)) -> {ok,
+        gleam@http@request:request(HWU)} |
     {error, nil}.
 ensure_post(Req) ->
     case erlang:element(2, Req) of
@@ -34,6 +37,7 @@ ensure_post(Req) ->
             {error, nil}
     end.
 
+-file("src/gleam/http/service.gleam", 41).
 -spec get_override_method(gleam@http@request:request(any())) -> {ok,
         gleam@http:method()} |
     {error, nil}.
@@ -65,7 +69,8 @@ get_override_method(Request) ->
         end
     ).
 
--spec method_override(fun((gleam@http@request:request(IGN)) -> IGV)) -> fun((gleam@http@request:request(IGN)) -> IGV).
+-file("src/gleam/http/service.gleam", 52).
+-spec method_override(fun((gleam@http@request:request(HYQ)) -> HYY)) -> fun((gleam@http@request:request(HYQ)) -> HYY).
 method_override(Service) ->
     fun(Request) -> _pipe = Request,
         _pipe@1 = ensure_post(_pipe),

@@ -54,10 +54,21 @@ pub fn severity_to_string(s: Severity) -> String {
 
 pub fn format_report(report: QualityReport) -> String {
   "Quality Report\n"
-  <> "  Completeness: " <> float.to_string(report.completeness) <> "\n"
-  <> "  Consistency:  " <> float.to_string(report.consistency) <> "\n"
-  <> "  Testability:  " <> float.to_string(report.testability) <> "\n"
-  <> "  Clarity:      " <> float.to_string(report.clarity) <> "\n"
-  <> "  Security:     " <> float.to_string(report.security) <> "\n"
-  <> "  Overall:      " <> float.to_string(report.overall)
+  <> "  Completeness: "
+  <> float.to_string(report.completeness)
+  <> "\n"
+  <> "  Consistency:  "
+  <> float.to_string(report.consistency)
+  <> "\n"
+  <> "  Testability:  "
+  <> float.to_string(report.testability)
+  <> "\n"
+  <> "  Clarity:      "
+  <> float.to_string(report.clarity)
+  <> "\n"
+  <> "  Security:     "
+  <> float.to_string(report.security)
+  <> "\n"
+  <> "  Overall:      "
+  <> float.to_string(report.overall)
 }
