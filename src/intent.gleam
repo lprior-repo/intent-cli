@@ -133,7 +133,9 @@ fn check_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Run spec against a target URL and verify behaviors")
+  |> glint.description(
+    "Run spec against a target URL and verify behaviors. Note: All flags require equals sign syntax (--flag=value)",
+  )
   |> glint.flag(
     "target",
     flag.string()

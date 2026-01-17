@@ -1,5 +1,4 @@
 /// JSON validation for DOS protection (JSON bomb attacks)
-
 import gleam/int
 import gleam/list
 import gleam/string
