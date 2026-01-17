@@ -1,7 +1,0 @@
-{
-  "last_failure": "2026-01-17T09:57:45.695669354-06:00",
-  "failure_count": 1,
-  "backoff_until": "2026-01-17T09:58:15.695669725-06:00",
-  "needs_manual_sync": false,
-  "failure_reason": "failed to get sync branch: failed to get sync.branch from config: get config: sql: database is closed"
-}
