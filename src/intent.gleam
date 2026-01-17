@@ -1658,6 +1658,10 @@ fn format_cue_string_list(items: List(String)) -> String {
 /// The `beads` command - generate work items from interview session
 fn beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [session_id, ..] -> {
         // Load session from JSONL
@@ -1676,23 +1680,6 @@ fn beads_command() -> glint.Command(Nil) {
             let beads = bead_templates.generate_beads_from_session(session)
             let bead_count = list.length(beads)
 
-            io.println("")
-            io.println(
-              "═══════════════════════════════════════════════════════════════════",
-            )
-            io.println("                    BEAD GENERATION")
-            io.println(
-              "═══════════════════════════════════════════════════════════════════",
-            )
-            io.println("")
-            io.println(
-              "Generated "
-              <> string.inspect(bead_count)
-              <> " work items from session: "
-              <> session_id,
-            )
-            io.println("")
-
             // Export to .beads/issues.jsonl
             let jsonl_output = bead_templates.beads_to_jsonl(beads)
 
@@ -1700,13 +1687,40 @@ fn beads_command() -> glint.Command(Nil) {
               simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
             {
               Ok(Nil) -> {
-                io.println("✓ Beads exported to: .beads/issues.jsonl")
-                io.println("")
+                case is_json {
+                  True -> {
+                    // Output JSON for AI agents
+                    let json_output =
+                      bead_templates.beads_to_action_json(beads, session_id)
+                    io.println(json.to_string(json_output))
+                  }
+                  False -> {
+                    // Human-readable output
+                    io.println("")
+                    io.println(
+                      "═══════════════════════════════════════════════════════════════════",
+                    )
+                    io.println("                    BEAD GENERATION")
+                    io.println(
+                      "═══════════════════════════════════════════════════════════════════",
+                    )
+                    io.println("")
+                    io.println(
+                      "Generated "
+                      <> string.inspect(bead_count)
+                      <> " work items from session: "
+                      <> session_id,
+                    )
+                    io.println("")
+                    io.println("✓ Beads exported to: .beads/issues.jsonl")
+                    io.println("")
 
-                // Show stats
-                let stats = bead_templates.bead_stats(beads)
-                io.println("Summary:")
-                io.println("  Total beads: " <> string.inspect(stats.total))
+                    // Show stats
+                    let stats = bead_templates.bead_stats(beads)
+                    io.println("Summary:")
+                    io.println("  Total beads: " <> string.inspect(stats.total))
+                  }
+                }
 
                 halt(exit_pass)
               }
@@ -1721,7 +1735,7 @@ fn beads_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads <session_id>")
+        io.println_error("Usage: intent beads <session_id> [--json]")
         io.println_error("")
         io.println_error("Example: intent beads interview-abc123def456")
         halt(exit_error)
@@ -1729,6 +1743,12 @@ fn beads_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Generate work items (beads) from an interview session")
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output JSON for machine consumption"),
+  )
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
@@ -2904,14 +2924,32 @@ fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
 /// The `effects` command - KIRK second-order effects analysis
 fn kirk_effects_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let mode = output_mode.Interactive
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = effects_analyzer.analyze_effects(spec)
-            io.println(effects_analyzer.format_report(report))
+
+            case is_json {
+              True -> {
+                let json_output =
+                  effects_analyzer.effects_report_to_action_json(
+                    report,
+                    spec.name,
+                  )
+                io.println(json.to_string(json_output))
+              }
+              False -> {
+                io.println(effects_analyzer.format_report(report))
+              }
+            }
+
             halt(exit_pass)
           }
           Error(e) -> {
@@ -2922,13 +2960,19 @@ fn kirk_effects_command() -> glint.Command(Nil) {
       }
       [] -> {
         cli_ui.print_error("spec file path required", mode)
-        io.println("Usage: intent effects <spec.cue>")
+        io.println("Usage: intent effects <spec.cue> [--json]")
         halt(exit_error)
       }
     }
   })
   |> glint.description(
     "KIRK: Analyze second-order effects (consequence tracing)",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output JSON for machine consumption"),
   )
 }
 
