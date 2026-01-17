@@ -2,6 +2,7 @@
 /// Contract-driven API testing tool
 import argv
 import gleam/dict
+import gleam/erlang/os
 import gleam/float
 import gleam/io
 import gleam/json
@@ -5105,31 +5106,30 @@ fn generate_uuid() -> String
 @external(erlang, "intent_ffi", "current_timestamp")
 fn current_timestamp() -> String
 
-@external(erlang, "intent_ffi", "set_env")
-fn set_env(key: String, value: String) -> Nil
-
-@external(erlang, "intent_ffi", "get_env")
-fn get_env(key: String) -> Result(String, Nil)
-
 /// Set NO_COLOR environment variable to disable colored output
 fn set_no_color_env() -> Nil {
-  set_env("NO_COLOR", "1")
+  os.set_env("NO_COLOR", "1")
 }
 
-/// Get environment variable as string with default
+/// Get environment variable as string with default (type-safe)
+/// Uses gleam/erlang/os for reliable cross-platform access
 fn env_string(key: String, default: String) -> String {
-  case get_env(key) {
-    Ok(value) -> value
-    Error(_) -> default
-  }
+  os.get_env(key)
+  |> result.unwrap(default)
 }
 
-/// Get environment variable as boolean (1/true/yes = True)
+/// Get environment variable as boolean with default (type-safe)
+/// Accepts: true/false, yes/no, 1/0 (case-insensitive)
+/// Invalid values return the default
 fn env_bool(key: String, default: Bool) -> Bool {
-  case get_env(key) {
+  case os.get_env(key) {
     Ok(value) -> {
-      let lower = string.lowercase(value)
-      lower == "1" || lower == "true" || lower == "yes"
+      let lower = string.lowercase(string.trim(value))
+      case lower {
+        "1" | "true" | "yes" -> True
+        "0" | "false" | "no" -> False
+        _ -> default
+      }
     }
     Error(_) -> default
   }

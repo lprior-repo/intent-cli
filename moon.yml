@@ -115,6 +115,23 @@ tasks:
       cacheLifetime: '7 days'  # Cache binaries for a week
 
   # ============================================
+  # Install to System PATH
+  # ============================================
+
+  install:
+    command:
+      - 'bash'
+      - '-c'
+      - 'mkdir -p ~/.local/bin && cp dist/intent/intent ~/.local/bin/intent && chmod +x ~/.local/bin/intent'
+    deps:
+      - '~:escript'  # Build binary first
+    inputs:
+      - 'dist/intent/intent'
+    options:
+      runInCI: false
+      cache: false  # Always copy to ensure latest version
+
+  # ============================================
   # Local Development
   # ============================================
 

@@ -1,19 +1,36 @@
 /// Module for reading user input from standard input
-/// Provides functions for interactive command-line prompts
-@external(erlang, "intent_ffi_stdin", "read_line")
-pub fn read_line() -> Result(String, String)
+/// Provides functions for interactive command-line prompts using native stdin package v1
+import gleam/int
+import gleam/io
+import gleam/iterator
+import gleam/list
+import gleam/result
+import gleam/string
+import stdin
 
-@external(erlang, "intent_ffi_stdin", "read_line_trimmed")
-pub fn read_line_trimmed() -> Result(String, String)
+/// Read a single line from stdin
+/// Returns Ok(line) with newline removed, or Error on EOF/failure
+pub fn read_line() -> Result(String, String) {
+  stdin.stdin()
+  |> iterator.first()
+  |> result.replace_error("End of input")
+}
+
+/// Read a single line from stdin and trim whitespace
+/// Returns Ok(trimmed_line) or Error on EOF/failure
+pub fn read_line_trimmed() -> Result(String, String) {
+  read_line()
+  |> result.map(string.trim)
+}
 
 /// Read a single line from stdin, validating it's not empty
 /// Returns error if input is empty or whitespace-only
 pub fn read_non_empty_line() -> Result(String, String) {
   case read_line_trimmed() {
     Ok(line) -> {
-      case string.is_empty(string.trim(line)) {
+      case string.is_empty(line) {
         True -> Error("Input cannot be empty. Please try again.")
-        False -> Ok(string.trim(line))
+        False -> Ok(line)
       }
     }
     Error(reason) -> Error("Failed to read input: " <> reason)
@@ -88,9 +105,3 @@ pub fn prompt_yes_no(prompt_text: String) -> Result(Bool, String) {
     }
   }
 }
-
-// Required imports
-import gleam/int
-import gleam/io
-import gleam/list
-import gleam/string
