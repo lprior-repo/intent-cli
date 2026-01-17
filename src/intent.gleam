@@ -119,6 +119,7 @@ pub fn main() {
     |> glint.add(at: ["lint"], do: lint_command())
     |> glint.add(at: ["analyze"], do: analyze_command())
     |> glint.add(at: ["improve"], do: improve_command())
+    |> glint.add(at: ["doctor"], do: doctor_command())
     |> glint.add(at: ["interview"], do: interview_command())
     |> glint.add(at: ["beads"], do: beads_command())
     |> glint.add(at: ["bead-status"], do: bead_status_command())
@@ -595,6 +596,35 @@ fn improve_command() -> glint.Command(Nil) {
   })
   |> glint.description(
     "Suggest improvements based on quality analysis and linting",
+  )
+}
+
+/// The `doctor` command - health report with prioritized improvements
+fn doctor_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [spec_path, ..] -> {
+        case loader.load_spec(spec_path) {
+          Ok(_spec) -> {
+            io.println("Doctor command stub - health analysis coming soon")
+            io.println("Spec: " <> spec_path)
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            io.println_error("Error: " <> loader.format_error(e))
+            halt(exit_invalid)
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Error: spec file path required")
+        io.println_error("Usage: intent doctor <spec.cue>")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Analyze spec health and generate prioritized improvement report",
   )
 }
 
@@ -2287,7 +2317,9 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error("✗ Failed to update session: " <> err)
+                        io.println_error(
+                          "✗ Failed to update session: " <> err,
+                        )
                         halt(exit_error)
                       }
                     }
