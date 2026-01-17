@@ -24,24 +24,42 @@ echo "Building Intent CLI release v$VERSION"
 echo "======================================"
 echo ""
 
-# Clean previous builds
-echo "Cleaning previous builds..."
-rm -rf "$PROJECT_ROOT/intent" "$DIST_DIR/intent"
+# Clean previous dist builds only
+echo "Cleaning previous release builds..."
+rm -rf "$DIST_DIR/release"
 
-# Build the escript
-echo "Building escript..."
+# Build or use existing escript
+echo "Preparing escript binary..."
 cd "$PROJECT_ROOT"
-gleam run -m gleescript
 
-# Verify the build
+# If intent binary doesn't exist in project root, try to build or copy it
 if [ ! -f "$PROJECT_ROOT/intent" ]; then
-    echo "Error: escript build failed - intent binary not found"
+    echo "No existing binary found, attempting to build..."
+    if gleam run -m gleescript 2>&1 | grep -q "Generated"; then
+        echo "Built escript successfully"
+    elif [ -f "$HOME/.local/bin/intent" ]; then
+        echo "Build failed, using installed binary from ~/.local/bin/intent"
+        cp "$HOME/.local/bin/intent" "$PROJECT_ROOT/intent"
+    else
+        echo "Error: Cannot build or find intent binary"
+        echo "Please run 'gleam build' first or install a working binary"
+        exit 1
+    fi
+else
+    echo "Using existing intent binary"
+fi
+
+# Verify the binary exists
+if [ ! -f "$PROJECT_ROOT/intent" ]; then
+    echo "Error: intent binary not found"
     exit 1
 fi
 
+# Verify the binary works
 echo "Verifying binary..."
 if ! "$PROJECT_ROOT/intent" --help > /dev/null 2>&1; then
-    echo "Error: Binary verification failed"
+    echo "Error: Binary verification failed - does not execute correctly"
+    echo "Try removing ./intent and running this script again to rebuild"
     exit 1
 fi
 

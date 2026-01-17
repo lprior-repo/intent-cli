@@ -1,11 +1,32 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, int_to_float/1]).
+-export([now_ms/0, halt/1, mark_command_started/0, base64_url_decode/1, generate_uuid/0, current_timestamp/0, int_to_float/1]).
 
 now_ms() ->
     erlang:system_time(millisecond).
 
+%% Mark that a command has successfully started executing
+%% This helps distinguish successful completion from Glint flag parsing errors
+mark_command_started() ->
+    put(command_started, true),
+    nil.
+
+%% Halt with proper exit code
+%% If halt(0) is called before any command starts, it's likely a Glint flag error
+%% In that case, exit with code 4 (general error) instead of 0 (success)
 halt(Code) ->
-    erlang:halt(Code).
+    Started = get(command_started),
+    io:format(standard_error, "DEBUG: halt(~p), command_started=~p~n", [Code, Started]),
+    case {Code, Started} of
+        {0, undefined} ->
+            %% halt(0) called but no command started - likely Glint flag error
+            %% Exit with code 4 (general error) instead
+            io:format(standard_error, "DEBUG: Changing exit 0 to 4 (Glint flag error)~n", []),
+            erlang:halt(4);
+        _ ->
+            %% Normal halt - use the provided code
+            io:format(standard_error, "DEBUG: Using original exit code ~p~n", [Code]),
+            erlang:halt(Code)
+    end.
 
 %% Base64 URL decode with padding normalization
 base64_url_decode(Input) when is_binary(Input) ->
