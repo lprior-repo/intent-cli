@@ -1,9 +1,27 @@
 # Claude Instructions for Intent CLI
 
+## 🚨 MANDATORY: Moon CI/CD Only
+
+**CRITICAL**: This project uses moon for ALL build, test, and development tasks. You MUST use moon commands exclusively.
+
+- ❌ **NEVER** run `gleam build`, `gleam test`, `gleam format` directly
+- ✅ **ALWAYS** use `moon run :build`, `moon run :test`, `moon run :format`
+- ✅ **ALWAYS** use `moon run :ci` before commits
+- ✅ **ALWAYS** use `moon run :install` to install the binary system-wide
+
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
 
 ## Quick Reference
 
+### Moon CI/CD (MANDATORY)
+```bash
+moon run :ci              # Run full pipeline before commits
+moon run :install         # Build and install binary system-wide
+moon run :format          # Auto-format code
+moon run :test            # Run test suite
+```
+
+### Beads Workflow
 ```bash
 bd ready --json           # Find ready work
 bd update <id> --status in_progress --json  # Claim work
@@ -118,18 +136,23 @@ CUE is the center: requirements, interview state, AI directives, beads, and feed
 
 ## Development Commands
 
-```bash
-gleam build              # Compile
-gleam test               # Run test suite
-gleam format             # Format code (mandatory before commit)
-gleam run -- <command>   # Run CLI
+**CRITICAL**: Use moon exclusively. Direct gleam commands are prohibited.
 
-# Core commands
-gleam run -- check examples/user-api.cue --target http://localhost:8080
-gleam run -- interview --profile api
-gleam run -- quality examples/user-api.cue
-gleam run -- invert examples/user-api.cue
-gleam run -- beads <session-id>
+```bash
+# Moon CI/CD commands (REQUIRED)
+moon run :ci             # Full pipeline: format → build → test
+moon run :format         # Auto-format code
+moon run :build          # Compile project
+moon run :test           # Run test suite (1201+ tests)
+moon run :install        # Build and install binary to ~/.local/bin
+moon run :dev            # Run local development server
+
+# Run CLI commands (after install)
+intent check examples/user-api.cue --target http://localhost:8080
+intent interview --profile api
+intent quality examples/user-api.cue
+intent invert examples/user-api.cue
+intent beads <session-id>
 ```
 
 ## Moon CI/CD Pipeline
@@ -204,22 +227,26 @@ The binary requires Erlang/OTP installed on the target system.
 
 ### Installing Binary to PATH
 
-To use `intent` from anywhere on your system:
+To build and install the `intent` binary system-wide:
 
 ```bash
-# Build and install the binary
-moon run :escript
-mkdir -p ~/.local/bin
-cp dist/intent/intent ~/.local/bin/intent
-chmod +x ~/.local/bin/intent
+# Single command to build and install
+moon run :install
 
-# Add to PATH (if not already present)
+# Add ~/.local/bin to PATH (if not already present)
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 
 # Reload shell or source config
 source ~/.bashrc  # or source ~/.zshrc
 ```
+
+The `:install` task automatically:
+1. Runs the full CI pipeline (format-check → build → test)
+2. Builds the escript binary at `dist/intent/intent`
+3. Creates `~/.local/bin` directory
+4. Copies binary to `~/.local/bin/intent`
+5. Sets executable permissions
 
 Verify installation:
 
@@ -242,21 +269,25 @@ Before committing, moon ensures:
 - ✅ All tests passing (1201+ tests)
 - ✅ No type errors
 
-Run the full pipeline before commits:
+**MANDATORY**: Run the full pipeline before commits:
 
 ```bash
 moon run :ci && git commit -m "Your message"
 ```
+
+Never commit without running `moon run :ci` first.
 
 ### Task Dependencies
 
 Tasks run in topological order based on dependencies:
 
 ```
-format-check → build → test → escript
+format-check → build → test → escript → install
                 ↓
               check (type checking)
 ```
+
+The `:install` task depends on `:escript`, which depends on `:test`, ensuring the binary is always built from passing code.
 
 Moon automatically parallelizes independent tasks for optimal performance.
 
@@ -537,9 +568,11 @@ src/intent/
 3. **Write tests**: Test file in `test/` directory
 4. **Implement using pipelines**: Transform data with `|>`
 5. **Handle all errors**: Return `Result`, never panic
-6. **Format code**: `gleam format` before commit
+6. **Run CI pipeline**: `moon run :ci` (includes formatting, building, testing)
 7. **Update docs**: Add `///` comments for public functions
-8. **Close bead**: `bd close <id>` when complete
+8. **Commit changes**: `git add . && git commit -m "message"`
+9. **Close bead**: `bd close <id>` when complete
+10. **Install binary**: `moon run :install` to update system-wide binary
 
 ## Resources
 
