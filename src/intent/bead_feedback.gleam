@@ -161,12 +161,10 @@ pub fn load_feedback_for_session(
   let feedback_path = ".intent/feedback-" <> session_id <> ".cue"
   case simplifile.read(feedback_path) {
     Ok(content) -> parse_feedback_from_cue(content)
-    Error(simplifile.Enoent) -> Ok([])
-    Error(err) ->
-      Error(WriteError(
-        path: feedback_path,
-        message: "Failed to read: " <> string.inspect(err),
-      ))
+    Error(_) -> {
+      // File doesn't exist yet (empty feedback)
+      Ok([])
+    }
   }
 }
 
@@ -255,15 +253,9 @@ fn escape_cue_string(s: String) -> String {
 fn append_to_file(path: String, content: String) -> Result(Nil, FeedbackError) {
   // Read existing content (if file exists)
   let existing = case simplifile.read(path) {
-    Ok(text) -> Ok(text)
-    Error(simplifile.Enoent) -> Ok("")
-    Error(err) ->
-      Error(WriteError(
-        path: path,
-        message: "Failed to read: " <> string.inspect(err),
-      ))
+    Ok(text) -> text
+    Error(_) -> ""
   }
-  use existing <- result.try(existing)
 
   // Append new content
   let updated = existing <> content
@@ -396,83 +388,6 @@ fn is_numeric_string(s: String) -> Bool {
       _ -> False
     }
   })
-}
-
-/// Check if any feedback indicates blocking issues (Failed or Blocked status)
-pub fn has_blocking_feedback(feedback: List(BeadFeedback)) -> Bool {
-  feedback
-  |> list.any(fn(f) {
-    case f.result {
-      Failed -> True
-      Blocked -> True
-      _ -> False
-    }
-  })
-}
-
-/// Count how many criteria are marked as complete
-/// A criterion is considered complete if it appears with a completion marker
-pub fn count_completed_criteria(
-  criteria: List(String),
-  feedback: List(BeadFeedback),
-  description: String,
-) -> Int {
-  criteria
-  |> list.count(fn(criterion) {
-    is_criterion_met(criterion, feedback, description)
-  })
-}
-
-/// Check if a specific criterion is met
-fn is_criterion_met(
-  criterion: String,
-  feedback: List(BeadFeedback),
-  description: String,
-) -> Bool {
-  let criterion_lower = string.lowercase(criterion)
-
-  // Check if this criterion appears completed in feedback
-  let in_feedback =
-    feedback
-    |> list.any(fn(f) {
-      case f.result {
-        Success -> {
-          string.lowercase(f.reason)
-          |> string.contains(criterion_lower)
-        }
-        _ -> False
-      }
-    })
-
-  // Check if criterion text appears in description with completion marker
-  let in_description = {
-    let desc_lower = string.lowercase(description)
-    string.contains(desc_lower, criterion_lower)
-    && has_nearby_completion_marker(description)
-  }
-
-  in_feedback || in_description
-}
-
-/// Check if a completion marker (✓, [x], DONE, etc) appears in description
-fn has_nearby_completion_marker(description: String) -> Bool {
-  let markers = [
-    "✓", "✔", "[x]", "done", "complete", "verified", "finished",
-  ]
-  let desc_lower = string.lowercase(description)
-  markers
-  |> list.any(fn(marker) { string.contains(desc_lower, marker) })
-}
-
-/// Check if description contains explicit completion signals
-pub fn has_completion_signals(description: String) -> Bool {
-  let desc_lower = string.lowercase(description)
-  let signals = [
-    "✓", "✔", "[x]", "done", "complete", "verified", "finished",
-  ]
-
-  signals
-  |> list.any(fn(signal) { string.contains(desc_lower, signal) })
 }
 
 // =============================================================================
