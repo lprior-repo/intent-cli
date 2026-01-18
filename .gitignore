@@ -24,3 +24,13 @@ Thumbs.db
 # Test results
 *.cover
 cover/
+
+# Beads sync state (local only)
+.beads/sync-state.json
+
+# Interview session data (local only)
+.interview/
+
+# Backup files
+*.bak
+*.disabled
