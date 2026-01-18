@@ -116,7 +116,9 @@ fn parse_method(data: Dynamic) -> Result(Method, List(DecodeError)) {
       "HEAD" -> Ok(Head)
       "OPTIONS" -> Ok(Options)
       _ ->
-        Error([dynamic.DecodeError(expected: "HTTP method", found: s, path: [])])
+        Error([
+          dynamic.DecodeError(expected: "HTTP method", found: s, path: []),
+        ])
     }
   })
 }
