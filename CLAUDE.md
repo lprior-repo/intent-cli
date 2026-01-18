@@ -434,10 +434,13 @@ Result types. Exhaustive matching. Small functions. Pipelines (`|>`). No default
 
 ### Overview
 ```jsonl
-{"goal":"Automated single-pass 15-phase TDD workflow for production implementations","type":"sequential_pipeline","phases":15,"execution":"1→2→3→...→15 then STOP","integration":["beads","zjj","gleam-tdd-architect","omarchy","landing-skill"]}
-{"deliverable":"~/.claude/skills/tdd15/SKILL.md","desc":"Main orchestrator skill"}
+{"goal":"Fully automated 15-phase TDD workflow with LLM-as-judge quality gates","type":"sequential_pipeline","phases":15,"execution":"1→2→3→...→15 then STOP","integration":["beads","zjj","gleam-tdd-architect","omarchy","landing-skill"]}
+{"deliverable":"~/.claude/skills/tdd15/SKILL.md","desc":"Main orchestrator skill (499 lines)"}
+{"deliverable":"~/.claude/skills/tdd15/references/","desc":"15 phase reference docs (progressive disclosure)"}
+{"principle":"fully_automated","desc":"No manual input - LLM-as-judge evaluates all quality gates"}
+{"principle":"self_healing","desc":"All gates retry 3x with automatic fixes before surfacing failures"}
 {"principle":"no_loop","desc":"Workflow runs once per bead, terminates at phase 15"}
-{"principle":"gate_driven","desc":"Each phase has exit criteria, halt on failure"}
+{"principle":"gate_driven","desc":"Each phase halts on failure only after 3 self-healing attempts"}
 {"principle":"state_tracked","desc":"TodoWrite + Beads track progress"}
 ```
 
@@ -458,16 +461,16 @@ Result types. Exhaustive matching. Small functions. Pipelines (`|>`). No default
 ```jsonl
 {"phase":1,"name":"RESEARCH","skill":"Task(Explore)","output":"codebase context","gate":"sufficient_context","halt_on_fail":true}
 {"phase":2,"name":"PLAN","skill":"Task(Plan)","output":"implementation design","gate":"plan_verified","halt_on_fail":true}
-{"phase":3,"name":"VERIFY","skill":"AskUserQuestion","gate":"user_approval","halt_on_fail":true}
+{"phase":3,"name":"VERIFY","skill":"Task(Plan) LLM-as-Judge","evaluator":"LLM scores criteria coverage >=80","gate":"plan_verified","halt_on_fail":true}
 {"phase":4,"name":"RED","skill":"gleam-tdd-architect","action":"write failing tests","gate":"tests_fail","halt_on_fail":true}
 {"phase":5,"name":"GREEN","skill":"gleam-tdd-architect","action":"minimal implementation","gate":"tests_pass","halt_on_fail":true}
 {"phase":6,"name":"REFACTOR","skill":"gleam-tdd-architect","action":"clean code","gate":"tests_green","halt_on_fail":true}
-{"phase":7,"name":"MARTIN FOWLER CHECK #1","type":"CRITICAL_GATE","questions":8,"gate":"martin_fowler_1","halt_on_fail":true,"critical":true}
+{"phase":7,"name":"MARTIN FOWLER CHECK #1","type":"CRITICAL_GATE","skill":"Task(code-reviewer) LLM-as-Judge","questions":8,"evaluator":"LLM scores all 8 criteria >=80","gate":"martin_fowler_1","halt_on_fail":true,"critical":true}
 {"phase":8,"name":"IMPLEMENT","action":"complete feature","standards":"cli_consistency","gate":"implementation_complete","halt_on_fail":true}
 {"phase":9,"name":"VERIFY SUCCESS CRITERIA","check":"all criteria met","gate":"criteria_met","halt_on_fail":true}
 {"phase":10,"name":"INTERROGATE","skill":"omarchy","action":"adversarial FP review","gate":"no_critical_issues","halt_on_fail":true}
 {"phase":11,"name":"QA BATTLE TEST","action":"comprehensive testing","gate":"qa_pass","halt_on_fail":true}
-{"phase":12,"name":"MARTIN FOWLER CHECK #2","type":"FINAL_GATE","questions":13,"gate":"martin_fowler_2","halt_on_fail":true,"critical":true}
+{"phase":12,"name":"MARTIN FOWLER CHECK #2","type":"FINAL_GATE","skill":"Task(code-reviewer) LLM-as-Judge","questions":13,"evaluator":"LLM scores all 13 criteria >=80","gate":"martin_fowler_2","halt_on_fail":true,"critical":true}
 {"phase":13,"name":"CONSISTENCY CHECK","skill":"Task(pr-review-toolkit:code-reviewer)","gate":"standards_met","halt_on_fail":true}
 {"phase":14,"name":"CODE LIABILITY","action":"minimize code","gate":"minimized","halt_on_fail":true}
 {"phase":15,"name":"LANDING","skill":"landing-skill","actions":["git commit","git push","bd close","jjz remove"],"gate":"push_succeeded","halt_on_fail":true,"critical":true}
@@ -483,7 +486,7 @@ Result types. Exhaustive matching. Small functions. Pipelines (`|>`). No default
   ↓
 2-PLAN (Plan + robot-insights) → plan_verified?
   ↓
-3-VERIFY (user approval) → user_approval?
+3-VERIFY (LLM-as-Judge) → plan_verified (>=80)?
   ↓
 4-RED (gleam-tdd-architect) → tests_fail?
   ↓
@@ -491,7 +494,7 @@ Result types. Exhaustive matching. Small functions. Pipelines (`|>`). No default
   ↓
 6-REFACTOR (gleam-tdd-architect) → tests_green?
   ↓
-7-MARTIN FOWLER #1 (8 questions, CRITICAL) → martin_fowler_1?
+7-MARTIN FOWLER #1 (LLM-as-Judge, 8 questions, CRITICAL) → martin_fowler_1 (>=80)?
   ↓
 8-IMPLEMENT (complete feature) → implementation_complete?
   ↓
@@ -501,7 +504,7 @@ Result types. Exhaustive matching. Small functions. Pipelines (`|>`). No default
   ↓
 11-QA (battle test) → qa_pass?
   ↓
-12-MARTIN FOWLER #2 (13 questions, FINAL) → martin_fowler_2?
+12-MARTIN FOWLER #2 (LLM-as-Judge, 13 questions, FINAL) → martin_fowler_2 (>=80)?
   ↓
 13-CONSISTENCY (code-reviewer) → standards_met?
   ↓
