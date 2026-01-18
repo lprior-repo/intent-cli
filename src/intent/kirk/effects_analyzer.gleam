@@ -8,8 +8,6 @@ import gleam/list
 import gleam/option.{Some}
 import gleam/result
 import gleam/string
-import intent/emoji_constants as emoji
-import intent/formatter_utils as fmt
 import intent/json_output
 import intent/types.{
   type Behavior, type Spec, Delete, Get, Head, Options, Patch, Post, Put,
@@ -574,15 +572,15 @@ fn infer_isolation_level(behavior: Behavior) -> String {
 // =============================================================================
 
 pub fn format_report(report: EffectsReport) -> String {
-  let header = fmt.box_header("Second-Order Effects Analysis") <> "\n\n"
+  let header = "=== Second-Order Effects Analysis ===\n\n"
 
   let summary =
     "Total second-order effects identified: "
     <> int.to_string(report.total_second_order_effects)
     <> "\n"
     <> "Verification coverage: "
-    <> fmt.format_percentage(report.coverage_score)
-    <> "\n\n"
+    <> float_to_string_1dp(report.coverage_score)
+    <> "%\n\n"
 
   let behavior_section = case list.length(report.behavior_effects) {
     0 -> ""
@@ -645,15 +643,13 @@ fn format_behavior_effects(be: BehaviorEffects) -> String {
     "BEHAVIOR: "
     <> be.behavior_name
     <> "\n"
-    <> fmt.indent_1()
-    <> "First Order: "
+    <> "  First Order: "
     <> be.first_order
 
   let second_order_str = case list.length(be.second_order) {
-    0 -> fmt.indent_1() <> "Second Order: (none detected)"
+    0 -> "  Second Order: (none detected)"
     _ ->
-      fmt.indent_1()
-      <> "Second Order:\n"
+      "  Second Order:\n"
       <> {
         be.second_order
         |> list.map(format_second_order_effect)
@@ -664,10 +660,10 @@ fn format_behavior_effects(be: BehaviorEffects) -> String {
   let missing = case list.length(be.missing_verifications) {
     0 -> ""
     _ ->
-      "\n" <> fmt.indent_1() <> "Missing Verifications:\n"
+      "\n  Missing Verifications:\n"
       <> {
         be.missing_verifications
-        |> list.map(fn(m) { fmt.indent_2() <> "- " <> m })
+        |> list.map(fn(m) { "    - " <> m })
         |> string.join("\n")
       }
   }
@@ -684,27 +680,23 @@ fn format_second_order_effect(effect: SecondOrderEffect) -> String {
   }
 
   let verification = case effect.has_verification {
-    True -> " " <> emoji.check
-    False -> " " <> emoji.cross
+    True -> " ✓"
+    False -> " ✗"
   }
 
-  fmt.indent_2() <> severity_icon <> " " <> effect.description <> verification
+  "    " <> severity_icon <> " " <> effect.description <> verification
 }
 
 fn format_orphaned_resource(orphan: OrphanedResource) -> String {
-  fmt.indent_1()
-  <> emoji.bullet
-  <> " "
+  "  • "
   <> orphan.resource_type
   <> " (from "
   <> orphan.caused_by
   <> ")\n"
-  <> fmt.indent_2()
-  <> "Problem: "
+  <> "    Problem: "
   <> orphan.description
   <> "\n"
-  <> fmt.indent_2()
-  <> "Fix: "
+  <> "    Fix: "
   <> orphan.mitigation
 }
 
@@ -714,37 +706,69 @@ fn format_cascade_warning(warning: CascadeWarning) -> String {
     False -> ""
   }
 
-  fmt.indent_1()
-  <> emoji.bullet
-  <> " "
+  "  • "
   <> warning.operation
   <> transaction
   <> "\n"
-  <> fmt.indent_2()
-  <> "Cascades to: "
+  <> "    Cascades to: "
   <> string.join(warning.cascades_to, ", ")
   <> "\n"
-  <> fmt.indent_2()
+  <> "    "
   <> warning.description
 }
 
 fn format_state_dependency(dep: StateDependency) -> String {
-  fmt.indent_1()
-  <> emoji.bullet
-  <> " "
+  "  • "
   <> dep.behavior
   <> "\n"
-  <> fmt.indent_2()
-  <> "Depends on: "
+  <> "    Depends on: "
   <> string.join(dep.depends_on, ", ")
   <> "\n"
-  <> fmt.indent_2()
-  <> "Mutations: "
+  <> "    Mutations: "
   <> string.join(dep.state_mutations, ", ")
   <> "\n"
-  <> fmt.indent_2()
-  <> "Isolation: "
+  <> "    Isolation: "
   <> dep.isolation_level
+}
+
+fn float_to_string_1dp(f: Float) -> String {
+  let int_part = float_to_int_safe(f)
+  let decimal_part = float_to_int_safe({ f -. int.to_float(int_part) } *. 10.0)
+  int.to_string(int_part) <> "." <> int.to_string(decimal_part)
+}
+
+fn float_to_int_safe(f: Float) -> Int {
+  case f >=. 0.0 {
+    True -> float_floor(f)
+    False -> 0
+  }
+}
+
+fn float_floor(f: Float) -> Int {
+  // Simple floor implementation
+  let str = float_to_string(f)
+  case string.split(str, ".") {
+    [int_str, ..] ->
+      case int.parse(int_str) {
+        Ok(i) -> i
+        Error(_) -> 0
+      }
+    _ -> 0
+  }
+}
+
+fn float_to_string(f: Float) -> String {
+  // This is a workaround - Gleam doesn't have direct float to string
+  // We'll use string interpolation trick
+  let result = f *. 1.0
+  case result {
+    _ ->
+      int.to_string(float_floor(result))
+      <> "."
+      <> int.to_string(float_floor(
+        { result -. int.to_float(float_floor(result)) } *. 10.0,
+      ))
+  }
 }
 
 // =============================================================================

@@ -161,12 +161,10 @@ pub fn load_feedback_for_session(
   let feedback_path = ".intent/feedback-" <> session_id <> ".cue"
   case simplifile.read(feedback_path) {
     Ok(content) -> parse_feedback_from_cue(content)
-    Error(simplifile.Enoent) -> Ok([])
-    Error(err) ->
-      Error(WriteError(
-        path: feedback_path,
-        message: "Failed to read: " <> string.inspect(err),
-      ))
+    Error(_) -> {
+      // File doesn't exist yet (empty feedback)
+      Ok([])
+    }
   }
 }
 
@@ -255,15 +253,9 @@ fn escape_cue_string(s: String) -> String {
 fn append_to_file(path: String, content: String) -> Result(Nil, FeedbackError) {
   // Read existing content (if file exists)
   let existing = case simplifile.read(path) {
-    Ok(text) -> Ok(text)
-    Error(simplifile.Enoent) -> Ok("")
-    Error(err) ->
-      Error(WriteError(
-        path: path,
-        message: "Failed to read: " <> string.inspect(err),
-      ))
+    Ok(text) -> text
+    Error(_) -> ""
   }
-  use existing <- result.try(existing)
 
   // Append new content
   let updated = existing <> content
@@ -358,8 +350,7 @@ fn validate_session_id(id: String) -> Bool {
 }
 
 fn validate_bead_id(id: String) -> Bool {
-  // Format: NAMESPACE-SUFFIX (e.g., intent-cli-04h, AUTH-001)
-  // Namespace can contain hyphens, suffix is the last segment (alphanumeric)
+  // Format: PREFIX-NNN (e.g., AUTH-001, API-042)
   let trimmed = string.trim(id)
   case string.length(trimmed) >= 5 {
     False -> False
@@ -367,19 +358,14 @@ fn validate_bead_id(id: String) -> Bool {
       case string.contains(trimmed, "-") {
         False -> False
         True -> {
-          // Split on all hyphens, validate last segment as suffix
-          let parts = string.split(trimmed, "-")
-          case list.last(parts) {
+          case string.split_once(trimmed, "-") {
             Error(Nil) -> False
-            Ok(suffix) -> {
-              // Suffix must be 2-10 alphanumeric characters
+            Ok(#(prefix, suffix)) -> {
+              let prefix_ok =
+                string.length(prefix) > 0 && string.length(prefix) <= 10
               let suffix_ok =
-                string.length(suffix) >= 2
-                && string.length(suffix) <= 10
-                && is_alphanumeric_string(suffix)
-              // All characters must be alphanumeric or hyphen
-              let all_valid = is_valid_bead_id_chars(trimmed)
-              suffix_ok && all_valid
+                string.length(suffix) == 3 && is_numeric_string(suffix)
+              prefix_ok && suffix_ok
             }
           }
         }
@@ -388,159 +374,20 @@ fn validate_bead_id(id: String) -> Bool {
   }
 }
 
-/// Check if a string contains only alphanumeric characters (a-z, A-Z, 0-9)
-fn is_alphanumeric_string(s: String) -> Bool {
-  s
-  |> string.to_graphemes
-  |> list.all(is_alphanumeric_char)
-}
-
-/// Check if all characters are valid for bead IDs (alphanumeric or hyphen)
-fn is_valid_bead_id_chars(s: String) -> Bool {
-  s
-  |> string.to_graphemes
-  |> list.all(fn(char) { is_alphanumeric_char(char) || char == "-" })
-}
-
-/// Check if a single character is alphanumeric
-fn is_alphanumeric_char(char: String) -> Bool {
-  case char {
-    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
-    "a"
-    | "b"
-    | "c"
-    | "d"
-    | "e"
-    | "f"
-    | "g"
-    | "h"
-    | "i"
-    | "j"
-    | "k"
-    | "l"
-    | "m"
-    | "n"
-    | "o"
-    | "p"
-    | "q"
-    | "r"
-    | "s"
-    | "t"
-    | "u"
-    | "v"
-    | "w"
-    | "x"
-    | "y"
-    | "z" -> True
-    "A"
-    | "B"
-    | "C"
-    | "D"
-    | "E"
-    | "F"
-    | "G"
-    | "H"
-    | "I"
-    | "J"
-    | "K"
-    | "L"
-    | "M"
-    | "N"
-    | "O"
-    | "P"
-    | "Q"
-    | "R"
-    | "S"
-    | "T"
-    | "U"
-    | "V"
-    | "W"
-    | "X"
-    | "Y"
-    | "Z" -> True
-    _ -> False
-  }
-}
-
 // =============================================================================
 // PRIVATE: Helpers
 // =============================================================================
 
-/// Check if any feedback indicates blocking issues (Failed or Blocked status)
-pub fn has_blocking_feedback(feedback: List(BeadFeedback)) -> Bool {
-  feedback
-  |> list.any(fn(f) {
-    case f.result {
-      Failed -> True
-      Blocked -> True
+/// Check if a string contains only numeric digits.
+fn is_numeric_string(s: String) -> Bool {
+  s
+  |> string.to_graphemes
+  |> list.all(fn(char) {
+    case char {
+      "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
       _ -> False
     }
   })
-}
-
-/// Count how many criteria are marked as complete
-/// A criterion is considered complete if it appears with a completion marker
-pub fn count_completed_criteria(
-  criteria: List(String),
-  feedback: List(BeadFeedback),
-  description: String,
-) -> Int {
-  criteria
-  |> list.count(fn(criterion) {
-    is_criterion_met(criterion, feedback, description)
-  })
-}
-
-/// Check if a specific criterion is met
-fn is_criterion_met(
-  criterion: String,
-  feedback: List(BeadFeedback),
-  description: String,
-) -> Bool {
-  let criterion_lower = string.lowercase(criterion)
-
-  // Check if this criterion appears completed in feedback
-  let in_feedback =
-    feedback
-    |> list.any(fn(f) {
-      case f.result {
-        Success -> {
-          string.lowercase(f.reason)
-          |> string.contains(criterion_lower)
-        }
-        _ -> False
-      }
-    })
-
-  // Check if criterion text appears in description with completion marker
-  let in_description = {
-    let desc_lower = string.lowercase(description)
-    string.contains(desc_lower, criterion_lower)
-    && has_nearby_completion_marker(description)
-  }
-
-  in_feedback || in_description
-}
-
-/// Check if a completion marker (✓, [x], DONE, etc) appears in description
-fn has_nearby_completion_marker(description: String) -> Bool {
-  let markers = [
-    "✓", "✔", "[x]", "done", "complete", "verified", "finished",
-  ]
-  let desc_lower = string.lowercase(description)
-  markers
-  |> list.any(fn(marker) { string.contains(desc_lower, marker) })
-}
-
-/// Check if description contains explicit completion signals
-pub fn has_completion_signals(description: String) -> Bool {
-  let desc_lower = string.lowercase(description)
-  let signals = [
-    "✓", "✔", "[x]", "done", "complete", "verified", "finished",
-  ]
-
-  signals
-  |> list.any(fn(signal) { string.contains(desc_lower, signal) })
 }
 
 // =============================================================================

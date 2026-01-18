@@ -6,8 +6,6 @@ import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/string
-import intent/emoji_constants as emoji
-import intent/formatter_utils as fmt
 import intent/types.{type Behavior, type Spec}
 
 // =============================================================================
@@ -422,42 +420,28 @@ fn find_security_gaps(spec: Spec) -> List(Gap) {
 
 pub fn format_report(report: GapReport) -> String {
   let header =
-    fmt.box_header_with_subtitle("KIRK Gap Detection", "Finding what's missing")
-    <> "\n\n"
+    "╔══════════════════════════════════════╗\n"
+    <> "║        KIRK Gap Detection            ║\n"
+    <> "║   Finding what's missing             ║\n"
+    <> "╚══════════════════════════════════════╝\n\n"
 
   let summary = format_summary(report)
   let severity_section = format_severity_breakdown(report.severity_breakdown)
 
   let inversion_section =
-    format_gap_section(
-      fmt.section_header(emoji.inversion, "Inversion Gaps"),
-      report.inversion_gaps,
-      "Inversion",
-    )
+    format_gap_section("🔄 Inversion Gaps", report.inversion_gaps, "Inversion")
   let second_order_section =
     format_gap_section(
-      fmt.section_header(emoji.effects, "Second-Order Gaps"),
+      "🎯 Second-Order Gaps",
       report.second_order_gaps,
       "Second-Order",
     )
   let checklist_section =
-    format_gap_section(
-      fmt.section_header(emoji.success, "Checklist Gaps"),
-      report.checklist_gaps,
-      "Checklist",
-    )
+    format_gap_section("✅ Checklist Gaps", report.checklist_gaps, "Checklist")
   let coverage_section =
-    format_gap_section(
-      fmt.section_header(emoji.coverage, "Coverage Gaps"),
-      report.coverage_gaps,
-      "Coverage",
-    )
+    format_gap_section("📊 Coverage Gaps", report.coverage_gaps, "Coverage")
   let security_section =
-    format_gap_section(
-      fmt.section_header(emoji.lock, "Security Gaps"),
-      report.security_gaps,
-      "Security",
-    )
+    format_gap_section("🔒 Security Gaps", report.security_gaps, "Security")
 
   header
   <> summary
@@ -472,37 +456,26 @@ pub fn format_report(report: GapReport) -> String {
 fn format_summary(report: GapReport) -> String {
   let total = report.total_gaps
   let status = case total {
-    0 -> emoji.success <> " No gaps detected!"
-    n if n <= 3 ->
-      emoji.warning <> " " <> int.to_string(n) <> " gaps found"
-    n if n <= 10 ->
-      emoji.failure <> " " <> int.to_string(n) <> " gaps need attention"
-    n ->
-      emoji.critical <> " " <> int.to_string(n) <> " gaps require immediate action"
+    0 -> "✅ No gaps detected!"
+    n if n <= 3 -> "⚠️  " <> int.to_string(n) <> " gaps found"
+    n if n <= 10 -> "❌ " <> int.to_string(n) <> " gaps need attention"
+    n -> "🚨 " <> int.to_string(n) <> " gaps require immediate action"
   }
-  fmt.section_header(emoji.package, "Summary:") <> " " <> status <> "\n\n"
+  "📋 Summary: " <> status <> "\n\n"
 }
 
 fn format_severity_breakdown(sb: SeverityBreakdown) -> String {
   "Severity Breakdown:\n"
-  <> fmt.indent_1()
-  <> emoji.severity_critical
-  <> " Critical: "
+  <> "  🚨 Critical: "
   <> int.to_string(sb.critical)
   <> "\n"
-  <> fmt.indent_1()
-  <> emoji.severity_high
-  <> " High:     "
+  <> "  ❌ High:     "
   <> int.to_string(sb.high)
   <> "\n"
-  <> fmt.indent_1()
-  <> emoji.severity_medium
-  <> " Medium:   "
+  <> "  ⚠️  Medium:   "
   <> int.to_string(sb.medium)
   <> "\n"
-  <> fmt.indent_1()
-  <> emoji.severity_low
-  <> " Low:      "
+  <> "  ℹ️  Low:      "
   <> int.to_string(sb.low)
   <> "\n\n"
 }
@@ -522,20 +495,12 @@ fn format_gap_section(title: String, gaps: List(Gap), _model: String) -> String 
 
 fn format_gap(gap: Gap) -> String {
   let icon = case gap.severity {
-    Critical -> emoji.severity_critical
-    High -> emoji.severity_high
-    Medium -> emoji.severity_medium
-    Low -> emoji.severity_low
+    Critical -> "🚨"
+    High -> "❌"
+    Medium -> "⚠️"
+    Low -> "ℹ️"
   }
-  fmt.indent_1()
-  <> icon
-  <> " "
-  <> gap.description
-  <> "\n"
-  <> fmt.indent_3()
-  <> emoji.suggestion
-  <> " "
-  <> gap.suggestion
+  "  " <> icon <> " " <> gap.description <> "\n" <> "     💡 " <> gap.suggestion
 }
 
 pub fn gap_type_to_string(gt: GapType) -> String {

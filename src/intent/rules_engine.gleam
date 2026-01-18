@@ -46,8 +46,7 @@ pub fn check_rules(
 fn rule_applies(rule: Rule, response: ExecutionResult) -> Bool {
   case rule.when {
     option.Some(when) -> check_when_conditions(when, response)
-    option.None -> True
-    // No when clause means rule applies to all responses
+    option.None -> True  // No when clause means rule applies to all responses
   }
 }
 

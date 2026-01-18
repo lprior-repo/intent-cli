@@ -91,7 +91,10 @@ pub fn check_anti_patterns_single_match_test() {
 
   // Response HAS password field (anti-pattern detected)
   let body =
-    json.object([#("id", json.int(1)), #("password", json.string("hunter2"))])
+    json.object([
+      #("id", json.int(1)),
+      #("password", json.string("hunter2")),
+    ])
   let response = make_execution_result(200, body)
 
   let results = check_anti_patterns([pattern], response, "test_behavior")
@@ -152,7 +155,10 @@ pub fn check_anti_patterns_partial_match_test() {
 
   // Response only has SSN, not credit card
   let body =
-    json.object([#("id", json.int(1)), #("ssn", json.string("999-88-7777"))])
+    json.object([
+      #("id", json.int(1)),
+      #("ssn", json.string("999-88-7777")),
+    ])
   let response = make_execution_result(200, body)
 
   let results =
@@ -176,14 +182,20 @@ pub fn check_anti_patterns_nested_fields_test() {
     json.object([
       #(
         "user",
-        json.object([#("id", json.int(1)), #("password", json.string("secret"))]),
+        json.object([
+          #("id", json.int(1)),
+          #("password", json.string("secret")),
+        ]),
       ),
     ])
   let good =
     json.object([
       #(
         "user",
-        json.object([#("id", json.int(1)), #("token", json.string("token"))]),
+        json.object([
+          #("id", json.int(1)),
+          #("token", json.string("token")),
+        ]),
       ),
     ])
   let pattern =
@@ -219,7 +231,12 @@ pub fn check_anti_patterns_deeply_nested_test() {
           #(
             "users",
             json.object([
-              #("admin", json.object([#("secret_key", json.string("abc123"))])),
+              #(
+                "admin",
+                json.object([
+                  #("secret_key", json.string("abc123")),
+                ]),
+              ),
             ]),
           ),
         ]),
@@ -233,7 +250,12 @@ pub fn check_anti_patterns_deeply_nested_test() {
           #(
             "users",
             json.object([
-              #("admin", json.object([#("id", json.string("admin1"))])),
+              #(
+                "admin",
+                json.object([
+                  #("id", json.string("admin1")),
+                ]),
+              ),
             ]),
           ),
         ]),
@@ -250,7 +272,12 @@ pub fn check_anti_patterns_deeply_nested_test() {
           #(
             "users",
             json.object([
-              #("admin", json.object([#("secret_key", json.string("xyz789"))])),
+              #(
+                "admin",
+                json.object([
+                  #("secret_key", json.string("xyz789")),
+                ]),
+              ),
             ]),
           ),
         ]),
