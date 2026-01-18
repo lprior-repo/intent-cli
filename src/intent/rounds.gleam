@@ -94,10 +94,7 @@ pub fn is_valid_round_number(number: Int) -> Bool {
 
 /// Get a human-readable name for a round
 pub fn round_name(round: Round) -> String {
-  "Round "
-  <> int_to_string(round.number)
-  <> ": "
-  <> model_to_string(round.model)
+  "Round " <> int_to_string(round.number) <> ": " <> model_to_string(round.model)
 }
 
 /// Convert a mental model to a string

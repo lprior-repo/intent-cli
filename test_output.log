@@ -1,9 +1,0 @@
-error: Syntax error
-   ┌─ /home/lewis/src/intent-cli/test/help_text_test.gleam:24:10
-   │
-24 │   |> { n -> n - 1 }
-   │          ^^ I was not expecting this
-
-Found `->`, expected one of: 
-- `}`
-

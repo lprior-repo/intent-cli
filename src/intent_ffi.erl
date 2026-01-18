@@ -40,7 +40,7 @@ to_hex(N, Width) ->
 %% Get current timestamp in ISO 8601 format
 current_timestamp() ->
     Now = erlang:system_time(millisecond),
-    list_to_binary(calendar:system_time_to_rfc3339(Now, [{unit, millisecond}])).
+    calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]).
 
 %% Convert integer to float
 int_to_float(I) when is_integer(I) ->
