@@ -12,7 +12,13 @@ import glint
 import glint/flag
 import intent/bead_feedback
 import intent/bead_templates
+import intent/cli_flags
+import intent/cli_text_constants
 import intent/cli_ui
+import intent/config
+import intent/emoji_constants as emoji
+import intent/error_handler
+import intent/formatter_utils
 import intent/improver
 import intent/interview
 import intent/interview_questions
@@ -199,49 +205,14 @@ fn check_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Run spec against a target URL and verify behaviors")
-  |> glint.flag(
-    "target",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Target base URL to test against"),
-  )
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output results as JSON"),
-  )
-  |> glint.flag(
-    "feature",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Filter to a specific feature"),
-  )
-  |> glint.flag(
-    "only",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Run only a specific behavior"),
-  )
-  |> glint.flag(
-    "verbose",
-    flag.bool() |> flag.default(False) |> flag.description("Verbose output"),
-  )
-  |> glint.flag(
-    "quiet",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Quiet output (errors only)"),
-  )
-  |> glint.flag(
-    "allow-localhost",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description(
-        "Allow localhost URLs for development (bypasses SSRF protection)",
-      ),
-  )
+  |> glint.description(cli_text_constants.cmd_check_desc)
+  |> glint.flag("target", cli_flags.target_flag())
+  |> glint.flag("json", cli_flags.json_flag())
+  |> glint.flag("feature", cli_flags.feature_flag())
+  |> glint.flag("only", cli_flags.only_flag())
+  |> glint.flag("verbose", cli_flags.verbose_flag())
+  |> glint.flag("quiet", cli_flags.quiet_flag())
+  |> glint.flag("allow-localhost", cli_flags.allow_localhost_flag())
 }
 
 fn run_check(
@@ -358,7 +329,7 @@ fn validate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Validate a CUE spec file (syntax and structure)")
+  |> glint.description(cli_text_constants.cmd_validate_desc)
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -403,11 +374,8 @@ fn show_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Pretty print a parsed spec")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_show_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 fn print_spec_summary(spec: types.Spec) -> Nil {
@@ -495,7 +463,7 @@ fn export_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Export spec to JSON format")
+  |> glint.description(cli_text_constants.cmd_export_desc)
 }
 
 /// The `lint` command - check for specification anti-patterns
@@ -530,7 +498,7 @@ fn lint_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Check spec for anti-patterns and quality issues")
+  |> glint.description(cli_text_constants.cmd_lint_desc)
 }
 
 /// The `analyze` command - analyze spec quality
@@ -557,9 +525,7 @@ fn analyze_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "Analyze spec quality and provide improvement suggestions",
-  )
+  |> glint.description(cli_text_constants.cmd_analyze_desc)
 }
 
 /// The `improve` command - suggest improvements
@@ -594,9 +560,7 @@ fn improve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "Suggest improvements based on quality analysis and linting",
-  )
+  |> glint.description(cli_text_constants.cmd_improve_desc)
 }
 
 /// The `doctor` command - health report with prioritized improvements
@@ -623,9 +587,7 @@ fn doctor_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "Analyze spec health and generate prioritized improvement report",
-  )
+  |> glint.description(cli_text_constants.cmd_doctor_desc)
 }
 
 /// The `interview` command - guided specification discovery
@@ -1800,13 +1762,8 @@ fn beads_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Generate work items (beads) from an interview session")
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output JSON for machine consumption"),
-  )
+  |> glint.description(cli_text_constants.cmd_beads_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
@@ -1929,7 +1886,7 @@ fn bead_status_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Mark bead execution status (success/failed/blocked)")
+  |> glint.description(cli_text_constants.cmd_bead_status_desc)
   |> glint.flag(
     "bead-id",
     flag.string() |> flag.default("") |> flag.description("Bead ID (required)"),
@@ -1996,7 +1953,7 @@ fn plan_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Display execution plan from session beads")
+  |> glint.description(cli_text_constants.cmd_plan_desc)
   |> glint.flag(
     "format",
     flag.string()
@@ -2131,7 +2088,7 @@ fn plan_approve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Approve execution plan for session")
+  |> glint.description(cli_text_constants.cmd_plan_approve_desc)
   |> glint.flag(
     "yes",
     flag.bool()
@@ -2353,7 +2310,7 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Regenerate failed/blocked beads with adjusted approach")
+  |> glint.description(cli_text_constants.cmd_beads_regenerate_desc)
   |> glint.flag(
     "strategy",
     flag.string()
@@ -2485,7 +2442,7 @@ fn history_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("View snapshot history for an interview session")
+  |> glint.description(cli_text_constants.cmd_history_desc)
 }
 
 /// The `diff` command - compare two sessions
@@ -2566,7 +2523,7 @@ fn diff_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Compare two interview sessions and show differences")
+  |> glint.description(cli_text_constants.cmd_diff_desc)
 }
 
 /// The `sessions` command - list all interview sessions
@@ -2671,13 +2628,8 @@ fn sessions_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("List all interview sessions")
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_sessions_desc)
+  |> glint.flag("json", cli_flags.json_flag())
   |> glint.flag(
     "profile",
     flag.string()
@@ -2765,11 +2717,8 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_quality_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// The `invert` command - KIRK inversion analysis
@@ -2834,13 +2783,8 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "KIRK: Inversion analysis - what failure cases are missing?",
-  )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_invert_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 fn gap_to_json(gap: inversion_checker.InversionGap) -> json.Json {
@@ -2915,11 +2859,8 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_coverage_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// The `gaps` command - KIRK gap detection
@@ -2993,11 +2934,8 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Detect gaps using mental models")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_gaps_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
@@ -3054,15 +2992,8 @@ fn kirk_effects_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "KIRK: Analyze second-order effects (consequence tracing)",
-  )
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output JSON for machine consumption"),
-  )
+  |> glint.description(cli_text_constants.cmd_effects_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// The `compact` command - KIRK compact format (CIN)
@@ -3195,7 +3126,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
+  |> glint.description(cli_text_constants.cmd_ears_desc)
   |> glint.flag(
     "output",
     flag.string()
@@ -3459,17 +3390,14 @@ fn parse_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Parse EARS requirements to Intent behaviors")
+  |> glint.description(cli_text_constants.cmd_parse_desc)
   |> glint.flag(
     "o",
     flag.string()
       |> flag.default("")
       |> flag.description("Output spec file path"),
   )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 // =============================================================================

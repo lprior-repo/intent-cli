@@ -5,6 +5,8 @@
 import gleam/int
 import gleam/list
 import gleam/string
+import intent/emoji_constants as emoji
+import intent/formatter_utils as fmt
 import intent/types.{type Behavior, type Method, type Spec, Get, Post}
 
 // =============================================================================
@@ -479,27 +481,40 @@ fn gap_to_method_status(description: String) -> #(Method, Int) {
 
 pub fn format_report(report: InversionReport) -> String {
   let header =
-    "╔══════════════════════════════════════╗\n"
-    <> "║      KIRK Inversion Analysis         ║\n"
-    <> "║   \"What would make this fail?\"       ║\n"
-    <> "╚══════════════════════════════════════╝\n\n"
+    fmt.box_header_with_subtitle(
+      "KIRK Inversion Analysis",
+      "\"What would make this fail?\"",
+    )
+    <> "\n\n"
 
   let score_line =
-    "📊 Inversion Coverage: "
-    <> int.to_string(float.round(report.score))
-    <> "%\n\n"
+    emoji.coverage
+    <> " Inversion Coverage: "
+    <> fmt.format_percentage(report.score)
+    <> "\n\n"
 
   let security_section =
-    format_gap_section("🔒 Security Gaps", report.security_gaps)
+    format_gap_section(
+      fmt.section_header(emoji.lock, "Security Gaps"),
+      report.security_gaps,
+    )
   let usability_section =
-    format_gap_section("👤 Usability Gaps", report.usability_gaps)
+    format_gap_section(
+      fmt.section_header(emoji.user, "Usability Gaps"),
+      report.usability_gaps,
+    )
   let integration_section =
-    format_gap_section("🔌 Integration Gaps", report.integration_gaps)
+    format_gap_section(
+      fmt.section_header(emoji.integration, "Integration Gaps"),
+      report.integration_gaps,
+    )
 
   let suggestions_section = case list.is_empty(report.suggested_behaviors) {
     True -> ""
     False ->
-      "\n💡 Suggested Behaviors to Add:\n"
+      "\n"
+      <> emoji.suggestion
+      <> " Suggested Behaviors to Add:\n"
       <> format_suggestions(report.suggested_behaviors)
   }
 
@@ -513,7 +528,7 @@ pub fn format_report(report: InversionReport) -> String {
 
 fn format_gap_section(title: String, gaps: List(InversionGap)) -> String {
   case list.is_empty(gaps) {
-    True -> title <> ": ✅ All covered!\n\n"
+    True -> title <> ": " <> emoji.success <> " All covered!\n\n"
     False ->
       title
       <> " ("
@@ -526,31 +541,32 @@ fn format_gap_section(title: String, gaps: List(InversionGap)) -> String {
 
 fn format_gap(gap: InversionGap) -> String {
   let icon = case gap.severity {
-    Critical -> "🚨"
-    High -> "❌"
-    Medium -> "⚠️ "
-    Low -> "ℹ️ "
+    Critical -> emoji.severity_critical
+    High -> emoji.severity_high
+    Medium -> emoji.severity_medium
+    Low -> emoji.severity_low
   }
-  "  " <> icon <> " " <> gap.description
+  fmt.indent_1() <> icon <> " " <> gap.description
 }
 
 fn format_suggestions(suggestions: List(SuggestedBehavior)) -> String {
   suggestions
   |> list.map(fn(s) {
-    "  • "
+    fmt.indent_1()
+    <> emoji.bullet
+    <> " "
     <> s.name
     <> " ["
     <> types.method_to_string(s.method)
     <> " "
     <> int.to_string(s.expected_status)
     <> "]"
-    <> "\n    "
+    <> "\n"
+    <> fmt.indent_2()
     <> s.intent
   })
   |> string.join("\n")
 }
-
-import gleam/float
 
 pub fn severity_to_string(s: GapSeverity) -> String {
   case s {
