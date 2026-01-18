@@ -6,6 +6,8 @@ import gleam/json
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
+import intent/emoji_constants as emoji
+import intent/formatter_utils as fmt
 import intent/types.{type Behavior, type Rule, type Spec}
 
 /// Quality metrics for a spec
@@ -388,23 +390,24 @@ fn add_suggestion_if(
 pub fn format_report(report: QualityReport) -> String {
   let score_section =
     "Quality Score: "
-    <> int.to_string(report.overall_score)
-    <> "/100\n"
-    <> "  Coverage: "
-    <> int.to_string(report.coverage_score)
-    <> "/100\n"
-    <> "  Clarity: "
-    <> int.to_string(report.clarity_score)
-    <> "/100\n"
-    <> "  Testability: "
-    <> int.to_string(report.testability_score)
-    <> "/100\n"
-    <> "  AI Readiness: "
-    <> int.to_string(report.ai_readiness_score)
-    <> "/100"
+    <> fmt.format_score_int(report.overall_score)
+    <> "\n"
+    <> fmt.kv_pair("Coverage", int.to_string(report.coverage_score) <> "/100")
+    <> "\n"
+    <> fmt.kv_pair("Clarity", int.to_string(report.clarity_score) <> "/100")
+    <> "\n"
+    <> fmt.kv_pair(
+      "Testability",
+      int.to_string(report.testability_score) <> "/100",
+    )
+    <> "\n"
+    <> fmt.kv_pair(
+      "AI Readiness",
+      int.to_string(report.ai_readiness_score) <> "/100",
+    )
 
   let issues_section = case list.is_empty(report.issues) {
-    True -> "No quality issues found!"
+    True -> emoji.success <> " No quality issues found!"
     False ->
       "Quality Issues:\n"
       <> string.join(report.issues |> list.map(format_issue), "\n")
@@ -413,10 +416,14 @@ pub fn format_report(report: QualityReport) -> String {
   let suggestions_section = case list.is_empty(report.suggestions) {
     True -> ""
     False ->
-      "\n\nSuggestions for Improvement:\n"
+      "\n\n"
+      <> emoji.suggestion
+      <> " Suggestions for Improvement:\n"
       <> string.join(
         report.suggestions
-          |> list.index_map(fn(s, i) { int.to_string(i + 1) <> ". " <> s }),
+          |> list.index_map(fn(s, i) {
+            fmt.indent_1() <> int.to_string(i + 1) <> ". " <> s
+          }),
         "\n",
       )
   }
@@ -426,14 +433,15 @@ pub fn format_report(report: QualityReport) -> String {
 
 /// Format a quality issue
 fn format_issue(issue: QualityIssue) -> String {
-  case issue {
-    MissingErrorTests -> "  • Missing error status code tests (4xx, 5xx)"
-    MissingAuthenticationTest -> "  • Missing authentication tests"
-    MissingEdgeCases -> "  • Missing edge case tests (empty, invalid, etc)"
-    VagueRules -> "  • Vague validation rules ('valid data', 'correct format')"
-    NoExamples -> "  • No response examples provided"
-    MissingExplanations -> "  • Missing 'why' explanations in checks"
-    UntestedRules -> "  • Global rules not tested in behaviors"
-    MissingAIHints -> "  • No AI implementation hints provided"
+  let desc = case issue {
+    MissingErrorTests -> "Missing error status code tests (4xx, 5xx)"
+    MissingAuthenticationTest -> "Missing authentication tests"
+    MissingEdgeCases -> "Missing edge case tests (empty, invalid, etc)"
+    VagueRules -> "Vague validation rules ('valid data', 'correct format')"
+    NoExamples -> "No response examples provided"
+    MissingExplanations -> "Missing 'why' explanations in checks"
+    UntestedRules -> "Global rules not tested in behaviors"
+    MissingAIHints -> "No AI implementation hints provided"
   }
+  fmt.bullet_item(desc)
 }
