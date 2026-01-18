@@ -128,11 +128,7 @@ pub type Rule {
 /// Conditions for when a rule applies
 /// All fields are optional - missing fields mean "any value matches"
 pub type When {
-  When(
-    status: Option(String),
-    method: Option(Method),
-    path: Option(String),
-  )
+  When(status: Option(String), method: Option(Method), path: Option(String))
 }
 
 /// Rule checks for global rules - all fields required

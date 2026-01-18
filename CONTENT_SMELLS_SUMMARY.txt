@@ -1,0 +1,284 @@
+================================================================================
+CONTENT AUDIT CODE SMELLS - EXECUTIVE SUMMARY
+================================================================================
+
+AUDIT SOURCE: Quality Auditor - Content Smells Detection
+AUDIT SCORE: 84.5/100
+GENERATED: 2026-01-18
+STATUS: Ready for Execution
+
+================================================================================
+DELIVERABLES
+================================================================================
+
+1. CONTENT_SMELLS_BEADS.jsonl (5 executable beads)
+   - Format: Newline-delimited JSON
+   - Total: 5 beads (3 critical, 2 high)
+   - Can be imported to: bd create --from CONTENT_SMELLS_BEADS.jsonl --batch
+
+2. CONTENT_SMELLS_ANALYSIS.md (Comprehensive analysis)
+   - Detailed problem description for each smell
+   - Before/after code examples
+   - Impact analysis
+   - Verification procedures
+
+3. CONTENT_SMELLS_EXECUTION_GUIDE.md (How-to guide)
+   - Step-by-step execution instructions
+   - Specific file locations and line numbers
+   - Batch execution workflow
+   - Testing and verification commands
+
+================================================================================
+QUICK STATS
+================================================================================
+
+Total Beads: 5
+  Critical (Priority 0): 3
+  High (Priority 1): 2
+
+Total Effort: 85 minutes (~1.5 hours)
+
+File Affected: 1
+  - src/intent/cli_text_constants.gleam (all changes in single file)
+
+Lines Changed: ~15 total
+  - Bead 1: 1 line (parse_desc prefix)
+  - Bead 2: 1 line (pattern count)
+  - Bead 3: ~4 lines (ai_readiness dimension)
+  - Bead 4: ~5 lines (mental model descriptions)
+  - Bead 5: ~2 lines (orphaned behaviors definition)
+
+================================================================================
+CONTENT SMELLS (5 TOTAL)
+================================================================================
+
+SMELL #1: Inconsistent Naming Convention
+  ID: cs-001-parse-kirk-prefix
+  Priority: CRITICAL (0)
+  Effort: 5 minutes
+  Location: src/intent/cli_text_constants.gleam:84
+
+  Issue: 'parse' command missing "KIRK:" prefix
+  All 6 other KIRK commands have it, breaking convention
+
+  Impact: User confusion, inconsistent API
+
+  Fix: Add "KIRK: " prefix to cmd_parse_desc
+
+  Current:  pub const cmd_parse_desc = "Parse EARS requirements to structured spec"
+  Fixed:   pub const cmd_parse_desc = "KIRK: Parse EARS requirements to structured spec"
+
+---
+
+SMELL #2: Conflicting Documentation
+  ID: cs-002-ears-pattern-count
+  Priority: CRITICAL (0)
+  Effort: 10 minutes
+  Location: src/intent/cli_text_constants.gleam:1695
+
+  Issue: Documentation claims "5 patterns" but lists only 4
+  Misleading users about EARS parser capabilities
+
+  Impact: Misleading documentation, user confusion
+
+  Fix: Change "Recognizes 5 patterns:" to "Recognizes 4 patterns:"
+
+  Current:  Recognizes 5 patterns:
+            THE SYSTEM SHALL, GIVEN/WHEN/THEN, IF/THEN, state-based
+  Fixed:   Recognizes 4 patterns:
+            THE SYSTEM SHALL, GIVEN/WHEN/THEN, IF/THEN, state-based
+
+---
+
+SMELL #3: Missing Required Field
+  ID: cs-003-quality-ai-readiness-dimension
+  Priority: CRITICAL (0)
+  Effort: 20 minutes
+  Location: src/intent/cli_text_constants.gleam:1451
+
+  Issue: ai_readiness dimension not clearly highlighted as 4th dimension
+  Short description doesn't include all 4 dimensions
+
+  Impact: Users don't understand full scope of quality analysis
+
+  Fix: Make ai_readiness explicit in command description and help
+  - Update cmd_quality_desc to mention "4 dimensions: coverage, clarity, testability, AI-readiness"
+  - List dimensions 1-4 with descriptions
+  - Add "0-100 each" clarification
+
+---
+
+SMELL #4: Unexplained Concepts
+  ID: cs-004-beads-regenerate-mental-models
+  Priority: HIGH (1)
+  Effort: 30 minutes
+  Location: src/intent/cli_text_constants.gleam:867-872
+
+  Issue: Strategy descriptions use jargon without explanation
+  "hybrid", "inversion", "effects", "premortem" undefined
+
+  Impact: Users can't choose appropriate strategy, reduced accessibility
+
+  Fix: Expand each strategy with:
+  - What mental model it uses
+  - When/why to use it
+  - What problems it solves
+
+  Example:
+    Before: "inversion: Flips failed behavior to find root causes"
+    After:  "inversion: Mental model that flips failure: if behavior X failed,
+             what's the opposite? Useful for logic errors and missing validation.
+             Finds root causes by contradiction."
+
+---
+
+SMELL #5: Orphaned Concept
+  ID: cs-005-effects-orphaned-behaviors
+  Priority: HIGH (1)
+  Effort: 20 minutes
+  Location: src/intent/cli_text_constants.gleam:1648
+
+  Issue: Technical term "orphaned behaviors" used without definition
+  Users don't understand what the effects command finds
+
+  Impact: Unclear command output, reduced usability
+
+  Fix: Add definition in parentheses:
+
+  Before: "Identifies orphaned behaviors and missing consequence handlers."
+  After:  "Identifies orphaned behaviors (behaviors that don't trigger expected
+           consequences) and missing consequence handlers (state changes with no
+           recovery or follow-up path)."
+
+================================================================================
+QUALITY GATES - BEFORE MERGE
+================================================================================
+
+Execution Checklist:
+  [ ] All 5 beads executed successfully
+  [ ] No beads blocked or failed
+  [ ] Syntax check passes: gleam format --check
+  [ ] Build succeeds: gleam build
+  [ ] Tests pass: gleam test
+  [ ] Help text displays correctly for each command
+  [ ] No regression in other commands
+
+Verification:
+  [ ] KIRK command consistency verified (7 commands with "KIRK:" prefix)
+  [ ] EARS pattern count matches implementation
+  [ ] Quality command includes all 4 dimensions
+  [ ] Beads-regenerate strategies documented with mental models
+  [ ] Effects command defines orphaned behaviors
+
+================================================================================
+QUICK START
+================================================================================
+
+View all beads:
+  $ cat CONTENT_SMELLS_BEADS.jsonl | jq .
+
+Import to bead system:
+  $ bd create --from CONTENT_SMELLS_BEADS.jsonl --batch content-smells
+
+Execute bead 1 (5 min - quickest):
+  $ bd update cs-001-parse-kirk-prefix --status in_progress
+  # Edit src/intent/cli_text_constants.gleam line 84
+  $ bd close cs-001-parse-kirk-prefix --reason "Added KIRK: prefix"
+
+Full execution time: ~85 minutes
+Recommended: 1-2 hours in single session or spread across work day
+
+================================================================================
+FILE LOCATIONS
+================================================================================
+
+Source file (all changes): src/intent/cli_text_constants.gleam
+
+Specific lines:
+  - Line 84:      cmd_parse_desc (Bead 1)
+  - Line 1695:    EARS pattern count (Bead 2)
+  - Line 66:      cmd_quality_desc (Bead 3)
+  - Line 1454:    quality dimensions (Bead 3)
+  - Line 867:     beads-regenerate strategies (Bead 4)
+  - Line 1648:    effects orphaned behaviors (Bead 5)
+
+================================================================================
+VALIDATION COMMANDS
+================================================================================
+
+After executing all beads, verify with:
+
+  # Check bead 1 (KIRK prefix)
+  grep "cmd_parse_desc" src/intent/cli_text_constants.gleam | grep "KIRK:"
+
+  # Check bead 2 (pattern count)
+  grep -A 3 "Recognizes.*patterns:" src/intent/cli_text_constants.gleam
+
+  # Check bead 3 (ai_readiness dimension)
+  grep "cmd_quality_desc" src/intent/cli_text_constants.gleam | grep "AI-readiness"
+
+  # Check bead 4 (mental models)
+  grep -A 10 "strategy STRATEGY" src/intent/cli_text_constants.gleam | grep -i "mental"
+
+  # Check bead 5 (orphaned definition)
+  grep "orphaned behaviors" src/intent/cli_text_constants.gleam
+
+  # Build verification
+  gleam build && gleam test
+
+================================================================================
+RELATED DOCUMENTATION
+================================================================================
+
+Detailed Analysis:
+  File: CONTENT_SMELLS_ANALYSIS.md
+  Contains: Full problem descriptions, impact analysis, verification procedures
+
+Execution Guide:
+  File: CONTENT_SMELLS_EXECUTION_GUIDE.md
+  Contains: Step-by-step instructions, code locations, testing commands
+
+Beads (Machine Readable):
+  File: CONTENT_SMELLS_BEADS.jsonl
+  Format: Newline-delimited JSON, importable to bead system
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. IMMEDIATE (Now)
+   - Review this summary
+   - Read CONTENT_SMELLS_ANALYSIS.md for full context
+   - Review CONTENT_SMELLS_EXECUTION_GUIDE.md before starting
+
+2. EXECUTION (1-2 hours)
+   - Execute 5 beads in priority order (critical first)
+   - Run verification after each bead
+   - Complete all within single session if possible
+
+3. VERIFICATION (30 minutes)
+   - Run full test suite
+   - Verify help text displays correctly
+   - Ensure no regressions
+   - Code review
+
+4. MERGE
+   - All quality gates passed
+   - Approved by project maintainer
+   - Ready for production
+
+================================================================================
+AUDIT ATTRIBUTION
+================================================================================
+
+Source: Quality Auditor v1.0 (Content Smells Detection)
+Audit Score: 84.5/100
+Code Smell Classification: 5 Issues (3 Critical, 2 High)
+Recommendation: Execute all beads before next release
+
+Generated: 2026-01-18
+Status: READY FOR EXECUTION
+
+================================================================================
+END OF SUMMARY
+================================================================================

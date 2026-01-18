@@ -152,10 +152,7 @@ fn request_summary_to_json(req: RequestSummary) -> Json {
 }
 
 fn response_summary_to_json(resp: ResponseSummary) -> Json {
-  json.object([
-    #("status", json.int(resp.status)),
-    #("body", resp.body),
-  ])
+  json.object([#("status", json.int(resp.status)), #("body", resp.body)])
 }
 
 fn blocked_behavior_to_json(blocked: BlockedBehavior) -> Json {

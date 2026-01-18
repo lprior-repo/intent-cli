@@ -217,10 +217,7 @@ pub fn resolver_cross_feature_deps_test() {
   let b2 = make_behavior("dependent", ["base"])
 
   let spec =
-    make_spec([
-      make_feature("Feature A", [b1]),
-      make_feature("Feature B", [b2]),
-    ])
+    make_spec([make_feature("Feature A", [b1]), make_feature("Feature B", [b2])])
 
   let result = resolver.resolve_execution_order(spec)
 
@@ -363,9 +360,7 @@ pub fn interview_extract_entities_test() {
 
 pub fn interview_extract_audience_mobile_test() {
   let extracted =
-    interview.extract_from_answer("q1", "Mainly mobile app users", [
-      "audience",
-    ])
+    interview.extract_from_answer("q1", "Mainly mobile app users", ["audience"])
   let audience = dict.get(extracted, "audience")
   audience |> should.equal(Ok("mobile"))
 }
@@ -477,10 +472,7 @@ pub fn interview_detect_conflicts_cap_theorem_test() {
 
 pub fn interview_calculate_confidence_high_test() {
   let extracted =
-    dict.from_list([
-      #("auth_method", "jwt"),
-      #("audience", "mobile"),
-    ])
+    dict.from_list([#("auth_method", "jwt"), #("audience", "mobile")])
   let confidence =
     interview.calculate_confidence(
       "q1",
@@ -989,7 +981,11 @@ pub fn rules_engine_check_when_status_equals_test() {
     types.Rule(
       name: "Check 200 OK",
       description: "Verify 200 response",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/users"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/users"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1019,7 +1015,11 @@ pub fn rules_engine_check_when_status_greater_than_test() {
     types.Rule(
       name: "Check 4xx error",
       description: "Verify error status",
-      when: option.Some(types.When(status: option.Some("> 399"), method: option.Some(types.Post), path: option.Some("/create"))),
+      when: option.Some(types.When(
+        status: option.Some("> 399"),
+        method: option.Some(types.Post),
+        path: option.Some("/create"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1050,7 +1050,11 @@ pub fn rules_engine_check_when_status_less_than_test() {
     types.Rule(
       name: "Check success range",
       description: "Verify 2xx status",
-      when: option.Some(types.When(status: option.Some("< 300"), method: option.Some(types.Get), path: option.Some("/data"))),
+      when: option.Some(types.When(
+        status: option.Some("< 300"),
+        method: option.Some(types.Get),
+        path: option.Some("/data"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1077,7 +1081,11 @@ pub fn rules_engine_check_when_method_mismatch_test() {
     types.Rule(
       name: "POST rule",
       description: "Only for POST",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Post), path: option.Some("/create"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Post),
+        path: option.Some("/create"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1103,7 +1111,11 @@ pub fn rules_engine_check_when_path_exact_match_test() {
     types.Rule(
       name: "Exact path rule",
       description: "Check exact path",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/exact/path"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/exact/path"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1130,7 +1142,11 @@ pub fn rules_engine_check_when_path_regex_match_test() {
     types.Rule(
       name: "Regex path rule",
       description: "Check regex path",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("^/users/.*"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("^/users/.*"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1157,7 +1173,11 @@ pub fn rules_engine_check_body_must_contain_test() {
     types.Rule(
       name: "Body content rule",
       description: "Verify body contains text",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/test"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: ["success"],
@@ -1185,7 +1205,11 @@ pub fn rules_engine_check_body_must_not_contain_test() {
     types.Rule(
       name: "No error rule",
       description: "Verify no error in body",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/test"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: ["error"],
         body_must_contain: [],
@@ -1213,7 +1237,11 @@ pub fn rules_engine_check_body_must_not_contain_violation_test() {
     types.Rule(
       name: "No error rule",
       description: "Verify no error in body",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/test"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: ["error"],
         body_must_contain: [],
@@ -1244,7 +1272,11 @@ pub fn rules_engine_check_body_must_contain_violation_test() {
     types.Rule(
       name: "Required text rule",
       description: "Verify required text",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/test"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: ["required"],
@@ -1274,7 +1306,11 @@ pub fn rules_engine_check_multiple_rules_test() {
     types.Rule(
       name: "Rule 1",
       description: "First rule",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/test"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1290,7 +1326,11 @@ pub fn rules_engine_check_multiple_rules_test() {
     types.Rule(
       name: "Rule 2",
       description: "Second rule",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/test"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1469,7 +1509,11 @@ pub fn rules_engine_null_json_value_test() {
     types.Rule(
       name: "Null handling rule",
       description: "Handle null values",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/nullable"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/nullable"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1505,7 +1549,11 @@ pub fn rules_engine_whitespace_body_test() {
     types.Rule(
       name: "Whitespace rule",
       description: "Handle whitespace body",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/test"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/test"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: ["error"],
         body_must_contain: [],
@@ -1541,7 +1589,11 @@ pub fn rules_engine_nested_null_field_test() {
     types.Rule(
       name: "Nested null rule",
       description: "Check nested fields",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/nested"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/nested"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1577,7 +1629,11 @@ pub fn rules_engine_empty_object_test() {
     types.Rule(
       name: "Empty object rule",
       description: "Handle empty objects",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/data"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/data"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -1643,7 +1699,11 @@ pub fn rules_engine_unicode_body_content_test() {
     types.Rule(
       name: "Unicode content rule",
       description: "Check for Unicode in response",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/message"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/message"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: ["✓"],
@@ -1679,7 +1739,11 @@ pub fn rules_engine_emoji_in_description_test() {
     types.Rule(
       name: "emoji_test",
       description: "Check emoji support 🚀 in descriptions",
-      when: option.Some(types.When(status: option.Some("== 200"), method: option.Some(types.Get), path: option.Some("/status"))),
+      when: option.Some(types.When(
+        status: option.Some("== 200"),
+        method: option.Some(types.Get),
+        path: option.Some("/status"),
+      )),
       check: types.RuleCheck(
         body_must_not_contain: [],
         body_must_contain: [],
@@ -3864,10 +3928,7 @@ pub fn diff_sessions_answer_added_test() {
   let session2 =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Answer 1"),
-        make_test_answer("q2", "Answer 2"),
-      ],
+      [make_test_answer("q1", "Answer 1"), make_test_answer("q2", "Answer 2")],
       [],
       [],
       interview.Discovery,
@@ -3920,10 +3981,7 @@ pub fn diff_sessions_answer_removed_test() {
   let session1 =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Answer 1"),
-        make_test_answer("q2", "Answer 2"),
-      ],
+      [make_test_answer("q1", "Answer 1"), make_test_answer("q2", "Answer 2")],
       [],
       [],
       interview.Discovery,
@@ -4018,10 +4076,7 @@ pub fn create_snapshot_test() {
   let session =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Answer 1"),
-        make_test_answer("q2", "Answer 2"),
-      ],
+      [make_test_answer("q1", "Answer 1"), make_test_answer("q2", "Answer 2")],
       [make_test_gap("gap1", False)],
       [],
       interview.Discovery,
@@ -4048,10 +4103,7 @@ pub fn format_diff_produces_output_test() {
   let session2 =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Modified"),
-        make_test_answer("q2", "New answer"),
-      ],
+      [make_test_answer("q1", "Modified"), make_test_answer("q2", "New answer")],
       [],
       [],
       interview.Refinement,

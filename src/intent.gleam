@@ -12,7 +12,12 @@ import glint
 import glint/flag
 import intent/bead_feedback
 import intent/bead_templates
+import intent/cli_flags
+import intent/cli_text_constants
 import intent/cli_ui
+import intent/config
+import intent/emoji_constants as emoji
+import intent/error_handler
 import intent/improver
 import intent/interview
 import intent/interview_questions
@@ -150,98 +155,87 @@ pub fn main() {
 /// The `check` command - run spec against a target
 fn check_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let target_url =
-      flag.get_string(input.flags, "target")
-      |> result.unwrap("")
+    // Load configuration from environment variables
+    let env_config = config.load_from_env(get_env)
 
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
+    // Load configuration from command-line flags
+    let flag_config =
+      config.from_flags(
+        flag.get_string(input.flags, "target") |> result.unwrap(""),
+        flag.get_bool(input.flags, "allow-localhost") |> result.unwrap(False),
+        flag.get_string(input.flags, "profile") |> result.unwrap("api"),
+        "",
+        // output_file not used in check
+        30_000,
+        // timeout_ms default
+      )
 
-    let feature_filter =
-      flag.get_string(input.flags, "feature")
-      |> result.unwrap("")
+    // Merge environment and flag configuration
+    let cfg = config.merge_with_flags(env_config, flag_config)
 
-    let only_filter =
-      flag.get_string(input.flags, "only")
-      |> result.unwrap("")
-
-    let output_level = case flag.get_bool(input.flags, "verbose") {
-      Ok(True) -> runner.Verbose
-      _ ->
-        case flag.get_bool(input.flags, "quiet") {
-          Ok(True) -> runner.Quiet
-          _ -> runner.Normal
-        }
-    }
-
-    let allow_localhost =
-      flag.get_bool(input.flags, "allow-localhost")
-      |> result.unwrap(False)
-      || is_localhost_allowed_by_env()
-
-    case input.args {
-      [spec_path, ..] -> {
-        run_check(
-          spec_path,
-          target_url,
-          is_json,
-          feature_filter,
-          only_filter,
-          output_level,
-          allow_localhost,
-        )
+    // Validate that target URL is provided
+    case config.validate_target_required(cfg) {
+      Error(msg) -> {
+        let is_json =
+          flag.get_bool(input.flags, "json")
+          |> result.unwrap(False)
+        let error = error_handler.simple_error(msg, exit_error)
+        halt(error_handler.output_error(error, is_json))
       }
-      [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent check <spec.cue> --target <url>")
-        halt(exit_error)
+      Ok(Nil) -> {
+        let is_json =
+          flag.get_bool(input.flags, "json")
+          |> result.unwrap(False)
+
+        let feature_filter =
+          flag.get_string(input.flags, "feature")
+          |> result.unwrap("")
+
+        let only_filter =
+          flag.get_string(input.flags, "only")
+          |> result.unwrap("")
+
+        let output_level = case flag.get_bool(input.flags, "verbose") {
+          Ok(True) -> runner.Verbose
+          _ ->
+            case flag.get_bool(input.flags, "quiet") {
+              Ok(True) -> runner.Quiet
+              _ -> runner.Normal
+            }
+        }
+
+        case input.args {
+          [spec_path, ..] -> {
+            run_check(
+              spec_path,
+              cfg.target_url,
+              is_json,
+              feature_filter,
+              only_filter,
+              output_level,
+              cfg.allow_localhost,
+            )
+          }
+          [] -> {
+            let error =
+              error_handler.usage_error(
+                "check",
+                "intent check <spec.cue> --target <url>",
+              )
+            halt(error_handler.output_error(error, is_json))
+          }
+        }
       }
     }
   })
-  |> glint.description("Run spec against a target URL and verify behaviors")
-  |> glint.flag(
-    "target",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Target base URL to test against"),
-  )
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output results as JSON"),
-  )
-  |> glint.flag(
-    "feature",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Filter to a specific feature"),
-  )
-  |> glint.flag(
-    "only",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Run only a specific behavior"),
-  )
-  |> glint.flag(
-    "verbose",
-    flag.bool() |> flag.default(False) |> flag.description("Verbose output"),
-  )
-  |> glint.flag(
-    "quiet",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Quiet output (errors only)"),
-  )
-  |> glint.flag(
-    "allow-localhost",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description(
-        "Allow localhost URLs for development (bypasses SSRF protection)",
-      ),
-  )
+  |> glint.description(cli_text_constants.cmd_check_desc)
+  |> glint.flag("target", cli_flags.target_flag())
+  |> glint.flag("json", cli_flags.json_flag())
+  |> glint.flag("feature", cli_flags.feature_flag())
+  |> glint.flag("only", cli_flags.only_flag())
+  |> glint.flag("verbose", cli_flags.verbose_flag())
+  |> glint.flag("quiet", cli_flags.quiet_flag())
+  |> glint.flag("allow-localhost", cli_flags.allow_localhost_flag())
 }
 
 fn run_check(
@@ -352,13 +346,13 @@ fn validate_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required", mode)
-        io.println("Usage: intent validate <spec.cue>")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error("validate", "intent validate <spec.cue>")
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description("Validate a CUE spec file (syntax and structure)")
+  |> glint.description(cli_text_constants.cmd_validate_desc)
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -378,8 +372,13 @@ fn show_command() -> glint.Command(Nil) {
                 halt(exit_pass)
               }
               Error(e) -> {
-                io.println_error("Error: " <> loader.format_error(e))
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "Failed to export spec: " <> loader.format_error(e),
+                    "Check the file syntax with: intent validate " <> spec_path,
+                    ["Verify the file exists", "Check CUE syntax is valid"],
+                  )
+                halt(error_handler.output_error(error, is_json))
               }
             }
           False -> {
@@ -389,25 +388,27 @@ fn show_command() -> glint.Command(Nil) {
                 halt(exit_pass)
               }
               Error(e) -> {
-                io.println_error("Error: " <> loader.format_error(e))
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "Failed to load spec: " <> loader.format_error(e),
+                    "Check the file syntax with: intent validate " <> spec_path,
+                    ["Verify the file exists", "Check CUE syntax is valid"],
+                  )
+                halt(error_handler.output_error(error, is_json))
               }
             }
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent show <spec.cue> [--json]")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error("show", "intent show <spec.cue> [--json]")
+        halt(error_handler.output_error(error, is_json))
       }
     }
   })
-  |> glint.description("Pretty print a parsed spec")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_show_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 fn print_spec_summary(spec: types.Spec) -> Nil {
@@ -483,19 +484,24 @@ fn export_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
-            halt(exit_error)
+            let error =
+              error_handler.generic_error(
+                "Failed to export spec: " <> loader.format_error(e),
+                "Check the file syntax with: intent validate " <> spec_path,
+                ["Verify the file exists", "Check CUE syntax is valid"],
+              )
+            halt(error_handler.output_error(error, False))
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent export <spec.cue>")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error("export", "intent export <spec.cue>")
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description("Export spec to JSON format")
+  |> glint.description(cli_text_constants.cmd_export_desc)
 }
 
 /// The `lint` command - check for specification anti-patterns
@@ -508,7 +514,10 @@ fn lint_command() -> glint.Command(Nil) {
             let lint_result = spec_linter.lint_spec(spec)
             case lint_result {
               spec_linter.LintValid -> {
-                io.println("✓ Spec is well-formed - no linting issues found")
+                io.println(
+                  emoji.success
+                  <> " Spec is well-formed - no linting issues found",
+                )
                 halt(exit_pass)
               }
               spec_linter.LintWarnings(warnings) -> {
@@ -518,19 +527,23 @@ fn lint_command() -> glint.Command(Nil) {
             }
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
-            halt(exit_invalid)
+            let error =
+              error_handler.generic_error(
+                "Failed to load spec: " <> loader.format_error(e),
+                "Check the file syntax with: intent validate " <> spec_path,
+                ["Verify the file exists", "Check CUE syntax is valid"],
+              )
+            halt(error_handler.output_error(error, False))
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent lint <spec.cue>")
-        halt(exit_error)
+        let error = error_handler.usage_error("lint", "intent lint <spec.cue>")
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description("Check spec for anti-patterns and quality issues")
+  |> glint.description(cli_text_constants.cmd_lint_desc)
 }
 
 /// The `analyze` command - analyze spec quality
@@ -545,21 +558,24 @@ fn analyze_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
-            halt(exit_invalid)
+            let error =
+              error_handler.generic_error(
+                "Failed to load spec: " <> loader.format_error(e),
+                "Check the file syntax with: intent validate " <> spec_path,
+                ["Verify the file exists", "Check CUE syntax is valid"],
+              )
+            halt(error_handler.output_error(error, False))
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent analyze <spec.cue>")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error("analyze", "intent analyze <spec.cue>")
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description(
-    "Analyze spec quality and provide improvement suggestions",
-  )
+  |> glint.description(cli_text_constants.cmd_analyze_desc)
 }
 
 /// The `improve` command - suggest improvements
@@ -582,21 +598,24 @@ fn improve_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
-            halt(exit_invalid)
+            let error =
+              error_handler.generic_error(
+                "Failed to load spec: " <> loader.format_error(e),
+                "Check the file syntax with: intent validate " <> spec_path,
+                ["Verify the file exists", "Check CUE syntax is valid"],
+              )
+            halt(error_handler.output_error(error, False))
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent improve <spec.cue>")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error("improve", "intent improve <spec.cue>")
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description(
-    "Suggest improvements based on quality analysis and linting",
-  )
+  |> glint.description(cli_text_constants.cmd_improve_desc)
 }
 
 /// The `doctor` command - health report with prioritized improvements
@@ -611,21 +630,24 @@ fn doctor_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
-            halt(exit_invalid)
+            let error =
+              error_handler.generic_error(
+                "Failed to load spec: " <> loader.format_error(e),
+                "Check the file syntax with: intent validate " <> spec_path,
+                ["Verify the file exists", "Check CUE syntax is valid"],
+              )
+            halt(error_handler.output_error(error, False))
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent doctor <spec.cue>")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error("doctor", "intent doctor <spec.cue>")
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description(
-    "Analyze spec health and generate prioritized improvement report",
-  )
+  |> glint.description(cli_text_constants.cmd_doctor_desc)
 }
 
 /// The `interview` command - guided specification discovery
@@ -746,13 +768,16 @@ fn interview_command() -> glint.Command(Nil) {
                   export_to,
                 )
               _ -> {
-                io.println_error(
-                  "Error: unknown profile '" <> profile_str <> "'",
-                )
-                io.println_error(
-                  "Valid profiles: api, cli, event, data, workflow, ui",
-                )
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "Unknown profile '" <> profile_str <> "'",
+                    "Use one of: api, cli, event, data, workflow, ui",
+                    [
+                      "Run 'intent interview --profile api' for API systems",
+                      "Run 'intent interview --profile cli' for CLI applications",
+                    ],
+                  )
+                halt(error_handler.output_error(error, False))
               }
             }
           id -> run_resume_interview(id, export_to)
@@ -1730,8 +1755,16 @@ fn beads_command() -> glint.Command(Nil) {
           )
         {
           Error(err) -> {
-            io.println_error("Error: " <> err)
-            halt(exit_error)
+            let error =
+              error_handler.generic_error(
+                "Failed to load session: " <> err,
+                "Check the session ID is correct",
+                [
+                  "Run 'intent sessions' to list available sessions",
+                  "Verify the session file exists in .interview/sessions.jsonl",
+                ],
+              )
+            halt(error_handler.output_error(error, is_json))
           }
           Ok(session) -> {
             // Generate beads from session
@@ -1783,30 +1816,33 @@ fn beads_command() -> glint.Command(Nil) {
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error(
-                  "✗ Failed to write beads: " <> string.inspect(err),
-                )
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "Failed to write beads: " <> string.inspect(err),
+                    "Check write permissions for .beads/ directory",
+                    [
+                      "Ensure .beads/ directory exists",
+                      "Check file system permissions",
+                    ],
+                  )
+                halt(error_handler.output_error(error, is_json))
               }
             }
           }
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads <session_id> [--json]")
-        io.println_error("")
-        io.println_error("Example: intent beads interview-abc123def456")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error(
+            "beads",
+            "intent beads <session_id> [--json]",
+          )
+        halt(error_handler.output_error(error, is_json))
       }
     }
   })
-  |> glint.description("Generate work items (beads) from an interview session")
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output JSON for machine consumption"),
-  )
+  |> glint.description(cli_text_constants.cmd_beads_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
@@ -1830,10 +1866,12 @@ fn bead_status_command() -> glint.Command(Nil) {
 
     case string.is_empty(bead_id) {
       True -> {
-        io.println_error(
-          "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
-        )
-        halt(exit_error)
+        let error =
+          error_handler.usage_error(
+            "bead-status",
+            "intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+          )
+        halt(error_handler.output_error(error, False))
       }
       False -> {
         case status {
@@ -1848,15 +1886,23 @@ fn bead_status_command() -> glint.Command(Nil) {
               )
             {
               Ok(Nil) -> {
-                io.println("✓ Bead " <> bead_id <> " marked as success")
+                io.println(
+                  emoji.success <> " Bead " <> bead_id <> " marked as success",
+                )
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error(
-                  "✗ Failed to mark bead: "
-                  <> bead_feedback_error_to_string(err),
-                )
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
+                    "Verify the bead ID exists and session is valid",
+                    [
+                      "Check the bead ID is correct",
+                      "Verify the session exists",
+                    ],
+                  )
+                halt(error_handler.output_error(error, False))
               }
             }
           }
@@ -1873,23 +1919,36 @@ fn bead_status_command() -> glint.Command(Nil) {
               )
             {
               Ok(Nil) -> {
-                io.println("✓ Bead " <> bead_id <> " marked as failed")
+                io.println(
+                  emoji.success <> " Bead " <> bead_id <> " marked as failed",
+                )
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error(
-                  "✗ Failed to mark bead: "
-                  <> bead_feedback_error_to_string(err),
-                )
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
+                    "Verify the bead ID exists and session is valid",
+                    [
+                      "Check the bead ID is correct",
+                      "Verify the session exists",
+                    ],
+                  )
+                halt(error_handler.output_error(error, False))
               }
             }
           }
           "blocked" -> {
             case string.is_empty(reason) {
               True -> {
-                io.println_error("Error: --status blocked requires --reason")
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "--status blocked requires --reason flag",
+                    "Provide a reason for blocking",
+                    ["Add --reason 'your reason here' to the command"],
+                  )
+                halt(error_handler.output_error(error, False))
               }
               False -> {
                 case
@@ -1905,31 +1964,47 @@ fn bead_status_command() -> glint.Command(Nil) {
                 {
                   Ok(Nil) -> {
                     io.println(
-                      "✓ Bead " <> bead_id <> " marked as blocked: " <> reason,
+                      emoji.success
+                      <> " Bead "
+                      <> bead_id
+                      <> " marked as blocked: "
+                      <> reason,
                     )
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error(
-                      "✗ Failed to mark bead: "
-                      <> bead_feedback_error_to_string(err),
-                    )
-                    halt(exit_error)
+                    let error =
+                      error_handler.generic_error(
+                        "Failed to mark bead: "
+                          <> bead_feedback_error_to_string(err),
+                        "Verify the bead ID exists and session is valid",
+                        [
+                          "Check the bead ID is correct",
+                          "Verify the session exists",
+                        ],
+                      )
+                    halt(error_handler.output_error(error, False))
                   }
                 }
               }
             }
           }
           _ -> {
-            io.println_error("Error: invalid status '" <> status <> "'")
-            io.println_error("Valid statuses: success, failed, blocked")
-            halt(exit_error)
+            let error =
+              error_handler.generic_error(
+                "Invalid status '" <> status <> "'",
+                "Use one of: success, failed, blocked",
+                [
+                  "Example: intent bead-status --bead-id abc123 --status success",
+                ],
+              )
+            halt(error_handler.output_error(error, False))
           }
         }
       }
     }
   })
-  |> glint.description("Mark bead execution status (success/failed/blocked)")
+  |> glint.description(cli_text_constants.cmd_bead_status_desc)
   |> glint.flag(
     "bead-id",
     flag.string() |> flag.default("") |> flag.description("Bead ID (required)"),
@@ -1963,12 +2038,22 @@ fn plan_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "format")
       |> result.unwrap("human")
 
+    let is_json = format == "json"
+
     case input.args {
       [session_id, ..] -> {
         case plan_mode.compute_plan(session_id) {
           Error(err) -> {
-            io.println_error(plan_mode.format_error(err))
-            halt(exit_error)
+            let error =
+              error_handler.generic_error(
+                "Failed to compute plan: " <> plan_mode.format_error(err),
+                "Verify the session ID is correct",
+                [
+                  "Run 'intent sessions' to list available sessions",
+                  "Ensure the session has beads generated",
+                ],
+              )
+            halt(error_handler.output_error(error, is_json))
           }
           Ok(plan) -> {
             let output = case format {
@@ -1981,22 +2066,16 @@ fn plan_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error(
-          "Usage: intent plan <session_id> [--format human|json]",
-        )
-        io.println_error("")
-        io.println_error("Display execution plan from session beads.")
-        io.println_error("")
-        io.println_error("Examples:")
-        io.println_error(
-          "  intent plan abc123              # Human-readable output",
-        )
-        io.println_error("  intent plan abc123 --format json  # JSON output")
-        halt(exit_error)
+        let error =
+          error_handler.usage_error(
+            "plan",
+            "intent plan <session_id> [--format human|json]",
+          )
+        halt(error_handler.output_error(error, is_json))
       }
     }
   })
-  |> glint.description("Display execution plan from session beads")
+  |> glint.description(cli_text_constants.cmd_plan_desc)
   |> glint.flag(
     "format",
     flag.string()
@@ -2021,8 +2100,16 @@ fn plan_approve_command() -> glint.Command(Nil) {
         // First verify the session exists and has a valid plan
         case plan_mode.compute_plan(session_id) {
           Error(err) -> {
-            io.println_error(plan_mode.format_error(err))
-            halt(exit_error)
+            let error =
+              error_handler.generic_error(
+                "Failed to compute plan: " <> plan_mode.format_error(err),
+                "Verify the session ID is correct",
+                [
+                  "Run 'intent sessions' to list available sessions",
+                  "Ensure the session has beads generated",
+                ],
+              )
+            halt(error_handler.output_error(error, False))
           }
           Ok(plan) -> {
             // Show plan summary
@@ -2045,8 +2132,10 @@ fn plan_approve_command() -> glint.Command(Nil) {
             case list.is_empty(plan.blockers) {
               True -> Nil
               False -> {
-                io.println("⚠ BLOCKERS:")
-                list.each(plan.blockers, fn(b) { io.println("  • " <> b) })
+                io.println(emoji.warning <> " BLOCKERS:")
+                list.each(plan.blockers, fn(b) {
+                  io.println("  " <> emoji.bullet <> " " <> b)
+                })
                 io.println("")
               }
             }
@@ -2056,12 +2145,19 @@ fn plan_approve_command() -> glint.Command(Nil) {
               True -> {
                 case approve_plan(session_id, "ci", notes) {
                   Ok(Nil) -> {
-                    io.println("✓ Plan approved automatically (CI mode)")
+                    io.println(
+                      emoji.success <> " Plan approved automatically (CI mode)",
+                    )
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error("✗ Failed to approve plan: " <> err)
-                    halt(exit_error)
+                    let error =
+                      error_handler.generic_error(
+                        "Failed to approve plan: " <> err,
+                        "Check session file permissions",
+                        ["Verify .intent/ directory is writable"],
+                      )
+                    halt(error_handler.output_error(error, False))
                   }
                 }
               }
@@ -2074,14 +2170,17 @@ fn plan_approve_command() -> glint.Command(Nil) {
                       "yes" | "y" -> {
                         case approve_plan(session_id, "human", notes) {
                           Ok(Nil) -> {
-                            io.println("✓ Plan approved")
+                            io.println(emoji.success <> " Plan approved")
                             halt(exit_pass)
                           }
                           Error(err) -> {
-                            io.println_error(
-                              "✗ Failed to approve plan: " <> err,
-                            )
-                            halt(exit_error)
+                            let error =
+                              error_handler.generic_error(
+                                "Failed to approve plan: " <> err,
+                                "Check session file permissions",
+                                ["Verify .intent/ directory is writable"],
+                              )
+                            halt(error_handler.output_error(error, False))
                           }
                         }
                       }
@@ -2090,16 +2189,24 @@ fn plan_approve_command() -> glint.Command(Nil) {
                         halt(exit_fail)
                       }
                       _ -> {
-                        io.println_error(
-                          "Invalid response. Please enter 'yes' or 'no'",
-                        )
-                        halt(exit_error)
+                        let error =
+                          error_handler.generic_error(
+                            "Invalid response",
+                            "Enter 'yes' or 'no'",
+                            ["Try again with a valid response"],
+                          )
+                        halt(error_handler.output_error(error, False))
                       }
                     }
                   }
                   Error(_) -> {
-                    io.println_error("Failed to read input")
-                    halt(exit_error)
+                    let error =
+                      error_handler.generic_error(
+                        "Failed to read input",
+                        "Check terminal is interactive",
+                        ["Use --yes flag for non-interactive mode"],
+                      )
+                    halt(error_handler.output_error(error, False))
                   }
                 }
               }
@@ -2108,30 +2215,16 @@ fn plan_approve_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error(
-          "Usage: intent plan-approve <session_id> [--yes] [--notes 'text']",
-        )
-        io.println_error("")
-        io.println_error("Approve execution plan for a session.")
-        io.println_error("")
-        io.println_error("Flags:")
-        io.println_error(
-          "  --yes      Auto-approve for CI pipelines (non-interactive)",
-        )
-        io.println_error("  --notes    Optional approval notes")
-        io.println_error("")
-        io.println_error("Examples:")
-        io.println_error(
-          "  intent plan-approve abc123           # Interactive approval",
-        )
-        io.println_error(
-          "  intent plan-approve abc123 --yes     # CI auto-approval",
-        )
-        halt(exit_error)
+        let error =
+          error_handler.usage_error(
+            "plan-approve",
+            "intent plan-approve <session_id> [--yes] [--notes 'text']",
+          )
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description("Approve execution plan for session")
+  |> glint.description(cli_text_constants.cmd_plan_approve_desc)
   |> glint.flag(
     "yes",
     flag.bool()
@@ -2211,19 +2304,29 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         // Check session exists
         case simplifile.verify_is_file(session_path) {
           Error(_) -> {
-            io.println_error("Session not found: " <> session_id)
-            io.println_error("Expected file: " <> session_path)
-            halt(exit_error)
+            let error =
+              error_handler.generic_error(
+                "Session not found: " <> session_id,
+                "Verify the session ID is correct",
+                [
+                  "Expected file: " <> session_path,
+                  "Run 'intent sessions' to list available sessions",
+                ],
+              )
+            halt(error_handler.output_error(error, False))
           }
           Ok(_) -> {
             // Load feedback
             case bead_feedback.load_feedback_for_session(session_id) {
               Error(err) -> {
-                io.println_error(
-                  "Failed to load feedback: "
-                  <> bead_feedback_error_to_string(err),
-                )
-                halt(exit_error)
+                let error =
+                  error_handler.generic_error(
+                    "Failed to load feedback: "
+                      <> bead_feedback_error_to_string(err),
+                    "Check the feedback file exists",
+                    ["Verify the session has been executed"],
+                  )
+                halt(error_handler.output_error(error, False))
               }
               Ok(feedback) -> {
                 // Filter failed/blocked beads
@@ -2260,7 +2363,8 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                 case list.is_empty(needs_regen) {
                   True -> {
                     io.println(
-                      "✓ No beads need regeneration - all passed or skipped",
+                      emoji.success
+                      <> " No beads need regeneration - all passed or skipped",
                     )
                     halt(exit_pass)
                   }
@@ -2269,8 +2373,8 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                     io.println("Beads to regenerate:")
                     list.each(needs_regen, fn(fb) {
                       let status_icon = case fb.result {
-                        bead_feedback.Failed -> "✗"
-                        bead_feedback.Blocked -> "⊘"
+                        bead_feedback.Failed -> emoji.failure
+                        bead_feedback.Blocked -> emoji.circle_empty
                         _ -> "?"
                       }
                       io.println(
@@ -2296,7 +2400,10 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                       )
                     {
                       Ok(Nil) -> {
-                        io.println("✓ Regeneration metadata added to session")
+                        io.println(
+                          emoji.success
+                          <> " Regeneration metadata added to session",
+                        )
                         io.println("  Strategy: " <> strategy)
                         io.println(
                           "  Beads marked for regeneration: "
@@ -2317,10 +2424,13 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error(
-                          "✗ Failed to update session: " <> err,
-                        )
-                        halt(exit_error)
+                        let error =
+                          error_handler.generic_error(
+                            "Failed to update session: " <> err,
+                            "Check file permissions for .intent/ directory",
+                            ["Verify the session file is writable"],
+                          )
+                        halt(error_handler.output_error(error, False))
                       }
                     }
                   }
@@ -2331,29 +2441,16 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error(
-          "Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
-        )
-        io.println_error("")
-        io.println_error(
-          "Regenerate failed/blocked beads with adjusted approach.",
-        )
-        io.println_error("")
-        io.println_error("Strategies:")
-        io.println_error("  hybrid     - Use all analysis methods (default)")
-        io.println_error("  inversion  - Focus on failure mode analysis")
-        io.println_error("  premortem  - Focus on what could go wrong")
-        io.println_error("")
-        io.println_error("Examples:")
-        io.println_error("  intent beads-regenerate abc123")
-        io.println_error(
-          "  intent beads-regenerate abc123 --strategy inversion",
-        )
-        halt(exit_error)
+        let error =
+          error_handler.usage_error(
+            "beads-regenerate",
+            "intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
+          )
+        halt(error_handler.output_error(error, False))
       }
     }
   })
-  |> glint.description("Regenerate failed/blocked beads with adjusted approach")
+  |> glint.description(cli_text_constants.cmd_beads_regenerate_desc)
   |> glint.flag(
     "strategy",
     flag.string()
@@ -2485,7 +2582,7 @@ fn history_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("View snapshot history for an interview session")
+  |> glint.description(cli_text_constants.cmd_history_desc)
 }
 
 /// The `diff` command - compare two sessions
@@ -2566,7 +2663,7 @@ fn diff_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Compare two interview sessions and show differences")
+  |> glint.description(cli_text_constants.cmd_diff_desc)
 }
 
 /// The `sessions` command - list all interview sessions
@@ -2671,13 +2768,8 @@ fn sessions_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("List all interview sessions")
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_sessions_desc)
+  |> glint.flag("json", cli_flags.json_flag())
   |> glint.flag(
     "profile",
     flag.string()
@@ -2765,11 +2857,8 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_quality_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// The `invert` command - KIRK inversion analysis
@@ -2834,13 +2923,8 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "KIRK: Inversion analysis - what failure cases are missing?",
-  )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_invert_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 fn gap_to_json(gap: inversion_checker.InversionGap) -> json.Json {
@@ -2915,11 +2999,8 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_coverage_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// The `gaps` command - KIRK gap detection
@@ -2993,11 +3074,8 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Detect gaps using mental models")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.description(cli_text_constants.cmd_gaps_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
@@ -3054,15 +3132,8 @@ fn kirk_effects_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "KIRK: Analyze second-order effects (consequence tracing)",
-  )
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output JSON for machine consumption"),
-  )
+  |> glint.description(cli_text_constants.cmd_effects_desc)
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 /// The `compact` command - KIRK compact format (CIN)
@@ -3195,7 +3266,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
+  |> glint.description(cli_text_constants.cmd_ears_desc)
   |> glint.flag(
     "output",
     flag.string()
@@ -3459,17 +3530,14 @@ fn parse_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Parse EARS requirements to Intent behaviors")
+  |> glint.description(cli_text_constants.cmd_parse_desc)
   |> glint.flag(
     "o",
     flag.string()
       |> flag.default("")
       |> flag.description("Output spec file path"),
   )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
+  |> glint.flag("json", cli_flags.json_flag())
 }
 
 // =============================================================================
@@ -3498,11 +3566,4 @@ fn current_timestamp() -> String
 
 @external(erlang, "intent_ffi", "get_env")
 fn get_env(name: String) -> Result(String, Nil)
-
 /// Check if localhost is allowed via environment variable
-fn is_localhost_allowed_by_env() -> Bool {
-  case get_env("INTENT_ALLOW_LOCALHOST") {
-    Ok("true") | Ok("1") | Ok("yes") -> True
-    _ -> False
-  }
-}

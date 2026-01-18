@@ -63,8 +63,7 @@ fn generate_api_beads(
       ai_hints: "Use interview response to build OpenAPI spec and implementation",
       acceptance_criteria: [
         "Endpoint responds with correct status code",
-        "Response schema matches spec",
-        "Error handling implemented",
+        "Response schema matches spec", "Error handling implemented",
         "Documentation added",
       ],
       dependencies: [],
@@ -92,10 +91,8 @@ fn generate_cli_beads(
       labels: ["cli", "command", "implementation"],
       ai_hints: "Review interview response for command syntax, options, and behavior",
       acceptance_criteria: [
-        "Command parses arguments correctly",
-        "Output format matches spec",
-        "Help text is clear",
-        "Error messages are helpful",
+        "Command parses arguments correctly", "Output format matches spec",
+        "Help text is clear", "Error messages are helpful",
       ],
       dependencies: [],
     )
@@ -122,10 +119,8 @@ fn generate_event_beads(
       labels: ["event", "messaging", "integration"],
       ai_hints: "Create event schema and producer/consumer implementation",
       acceptance_criteria: [
-        "Event schema defined",
-        "Producer implementation complete",
-        "Consumer can subscribe",
-        "Event routing working",
+        "Event schema defined", "Producer implementation complete",
+        "Consumer can subscribe", "Event routing working",
       ],
       dependencies: [],
     )
@@ -140,9 +135,7 @@ fn generate_data_beads(
   let entity_answers =
     list.filter(session.answers, fn(answer) {
       contains_any_ignore_case(answer.question_text, [
-        "entity",
-        "data model",
-        "schema",
+        "entity", "data model", "schema",
       ])
     })
 
@@ -156,10 +149,8 @@ fn generate_data_beads(
       labels: ["data", "schema", "storage"],
       ai_hints: "Generate database schema and ORM/repository layer",
       acceptance_criteria: [
-        "Schema migrations ready",
-        "Validation rules implemented",
-        "Indexes optimized",
-        "Tests cover all fields",
+        "Schema migrations ready", "Validation rules implemented",
+        "Indexes optimized", "Tests cover all fields",
       ],
       dependencies: [],
     )
@@ -174,9 +165,7 @@ fn generate_workflow_beads(
   let workflow_answers =
     list.filter(session.answers, fn(answer) {
       contains_any_ignore_case(answer.question_text, [
-        "workflow",
-        "process",
-        "step",
+        "workflow", "process", "step",
       ])
     })
 
@@ -190,10 +179,8 @@ fn generate_workflow_beads(
       labels: ["workflow", "orchestration", "automation"],
       ai_hints: "Design state machine and implement step logic",
       acceptance_criteria: [
-        "State transitions working",
-        "Error handling and retries",
-        "Step completion detection",
-        "Monitoring/logging implemented",
+        "State transitions working", "Error handling and retries",
+        "Step completion detection", "Monitoring/logging implemented",
       ],
       dependencies: [],
     )
@@ -208,9 +195,7 @@ fn generate_ui_beads(
   let screen_answers =
     list.filter(session.answers, fn(answer) {
       contains_any_ignore_case(answer.question_text, [
-        "screen",
-        "view",
-        "interface",
+        "screen", "view", "interface",
       ])
     })
 
@@ -224,10 +209,8 @@ fn generate_ui_beads(
       labels: ["ui", "frontend", "component"],
       ai_hints: "Create mockup, component hierarchy, and responsive design",
       acceptance_criteria: [
-        "All required fields present",
-        "Responsive on mobile/tablet/desktop",
-        "Accessibility standards met",
-        "User testing completed",
+        "All required fields present", "Responsive on mobile/tablet/desktop",
+        "Accessibility standards met", "User testing completed",
       ],
       dependencies: [],
     )
