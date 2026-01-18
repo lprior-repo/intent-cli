@@ -429,3 +429,171 @@ When adding a new command:
 
 ## Style
 Result types. Exhaustive matching. Small functions. Pipelines (`|>`). No defaults—all fields explicit in specs.
+
+## 15-Phase TDD Workflow
+
+### Overview
+```jsonl
+{"goal":"Automated single-pass 15-phase TDD workflow for production implementations","type":"sequential_pipeline","phases":15,"execution":"1→2→3→...→15 then STOP","integration":["beads","zjj","gleam-tdd-architect","omarchy","landing-skill"]}
+{"deliverable":"~/.claude/skills/tdd15/SKILL.md","desc":"Main orchestrator skill"}
+{"principle":"no_loop","desc":"Workflow runs once per bead, terminates at phase 15"}
+{"principle":"gate_driven","desc":"Each phase has exit criteria, halt on failure"}
+{"principle":"state_tracked","desc":"TodoWrite + Beads track progress"}
+```
+
+### Invocation
+```bash
+/tdd15 <bead-id>
+```
+
+### Architecture
+```jsonl
+{"execution":"linear","flow":"User: /tdd15 <bead-id> → Init → Phase 1-15 → STOP"}
+{"state_tracking":"TodoWrite","phases":15,"status":["pending","in_progress","completed","failed"]}
+{"bead_lifecycle":"bd show → bd update in_progress → execute phases → bd close"}
+{"zjj_lifecycle":"jjz add <bead> → work in isolation → jjz remove <bead>"}
+```
+
+### 15-Phase Definitions
+```jsonl
+{"phase":1,"name":"RESEARCH","skill":"Task(Explore)","output":"codebase context","gate":"sufficient_context","halt_on_fail":true}
+{"phase":2,"name":"PLAN","skill":"Task(Plan)","output":"implementation design","gate":"plan_verified","halt_on_fail":true}
+{"phase":3,"name":"VERIFY","skill":"AskUserQuestion","gate":"user_approval","halt_on_fail":true}
+{"phase":4,"name":"RED","skill":"gleam-tdd-architect","action":"write failing tests","gate":"tests_fail","halt_on_fail":true}
+{"phase":5,"name":"GREEN","skill":"gleam-tdd-architect","action":"minimal implementation","gate":"tests_pass","halt_on_fail":true}
+{"phase":6,"name":"REFACTOR","skill":"gleam-tdd-architect","action":"clean code","gate":"tests_green","halt_on_fail":true}
+{"phase":7,"name":"MARTIN FOWLER CHECK #1","type":"CRITICAL_GATE","questions":8,"gate":"martin_fowler_1","halt_on_fail":true,"critical":true}
+{"phase":8,"name":"IMPLEMENT","action":"complete feature","standards":"cli_consistency","gate":"implementation_complete","halt_on_fail":true}
+{"phase":9,"name":"VERIFY SUCCESS CRITERIA","check":"all criteria met","gate":"criteria_met","halt_on_fail":true}
+{"phase":10,"name":"INTERROGATE","skill":"omarchy","action":"adversarial FP review","gate":"no_critical_issues","halt_on_fail":true}
+{"phase":11,"name":"QA BATTLE TEST","action":"comprehensive testing","gate":"qa_pass","halt_on_fail":true}
+{"phase":12,"name":"MARTIN FOWLER CHECK #2","type":"FINAL_GATE","questions":13,"gate":"martin_fowler_2","halt_on_fail":true,"critical":true}
+{"phase":13,"name":"CONSISTENCY CHECK","skill":"Task(pr-review-toolkit:code-reviewer)","gate":"standards_met","halt_on_fail":true}
+{"phase":14,"name":"CODE LIABILITY","action":"minimize code","gate":"minimized","halt_on_fail":true}
+{"phase":15,"name":"LANDING","skill":"landing-skill","actions":["git commit","git push","bd close","jjz remove"],"gate":"push_succeeded","halt_on_fail":true,"critical":true}
+```
+
+### Phase Flow Diagram
+```
+/tdd15 <bead-id>
+  ↓
+[INIT: load bead, TodoWrite, bd update, jjz add]
+  ↓
+1-RESEARCH (Explore) → sufficient_context?
+  ↓
+2-PLAN (Plan + robot-insights) → plan_verified?
+  ↓
+3-VERIFY (user approval) → user_approval?
+  ↓
+4-RED (gleam-tdd-architect) → tests_fail?
+  ↓
+5-GREEN (gleam-tdd-architect) → tests_pass?
+  ↓
+6-REFACTOR (gleam-tdd-architect) → tests_green?
+  ↓
+7-MARTIN FOWLER #1 (8 questions, CRITICAL) → martin_fowler_1?
+  ↓
+8-IMPLEMENT (complete feature) → implementation_complete?
+  ↓
+9-VERIFY (success criteria) → criteria_met?
+  ↓
+10-INTERROGATE (omarchy) → no_critical_issues?
+  ↓
+11-QA (battle test) → qa_pass?
+  ↓
+12-MARTIN FOWLER #2 (13 questions, FINAL) → martin_fowler_2?
+  ↓
+13-CONSISTENCY (code-reviewer) → standards_met?
+  ↓
+14-CODE LIABILITY (minimize) → minimized?
+  ↓
+15-LANDING (landing-skill + git push) → push_succeeded? (CRITICAL)
+  ↓
+[COMPLETE: TodoWrite done, STOP]
+```
+
+### Beads Protocol Integration
+```jsonl
+{"cmd":"bd show <bead-id> --json","phase":"init","purpose":"Load EARS, DbC, success_criteria"}
+{"cmd":"bd update <bead-id> --status in_progress","phase":"init","purpose":"Claim the bead"}
+{"cmd":"bv --robot-insights","phase":"2","purpose":"PageRank + Betweenness Centrality insights"}
+{"cmd":"bd create --title <title> --deps discovered-from:<bead-id>","phase":"10","purpose":"Track discovered issues"}
+{"cmd":"bd close <bead-id> --reason <summary>","phase":"15","purpose":"Mark complete with proof"}
+{"dependency":"discovered-from","semantic":"Genealogy tracking for discovered work"}
+```
+
+### ZJJ Workspace Isolation
+```jsonl
+{"cmd":"jjz add <bead-id> --bead <bead-id> --no-open","phase":"init","purpose":"Create isolated workspace at ../<bead-id>"}
+{"cmd":"cd ../<bead-id>","phase":"4-14","purpose":"Work in isolation, no branch switching"}
+{"cmd":"jjz sync <bead-id>","periodic":true,"purpose":"Rebase workspace on main if needed"}
+{"cmd":"jjz remove <bead-id>","phase":"15","purpose":"Cleanup workspace after push"}
+{"benefit":"no_branch_switching","desc":"All workspaces coexist on main"}
+{"benefit":"no_conflicts","desc":"Isolated file changes, no merge conflicts"}
+{"benefit":"parallel_agents","desc":"Multiple TDD workflows can run in parallel"}
+```
+
+### Martin Fowler Gate Checklists
+
+#### Phase 7: MARTIN FOWLER CHECK #1 (8 Questions - CRITICAL)
+```
+1. Is this the simplest solution that works?
+2. Has code been refactored for readability?
+3. Do tests fully specify the behavior?
+4. Is the code readable without extensive comments?
+5. Does a live demo work end-to-end?
+6. Have all success criteria been verified?
+7. Is the UX smooth and intuitive?
+8. Are edge cases handled gracefully?
+→ HALT on any NO
+```
+
+#### Phase 12: MARTIN FOWLER CHECK #2 (13 Questions - FINAL)
+```
+1-8. [All from Phase 7 checks]
+9. Does this integrate cleanly with existing codebase?
+10. Is the code debuggable if issues arise?
+11. Is performance acceptable for production?
+12. Will this be maintainable 6 months from now?
+13. Is each line of code necessary?
+→ HALT on any NO; allow rewind to Phase 6/8/11
+```
+
+### Skills Used
+```jsonl
+{"skill":"Task","subagent":"Explore","phases":"1","purpose":"Codebase research and pattern discovery"}
+{"skill":"Task","subagent":"Plan","phases":"2","purpose":"Implementation design and architecture"}
+{"skill":"gleam-tdd-architect","phases":"4,5,6","purpose":"RED-GREEN-REFACTOR cycle"}
+{"skill":"omarchy","phases":"10","purpose":"Adversarial FP review"}
+{"skill":"Task","subagent":"pr-review-toolkit:code-reviewer","phases":"13","purpose":"Consistency standards validation"}
+{"skill":"landing-skill","phases":"15","purpose":"Quality gates + git push + cleanup"}
+```
+
+### Success Criteria
+```jsonl
+{"criteria":"skill_created","check":"~/.claude/skills/tdd15/SKILL.md exists"}
+{"criteria":"15_phases","check":"all phases execute sequentially"}
+{"criteria":"stops_at_15","check":"workflow terminates, no loop"}
+{"criteria":"todowrite_tracking","check":"15 phases tracked"}
+{"criteria":"gates_work","check":"failures halt execution"}
+{"criteria":"martin_fowler_gates","check":"phases 7 and 12 marked CRITICAL"}
+{"criteria":"beads_integration","check":"bd show/update/close work"}
+{"criteria":"zjj_integration","check":"workspace created/destroyed"}
+{"criteria":"landing_succeeds","check":"git push + bd close + jjz remove"}
+```
+
+### CLI Consistency Standards for /tdd15
+
+All code generated by /tdd15 must follow Intent CLI standards:
+- **Emoji Constants**: Use `emoji_constants.gleam`, never hardcode ✓✗⚠️ etc
+- **CLI Flags**: All flags use `cli_flags` builders
+- **Error Handling**: Use `error_handler.gleam` module
+- **Output Formatting**: Use `formatter_utils.gleam` for consistency
+- **Gleam 7 Commandments**:
+  - Immutability: No mutable state
+  - No nulls: Use Result/Option types
+  - Pipelines: Use `|>` operator idiomatically
+  - Exhaustive matching: All pattern cases handled
+  - Labeled arguments: Use labeled function arguments
+  - Type safety: Leverage Gleam's type system
+  - Formatting: `gleam format` passes
