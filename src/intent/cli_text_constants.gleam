@@ -710,116 +710,77 @@ SEE ALSO
 /// Extended help text for the `plan` command
 pub const plan_extended_help = "Display execution plan with waves and dependencies
 
-WHAT IT DOES:
+WHAT IT DOES
   Computes a topological execution plan from a session's beads, organizing
   them into parallel waves by dependency depth and calculating total effort,
   risk level, and blockers.
 
-WHY YOU'D USE IT:
-  To understand the scope, complexity, and sequencing of work before starting
+WHY YOU'D USE IT
+  Understand the scope, complexity, and sequencing of work before starting
   execution. Identifies dependencies, parallel opportunities, and risk factors.
 
-WHEN TO USE IT:
+WHEN TO USE IT
   After running 'intent interview' and 'intent beads' to see the planned work.
   Use before 'intent plan-approve' to review and validate the plan. Reference
   during execution to track progress and adjust strategies.
 
-PLANNING WORKFLOW:
-  1. Run interview & generate beads:
-     $ intent interview myprofile --export myspec.cue
-     $ intent beads myspec.cue > session.id
+PREREQUISITES
+  - Valid session ID from: intent interview + intent beads
+  - Beads already generated and stored in session
 
-  2. View the plan to understand scope:
-     $ intent plan <session_id>
+USAGE EXAMPLES
 
-  3. If satisfied, approve for execution:
-     $ intent plan-approve <session_id>
-
-  4. Execute beads according to wave order, then gather feedback:
-     $ bd ready --json | xargs -I {} bash -c '...'
-     $ intent beads-regenerate <session_id> --strategy hybrid
-
-PLAN OUTPUTS:
-  - Wave structure: Lists which beads can run in parallel (same depth)
-  - Effort breakdown: Total time, complexity estimates per feature
-  - Risk assessment: Critical path, blocker analysis, dependency depth
-  - Dependencies: Shows requires[] relationships between beads
-  - Example output (human format):
-    Phase 1 (5 beads, 2.5 hours)
-      Wave 1: auth-setup, db-init [parallel]
-      Wave 2: seed-users [depends on Wave 1]
-
-FORMAT OPTIONS:
-  --format human  (default) Pretty-printed with wave structure and risk info
-  --format json   Structured data for CI automation and tool integration
-
-EXAMPLES:
   View plan for a session:
     intent plan abc-123
 
   Export plan as JSON for CI/CD automation:
-    intent plan abc-123 --format json > plan.json
+    intent plan abc-123 --json
 
-  Integrate with GitHub Actions (check if plan is valid):
-    intent plan ${{ env.SESSION_ID }} --format json | jq '.risk == \"low\"'
-"
+  Check plan quality before approval:
+    intent plan abc-123 --json | jq '.risk_level'
+
+  Integrate with GitHub Actions:
+    intent plan ${{ env.SESSION_ID }} --json | jq '.risk_level'
+
+FLAG DETAILS
+  --json
+    Output execution plan as structured JSON
+    Includes: waves[], dependencies[], effort, risk_level
+
+EXIT CODES
+  0 = Plan generated successfully
+  1 = Session not found
+  3 = Invalid session data
+  4 = System error
+
+SEE ALSO
+  intent interview    - Create session
+  intent beads        - Generate work items
+  intent plan-approve - Approve plan for execution"
 
 /// Extended help text for the `plan-approve` command
 pub const plan_approve_extended_help = "Approve execution plan for session (CI/automation ready)
 
-WHAT IT DOES:
-  Reviews the session's execution plan and records approval (human or automated).
-  Validates plan quality, presents risk summary, and stores approval timestamp
-  and metadata in the session file.
+WHAT IT DOES
+  Reviews session execution plan and records approval (human or automated).
+  Validates plan quality, presents risk summary, stores approval timestamp
+  and metadata in session file.
 
-WHY YOU'D USE IT:
+WHY YOU'D USE IT
   Explicit approval gates prevent accidental execution of large/risky plans.
-  Creates audit trail for compliance, tracks who approved what and when.
-  Enables CI/CD automation with --yes flag for fully automated pipelines.
+  Creates audit trail for compliance tracking. Enable CI/CD automation with
+  --yes flag for fully automated pipelines.
 
-WHEN TO USE IT:
+WHEN TO USE IT
   After reviewing plan output with 'intent plan'. Before executing beads with
   'bd ready'. In CI/CD pipelines to gate automated work execution.
 
-APPROVAL WORKFLOW:
-  1. Manual approval (human gatekeeper):
-     $ intent plan <session_id>        # Review scope & risk
-     $ intent plan-approve <session_id> # Interactive prompt
-     # Enters approval when satisfied
+PREREQUISITES
+  - Session with valid plan (from: intent plan)
+  - Review plan risk/scope before approval
 
-  2. Automated approval (CI/CD):
-     $ intent plan-approve <session_id> --yes # Non-interactive
-     # Perfect for GitHub Actions, GitLab CI, etc.
+USAGE EXAMPLES
 
-  3. Approval with audit trail:
-     $ intent plan-approve <session_id> --yes \\
-       --notes \"Approved by security review, passed OWASP checks\"
-     # Documents who/why approved for compliance
-
-APPROVAL GATES:
-  - Risk level check: Warns if High or Critical
-  - Blocker detection: Halts if blockers present (requires manual override)
-  - Dependency validation: Ensures all requires[] are satisfied
-  - Approval metadata: Captures timestamp, approver, notes
-
-INTERACTIVE MODE (default):
-  Displays plan summary with risk/blockers, prompts \"Approve this plan? (yes/no)\"
-  Good for human review, prevents accidental approvals.
-
-CI/CD MODE (--yes flag):
-  Skips prompt, approves automatically. For non-interactive pipelines.
-  Pair with --notes to document approval reason.
-
-OUTPUT:
-  Text: Success/error message with approval status
-  Exit codes:
-    0 = Plan approved successfully
-    1 = Plan rejected (user selected 'no')
-    2 = Plan blocked (has critical blockers)
-    3 = Invalid plan (failed validation)
-    4 = System error (file I/O, etc.)
-
-EXAMPLES:
   Interactive approval (human gatekeeper):
     intent plan-approve session-abc-123
 
@@ -827,99 +788,65 @@ EXAMPLES:
     intent plan-approve session-abc-123 --yes
 
   Approval with audit documentation:
-    intent plan-approve session-abc-123 --yes \\
-      --notes \"Approved by release manager, ready for staging\"
-
-  GitLab CI example:
-    approve_plan:
-      script:
-        - intent plan-approve $SESSION_ID --yes
-        - intent beads $SESSION_ID > beads.json
-      only:
-        - main
+    intent plan-approve session-abc-123 --yes --notes \"Approved by release manager\"
 
   GitHub Actions example:
     - name: Approve execution plan
       run: |
         intent plan-approve ${{ env.SESSION_ID }} --yes \\
           --notes \"Auto-approved by CI/${{ github.actor }}\"
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-"
+
+  GitLab CI example:
+    approve_plan:
+      script:
+        - intent plan-approve $SESSION_ID --yes
+        - intent beads $SESSION_ID > beads.json
+
+FLAG DETAILS
+  --yes
+    Approve automatically without interactive prompt
+    For CI/CD automation and non-interactive pipelines
+
+  --notes TEXT
+    Document approval reason for audit trail
+    Example: --notes \"Passed security review\"
+
+EXIT CODES
+  0 = Plan approved successfully
+  1 = Plan rejected (user selected no)
+  2 = Plan blocked (has critical blockers)
+  3 = Invalid plan (failed validation)
+  4 = System error (file I/O, etc.)
+
+SEE ALSO
+  intent plan             - View execution plan
+  intent beads            - View work items
+  intent beads-regenerate - Regenerate failed beads"
 
 /// Extended help text for the `beads-regenerate` command
 pub const beads_regenerate_extended_help = "Regenerate failed/blocked beads with adjusted approach
 
-WHAT IT DOES:
-  Analyzes execution feedback from completed beads, identifies failed/blocked
-  work, and generates new beads with alternative strategies (inversion, effects,
-  pre-mortem analysis). Replaces broken beads with improved alternatives.
+WHAT IT DOES
+  Analyzes execution feedback, identifies failed/blocked work, and generates
+  new beads with alternative strategies (inversion, effects, pre-mortem).
+  Replaces broken beads with improved alternatives using mental model shifts.
 
-WHY YOU'D USE IT:
+WHY YOU'D USE IT
   When beads fail during execution, regeneration provides alternative approaches
   rather than repeating the same failed strategy. Uses mental model shifts
-  (inversion, effects, pre-mortem) to find new solutions.
+  to find new solutions.
 
-WHEN TO USE IT:
-  After executing a session's beads and gathering feedback. When some beads
-  Failed (crashed, timeout) or Blocked (dependency issues). Before rerun to
-  avoid repeating failed patterns.
+WHEN TO USE IT
+  After executing beads and gathering feedback. When some beads failed (crashed,
+  timeout) or blocked (dependency issues). Before rerun to avoid repeating
+  failed patterns.
 
-REGENERATION WORKFLOW:
-  1. Execute initial beads and capture feedback:
-     $ bd ready --json | xargs -I {} intent bead-status {} --status failed
-     $ intent beads <session_id> > beads.json
+PREREQUISITES
+  - Completed execution with failed/blocked beads
+  - Feedback data captured (from: bd ready, intent bead-status)
 
-  2. View which beads failed:
-     $ cat beads.json | jq '.[] | select(.result == \"failed\")'
+USAGE EXAMPLES
 
-  3. Regenerate with alternative strategies:
-     $ intent beads-regenerate <session_id> --strategy hybrid
-
-  4. Review generated alternatives and plan next wave:
-     $ intent plan <session_id>
-
-  5. Execute regenerated beads:
-     $ bd ready --json | xargs -I {} bash -c '...'
-
-REGENERATION STRATEGIES:
-  --strategy hybrid (default)
-    Combines multiple mental models for best coverage. Uses inversion first,
-    then effects, then pre-mortem to find different approaches. Recommended.
-
-  --strategy inversion
-    Inverts the failed behavior: \"if X failed, try NOT-X\". Identifies root
-    cause assumptions and challenges them. Good for logic/sequence failures.
-
-  --strategy effects
-    Analyzes second-order effects and requires[] relationships. Regenerates
-    beads that were blocked on dependencies. Good for integration failures.
-
-  --strategy premortem
-    Imagines the failure post-mortem and works backward. Identifies weaknesses
-    in error handling and edge case coverage. Good for robustness.
-
-BEAD REGENERATION OUTPUTS:
-  - Updated session file with regen_metadata[]
-  - New beads with alternative approaches
-  - Strategy explanation for each regenerated bead
-  - Example feedback -> regeneration:
-    Failed: auth-service-deploy [timeout]
-    → Regenerated with: inversion (add retry logic), effects (check dependencies)
-    → New beads: auth-check-deps, auth-deploy-with-fallback
-
-FAILURE HANDLING:
-  Failed beads: Execution halted (crash, timeout, assertion). Try alternative
-               approach or deeper investigation.
-  Blocked beads: Dependency unsatisfied. Check requires[], regenerate parent
-               beads, or change execution order.
-  Skipped beads: Intentionally skipped. No regeneration needed.
-
-INTEGRATION WITH FEEDBACK:
-  $ intent feedback <session_id> --results feedback.json
-  $ intent beads-regenerate <session_id> --strategy hybrid
-  Feedback loop creates beads from both check failures AND regeneration.
-
-EXAMPLES:
   Regenerate with default hybrid strategy (recommended):
     intent beads-regenerate session-abc-123
 
@@ -933,22 +860,31 @@ EXAMPLES:
     intent beads-regenerate session-abc-123 --strategy premortem
 
   Full CI/CD workflow with regeneration:
-    $ SESSION_ID=$(intent interview myprofile --export myspec.cue)
-    $ intent plan $SESSION_ID
-    $ intent plan-approve $SESSION_ID --yes
-    $ bd ready --json | xargs ./execute-bead.sh
-    $ intent feedback $SESSION_ID --results results.json
     $ intent beads-regenerate $SESSION_ID --strategy hybrid
-    $ intent plan $SESSION_ID  # See updated plan with regen beads
+    $ intent plan $SESSION_ID
 
-  Conditional regeneration in GitHub Actions:
-    - name: Regenerate failed beads
-      if: failure()  # Only on failure
-      run: |
-        intent beads-regenerate ${{ env.SESSION_ID }} \\
-          --strategy hybrid
-        intent plan ${{ env.SESSION_ID }} --format json > plan-v2.json
-      continue-on-error: true  # Don't block if no failures to regen"
+FLAG DETAILS
+  --strategy STRATEGY
+    Regeneration strategy: hybrid (default), inversion, effects, premortem
+    - hybrid: Combines all models (recommended)
+    - inversion: Flips failed behavior to find root causes
+    - effects: Analyzes second-order dependencies
+    - premortem: Post-mortem analysis for robustness
+
+  --session SESSION_ID (or positional)
+    Session ID with failed/blocked beads
+
+EXIT CODES
+  0 = Regeneration complete
+  1 = No failed beads found
+  3 = Invalid session
+  4 = System error
+
+SEE ALSO
+  intent plan      - View execution plan
+  intent beads     - View work items
+  intent invert    - Inversion analysis
+  intent effects   - Second-order effects"
 
 // =============================================================================
 // EXTENDED HELP TEXT FOR QUALITY ANALYSIS COMMANDS
@@ -1596,7 +1532,7 @@ USAGE EXAMPLES
 
 FLAG DETAILS
   --json
-    Output structure JSON with identified failure cases
+    Output structured JSON with identified failure cases
     Each includes: pattern, description, severity, suggested_behavior
 
 EXIT CODES
