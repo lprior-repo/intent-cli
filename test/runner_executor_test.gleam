@@ -6,6 +6,7 @@
 //// - intent-cli-clm.3: Fix BehaviorError not counted in failed results
 
 import gleam/dict
+import gleam/dynamic
 import gleam/json
 import gleeunit/should
 import intent/http_client.{ExecutionResult, RequestError}
@@ -396,3 +397,192 @@ pub fn executor_receives_target_url_override_test() {
   result.pass
   |> should.be_true
 }
+
+// ============================================================================
+// UiCallbacks Tests (intent-cli-cqdu: Extract UI from runner)
+// ============================================================================
+
+pub fn ui_callbacks_type_exists_test() {
+  // Test that UiCallbacks type is correctly defined
+  let callbacks = runner.noop_callbacks()
+
+  // Verify noop callbacks can be invoked without error
+  callbacks.on_start(5)
+  callbacks.on_behavior("test-behavior")
+  callbacks.on_complete()
+
+  // If we got here without crash, the type exists and works
+  True
+  |> should.be_true
+}
+
+pub fn ui_callbacks_on_start_receives_count_test() {
+  // Test that on_start callback receives the behavior count
+  // Use a mutable reference via process dictionary to track invocation
+  let received_count = erlang_ref_new()
+
+  let callbacks =
+    runner.UiCallbacks(
+      on_start: fn(count) { erlang_ref_set(received_count, count) },
+      on_behavior: fn(_) { Nil },
+      on_complete: fn() { Nil },
+    )
+
+  let b1 = make_test_behavior("test-1", [])
+  let b2 = make_test_behavior("test-2", [])
+  let b3 = make_test_behavior("test-3", [])
+  let spec = make_test_spec([make_test_feature("API", [b1, b2, b3])])
+  let executor = mock_success_executor()
+
+  let _result =
+    runner.run_spec_with_executor_and_ui(
+      spec,
+      "",
+      runner.default_options(),
+      executor,
+      output_mode.Json,
+      callbacks,
+    )
+
+  erlang_ref_get(received_count)
+  |> should.equal(3)
+}
+
+pub fn ui_callbacks_on_behavior_called_per_behavior_test() {
+  // Test that on_behavior is called once per behavior with the behavior name
+  let behavior_names = erlang_ref_new_list()
+
+  let callbacks =
+    runner.UiCallbacks(
+      on_start: fn(_) { Nil },
+      on_behavior: fn(name) { erlang_ref_append(behavior_names, name) },
+      on_complete: fn() { Nil },
+    )
+
+  let b1 = make_test_behavior("alpha", [])
+  let b2 = make_test_behavior("beta", ["alpha"])
+  let spec = make_test_spec([make_test_feature("API", [b1, b2])])
+  let executor = mock_success_executor()
+
+  let _result =
+    runner.run_spec_with_executor_and_ui(
+      spec,
+      "",
+      runner.default_options(),
+      executor,
+      output_mode.Json,
+      callbacks,
+    )
+
+  erlang_ref_get_list(behavior_names)
+  |> should.equal(["alpha", "beta"])
+}
+
+pub fn ui_callbacks_on_complete_called_at_end_test() {
+  // Test that on_complete is called exactly once at the end
+  let completed = erlang_ref_new()
+  erlang_ref_set(completed, 0)
+
+  let callbacks =
+    runner.UiCallbacks(
+      on_start: fn(_) { Nil },
+      on_behavior: fn(_) { Nil },
+      on_complete: fn() { erlang_ref_set(completed, 1) },
+    )
+
+  let b = make_test_behavior("test", [])
+  let spec = make_test_spec([make_test_feature("API", [b])])
+  let executor = mock_success_executor()
+
+  let _result =
+    runner.run_spec_with_executor_and_ui(
+      spec,
+      "",
+      runner.default_options(),
+      executor,
+      output_mode.Json,
+      callbacks,
+    )
+
+  erlang_ref_get(completed)
+  |> should.equal(1)
+}
+
+pub fn noop_callbacks_safe_to_call_test() {
+  // Test that noop_callbacks() returns safe no-op functions
+  let callbacks = runner.noop_callbacks()
+
+  // All these should complete without error
+  callbacks.on_start(0)
+  callbacks.on_start(100)
+  callbacks.on_behavior("")
+  callbacks.on_behavior("some-behavior-name")
+  callbacks.on_complete()
+  callbacks.on_complete()
+
+  True
+  |> should.be_true
+}
+
+pub fn run_spec_with_executor_and_ui_matches_original_test() {
+  // Test that run_spec_with_executor_and_ui produces same results as run_spec_with_executor
+  let b1 = make_test_behavior("create", [])
+  let b2 = make_test_behavior("read", ["create"])
+  let spec = make_test_spec([make_test_feature("CRUD", [b1, b2])])
+  let executor = mock_success_executor()
+  let options = runner.default_options()
+
+  let result_original =
+    runner.run_spec_with_executor(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Interactive,
+    )
+
+  let result_with_ui =
+    runner.run_spec_with_executor_and_ui(
+      spec,
+      "",
+      options,
+      executor,
+      output_mode.Json,
+      runner.noop_callbacks(),
+    )
+
+  // Results should be identical
+  result_with_ui.pass
+  |> should.equal(result_original.pass)
+
+  result_with_ui.passed
+  |> should.equal(result_original.passed)
+
+  result_with_ui.failed
+  |> should.equal(result_original.failed)
+
+  result_with_ui.total
+  |> should.equal(result_original.total)
+}
+
+// ============================================================================
+// Erlang FFI helpers for mutable state in tests
+// ============================================================================
+
+@external(erlang, "erlang", "make_ref")
+fn erlang_ref_new() -> dynamic.Dynamic
+
+@external(erlang, "intent_test_ffi", "ref_set")
+fn erlang_ref_set(ref: dynamic.Dynamic, value: a) -> Nil
+
+@external(erlang, "intent_test_ffi", "ref_get")
+fn erlang_ref_get(ref: dynamic.Dynamic) -> a
+
+@external(erlang, "intent_test_ffi", "ref_new_list")
+fn erlang_ref_new_list() -> dynamic.Dynamic
+
+@external(erlang, "intent_test_ffi", "ref_append")
+fn erlang_ref_append(ref: dynamic.Dynamic, value: a) -> Nil
+
+@external(erlang, "intent_test_ffi", "ref_get_list")
+fn erlang_ref_get_list(ref: dynamic.Dynamic) -> List(a)
