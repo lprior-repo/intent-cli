@@ -481,7 +481,8 @@ fn format_phase_human(phase: ExecutionPhase) -> String {
     |> list.map(fn(id) { "│  • " <> id })
     |> string.join("\n")
 
-  let footer = "└────────────────────────────────────────\n"
+  let footer =
+    "└────────────────────────────────────────\n"
 
   header <> beads_list <> "\n" <> footer
 }

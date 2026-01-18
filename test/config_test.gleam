@@ -36,13 +36,7 @@ pub fn from_flags_test() {
 pub fn merge_with_flags_override_test() {
   let base = config.default()
   let overrides =
-    config.from_flags(
-      "http://example.com",
-      True,
-      "event",
-      "out.json",
-      45_000,
-    )
+    config.from_flags("http://example.com", True, "event", "out.json", 45_000)
 
   let merged = config.merge_with_flags(base, overrides)
 
@@ -55,22 +49,10 @@ pub fn merge_with_flags_override_test() {
 
 pub fn merge_with_flags_partial_override_test() {
   let base =
-    config.from_flags(
-      "http://base.com",
-      False,
-      "api",
-      "base.json",
-      30_000,
-    )
+    config.from_flags("http://base.com", False, "api", "base.json", 30_000)
 
   let overrides =
-    config.from_flags(
-      "http://override.com",
-      False,
-      "api",
-      "",
-      30_000,
-    )
+    config.from_flags("http://override.com", False, "api", "", 30_000)
 
   let merged = config.merge_with_flags(base, overrides)
 
@@ -81,27 +63,14 @@ pub fn merge_with_flags_partial_override_test() {
 pub fn has_target_test() {
   let without_target = config.default()
   let with_target =
-    config.from_flags(
-      "http://localhost:8080",
-      False,
-      "api",
-      "",
-      30_000,
-    )
+    config.from_flags("http://localhost:8080", False, "api", "", 30_000)
 
   config.has_target(without_target) |> should.equal(False)
   config.has_target(with_target) |> should.equal(True)
 }
 
 pub fn validate_target_required_success_test() {
-  let cfg =
-    config.from_flags(
-      "http://localhost:8080",
-      False,
-      "api",
-      "",
-      30_000,
-    )
+  let cfg = config.from_flags("http://localhost:8080", False, "api", "", 30_000)
 
   config.validate_target_required(cfg) |> should.be_ok()
 }
@@ -114,13 +83,7 @@ pub fn validate_target_required_failure_test() {
 
 pub fn is_localhost_allowed_test() {
   let allowed =
-    config.from_flags(
-      "http://localhost:8080",
-      True,
-      "api",
-      "",
-      30_000,
-    )
+    config.from_flags("http://localhost:8080", True, "api", "", 30_000)
 
   let not_allowed = config.default()
 

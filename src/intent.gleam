@@ -164,8 +164,10 @@ fn check_command() -> glint.Command(Nil) {
         flag.get_string(input.flags, "target") |> result.unwrap(""),
         flag.get_bool(input.flags, "allow-localhost") |> result.unwrap(False),
         flag.get_string(input.flags, "profile") |> result.unwrap("api"),
-        "",  // output_file not used in check
-        30_000,  // timeout_ms default
+        "",
+        // output_file not used in check
+        30_000,
+        // timeout_ms default
       )
 
     // Merge environment and flag configuration
@@ -345,10 +347,7 @@ fn validate_command() -> glint.Command(Nil) {
       }
       [] -> {
         let error =
-          error_handler.usage_error(
-            "validate",
-            "intent validate <spec.cue>",
-          )
+          error_handler.usage_error("validate", "intent validate <spec.cue>")
         halt(error_handler.output_error(error, False))
       }
     }
@@ -403,10 +402,7 @@ fn show_command() -> glint.Command(Nil) {
       }
       [] -> {
         let error =
-          error_handler.usage_error(
-            "show",
-            "intent show <spec.cue> [--json]",
-          )
+          error_handler.usage_error("show", "intent show <spec.cue> [--json]")
         halt(error_handler.output_error(error, is_json))
       }
     }
@@ -518,7 +514,10 @@ fn lint_command() -> glint.Command(Nil) {
             let lint_result = spec_linter.lint_spec(spec)
             case lint_result {
               spec_linter.LintValid -> {
-                io.println(emoji.success <> " Spec is well-formed - no linting issues found")
+                io.println(
+                  emoji.success
+                  <> " Spec is well-formed - no linting issues found",
+                )
                 halt(exit_pass)
               }
               spec_linter.LintWarnings(warnings) -> {
@@ -539,8 +538,7 @@ fn lint_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        let error =
-          error_handler.usage_error("lint", "intent lint <spec.cue>")
+        let error = error_handler.usage_error("lint", "intent lint <spec.cue>")
         halt(error_handler.output_error(error, False))
       }
     }
@@ -1888,15 +1886,21 @@ fn bead_status_command() -> glint.Command(Nil) {
               )
             {
               Ok(Nil) -> {
-                io.println(emoji.success <> " Bead " <> bead_id <> " marked as success")
+                io.println(
+                  emoji.success <> " Bead " <> bead_id <> " marked as success",
+                )
                 halt(exit_pass)
               }
               Error(err) -> {
                 let error =
                   error_handler.generic_error(
-                    "Failed to mark bead: " <> bead_feedback_error_to_string(err),
+                    "Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
                     "Verify the bead ID exists and session is valid",
-                    ["Check the bead ID is correct", "Verify the session exists"],
+                    [
+                      "Check the bead ID is correct",
+                      "Verify the session exists",
+                    ],
                   )
                 halt(error_handler.output_error(error, False))
               }
@@ -1915,15 +1919,21 @@ fn bead_status_command() -> glint.Command(Nil) {
               )
             {
               Ok(Nil) -> {
-                io.println(emoji.success <> " Bead " <> bead_id <> " marked as failed")
+                io.println(
+                  emoji.success <> " Bead " <> bead_id <> " marked as failed",
+                )
                 halt(exit_pass)
               }
               Error(err) -> {
                 let error =
                   error_handler.generic_error(
-                    "Failed to mark bead: " <> bead_feedback_error_to_string(err),
+                    "Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
                     "Verify the bead ID exists and session is valid",
-                    ["Check the bead ID is correct", "Verify the session exists"],
+                    [
+                      "Check the bead ID is correct",
+                      "Verify the session exists",
+                    ],
                   )
                 halt(error_handler.output_error(error, False))
               }
@@ -1954,16 +1964,24 @@ fn bead_status_command() -> glint.Command(Nil) {
                 {
                   Ok(Nil) -> {
                     io.println(
-                      emoji.success <> " Bead " <> bead_id <> " marked as blocked: " <> reason,
+                      emoji.success
+                      <> " Bead "
+                      <> bead_id
+                      <> " marked as blocked: "
+                      <> reason,
                     )
                     halt(exit_pass)
                   }
                   Error(err) -> {
                     let error =
                       error_handler.generic_error(
-                        "Failed to mark bead: " <> bead_feedback_error_to_string(err),
+                        "Failed to mark bead: "
+                          <> bead_feedback_error_to_string(err),
                         "Verify the bead ID exists and session is valid",
-                        ["Check the bead ID is correct", "Verify the session exists"],
+                        [
+                          "Check the bead ID is correct",
+                          "Verify the session exists",
+                        ],
                       )
                     halt(error_handler.output_error(error, False))
                   }
@@ -1976,7 +1994,9 @@ fn bead_status_command() -> glint.Command(Nil) {
               error_handler.generic_error(
                 "Invalid status '" <> status <> "'",
                 "Use one of: success, failed, blocked",
-                ["Example: intent bead-status --bead-id abc123 --status success"],
+                [
+                  "Example: intent bead-status --bead-id abc123 --status success",
+                ],
               )
             halt(error_handler.output_error(error, False))
           }
@@ -2113,7 +2133,9 @@ fn plan_approve_command() -> glint.Command(Nil) {
               True -> Nil
               False -> {
                 io.println(emoji.warning <> " BLOCKERS:")
-                list.each(plan.blockers, fn(b) { io.println("  " <> emoji.bullet <> " " <> b) })
+                list.each(plan.blockers, fn(b) {
+                  io.println("  " <> emoji.bullet <> " " <> b)
+                })
                 io.println("")
               }
             }
@@ -2123,7 +2145,9 @@ fn plan_approve_command() -> glint.Command(Nil) {
               True -> {
                 case approve_plan(session_id, "ci", notes) {
                   Ok(Nil) -> {
-                    io.println(emoji.success <> " Plan approved automatically (CI mode)")
+                    io.println(
+                      emoji.success <> " Plan approved automatically (CI mode)",
+                    )
                     halt(exit_pass)
                   }
                   Error(err) -> {
@@ -2297,7 +2321,8 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
               Error(err) -> {
                 let error =
                   error_handler.generic_error(
-                    "Failed to load feedback: " <> bead_feedback_error_to_string(err),
+                    "Failed to load feedback: "
+                      <> bead_feedback_error_to_string(err),
                     "Check the feedback file exists",
                     ["Verify the session has been executed"],
                   )
@@ -2338,7 +2363,8 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                 case list.is_empty(needs_regen) {
                   True -> {
                     io.println(
-                      emoji.success <> " No beads need regeneration - all passed or skipped",
+                      emoji.success
+                      <> " No beads need regeneration - all passed or skipped",
                     )
                     halt(exit_pass)
                   }
@@ -2374,7 +2400,10 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                       )
                     {
                       Ok(Nil) -> {
-                        io.println(emoji.success <> " Regeneration metadata added to session")
+                        io.println(
+                          emoji.success
+                          <> " Regeneration metadata added to session",
+                        )
                         io.println("  Strategy: " <> strategy)
                         io.println(
                           "  Beads marked for regeneration: "
@@ -3537,5 +3566,4 @@ fn current_timestamp() -> String
 
 @external(erlang, "intent_ffi", "get_env")
 fn get_env(name: String) -> Result(String, Nil)
-
 /// Check if localhost is allowed via environment variable

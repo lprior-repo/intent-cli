@@ -181,5 +181,251 @@ Intent owns Plan phase. All work decomposition flows from CUE specs.
 {"mod":"spec_builder","purpose":"interview→CUE"}
 ```
 
+### CLI Consistency Standards (NEW)
+```jsonl
+{"mod":"emoji_constants","purpose":"40+ centralized emoji/Unicode constants"}
+{"mod":"cli_text_constants","purpose":"help text for 24 commands + 30+ flags"}
+{"mod":"formatter_utils","purpose":"reusable box headers, progress bars, indentation"}
+{"mod":"cli_flags","purpose":"20+ flag builders + validation helpers"}
+{"mod":"config","purpose":"global config with env vars (INTENT_*)"}
+{"mod":"error_handler","purpose":"centralized error formatting + exit codes"}
+```
+
+## CLI Consistency Standards
+
+### Emoji Constants (`emoji_constants.gleam`)
+Centralized Unicode/emoji definitions to eliminate duplication across 20+ modules.
+
+**Constants (40+)**:
+- Status icons: `success = "✓"`, `failure = "✗"`, `warning = "⚠"`, `info = "ℹ"`
+- Severity: `critical = "🚨"`, `error = "❌"`, `warning = "⚠️"`, `info = "ℹ️"`
+- UI elements: `box_tl/tr/bl/br`, `box_h/v`, `block_filled/empty`, `bullet`, `arrow`
+
+**Helper functions**:
+```gleam
+pub fn severity_icon(severity: ErrorSeverity) -> String  // Returns emoji
+pub fn status_icon(passed: Bool) -> String  // Returns ✓ or ✗
+pub fn bool_icon(value: Bool) -> String  // Returns ✓ or ✗
+```
+
+### Text Constants (`cli_text_constants.gleam`)
+Help text for all 24 commands and 30+ flags, ensuring consistent patterns.
+
+**Command descriptions** (verb-first, 50-100 chars):
+- Non-KIRK: `"Execute spec tests against target URL and verify behaviors"`
+- KIRK: `"KIRK: Analyze spec quality across coverage, clarity, testability"`
+
+**Flag helpers**:
+```gleam
+pub fn with_default(desc: String, default: String) -> String
+pub fn required(desc: String) -> String
+pub fn with_env(desc: String, env_var: String) -> String
+pub fn with_default_and_env(desc: String, default: String, env_var: String) -> String
+```
+
+**Result**: `flag_target_desc |> required() |> with_env("INTENT_TARGET")`
+→ `"Target base URL to test against (required) [env: INTENT_TARGET]"`
+
+### Formatter Utils (`formatter_utils.gleam`)
+Reusable formatting utilities for consistent multi-command output.
+
+**Key functions**:
+```gleam
+pub fn box_header(title: String) -> String
+pub fn box_header_with_subtitle(title: String, subtitle: String) -> String
+pub fn progress_bar(percentage: Float) -> String  // [████████░░] 80.0%
+pub fn progress_bar_with_width(percentage: Float, width: Int) -> String
+pub fn score_with_status(score: Float) -> String  // [███░░░░░░] 30.0% ✗
+pub fn indent_n(level: Int) -> String  // 0→"", 1→"  ", 2→"    ", etc (2-space per level)
+pub fn section_header(icon: String, title: String) -> String
+pub fn bullet_item(text: String) -> String
+pub fn kv_pair(key: String, value: String) -> String
+```
+
+**Standards**:
+- `box_width = 60` chars internal content
+- Indentation: 2-space increments (levels 0-4 max)
+- Progress bars: filled/empty block characters
+- Scores: visual status based on threshold (≥90% ✓, ≥70% ⚠, <50% ✗)
+
+### CLI Flags (`cli_flags.gleam`)
+Reusable flag builders and validation helpers.
+
+**Flag builders** (return `flag.FlagBuilder(T)`):
+```gleam
+pub fn target_flag() -> flag.FlagBuilder(String)
+pub fn json_flag() -> flag.FlagBuilder(Bool)
+pub fn verbose_flag() -> flag.FlagBuilder(Bool)
+pub fn quiet_flag() -> flag.FlagBuilder(Bool)
+pub fn output_file_flag() -> flag.FlagBuilder(String)
+pub fn profile_flag() -> flag.FlagBuilder(String)  // api|cli|event|data|workflow|ui
+pub fn allow_localhost_flag() -> flag.FlagBuilder(Bool)
+pub fn session_flag() -> flag.FlagBuilder(String)
+pub fn bead_id_flag() -> flag.FlagBuilder(String)
+pub fn feature_flag() -> flag.FlagBuilder(String)
+pub fn only_flag() -> flag.FlagBuilder(String)
+```
+
+**Validation helpers**:
+```gleam
+pub fn validate_required_string(value: String, flag_name: String) -> Result(String, String)
+pub fn validate_range(value: Int, min: Int, max: Int, flag_name: String) -> Result(Int, String)
+pub fn validate_enum(value: String, allowed: List(String), flag_name: String) -> Result(String, String)
+pub fn validate_dependency(dependent: String, required: String, dep_name: String, req_name: String) -> Result(Nil, String)
+```
+
+**Environment variable getters** (exported for config):
+```gleam
+pub fn get_env_string(env_getter: fn(String) -> Result(String, Nil), env_var: String, default: String) -> String
+pub fn get_env_bool(env_getter: fn(String) -> Result(String, Nil), env_var: String, default: Bool) -> Bool
+pub fn get_env_int(env_getter: fn(String) -> Result(String, Nil), env_var: String, default: Int) -> Int
+```
+
+### Global Config (`config.gleam`)
+Configuration management with environment variable and flag support.
+
+**Config type**:
+```gleam
+pub type Config {
+  Config(
+    target_url: String,        // INTENT_TARGET
+    allow_localhost: Bool,     // INTENT_ALLOW_LOCALHOST
+    profile: String,           // INTENT_PROFILE (default: "api")
+    output_file: String,       // INTENT_OUTPUT
+    timeout_ms: Int,           // INTENT_TIMEOUT_MS (default: 30000)
+  )
+}
+```
+
+**Key functions**:
+```gleam
+pub fn default() -> Config
+pub fn load_from_env(env_getter: fn(String) -> Result(String, Nil)) -> Config
+pub fn merge_with_flags(base: Config, overrides: Config) -> Config  // Overrides take precedence for non-empty values
+pub fn from_flags(target_url, allow_localhost, profile, output_file, timeout_ms) -> Config
+pub fn validate_target_required(config: Config) -> Result(Nil, String)
+pub fn has_target(config: Config) -> Bool
+pub fn is_localhost_allowed(config: Config) -> Bool
+```
+
+**Usage pattern**:
+```gleam
+let env_config = config.load_from_env(os.get_env)
+let flag_config = config.from_flags(target, localhost, profile, output_file, timeout)
+let final_config = config.merge_with_flags(env_config, flag_config)
+use Nil <- result.try(config.validate_target_required(final_config))
+Ok(final_config)
+```
+
+### Error Handler (`error_handler.gleam`)
+Centralized error formatting with severity levels, context, suggestions, and recovery steps.
+
+**Severity levels**:
+```gleam
+pub type ErrorSeverity {
+  Critical  // [CRITICAL] - process cannot continue
+  High      // [ERROR] - operation failed
+  Medium    // [WARNING] - degraded behavior
+  Low       // [INFO] - informational
+}
+```
+
+**Error structure**:
+```gleam
+pub type ErrorMessage {
+  ErrorMessage(
+    severity: ErrorSeverity,
+    message: String,                    // Main error description
+    context: Dict(String, String),      // Extra context (e.g., file: "spec.cue")
+    suggestion: String,                 // Single actionable suggestion
+    recovery_steps: List(String),       // Ordered steps to resolve
+    exit_code: Int,                     // Process exit code (0=pass, 1=fail, 2=blocked, 3=invalid, 4=error)
+  )
+}
+```
+
+**Output functions**:
+```gleam
+pub fn format_error_text(error: ErrorMessage) -> String  // Pretty text output
+pub fn format_error_json(error: ErrorMessage) -> Json    // Structured JSON
+pub fn output_error(error: ErrorMessage, is_json: Bool) -> Int  // Output to stderr, return exit code
+
+pub fn generic_error(message: String, suggestion: String, recovery_steps: List(String)) -> ErrorMessage
+pub fn usage_error(command: String, usage: String) -> ErrorMessage
+pub fn simple_error(message: String, exit_code: Int) -> ErrorMessage
+```
+
+**Output format** (text example):
+```
+[ERROR]: Failed to connect to target URL
+Context:
+  url: http://localhost:8080
+  timeout_ms: 5000
+Suggestion:
+  Check that the target service is running
+Recovery Steps:
+  1. Verify the --target URL is correct
+  2. Test connectivity with curl
+  3. Check firewall rules
+Exit code: 4
+```
+
+**Critical**: Error output goes to **stderr**, not stdout (Unix convention). Both JSON and text use `io.println_error()`.
+
+### Integration Checklist
+
+When adding a new command:
+
+1. **Help text**: Use constants from `cli_text_constants.gleam`
+   ```gleam
+   command("my-command")
+   |> command.description(cli_text_constants.cmd_my_desc)
+   |> command.flag("--target", cli_flags.target_flag())
+   |> command.flag("--json", cli_flags.json_flag())
+   ```
+
+2. **Flag validation**: Use helpers from `cli_flags.gleam`
+   ```gleam
+   use Nil <- result.try(cli_flags.validate_required_string(target, "target"))
+   use Nil <- result.try(cli_flags.validate_enum(profile, ["api", "cli", "event", "data", "workflow", "ui"], "profile"))
+   Ok(...)
+   ```
+
+3. **Configuration**: Load via `config.gleam`
+   ```gleam
+   let env_config = config.load_from_env(os.get_env)
+   let flag_config = config.from_flags(target, localhost, profile, output_file, timeout)
+   let config = config.merge_with_flags(env_config, flag_config)
+   ```
+
+4. **Error handling**: Use `error_handler.gleam`
+   ```gleam
+   case result {
+     Ok(value) -> Ok(value)
+     Error(msg) -> {
+       let error = error_handler.generic_error(
+         msg,
+         "Check your spec file for syntax errors",
+         ["Run 'intent validate spec.cue'", "Review error context above"]
+       )
+       Error(error_handler.output_error(error, is_json))
+     }
+   }
+   ```
+
+5. **Output formatting**: Use `formatter_utils.gleam`
+   ```gleam
+   let header = formatter_utils.box_header("Analysis Results")
+   let score_line = formatter_utils.score_with_status(85.5)
+   let indent = formatter_utils.indent_1() <> "→ "
+   ```
+
+6. **Emoji**: Use constants from `emoji_constants.gleam`, NOT hardcoded
+   ```gleam
+   import intent/emoji_constants as emoji
+   let icon = emoji.success
+   // Do NOT use "✓" or "✗" directly
+   ```
+
 ## Style
 Result types. Exhaustive matching. Small functions. Pipelines (`|>`). No defaults—all fields explicit in specs.

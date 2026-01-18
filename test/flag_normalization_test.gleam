@@ -60,9 +60,7 @@ pub fn normalize_multiple_positional_args_test() {
   ["interview", "--profile", "api", "--answer", "THE SYSTEM SHALL validate"]
   |> intent.normalize_flag_syntax
   |> should.equal([
-    "interview",
-    "--profile=api",
-    "--answer=THE SYSTEM SHALL validate",
+    "interview", "--profile=api", "--answer=THE SYSTEM SHALL validate",
   ])
 }
 
@@ -83,20 +81,13 @@ pub fn normalize_value_with_equals_test() {
 // Test complex real-world example
 pub fn normalize_real_world_example_test() {
   [
-    "check",
-    "examples/pokemon-api.cue",
-    "--target",
-    "http://localhost:8080",
-    "--json",
-    "--verbose=false",
+    "check", "examples/pokemon-api.cue", "--target", "http://localhost:8080",
+    "--json", "--verbose=false",
   ]
   |> intent.normalize_flag_syntax
   |> should.equal([
-    "check",
-    "examples/pokemon-api.cue",
-    "--target=http://localhost:8080",
-    "--json",
-    "--verbose=false",
+    "check", "examples/pokemon-api.cue", "--target=http://localhost:8080",
+    "--json", "--verbose=false",
   ])
 }
 

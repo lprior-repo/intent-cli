@@ -41,7 +41,9 @@ pub fn format_error_text_basic_test() {
     )
 
   let formatted = error_handler.format_error_text(error)
-  let is_valid = string.contains(formatted, "Test error") && string.contains(formatted, "Try this")
+  let is_valid =
+    string.contains(formatted, "Test error")
+    && string.contains(formatted, "Try this")
   is_valid |> should.equal(True)
 }
 
@@ -57,13 +59,16 @@ pub fn format_error_text_with_context_test() {
     )
 
   let formatted = error_handler.format_error_text(error)
-  let contains_all = string.contains(formatted, "Connection failed") && string.contains(formatted, "http://localhost:8080") && string.contains(formatted, "Check if service is running") && string.contains(formatted, "Restart service")
+  let contains_all =
+    string.contains(formatted, "Connection failed")
+    && string.contains(formatted, "http://localhost:8080")
+    && string.contains(formatted, "Check if service is running")
+    && string.contains(formatted, "Restart service")
   contains_all |> should.equal(True)
 }
 
 pub fn simple_error_test() {
-  let error =
-    error_handler.simple_error("Something went wrong", 1)
+  let error = error_handler.simple_error("Something went wrong", 1)
 
   error.message |> should.equal("Something went wrong")
   error.exit_code |> should.equal(1)
@@ -71,11 +76,9 @@ pub fn simple_error_test() {
 
 pub fn generic_error_test() {
   let error =
-    error_handler.generic_error(
-      "Invalid input",
-      "Please provide valid data",
-      ["Check input format", "Consult documentation"],
-    )
+    error_handler.generic_error("Invalid input", "Please provide valid data", [
+      "Check input format", "Consult documentation",
+    ])
 
   error.message |> should.equal("Invalid input")
   error.suggestion |> should.equal("Please provide valid data")
