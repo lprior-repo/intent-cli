@@ -785,9 +785,7 @@ fn interview_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "Guided specification discovery through structured interview",
-  )
+  |> glint.description(cli_text_constants.cmd_interview_desc)
   |> glint.flag(
     "profile",
     flag.string()
