@@ -96,31 +96,47 @@ pub type PlanError {
 // =============================================================================
 
 /// Load beads from session file and compute execution plan
+/// This is a convenience wrapper that reads the file and delegates to compute_plan_from_content
 pub fn compute_plan(session_id: String) -> Result(ExecutionPlan, PlanError) {
+  compute_plan_from_file(session_id)
+}
+
+/// Load beads from session file and compute execution plan
+/// Handles file I/O, then delegates to pure compute_plan_from_content
+pub fn compute_plan_from_file(
+  session_id: String,
+) -> Result(ExecutionPlan, PlanError) {
   let session_path = ".intent/session-" <> session_id <> ".cue"
 
   case simplifile.read(session_path) {
     Error(_) -> Error(SessionNotFound(session_id))
-    Ok(content) -> {
-      use beads <- result.try(parse_beads_from_cue(content))
-      use phases <- result.try(detect_dependency_graph(beads))
-
-      let total_effort = calculate_total_effort(beads)
-      let risk = assess_risk(beads, phases)
-      let blockers = find_blockers(beads)
-      let timestamp = current_iso8601_timestamp()
-
-      Ok(ExecutionPlan(
-        session_id: session_id,
-        generated_at: timestamp,
-        phases: phases,
-        total_beads: list.length(beads),
-        total_effort: total_effort,
-        risk: risk,
-        blockers: blockers,
-      ))
-    }
+    Ok(content) -> compute_plan_from_content(session_id, content)
   }
+}
+
+/// Compute execution plan from session content (pure function, no file I/O)
+/// This is the core computation logic, testable without filesystem dependencies
+pub fn compute_plan_from_content(
+  session_id: String,
+  content: String,
+) -> Result(ExecutionPlan, PlanError) {
+  use beads <- result.try(parse_beads_from_cue(content))
+  use phases <- result.try(detect_dependency_graph(beads))
+
+  let total_effort = calculate_total_effort(beads)
+  let risk = assess_risk(beads, phases)
+  let blockers = find_blockers(beads)
+  let timestamp = current_iso8601_timestamp()
+
+  Ok(ExecutionPlan(
+    session_id: session_id,
+    generated_at: timestamp,
+    phases: phases,
+    total_beads: list.length(beads),
+    total_effort: total_effort,
+    risk: risk,
+    blockers: blockers,
+  ))
 }
 
 /// Build execution phases from bead dependencies using topological sort

@@ -14,6 +14,23 @@ import intent/question_types.{
 import intent/security
 import shellout
 
+/// CueExporter type for dependency injection of shell execution
+/// Signature: fn(path: String, expression: String) -> Result(String, String)
+/// - path: The CUE file path to export
+/// - expression: The CUE expression to export (e.g., "questions" or "custom_questions")
+/// - Returns: Ok(json_string) on success, Error(error_message) on failure
+pub type CueExporter =
+  fn(String, String) -> Result(String, String)
+
+/// Default CUE exporter that uses shellout.command
+/// This is the production implementation that actually invokes the cue CLI
+pub fn default_cue_exporter(path: String, expression: String) -> Result(String, String) {
+  case shellout.command("cue", ["export", path, "-e", expression], ".", []) {
+    Ok(json_str) -> Ok(json_str)
+    Error(#(_, stderr)) -> Error(stderr)
+  }
+}
+
 /// Error types for question loading
 pub type QuestionLoadError {
   FileNotFound(path: String)
@@ -80,24 +97,29 @@ pub type CustomCommonQuestions {
 const custom_questions_path = ".intent/custom-questions.cue"
 
 /// Load questions from a CUE file
+/// Accepts a CueExporter for dependency injection (use default_cue_exporter for production)
 pub fn load_questions(
   path: String,
+  exporter: CueExporter,
 ) -> Result(QuestionsDatabase, QuestionLoadError) {
   // Validate path for security
   case security.validate_file_path(path) {
-    Ok(validated_path) -> export_and_parse(validated_path)
+    Ok(validated_path) -> export_and_parse(validated_path, exporter)
     Error(security_error) ->
       Error(SecurityError(security.format_security_error(security_error)))
   }
 }
 
 /// Load questions from the default schema path, merging with custom questions
-pub fn load_default_questions() -> Result(QuestionsDatabase, QuestionLoadError) {
+/// Accepts a CueExporter for dependency injection (use default_cue_exporter for production)
+pub fn load_default_questions(
+  exporter: CueExporter,
+) -> Result(QuestionsDatabase, QuestionLoadError) {
   // Load built-in questions first
-  case load_questions("schema/questions.cue") {
+  case load_questions("schema/questions.cue", exporter) {
     Ok(db) -> {
       // Try to load custom questions and merge them
-      case load_custom_questions(custom_questions_path) {
+      case load_custom_questions(custom_questions_path, exporter) {
         Ok(custom) -> Ok(merge_custom_questions(db, custom))
         Error(_) -> Ok(db)
         // No custom questions or error loading - use defaults
@@ -108,12 +130,14 @@ pub fn load_default_questions() -> Result(QuestionsDatabase, QuestionLoadError) 
 }
 
 /// Load custom questions from a path
+/// Accepts a CueExporter for dependency injection (use default_cue_exporter for production)
 pub fn load_custom_questions(
   path: String,
+  exporter: CueExporter,
 ) -> Result(CustomQuestions, QuestionLoadError) {
   // Validate path for security
   case security.validate_file_path(path) {
-    Ok(validated_path) -> export_and_parse_custom(validated_path)
+    Ok(validated_path) -> export_and_parse_custom(validated_path, exporter)
     Error(security_error) ->
       Error(SecurityError(security.format_security_error(security_error)))
   }
@@ -121,12 +145,11 @@ pub fn load_custom_questions(
 
 fn export_and_parse_custom(
   path: String,
+  exporter: CueExporter,
 ) -> Result(CustomQuestions, QuestionLoadError) {
-  case
-    shellout.command("cue", ["export", path, "-e", "custom_questions"], ".", [])
-  {
+  case exporter(path, "custom_questions") {
     Ok(json_str) -> parse_custom_questions_json(json_str)
-    Error(#(_, stderr)) -> Error(CueExportError(stderr))
+    Error(stderr) -> Error(CueExportError(stderr))
   }
 }
 
@@ -252,10 +275,11 @@ fn merge_question_list(
 
 fn export_and_parse(
   path: String,
+  exporter: CueExporter,
 ) -> Result(QuestionsDatabase, QuestionLoadError) {
-  case shellout.command("cue", ["export", path, "-e", "questions"], ".", []) {
+  case exporter(path, "questions") {
     Ok(json_str) -> parse_questions_json(json_str)
-    Error(#(_, stderr)) -> Error(CueExportError(stderr))
+    Error(stderr) -> Error(CueExportError(stderr))
   }
 }
 

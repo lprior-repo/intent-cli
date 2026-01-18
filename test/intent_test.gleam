@@ -3710,10 +3710,179 @@ pub fn question_loader_merge_common_rounds_test() {
 
 pub fn question_loader_file_not_found_test() {
   // Loading from non-existent file returns SecurityError (security validation happens first)
-  let result = question_loader.load_custom_questions("/nonexistent/path.cue")
+  let result =
+    question_loader.load_custom_questions(
+      "/nonexistent/path.cue",
+      question_loader.default_cue_exporter,
+    )
 
   case result {
     Error(question_loader.SecurityError(_)) -> should.be_true(True)
+    _ -> should.fail()
+  }
+}
+
+// ============================================================================
+// CueExporter Dependency Injection Tests
+// ============================================================================
+
+pub fn cue_exporter_type_signature_test() {
+  // Test that CueExporter type has correct signature: fn(String, String) -> Result(String, String)
+  let mock_exporter: question_loader.CueExporter = fn(
+    _path: String,
+    _expression: String,
+  ) { Ok("{}") }
+
+  // Should compile - verifies the type signature
+  let _result =
+    question_loader.load_questions("schema/questions.cue", mock_exporter)
+  should.be_true(True)
+}
+
+pub fn load_questions_with_mock_exporter_test() {
+  // Test that load_questions accepts and uses the provided exporter
+  let mock_json =
+    "{\"api\":{\"round_1\":[],\"round_2\":[]},\"cli\":{\"round_1\":[],\"round_2\":[]},\"event\":{\"round_1\":[],\"round_2\":[]},\"data\":{\"round_1\":[],\"round_2\":[]},\"workflow\":{\"round_1\":[],\"round_2\":[]},\"ui\":{\"round_1\":[],\"round_2\":[]},\"common\":{\"round_3\":[],\"round_4\":[],\"round_5\":[]}}"
+
+  let mock_exporter: question_loader.CueExporter = fn(
+    _path: String,
+    _expression: String,
+  ) { Ok(mock_json) }
+
+  let result =
+    question_loader.load_questions("schema/questions.cue", mock_exporter)
+
+  case result {
+    Ok(db) -> {
+      // Verify the database was parsed from our mock JSON
+      list.length(db.api.round_1) |> should.equal(0)
+      list.length(db.common.round_3) |> should.equal(0)
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn load_questions_exporter_receives_correct_args_test() {
+  // Test that the exporter receives the correct path and expression
+  // We need to verify path and expression are passed correctly
+  // This test uses pattern matching on the expected values
+  let mock_exporter: question_loader.CueExporter = fn(
+    path: String,
+    expression: String,
+  ) {
+    // Verify the expression is "questions" for load_questions
+    case expression {
+      "questions" -> {
+        case string.contains(path, "questions.cue") {
+          True -> Ok("{}")
+          False -> Error("Unexpected path: " <> path)
+        }
+      }
+      _ -> Error("Unexpected expression: " <> expression)
+    }
+  }
+
+  let result =
+    question_loader.load_questions("schema/questions.cue", mock_exporter)
+
+  // The mock returns invalid JSON structure, so it should fail parsing
+  case result {
+    Error(question_loader.JsonParseError(_)) -> should.be_true(True)
+    Error(question_loader.QuestionParseError(_)) -> should.be_true(True)
+    Ok(_) -> should.fail()
+    // Shouldn't succeed with empty JSON
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn load_custom_questions_with_mock_exporter_test() {
+  // Test that load_custom_questions accepts and uses the provided exporter
+  // When fields are absent (not null), they become None
+  // Note: We use schema/questions.cue which exists and passes security validation
+  let mock_json = "{}"
+
+  let mock_exporter: question_loader.CueExporter = fn(
+    _path: String,
+    expression: String,
+  ) {
+    // Verify the expression is "custom_questions"
+    case expression {
+      "custom_questions" -> Ok(mock_json)
+      _ -> Error("Expected expression 'custom_questions', got: " <> expression)
+    }
+  }
+
+  // Use an existing file path that passes security validation
+  let result =
+    question_loader.load_custom_questions("schema/questions.cue", mock_exporter)
+
+  case result {
+    Ok(custom) -> {
+      // Verify custom questions parsed correctly (all None since fields absent)
+      custom.api |> should.be_none()
+      custom.cli |> should.be_none()
+    }
+    Error(e) -> {
+      // Print error for debugging
+      let _msg = question_loader.format_error(e)
+      should.fail()
+    }
+  }
+}
+
+pub fn load_default_questions_with_mock_exporter_test() {
+  // Test that load_default_questions passes exporter to both load_questions and load_custom_questions
+  let base_json =
+    "{\"api\":{\"round_1\":[],\"round_2\":[]},\"cli\":{\"round_1\":[],\"round_2\":[]},\"event\":{\"round_1\":[],\"round_2\":[]},\"data\":{\"round_1\":[],\"round_2\":[]},\"workflow\":{\"round_1\":[],\"round_2\":[]},\"ui\":{\"round_1\":[],\"round_2\":[]},\"common\":{\"round_3\":[],\"round_4\":[],\"round_5\":[]}}"
+
+  let mock_exporter: question_loader.CueExporter = fn(
+    _path: String,
+    expression: String,
+  ) {
+    case expression {
+      "questions" -> Ok(base_json)
+      "custom_questions" ->
+        Error("Custom questions file not found")
+        // Simulates missing file
+      _ -> Error("Unexpected expression: " <> expression)
+    }
+  }
+
+  let result = question_loader.load_default_questions(mock_exporter)
+
+  case result {
+    Ok(db) -> {
+      // Should have loaded base questions even though custom failed
+      list.length(db.api.round_1) |> should.equal(0)
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn default_cue_exporter_exists_test() {
+  // Test that default_cue_exporter is exported and callable
+  let exporter = question_loader.default_cue_exporter
+
+  // Just verify it's a valid function
+  // Don't actually call it since it requires real cue command
+  let _type_check: question_loader.CueExporter = exporter
+  should.be_true(True)
+}
+
+pub fn exporter_error_propagates_test() {
+  // Test that exporter errors are properly propagated as CueExportError
+  let error_exporter: question_loader.CueExporter = fn(
+    _path: String,
+    _expression: String,
+  ) { Error("CUE export failed: syntax error") }
+
+  let result =
+    question_loader.load_questions("schema/questions.cue", error_exporter)
+
+  case result {
+    Error(question_loader.CueExportError(msg)) -> {
+      msg |> should.equal("CUE export failed: syntax error")
+    }
     _ -> should.fail()
   }
 }
