@@ -3,11 +3,10 @@
 // Includes OWASP Top 10 security coverage
 
 import gleam/dict.{type Dict}
+import gleam/float
 import gleam/int
 import gleam/list
 import gleam/string
-import intent/emoji_constants as emoji
-import intent/formatter_utils as fmt
 import intent/types.{type Behavior, type Method, type Spec}
 
 // =============================================================================
@@ -59,12 +58,14 @@ const owasp_categories = [
     "A05",
     "Security Misconfiguration",
     ["default", "error", "stack", "verbose", "config"],
-  ), #("A06", "Vulnerable Components", ["version", "dependency", "library"]),
+  ),
+  #("A06", "Vulnerable Components", ["version", "dependency", "library"]),
   #(
     "A07",
     "Auth Failures",
     ["auth", "login", "session", "token", "jwt", "brute"],
-  ), #("A08", "Data Integrity", ["integrity", "serializ", "csrf", "tamper"]),
+  ),
+  #("A08", "Data Integrity", ["integrity", "serializ", "csrf", "tamper"]),
   #("A09", "Logging Failures", ["log", "audit", "monitor", "alert"]),
   #("A10", "SSRF", ["ssrf", "redirect", "url", "fetch", "request"]),
 ]
@@ -321,13 +322,15 @@ fn analyze_owasp_coverage(spec: Spec) -> OWASPCoverage {
 // =============================================================================
 
 pub fn format_report(report: CoverageReport) -> String {
-  let header = fmt.box_header("KIRK Coverage Analysis") <> "\n\n"
+  let header =
+    "╔══════════════════════════════════════╗\n"
+    <> "║      KIRK Coverage Analysis          ║\n"
+    <> "╚══════════════════════════════════════╝\n\n"
 
   let overall =
-    emoji.coverage
-    <> " Overall Coverage: "
-    <> fmt.format_percentage(report.overall_score)
-    <> "\n\n"
+    "📊 Overall Coverage: "
+    <> int.to_string(float.round(report.overall_score))
+    <> "%\n\n"
 
   let methods_section = format_methods(report.methods)
   let status_section = format_status_codes(report.status_codes)
@@ -350,11 +353,11 @@ fn format_methods(methods: Dict(String, Int)) -> String {
     |> dict.to_list()
     |> list.map(fn(pair) {
       let #(method, count) = pair
-      fmt.kv_pair(method, int.to_string(count))
+      "  " <> method <> ": " <> int.to_string(count)
     })
     |> string.join("\n")
 
-  fmt.section_header(emoji.tools, "HTTP Methods:") <> "\n" <> items <> "\n\n"
+  "🔧 HTTP Methods:\n" <> items <> "\n\n"
 }
 
 fn format_status_codes(codes: Dict(String, Int)) -> String {
@@ -365,17 +368,17 @@ fn format_status_codes(codes: Dict(String, Int)) -> String {
     |> list.map(fn(pair) {
       let #(code, count) = pair
       let icon = case code {
-        "2xx" -> emoji.status_2xx
-        "3xx" -> emoji.status_3xx
-        "4xx" -> emoji.status_4xx
-        "5xx" -> emoji.status_5xx
-        _ -> emoji.bullet
+        "2xx" -> "✅"
+        "3xx" -> "↪️"
+        "4xx" -> "⚠️"
+        "5xx" -> "❌"
+        _ -> "•"
       }
-      fmt.indent_1() <> icon <> " " <> code <> ": " <> int.to_string(count)
+      "  " <> icon <> " " <> code <> ": " <> int.to_string(count)
     })
     |> string.join("\n")
 
-  fmt.section_header(emoji.coverage, "Status Codes:") <> "\n" <> items <> "\n\n"
+  "📊 Status Codes:\n" <> items <> "\n\n"
 }
 
 fn format_paths(paths: Dict(String, List(Method))) -> String {
@@ -386,56 +389,42 @@ fn format_paths(paths: Dict(String, List(Method))) -> String {
       let #(path, methods) = pair
       let method_str =
         methods |> list.map(types.method_to_string) |> string.join(", ")
-      fmt.indent_1() <> path <> " [" <> method_str <> "]"
+      "  " <> path <> " [" <> method_str <> "]"
     })
     |> string.join("\n")
 
-  fmt.section_header_with_count(emoji.path, "Paths", dict.size(paths))
-  <> ":\n"
-  <> items
-  <> "\n\n"
+  "🛤️  Paths (" <> int.to_string(dict.size(paths)) <> "):\n" <> items <> "\n\n"
 }
 
 fn format_edge_cases(edge_cases: EdgeCaseCoverage) -> String {
   let tested_str = case list.is_empty(edge_cases.tested) {
-    True -> fmt.empty_section_message("none")
+    True -> "  (none)"
     False ->
-      edge_cases.tested
-      |> list.map(fn(t) { fmt.indent_1() <> emoji.success <> " " <> t })
-      |> string.join("\n")
+      edge_cases.tested |> list.map(fn(t) { "  ✅ " <> t }) |> string.join("\n")
   }
 
   let suggested_str = case list.is_empty(edge_cases.suggested) {
     True -> ""
     False ->
-      "\n"
-      <> fmt.indent_1()
-      <> "Suggested:\n"
+      "\n  Suggested:\n"
       <> {
         edge_cases.suggested
         |> list.take(5)
-        |> list.map(fn(s) { fmt.indent_1() <> emoji.suggestion <> " " <> s })
+        |> list.map(fn(s) { "  💡 " <> s })
         |> string.join("\n")
       }
   }
 
-  fmt.section_header(emoji.target, "Edge Cases:")
-  <> "\n"
-  <> tested_str
-  <> suggested_str
-  <> "\n\n"
+  "🎯 Edge Cases:\n" <> tested_str <> suggested_str <> "\n\n"
 }
 
 fn format_owasp(owasp: OWASPCoverage) -> String {
   let score_str =
-    fmt.kv_pair(
-      "Score",
-      fmt.format_percentage(owasp.score)
-        <> " ("
-        <> int.to_string(10 - list.length(owasp.missing))
-        <> "/10)",
-    )
-    <> "\n"
+    "  Score: "
+    <> int.to_string(float.round(owasp.score))
+    <> "% ("
+    <> int.to_string(10 - list.length(owasp.missing))
+    <> "/10)\n"
 
   let coverage_str =
     owasp.categories
@@ -443,28 +432,26 @@ fn format_owasp(owasp: OWASPCoverage) -> String {
     |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
     |> list.map(fn(pair) {
       let #(code, covered) = pair
-      let icon = emoji.bool_icon(covered)
-      fmt.indent_1() <> icon <> " " <> code
+      let icon = case covered {
+        True -> "✅"
+        False -> "❌"
+      }
+      "  " <> icon <> " " <> code
     })
     |> string.join(" ")
 
   let missing_str = case list.is_empty(owasp.missing) {
     True -> ""
     False ->
-      "\n"
-      <> fmt.indent_1()
-      <> "Missing:\n"
+      "\n  Missing:\n"
       <> {
-        owasp.missing
-        |> list.map(fn(m) { fmt.indent_2() <> emoji.bullet <> " " <> m })
-        |> string.join("\n")
+        owasp.missing |> list.map(fn(m) { "    • " <> m }) |> string.join("\n")
       }
   }
 
-  fmt.section_header(emoji.security, "OWASP Top 10:")
-  <> "\n"
+  "🔐 OWASP Top 10:\n"
   <> score_str
-  <> fmt.indent_1()
+  <> "  "
   <> coverage_str
   <> missing_str
   <> "\n"

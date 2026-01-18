@@ -163,7 +163,8 @@ pub fn from_security_error(
         ]),
         suggestion: "Use safe file paths without parent directory references",
         recovery: [
-          "Remove .. from path", "Use absolute paths",
+          "Remove .. from path",
+          "Use absolute paths",
           "Avoid URL-encoded characters (%2e, %2f)",
         ],
         retry_allowed: True,
@@ -329,7 +330,8 @@ pub fn session_not_found(session_id: String) -> StructuredError {
     suggestion: "List available sessions or start a new one",
     recovery: [
       "List sessions: intent sessions",
-      "Start new session: intent interview --cue", "Check session ID spelling",
+      "Start new session: intent interview --cue",
+      "Check session ID spelling",
       "Verify .interview/ directory exists",
     ],
     retry_allowed: True,
@@ -425,12 +427,7 @@ fn extract_line_number(stderr: String) -> Option(Int) {
 fn format_decode_errors(errors: List(DecodeError)) -> String {
   errors
   |> list.map(fn(err) {
-    "Expected "
-    <> err.expected
-    <> " but found "
-    <> err.found
-    <> " at "
-    <> string.join(err.path, ".")
+    "Expected " <> err.expected <> " but found " <> err.found <> " at " <> string.join(err.path, ".")
   })
   |> string.join("; ")
 }
