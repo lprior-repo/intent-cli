@@ -11,7 +11,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
-import intent/bead_templates.{BeadRecord}
+import intent/bead_templates.{type BeadRecord, BeadRecord}
 import intent/prompt_generator.{
   CodebaseContext, FileContext, ImplementationPrompt, LineReference,
   file_with_lines, file_with_snippet, generate_gleam_prompt,
@@ -201,12 +201,12 @@ pub fn generate_implementation_prompt_test() {
   |> should.equal(3)
 
   // Check requirements are generated
-  list.length(prompt.requirements)
+  { list.length(prompt.requirements) > 0 }
   |> should.be_true
   // At least some requirements
 
   // Check pitfalls are generated
-  list.length(prompt.pitfalls_to_avoid)
+  { list.length(prompt.pitfalls_to_avoid) > 0 }
   |> should.be_true
 }
 
@@ -219,7 +219,7 @@ pub fn generate_minimal_prompt_test() {
   |> should.be_true
 
   // Check patterns are included
-  list.length(prompt.pitfalls_to_avoid)
+  { list.length(prompt.pitfalls_to_avoid) > 0 }
   |> should.be_true
 }
 

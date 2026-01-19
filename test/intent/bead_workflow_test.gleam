@@ -78,7 +78,13 @@ pub fn build_evidence_list_test() {
 }
 
 pub fn verify_bead_for_close_in_progress_test() {
-  let evidence = bead_workflow.empty_evidence("feature")
+  let evidence =
+    bead_workflow.empty_evidence("feature")
+    |> bead_workflow.add_custom_evidence([
+      "Acceptance criteria met",
+      "Tests written",
+      "Documentation updated",
+    ])
 
   let result =
     bead_workflow.verify_bead_for_close(
@@ -136,7 +142,7 @@ pub fn verify_with_feedback_test() {
   let feedback =
     bead_feedback.create_success_feedback(
       "FEAT-001",
-      "Feature implementation complete",
+      "All acceptance criteria met with tests written",
       "2026-01-01T00:00:00Z",
       1000,
     )
@@ -158,7 +164,14 @@ pub fn verify_with_feedback_test() {
 }
 
 pub fn format_close_result_test() {
-  let evidence = bead_workflow.empty_evidence("feature")
+  let evidence =
+    bead_workflow.empty_evidence("feature")
+    |> bead_workflow.add_custom_evidence([
+      "Acceptance criteria met",
+      "Tests written",
+      "Documentation updated",
+    ])
+
   let result =
     bead_workflow.verify_bead_for_close(
       "TEST-001",

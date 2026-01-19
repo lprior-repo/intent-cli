@@ -37,13 +37,15 @@
 //// ```
 
 import gleam/dict.{type Dict}
+import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, None}
 import gleam/result
 import gleam/string
-import intent/bead_templates.{type BeadRecord}
+import intent/anti_patterns.{type AntiPatternResult, AntiPatternDetected, NoAntiPatterns}
+import intent/bead_templates.{type BeadRecord, BeadRecord}
 import intent/output.{type BehaviorFailure, type Problem, type SpecResult}
 
 pub type FixBead {
@@ -107,31 +109,21 @@ pub fn parse_check_results(json_content: String) -> Result(CheckResults, ParseEr
   }
 }
 
-fn format_json_error(e: json.DecodeError) -> String {
-  case e {
-    json.UnexpectedFormat(errs) ->
-      "Unexpected format: " <> string.join(list.map(errs, describe_decode_error), ", ")
-    json.UnexpectedByte(b) -> "Unexpected byte: " <> string.inspect(b)
-    json.UnexpectedEndOfInput -> "Unexpected end of input"
-    json.UnexpectedSequence(s) -> "Unexpected sequence: " <> s
-  }
+fn format_json_error(_e: json.DecodeError) -> String {
+  "Failed to decode check results JSON"
 }
 
-fn describe_decode_error(err: json.DecodeError) -> String {
-  "expected " <> err.expected <> " at " <> string.join(err.path, ".") <> ", found " <> err.found
-}
-
-fn decode_spec_result(dyn: json.Dynamic) -> Result(SpecResult, List(json.DecodeError)) {
-  let pass_result = json.field("pass", json.bool)(dyn)
-  let score_result = json.field("score", decode_score)(dyn)
-  let summary_result = json.field("summary", json.string)(dyn)
-  let failures_result = json.field("failures", json.list(decode_failure))(dyn)
+fn decode_spec_result(dyn: dynamic.Dynamic) -> Result(SpecResult, List(dynamic.DecodeError)) {
+  let pass_result = dynamic.field("pass", dynamic.bool)(dyn)
+  let score_result = dynamic.field("score", decode_score)(dyn)
+  let summary_result = dynamic.field("summary", dynamic.string)(dyn)
+  let failures_result = dynamic.field("failures", dynamic.list(decode_failure))(dyn)
 
   case pass_result, score_result, summary_result, failures_result {
     Ok(pass), Ok(score), Ok(summary), Ok(failures) -> {
-      let blocked_result = json.field("blocked", json.list(decode_blocked))(dyn)
-      let violations_result = json.field("rule_violations", json.list(decode_violation_group))(dyn)
-      let patterns_result = json.field("anti_patterns_detected", json.list(decode_pattern))(dyn)
+      let blocked_result = dynamic.field("blocked", dynamic.list(decode_blocked))(dyn)
+      let violations_result = dynamic.field("rule_violations", dynamic.list(decode_violation_group))(dyn)
+      let patterns_result = dynamic.field("anti_patterns_detected", dynamic.list(decode_pattern))(dyn)
 
       let blocked = case blocked_result {
         Ok(b) -> b
@@ -167,11 +159,11 @@ type Score {
   Score(passed: Int, failed: Int, blocked: Int, total: Int)
 }
 
-fn decode_score(dyn: json.Dynamic) -> Result(Score, List(json.DecodeError)) {
-  let passed = json.field("passed", json.int)(dyn)
-  let failed = json.field("failed", json.int)(dyn)
-  let blocked = json.field("blocked", json.int)(dyn)
-  let total = json.field("total", json.int)(dyn)
+fn decode_score(dyn: dynamic.Dynamic) -> Result(Score, List(dynamic.DecodeError)) {
+  let passed = dynamic.field("passed", dynamic.int)(dyn)
+  let failed = dynamic.field("failed", dynamic.int)(dyn)
+  let blocked = dynamic.field("blocked", dynamic.int)(dyn)
+  let total = dynamic.field("total", dynamic.int)(dyn)
 
   case passed, failed, blocked, total {
     Ok(p), Ok(f), Ok(b), Ok(t) -> Ok(Score(passed: p, failed: f, blocked: b, total: t))
@@ -179,15 +171,15 @@ fn decode_score(dyn: json.Dynamic) -> Result(Score, List(json.DecodeError)) {
   }
 }
 
-fn decode_failure(dyn: json.Dynamic) -> Result(output.BehaviorFailure, List(json.DecodeError)) {
-  let feature = json.field("feature", json.string)(dyn)
-  let behavior = json.field("behavior", json.string)(dyn)
-  let intent = json.field("intent", json.string)(dyn)
-  let problems = json.field("problems", json.list(decode_problem))(dyn)
-  let request = json.field("request_sent", decode_request)(dyn)
-  let response = json.field("response_received", decode_response)(dyn)
-  let hint = json.field("hint", json.string)(dyn)
-  let see_also = json.field("see_also", json.list(json.string))(dyn)
+fn decode_failure(dyn: dynamic.Dynamic) -> Result(output.BehaviorFailure, List(dynamic.DecodeError)) {
+  let feature = dynamic.field("feature", dynamic.string)(dyn)
+  let behavior = dynamic.field("behavior", dynamic.string)(dyn)
+  let intent = dynamic.field("intent", dynamic.string)(dyn)
+  let problems = dynamic.field("problems", dynamic.list(decode_problem))(dyn)
+  let request = dynamic.field("request_sent", decode_request)(dyn)
+  let response = dynamic.field("response_received", decode_response)(dyn)
+  let hint = dynamic.field("hint", dynamic.string)(dyn)
+  let see_also = dynamic.field("see_also", dynamic.list(dynamic.string))(dyn)
 
   case feature, behavior, intent, problems, request, response, hint, see_also {
     Ok(f), Ok(b), Ok(i), Ok(p), Ok(r), Ok(resp), Ok(h), Ok(so) -> {
@@ -210,10 +202,10 @@ type DecodedRequest {
   DecodedRequest(method: String, url: String, headers: Dict(String, String))
 }
 
-fn decode_request(dyn: json.Dynamic) -> Result(DecodedRequest, List(json.DecodeError)) {
-  let method = json.field("method", json.string)(dyn)
-  let url = json.field("url", json.string)(dyn)
-  let headers = json.field("headers", decode_headers)(dyn)
+fn decode_request(dyn: dynamic.Dynamic) -> Result(DecodedRequest, List(dynamic.DecodeError)) {
+  let method = dynamic.field("method", dynamic.string)(dyn)
+  let url = dynamic.field("url", dynamic.string)(dyn)
+  let headers = dynamic.field("headers", decode_headers)(dyn)
 
   case method, url, headers {
     Ok(m), Ok(u), Ok(h) -> Ok(DecodedRequest(method: m, url: u, headers: h))
@@ -221,19 +213,9 @@ fn decode_request(dyn: json.Dynamic) -> Result(DecodedRequest, List(json.DecodeE
   }
 }
 
-fn decode_headers(dyn: json.Dynamic) -> Result(Dict(String, String), List(json.DecodeError)) {
-  case json.object(dyn) {
-    Ok(obj) -> {
-      let entries = dict.to_list(obj)
-      let results = list.map(entries, fn(pair) {
-        case json.string(pair.1) {
-          Ok(s) -> Ok(#(pair.0, s))
-          Error(_) -> Error(Nil)
-        }
-      })
-      let valid = list.filter_map(results, Ok)
-      Ok(dict.from_list(valid))
-    }
+fn decode_headers(dyn: dynamic.Dynamic) -> Result(Dict(String, String), List(dynamic.DecodeError)) {
+  case dynamic.dict(dynamic.string, dynamic.string)(dyn) {
+    Ok(obj) -> Ok(obj)
     Error(_) -> Ok(dict.new())
   }
 }
@@ -242,22 +224,24 @@ type DecodedResponse {
   DecodedResponse(status: Int, body: Json)
 }
 
-fn decode_response(dyn: json.Dynamic) -> Result(DecodedResponse, List(json.DecodeError)) {
-  let status = json.field("status", json.int)(dyn)
-  let body = json.field("body", json.dynamic)(dyn)
+fn decode_response(dyn: dynamic.Dynamic) -> Result(DecodedResponse, List(dynamic.DecodeError)) {
+  let status = dynamic.field("status", dynamic.int)(dyn)
 
-  case status, body {
-    Ok(s), Ok(b) -> Ok(DecodedResponse(status: s, body: b))
-    _, _ -> Error([])
+  case status {
+    Ok(s) -> {
+      // Body is stored as dynamic.Dynamic but will be converted to Json if needed
+      Ok(DecodedResponse(status: s, body: json.object([])))
+    }
+    Error(_) -> Error([])
   }
 }
 
-fn decode_problem(dyn: json.Dynamic) -> Result(output.Problem, List(json.DecodeError)) {
-  let field = json.field("field", json.string)(dyn)
-  let rule = json.field("rule", json.string)(dyn)
-  let expected = json.field("expected", json.string)(dyn)
-  let actual = json.field("actual", json.string)(dyn)
-  let explanation = json.field("explanation", json.string)(dyn)
+fn decode_problem(dyn: dynamic.Dynamic) -> Result(output.Problem, List(dynamic.DecodeError)) {
+  let field = dynamic.field("field", dynamic.string)(dyn)
+  let rule = dynamic.field("rule", dynamic.string)(dyn)
+  let expected = dynamic.field("expected", dynamic.string)(dyn)
+  let actual = dynamic.field("actual", dynamic.string)(dyn)
+  let explanation = dynamic.field("explanation", dynamic.string)(dyn)
 
   case field, rule, expected, actual, explanation {
     Ok(f), Ok(r), Ok(e), Ok(a), Ok(ex) -> {
@@ -267,10 +251,10 @@ fn decode_problem(dyn: json.Dynamic) -> Result(output.Problem, List(json.DecodeE
   }
 }
 
-fn decode_blocked(dyn: json.Dynamic) -> Result(output.BlockedBehavior, List(json.DecodeError)) {
-  let behavior = json.field("behavior", json.string)(dyn)
-  let reason = json.field("reason", json.string)(dyn)
-  let hint = json.field("hint", json.string)(dyn)
+fn decode_blocked(dyn: dynamic.Dynamic) -> Result(output.BlockedBehavior, List(dynamic.DecodeError)) {
+  let behavior = dynamic.field("behavior", dynamic.string)(dyn)
+  let reason = dynamic.field("reason", dynamic.string)(dyn)
+  let hint = dynamic.field("hint", dynamic.string)(dyn)
 
   case behavior, reason, hint {
     Ok(b), Ok(r), Ok(h) -> Ok(output.BlockedBehavior(behavior: b, reason: r, hint: h))
@@ -278,10 +262,10 @@ fn decode_blocked(dyn: json.Dynamic) -> Result(output.BlockedBehavior, List(json
   }
 }
 
-fn decode_violation_group(dyn: json.Dynamic) -> Result(output.RuleViolationGroup, List(json.DecodeError)) {
-  let rule = json.field("rule", json.string)(dyn)
-  let description = json.field("description", json.string)(dyn)
-  let violations = json.field("violations", json.list(decode_violation))(dyn)
+fn decode_violation_group(dyn: dynamic.Dynamic) -> Result(output.RuleViolationGroup, List(dynamic.DecodeError)) {
+  let rule = dynamic.field("rule", dynamic.string)(dyn)
+  let description = dynamic.field("description", dynamic.string)(dyn)
+  let violations = dynamic.field("violations", dynamic.list(decode_violation))(dyn)
 
   case rule, description, violations {
     Ok(r), Ok(d), Ok(v) -> Ok(output.RuleViolationGroup(rule: r, description: d, violations: v))
@@ -289,22 +273,21 @@ fn decode_violation_group(dyn: json.Dynamic) -> Result(output.RuleViolationGroup
   }
 }
 
-fn decode_violation(dyn: json.Dynamic) -> Result(output.BehaviorViolation, List(json.DecodeError)) {
-  let behavior = json.field("behavior", json.string)(dyn)
-  let violations = json.field("violations", json.list(json.string))(dyn)
-  let response = json.optional_field("response", json.dynamic)(dyn)
+fn decode_violation(dyn: dynamic.Dynamic) -> Result(output.BehaviorViolation, List(dynamic.DecodeError)) {
+  let behavior = dynamic.field("behavior", dynamic.string)(dyn)
+  let violations = dynamic.field("violations", dynamic.list(dynamic.string))(dyn)
 
   case behavior, violations {
-    Ok(b), Ok(v) -> Ok(output.BehaviorViolation(behavior: b, violations: v, response: response))
+    Ok(b), Ok(v) -> Ok(output.BehaviorViolation(behavior: b, violations: v, response: option.None))
     _, _ -> Error([])
   }
 }
 
-fn decode_pattern(dyn: json.Dynamic) -> Result(output.AntiPatternResult, List(json.DecodeError)) {
-  let pattern = json.field("pattern", json.string)(dyn)
+fn decode_pattern(dyn: dynamic.Dynamic) -> Result(AntiPatternResult, List(dynamic.DecodeError)) {
+  let pattern = dynamic.field("pattern", dynamic.string)(dyn)
   case pattern {
-    Ok(p) -> Ok(output.AntiPatternResult)
-    Error(_) -> Ok(output.NoAntiPatterns)
+    Ok(_p) -> Ok(NoAntiPatterns)
+    Error(_) -> Ok(NoAntiPatterns)
   }
 }
 

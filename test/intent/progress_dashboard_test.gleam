@@ -128,12 +128,12 @@ pub fn to_json_structure_test() {
 pub fn from_results_test() {
   let dashboard =
     progress_dashboard.from_results(
-      passed: 8,
-      failed: 1,
-      blocked: 1,
-      total: 10,
-      elapsed_ms: 5000,
-      spec_path: Some("spec.cue"),
+      8,
+      1,
+      1,
+      10,
+      5000,
+      Some("spec.cue"),
     )
 
   dashboard.status |> should.equal(Failed)

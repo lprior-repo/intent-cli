@@ -7,8 +7,9 @@
 
 import gleam/dict
 import gleam/json
+import gleam/option.{None}
 import gleeunit/should
-import intent/http_client.{ExecutionResult, RequestError}
+import intent/http_client.{ExecutionResult, RequestError, ConnectionRefused}
 import intent/interpolate
 import intent/output_mode
 import intent/runner.{type BehaviorExecutor, BehaviorExecutor}
@@ -40,7 +41,11 @@ fn mock_success_executor() -> BehaviorExecutor {
 /// Create a mock executor that returns a network error
 fn mock_error_executor() -> BehaviorExecutor {
   BehaviorExecutor(execute: fn(_config, _request, _ctx) {
-    Error(RequestError("Connection refused"))
+    Error(RequestError(
+      code: ConnectionRefused,
+      message: "Connection refused",
+      details: None,
+    ))
   })
 }
 
@@ -111,7 +116,7 @@ pub fn behavior_executor_mock_error_test() {
 
   case result {
     Ok(_) -> should.fail()
-    Error(RequestError(msg)) -> {
+    Error(RequestError(message: msg, ..)) -> {
       msg
       |> should.equal("Connection refused")
     }
@@ -377,7 +382,11 @@ pub fn executor_receives_target_url_override_test() {
             request_path: "/test",
           ))
         }
-        _ -> Error(RequestError("Wrong base_url: " <> config.base_url))
+        _ -> Error(RequestError(
+          code: ConnectionRefused,
+          message: "Wrong base_url: " <> config.base_url,
+          details: None,
+        ))
       }
     })
 

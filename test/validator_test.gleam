@@ -12,7 +12,7 @@ import gleam/list
 import gleam/string
 import gleeunit
 import gleeunit/should
-import intent/types.{type Behavior, Behavior, Check, Request, Response}
+import intent/types.{type Behavior, type Check, Behavior, Check, Request, Response}
 import intent/validator.{
   type ValidationIssue, CircularDependency, MissingCapture, MissingDependency,
   ValidationInvalid, ValidationValid,
