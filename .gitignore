@@ -37,3 +37,8 @@ cover/
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# Orchestrator and session logs (local execution)
+.bead_logs/
+.bead_session.jsonl
+scripts/beads-queue
