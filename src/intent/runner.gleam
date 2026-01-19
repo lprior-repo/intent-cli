@@ -1,6 +1,5 @@
 /// Main test runner - orchestrates behavior execution and validation
 import gleam/dict
-import gleam/dynamic
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
@@ -29,25 +28,6 @@ pub type BehaviorExecutor {
 /// Default executor that uses http_client for real HTTP requests
 pub fn default_executor() -> BehaviorExecutor {
   BehaviorExecutor(execute: http_client.execute_request)
-}
-
-/// UI callbacks for progress indication during spec execution
-/// Allows CLI layer to inject spinner/progress UI without runner knowing about specific UI implementation
-pub type UiCallbacks {
-  UiCallbacks(
-    on_start: fn(Int) -> Nil,
-    on_behavior: fn(String) -> Nil,
-    on_complete: fn() -> Nil,
-  )
-}
-
-/// No-op callbacks for testing or non-interactive modes (JSON output)
-pub fn noop_callbacks() -> UiCallbacks {
-  UiCallbacks(
-    on_start: fn(_) { Nil },
-    on_behavior: fn(_) { Nil },
-    on_complete: fn() { Nil },
-  )
 }
 
 /// Output verbosity level for spec execution
@@ -109,25 +89,6 @@ pub fn run_spec_with_executor(
   executor: BehaviorExecutor,
   mode: OutputMode,
 ) -> SpecResult {
-  // Create spinner-based UI callbacks when in interactive mode
-  let ui = case output_mode.should_show_spinner(mode) {
-    True -> create_spinner_callbacks()
-    False -> noop_callbacks()
-  }
-  run_spec_with_executor_and_ui(spec, target_url, options, executor, mode, ui)
-}
-
-/// Run a spec with custom executor and UI callbacks - full dependency injection
-/// This is the core implementation that allows complete control over both
-/// HTTP execution and UI feedback
-pub fn run_spec_with_executor_and_ui(
-  spec: Spec,
-  target_url: String,
-  options: RunOptions,
-  executor: BehaviorExecutor,
-  _mode: OutputMode,
-  ui: UiCallbacks,
-) -> SpecResult {
   // Override base_url with target if provided
   let config = case string.is_empty(target_url) {
     True -> spec.config
@@ -156,22 +117,33 @@ pub fn run_spec_with_executor_and_ui(
       let filtered = apply_filters(resolved, options)
       let total = list.length(filtered)
 
-      // Notify UI of start
-      ui.on_start(total)
+      // Conditionally create spinner based on output mode
+      let sp = case output_mode.should_show_spinner(mode) {
+        True ->
+          Some(
+            spinner.new("Running " <> string.inspect(total) <> " behaviors...")
+            |> spinner.with_colour(ansi.cyan)
+            |> spinner.start,
+          )
+        False -> None
+      }
 
       // Execute behaviors in order with the provided executor
       let #(results, _ctx, _failed_set) =
-        execute_behaviors_with_callbacks(
+        execute_behaviors_with_spinner(
           filtered,
           config,
           spec,
           set.new(),
-          ui,
+          sp,
           executor,
         )
 
-      // Notify UI of completion
-      ui.on_complete()
+      // Stop spinner if it was created
+      case sp {
+        Some(spinner) -> spinner.stop(spinner)
+        None -> Nil
+      }
 
       // Collect results
       let passed =
@@ -285,13 +257,12 @@ fn apply_filters(
   })
 }
 
-/// Execute behaviors with UI callbacks for progress indication
-fn execute_behaviors_with_callbacks(
+fn execute_behaviors_with_spinner(
   behaviors: List(ResolvedBehavior),
   config: Config,
   spec: Spec,
   failed_set: Set(String),
-  ui: UiCallbacks,
+  sp: Option(spinner.Spinner),
   executor: BehaviorExecutor,
 ) -> #(List(BehaviorResult), Context, Set(String)) {
   list.fold(
@@ -299,8 +270,12 @@ fn execute_behaviors_with_callbacks(
     #([], interpolate.new_context(), failed_set),
     fn(acc, rb) {
       let #(results, ctx, failed) = acc
-      // Notify UI of current behavior
-      ui.on_behavior(rb.behavior.name)
+      // Update spinner text if spinner exists
+      case sp {
+        Some(spinner) ->
+          spinner.set_text(spinner, "Testing: " <> rb.behavior.name)
+        None -> Nil
+      }
       let #(result, new_ctx, new_failed) =
         execute_single_behavior(rb, config, spec, ctx, failed, executor)
       #([result, ..results], new_ctx, new_failed)
@@ -311,47 +286,6 @@ fn execute_behaviors_with_callbacks(
     #(list.reverse(results), ctx, failed)
   }
 }
-
-/// Create spinner-based UI callbacks for interactive mode
-/// The spinner is created and managed within these callbacks
-fn create_spinner_callbacks() -> UiCallbacks {
-  // We need to use a mutable reference to hold the spinner
-  // since callbacks are closures and Gleam is immutable
-  let spinner_ref = spinner_ref_new()
-
-  UiCallbacks(
-    on_start: fn(total) {
-      let sp =
-        spinner.new("Running " <> string.inspect(total) <> " behaviors...")
-        |> spinner.with_colour(ansi.cyan)
-        |> spinner.start
-      spinner_ref_set(spinner_ref, sp)
-      Nil
-    },
-    on_behavior: fn(name) {
-      case spinner_ref_get(spinner_ref) {
-        Some(sp) -> spinner.set_text(sp, "Testing: " <> name)
-        None -> Nil
-      }
-    },
-    on_complete: fn() {
-      case spinner_ref_get(spinner_ref) {
-        Some(sp) -> spinner.stop(sp)
-        None -> Nil
-      }
-    },
-  )
-}
-
-/// FFI for mutable spinner reference
-@external(erlang, "intent_runner_ffi", "spinner_ref_new")
-fn spinner_ref_new() -> dynamic.Dynamic
-
-@external(erlang, "intent_runner_ffi", "spinner_ref_set")
-fn spinner_ref_set(ref: dynamic.Dynamic, spinner: spinner.Spinner) -> Nil
-
-@external(erlang, "intent_runner_ffi", "spinner_ref_get")
-fn spinner_ref_get(ref: dynamic.Dynamic) -> Option(spinner.Spinner)
 
 fn execute_single_behavior(
   rb: ResolvedBehavior,

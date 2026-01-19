@@ -9,7 +9,7 @@ import intent/question_types.{type Question, Critical, HappyPath, Question, User
 /// Loads questions from CUE file on each call - for repeated calls,
 /// use get_questions_for_round_with_db with a cached database
 pub fn get_questions_for_round(profile: String, round: Int) -> List(Question) {
-  case question_loader.load_default_questions(question_loader.default_cue_exporter) {
+  case question_loader.load_default_questions() {
     Ok(db) -> question_loader.get_questions(db, profile, round)
     Error(_) -> fallback_questions(profile, round)
   }
