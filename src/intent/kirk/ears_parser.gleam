@@ -50,8 +50,34 @@ pub type EarsParseResult {
   )
 }
 
+/// Specific error types for EARS parsing failures
 pub type EarsError {
-  EarsError(line: Int, message: String, suggestion: String)
+  /// Line doesn't match any recognized EARS pattern
+  PatternNotMatched(line: Int, raw_text: String)
+
+  /// Regex pattern failed to match against input line
+  PatternMatchFailed(line: Int, pattern: EarsPattern, raw_text: String)
+
+  /// Regex compilation failed (internal error)
+  RegexCompileFailed(line: Int, pattern: EarsPattern, pattern_string: String)
+
+  /// Failed to extract required components from a matched pattern
+  ComponentExtractionFailed(
+    line: Int,
+    pattern: EarsPattern,
+    missing: ComponentType,
+    raw_text: String,
+  )
+}
+
+/// Types of components that can be missing from an EARS requirement
+pub type ComponentType {
+  BehaviorComponent
+  TriggerComponent
+  StateComponent
+  ConditionComponent
+  /// For complex patterns requiring multiple components (state + trigger + behavior)
+  MultipleComponents
 }
 
 pub type IntentBehavior {
@@ -117,19 +143,14 @@ fn parse_line(line: String, line_num: Int) -> Result(EarsRequirement, EarsError)
 
   // Try patterns in order of specificity
   case True {
-    _ if has_while && has_when -> parse_complex(line, id)
-    _ if has_if && has_shall_not -> parse_unwanted(line, id)
-    _ if has_when && has_shall -> parse_event_driven(line, id)
-    _ if has_while && has_shall -> parse_state_driven(line, id)
-    _ if has_where && has_shall -> parse_optional(line, id)
-    _ if has_system_shall -> parse_ubiquitous(line, id)
-    _ if has_shall -> parse_ubiquitous(line, id)
-    _ ->
-      Error(EarsError(
-        line: line_num,
-        message: "Line doesn't match any EARS pattern",
-        suggestion: "Use patterns like 'WHEN [trigger] THE SYSTEM SHALL [behavior]'",
-      ))
+    _ if has_while && has_when -> parse_complex(line, id, line_num)
+    _ if has_if && has_shall_not -> parse_unwanted(line, id, line_num)
+    _ if has_when && has_shall -> parse_event_driven(line, id, line_num)
+    _ if has_while && has_shall -> parse_state_driven(line, id, line_num)
+    _ if has_where && has_shall -> parse_optional(line, id, line_num)
+    _ if has_system_shall -> parse_ubiquitous(line, id, line_num)
+    _ if has_shall -> parse_ubiquitous(line, id, line_num)
+    _ -> Error(PatternNotMatched(line: line_num, raw_text: line))
   }
 }
 
@@ -137,6 +158,7 @@ fn parse_line(line: String, line_num: Int) -> Result(EarsRequirement, EarsError)
 fn parse_ubiquitous(
   line: String,
   id: String,
+  line_num: Int,
 ) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)(?:the\\s+)?system\\s+shall\\s+(.+)"
 
@@ -157,17 +179,26 @@ fn parse_ubiquitous(
                 raw_text: line,
               ))
             _ ->
-              Error(EarsError(
-                line: 0,
-                message: "Failed to extract behavior",
-                suggestion: "",
+              Error(ComponentExtractionFailed(
+                line: line_num,
+                pattern: Ubiquitous,
+                missing: BehaviorComponent,
+                raw_text: line,
               ))
           }
         [] ->
-          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+          Error(PatternMatchFailed(
+            line: line_num,
+            pattern: Ubiquitous,
+            raw_text: line,
+          ))
       }
     Error(_) ->
-      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+      Error(RegexCompileFailed(
+        line: line_num,
+        pattern: Ubiquitous,
+        pattern_string: pattern_str,
+      ))
   }
 }
 
@@ -175,6 +206,7 @@ fn parse_ubiquitous(
 fn parse_event_driven(
   line: String,
   id: String,
+  line_num: Int,
 ) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)when\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
@@ -195,17 +227,26 @@ fn parse_event_driven(
                 raw_text: line,
               ))
             _ ->
-              Error(EarsError(
-                line: 0,
-                message: "Failed to extract trigger/behavior",
-                suggestion: "",
+              Error(ComponentExtractionFailed(
+                line: line_num,
+                pattern: EventDriven,
+                missing: TriggerComponent,
+                raw_text: line,
               ))
           }
         [] ->
-          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+          Error(PatternMatchFailed(
+            line: line_num,
+            pattern: EventDriven,
+            raw_text: line,
+          ))
       }
     Error(_) ->
-      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+      Error(RegexCompileFailed(
+        line: line_num,
+        pattern: EventDriven,
+        pattern_string: pattern_str,
+      ))
   }
 }
 
@@ -213,6 +254,7 @@ fn parse_event_driven(
 fn parse_state_driven(
   line: String,
   id: String,
+  line_num: Int,
 ) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)while\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
@@ -233,17 +275,26 @@ fn parse_state_driven(
                 raw_text: line,
               ))
             _ ->
-              Error(EarsError(
-                line: 0,
-                message: "Failed to extract state/behavior",
-                suggestion: "",
+              Error(ComponentExtractionFailed(
+                line: line_num,
+                pattern: StateDriven,
+                missing: StateComponent,
+                raw_text: line,
               ))
           }
         [] ->
-          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+          Error(PatternMatchFailed(
+            line: line_num,
+            pattern: StateDriven,
+            raw_text: line,
+          ))
       }
     Error(_) ->
-      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+      Error(RegexCompileFailed(
+        line: line_num,
+        pattern: StateDriven,
+        pattern_string: pattern_str,
+      ))
   }
 }
 
@@ -251,6 +302,7 @@ fn parse_state_driven(
 fn parse_optional(
   line: String,
   id: String,
+  line_num: Int,
 ) -> Result(EarsRequirement, EarsError) {
   let pattern_str = "(?i)where\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
@@ -271,17 +323,26 @@ fn parse_optional(
                 raw_text: line,
               ))
             _ ->
-              Error(EarsError(
-                line: 0,
-                message: "Failed to extract condition/behavior",
-                suggestion: "",
+              Error(ComponentExtractionFailed(
+                line: line_num,
+                pattern: Optional,
+                missing: ConditionComponent,
+                raw_text: line,
               ))
           }
         [] ->
-          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+          Error(PatternMatchFailed(
+            line: line_num,
+            pattern: Optional,
+            raw_text: line,
+          ))
       }
     Error(_) ->
-      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+      Error(RegexCompileFailed(
+        line: line_num,
+        pattern: Optional,
+        pattern_string: pattern_str,
+      ))
   }
 }
 
@@ -289,6 +350,7 @@ fn parse_optional(
 fn parse_unwanted(
   line: String,
   id: String,
+  line_num: Int,
 ) -> Result(EarsRequirement, EarsError) {
   let pattern_str =
     "(?i)if\\s+(.+?)\\s+(?:then\\s+)?(?:the\\s+)?system\\s+shall\\s+not\\s+(.+)"
@@ -310,22 +372,35 @@ fn parse_unwanted(
                 raw_text: line,
               ))
             _ ->
-              Error(EarsError(
-                line: 0,
-                message: "Failed to extract condition/behavior",
-                suggestion: "",
+              Error(ComponentExtractionFailed(
+                line: line_num,
+                pattern: Unwanted,
+                missing: ConditionComponent,
+                raw_text: line,
               ))
           }
         [] ->
-          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+          Error(PatternMatchFailed(
+            line: line_num,
+            pattern: Unwanted,
+            raw_text: line,
+          ))
       }
     Error(_) ->
-      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+      Error(RegexCompileFailed(
+        line: line_num,
+        pattern: Unwanted,
+        pattern_string: pattern_str,
+      ))
   }
 }
 
 /// Pattern: "WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]"
-fn parse_complex(line: String, id: String) -> Result(EarsRequirement, EarsError) {
+fn parse_complex(
+  line: String,
+  id: String,
+  line_num: Int,
+) -> Result(EarsRequirement, EarsError) {
   let pattern_str =
     "(?i)while\\s+(.+?)\\s+when\\s+(.+?)\\s+(?:the\\s+)?system\\s+shall\\s+(.+)"
 
@@ -346,17 +421,26 @@ fn parse_complex(line: String, id: String) -> Result(EarsRequirement, EarsError)
                 raw_text: line,
               ))
             _ ->
-              Error(EarsError(
-                line: 0,
-                message: "Failed to extract components",
-                suggestion: "",
+              Error(ComponentExtractionFailed(
+                line: line_num,
+                pattern: Complex,
+                missing: MultipleComponents,
+                raw_text: line,
               ))
           }
         [] ->
-          Error(EarsError(line: 0, message: "No match found", suggestion: ""))
+          Error(PatternMatchFailed(
+            line: line_num,
+            pattern: Complex,
+            raw_text: line,
+          ))
       }
     Error(_) ->
-      Error(EarsError(line: 0, message: "Invalid regex", suggestion: ""))
+      Error(RegexCompileFailed(
+        line: line_num,
+        pattern: Complex,
+        pattern_string: pattern_str,
+      ))
   }
 }
 
@@ -632,18 +716,114 @@ fn format_errors(errors: List(EarsError)) -> String {
       "Errors:\n"
       <> {
         errors
-        |> list.map(fn(e) {
-          "  ❌ Line "
-          <> int.to_string(e.line)
-          <> ": "
-          <> e.message
-          <> "\n"
-          <> "     💡 "
-          <> e.suggestion
-        })
+        |> list.map(format_error)
         |> string.join("\n")
       }
       <> "\n\n"
+  }
+}
+
+/// Format a specific error variant with appropriate message and suggestion
+fn format_error(error: EarsError) -> String {
+  let #(line_num, message, suggestion) = case error {
+    PatternNotMatched(line:, raw_text:) -> #(
+      line,
+      "Line doesn't match any EARS pattern: \""
+        <> truncate(raw_text, 40)
+        <> "\"",
+      "Use patterns like 'WHEN [trigger] THE SYSTEM SHALL [behavior]'",
+    )
+
+    PatternMatchFailed(line:, pattern:, raw_text:) -> #(
+      line,
+      "Failed to match "
+        <> pattern_to_string(pattern)
+        <> " pattern: \""
+        <> truncate(raw_text, 40)
+        <> "\"",
+      pattern_suggestion(pattern),
+    )
+
+    RegexCompileFailed(line:, pattern:, pattern_string: _) -> #(
+      line,
+      "Internal error: regex compilation failed for "
+        <> pattern_to_string(pattern),
+      "This is a bug in the parser. Please report it.",
+    )
+
+    ComponentExtractionFailed(line:, pattern:, missing:, raw_text:) -> #(
+      line,
+      "Missing "
+        <> component_to_string(missing)
+        <> " in "
+        <> pattern_to_string(pattern)
+        <> " pattern: \""
+        <> truncate(raw_text, 40)
+        <> "\"",
+      component_suggestion(pattern, missing),
+    )
+  }
+
+  "  ❌ Line "
+  <> int.to_string(line_num)
+  <> ": "
+  <> message
+  <> "\n"
+  <> "     💡 "
+  <> suggestion
+}
+
+/// Convert component type to human-readable string
+fn component_to_string(component: ComponentType) -> String {
+  case component {
+    BehaviorComponent -> "behavior"
+    TriggerComponent -> "trigger"
+    StateComponent -> "state"
+    ConditionComponent -> "condition"
+    MultipleComponents -> "state, trigger, or behavior"
+  }
+}
+
+/// Generate pattern-specific suggestion
+fn pattern_suggestion(pattern: EarsPattern) -> String {
+  case pattern {
+    Ubiquitous -> "Format: 'THE SYSTEM SHALL [behavior]'"
+    EventDriven -> "Format: 'WHEN [trigger] THE SYSTEM SHALL [behavior]'"
+    StateDriven -> "Format: 'WHILE [state] THE SYSTEM SHALL [behavior]'"
+    Optional -> "Format: 'WHERE [condition] THE SYSTEM SHALL [behavior]'"
+    Unwanted -> "Format: 'IF [condition] THEN THE SYSTEM SHALL NOT [behavior]'"
+    Complex ->
+      "Format: 'WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]'"
+  }
+}
+
+/// Generate component-specific suggestion
+fn component_suggestion(
+  pattern: EarsPattern,
+  component: ComponentType,
+) -> String {
+  case pattern, component {
+    _, BehaviorComponent ->
+      "Add a behavior description after 'SHALL', e.g., 'SHALL validate input'"
+    EventDriven, TriggerComponent ->
+      "Add a trigger event after 'WHEN', e.g., 'WHEN user submits form'"
+    StateDriven, StateComponent ->
+      "Add a state description after 'WHILE', e.g., 'WHILE user is authenticated'"
+    Optional, ConditionComponent ->
+      "Add a condition after 'WHERE', e.g., 'WHERE user has admin role'"
+    Unwanted, ConditionComponent ->
+      "Add a condition after 'IF', e.g., 'IF input is invalid'"
+    Complex, MultipleComponents ->
+      "Ensure all components are present: WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]"
+    _, _ -> pattern_suggestion(pattern)
+  }
+}
+
+/// Truncate a string to max length, adding ellipsis if needed
+fn truncate(text: String, max_len: Int) -> String {
+  case string.length(text) > max_len {
+    True -> string.slice(text, 0, max_len - 3) <> "..."
+    False -> text
   }
 }
 
@@ -762,4 +942,66 @@ fn escape_string(s: String) -> String {
   |> string.replace("\\", "\\\\")
   |> string.replace("\"", "\\\"")
   |> string.replace("\n", "\\n")
+}
+
+// =============================================================================
+// ERROR TYPE ACCESSORS (for external pattern matching)
+// =============================================================================
+
+/// Get the line number from any EarsError variant
+pub fn error_line(error: EarsError) -> Int {
+  case error {
+    PatternNotMatched(line:, ..) -> line
+    PatternMatchFailed(line:, ..) -> line
+    RegexCompileFailed(line:, ..) -> line
+    ComponentExtractionFailed(line:, ..) -> line
+  }
+}
+
+/// Get the pattern being parsed when the error occurred (if applicable)
+pub fn error_pattern(error: EarsError) -> Option(EarsPattern) {
+  case error {
+    PatternNotMatched(..) -> None
+    PatternMatchFailed(pattern:, ..) -> Some(pattern)
+    RegexCompileFailed(pattern:, ..) -> Some(pattern)
+    ComponentExtractionFailed(pattern:, ..) -> Some(pattern)
+  }
+}
+
+/// Get message and suggestion for an EarsError
+pub fn error_message(error: EarsError) -> #(String, String) {
+  case error {
+    PatternNotMatched(line:, raw_text:) -> #(
+      "Line doesn't match any EARS pattern: \""
+        <> truncate(raw_text, 40)
+        <> "\"",
+      "Use patterns like 'WHEN [trigger] THE SYSTEM SHALL [behavior]'",
+    )
+
+    PatternMatchFailed(line:, pattern:, raw_text:) -> #(
+      "Failed to match "
+        <> pattern_to_string(pattern)
+        <> " pattern: \""
+        <> truncate(raw_text, 40)
+        <> "\"",
+      pattern_suggestion(pattern),
+    )
+
+    RegexCompileFailed(line:, pattern:, ..) -> #(
+      "Internal error: regex compilation failed for "
+        <> pattern_to_string(pattern),
+      "This is a bug in the parser. Please report it.",
+    )
+
+    ComponentExtractionFailed(line:, pattern:, missing:, raw_text:) -> #(
+      "Missing "
+        <> component_to_string(missing)
+        <> " in "
+        <> pattern_to_string(pattern)
+        <> " pattern: \""
+        <> truncate(raw_text, 40)
+        <> "\"",
+      component_suggestion(pattern, missing),
+    )
+  }
 }

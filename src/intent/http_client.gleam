@@ -7,7 +7,7 @@ import gleam/http/response.{type Response as HttpResponse}
 import gleam/httpc
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import gleam/uri
@@ -40,9 +40,19 @@ pub type Timer =
 pub type ExecutionError {
   UrlParseError(message: String)
   InterpolationError(message: String)
-  RequestError(message: String)
+  RequestError(code: RequestErrorCode, message: String, details: Option(String))
   ResponseParseError(message: String)
   SSRFBlocked(message: String)
+}
+
+pub type RequestErrorCode {
+  Timeout
+  ConnectionRefused
+  DNSFailure
+  SSLError
+  NetworkUnreachable
+  PermissionDenied
+  Unknown
 }
 
 /// Execute a behavior request against the target
@@ -215,8 +225,95 @@ fn execute_with_timing(
       let elapsed = timer() - start
       Ok(parse_response(resp, elapsed, method, path))
     }
-    Error(e) -> Error(RequestError(format_httpc_error(e)))
+    Error(e) -> Error(parse_http_error(e))
   }
+}
+
+fn parse_http_error(error: dynamic.Dynamic) -> ExecutionError {
+  let error_str = string.inspect(error) |> string.lowercase
+
+  let check_patterns = fn(patterns: List(String)) -> Bool {
+    list.any(patterns, fn(p) { string.contains(error_str, p) })
+  }
+
+  let #(code, message) = case check_patterns(["timeout"]) {
+    True -> #(
+      Timeout,
+      "Connection timeout: The request took too long to complete.\n"
+        <> "  • Check if the target API is responding slowly\n"
+        <> "  • Try increasing the timeout_ms in your config\n"
+        <> "  • Verify the base_url is correct and accessible",
+    )
+    False ->
+      case check_patterns(["econnrefused", "connection_refused"]) {
+        True -> #(
+          ConnectionRefused,
+          "Connection refused: Cannot connect to the target server.\n"
+            <> "  • Check if the base_url is correct\n"
+            <> "  • Verify the server is running and listening on the specified port\n"
+            <> "  • Ensure your network firewall allows connections to this server",
+        )
+        False ->
+          case check_patterns(["nxdomain", "enotfound"]) {
+            True -> #(
+              DNSFailure,
+              "DNS resolution failed: Cannot find the hostname.\n"
+                <> "  • Check if the base_url hostname is spelled correctly\n"
+                <> "  • Verify your network connection\n"
+                <> "  • Try pinging the hostname to test DNS resolution",
+            )
+            False ->
+              case check_patterns(["ssl", "certificate"]) {
+                True -> #(
+                  SSLError,
+                  "SSL/TLS certificate error: Cannot verify the server's certificate.\n"
+                    <> "  • The server may have an invalid or expired certificate\n"
+                    <> "  • Check if your system's certificate store is up to date\n"
+                    <> "  • For development, ensure you're using the correct base_url scheme (http vs https)",
+                )
+                False ->
+                  case check_patterns(["eacces"]) {
+                    True -> #(
+                      PermissionDenied,
+                      "Permission denied: No access to the specified resource.\n"
+                        <> "  • Check if you have permission to access the target URL\n"
+                        <> "  • Verify the base_url and path are correct",
+                    )
+                    False ->
+                      case check_patterns(["ehostunreach", "enetunreach"]) {
+                        True -> #(
+                          NetworkUnreachable,
+                          "Network unreachable: Cannot reach the target host.\n"
+                            <> "  • Check your network connection\n"
+                            <> "  • Verify the host is accessible from your location\n"
+                            <> "  • Check for firewall or VPN restrictions",
+                        )
+                        True -> #(
+                          Unknown,
+                          "HTTP request failed: "
+                            <> string.inspect(error)
+                            <> "\n"
+                            <> "  • Check the base_url and ensure the target server is reachable\n"
+                            <> "  • Verify the request path and headers are correct\n"
+                            <> "  • Try running with a simpler request to isolate the issue",
+                        )
+                        False -> #(
+                          Unknown,
+                          "HTTP request failed: "
+                            <> string.inspect(error)
+                            <> "\n"
+                            <> "  • Check the base_url and ensure the target server is reachable\n"
+                            <> "  • Verify the request path and headers are correct\n"
+                            <> "  • Try running with a simpler request to isolate the issue",
+                        )
+                      }
+                  }
+              }
+          }
+      }
+  }
+
+  RequestError(code:, message:, details: Some(string.inspect(error)))
 }
 
 fn parse_response(

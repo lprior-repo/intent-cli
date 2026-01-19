@@ -4,12 +4,37 @@
 //// type-safe conversions and status checking helpers.
 
 import gleam/list
+import gleam/string
 
 /// Represents the current state of a bead in its lifecycle.
 pub type BeadStatus {
   Open
   InProgress
   Closed
+}
+
+/// Represents an issue that prevents bead completion.
+pub type CompletionIssue {
+  /// Bead title is empty or whitespace-only
+  MissingTitle
+  /// Bead ID is empty or whitespace-only
+  MissingId
+  /// Cannot close from current status (must be InProgress)
+  InvalidStatusTransition(from: BeadStatus)
+  /// A blocking dependency has not been resolved
+  UnresolvedBlocker(blocker_id: String)
+  /// A required label is missing from the bead
+  RequiredLabelMissing(label: String)
+  /// Associated tests have not passed
+  TestsNotPassing(reason: String)
+}
+
+/// Result of verifying whether a bead can be closed.
+pub type VerificationResult {
+  /// Bead meets all completion criteria and can be closed
+  CanClose
+  /// Bead cannot be closed due to listed issues
+  CannotClose(issues: List(CompletionIssue))
 }
 
 /// Categorizes the type of work a bead represents.
@@ -30,6 +55,8 @@ pub type Bead {
     status: BeadStatus,
     priority: Int,
     issue_type: BeadKind,
+    round: Int,
+    kind: String,
     created_at: String,
     created_by: String,
     updated_at: String,

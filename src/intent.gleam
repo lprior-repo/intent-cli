@@ -158,7 +158,10 @@ fn check_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
-
+      || {
+        flag.get_bool(input.flags, "json-out")
+        |> result.unwrap(False)
+      }
     let feature_filter =
       flag.get_string(input.flags, "feature")
       |> result.unwrap("")
@@ -200,47 +203,59 @@ fn check_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Run spec against a target URL and verify behaviors")
+  |> glint.description(
+    "check: Execute specification tests against target API endpoint",
+  )
   |> glint.flag(
     "target",
     flag.string()
       |> flag.default("")
-      |> flag.description("Target base URL to test against"),
+      |> flag.description(
+        "Required. Base URL of target API (e.g., https://api.example.com)",
+      ),
   )
   |> glint.flag(
     "json",
     flag.bool()
       |> flag.default(False)
-      |> flag.description("Output results as JSON"),
+      |> flag.description(
+        "Output results in JSON format for programmatic parsing",
+      ),
   )
   |> glint.flag(
     "feature",
     flag.string()
       |> flag.default("")
-      |> flag.description("Filter to a specific feature"),
+      |> flag.description("Filter execution to specific feature by name"),
   )
   |> glint.flag(
-    "only",
+    "since",
     flag.string()
       |> flag.default("")
-      |> flag.description("Run only a specific behavior"),
+      |> flag.description(
+        "Compare from specific timestamp or version (e.g., '2h ago', 'v1.2.0')",
+      ),
   )
   |> glint.flag(
     "verbose",
-    flag.bool() |> flag.default(False) |> flag.description("Verbose output"),
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Show detailed execution logs and request/response data",
+      ),
   )
   |> glint.flag(
     "quiet",
     flag.bool()
       |> flag.default(False)
-      |> flag.description("Quiet output (errors only)"),
+      |> flag.description("Minimal output: show only errors and final result"),
   )
   |> glint.flag(
     "allow-localhost",
     flag.bool()
       |> flag.default(False)
       |> flag.description(
-        "Allow localhost URLs for development (bypasses SSRF protection)",
+        "Permit localhost URLs for local development (bypasses SSRF protection)",
       ),
   )
 }
@@ -359,7 +374,9 @@ fn validate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Validate a CUE spec file (syntax and structure)")
+  |> glint.description(
+    "validate: Verify CUE specification syntax and structure validity",
+  )
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -406,7 +423,9 @@ fn show_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Pretty print a parsed spec")
+  |> glint.description(
+    "show: Parse and display human-readable specification summary",
+  )
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -498,7 +517,9 @@ fn export_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Export spec to JSON format")
+  |> glint.description(
+    "export: Convert specification to machine-readable JSON format",
+  )
 }
 
 /// The `lint` command - check for specification anti-patterns
@@ -533,7 +554,9 @@ fn lint_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Check spec for anti-patterns and quality issues")
+  |> glint.description(
+    "lint: Analyze specification for anti-patterns, style issues, and quality concerns",
+  )
 }
 
 /// The `analyze` command - analyze spec quality
@@ -561,7 +584,7 @@ fn analyze_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description(
-    "Analyze spec quality and provide improvement suggestions",
+    "gaps: Identify missing scenarios and edge cases not covered by specification (KIRK module)",
   )
 }
 
@@ -598,7 +621,7 @@ fn improve_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description(
-    "Suggest improvements based on quality analysis and linting",
+    "improve: Generate actionable suggestions to enhance specification quality",
   )
 }
 
@@ -634,7 +657,7 @@ fn doctor_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description(
-    "Analyze spec health and generate prioritized improvement report",
+    "doctor: Run comprehensive health check and produce prioritized improvement roadmap",
   )
   |> glint.flag(
     "json",
@@ -775,28 +798,28 @@ fn interview_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description(
-    "Guided specification discovery through structured interview",
+    "interview: Guided interactive session to discover and define specification through structured questioning",
   )
   |> glint.flag(
     "profile",
     flag.string()
       |> flag.default("api")
       |> flag.description(
-        "System profile: api, cli, event, data, workflow, or ui",
+        "System profile type: api, cli, event, data, workflow, or ui (default: api)",
       ),
   )
   |> glint.flag(
     "resume",
     flag.string()
       |> flag.default("")
-      |> flag.description("Resume existing interview session by ID"),
+      |> flag.description("Resume existing interview session using its ID"),
   )
   |> glint.flag(
     "answers",
     flag.string()
       |> flag.default("")
       |> flag.description(
-        "Path to CUE file with pre-filled answers for non-interactive mode",
+        "Path to file with pre-filled answers for non-interactive batch mode",
       ),
   )
   |> glint.flag(
@@ -804,35 +827,37 @@ fn interview_command() -> glint.Command(Nil) {
     flag.bool()
       |> flag.default(False)
       |> flag.description(
-        "Strict mode: fail if answers file is missing required answers (requires --answers)",
+        "Strict validation: fail if required answers are missing (requires --answers file)",
       ),
   )
   |> glint.flag(
     "export",
     flag.string()
       |> flag.default("")
-      |> flag.description("Export completed interview to spec file"),
+      |> flag.description("Output file path to save completed specification"),
   )
   |> glint.flag(
     "cue",
     flag.bool()
       |> flag.default(False)
       |> flag.description(
-        "Output CUE directives for AI agents (non-interactive)",
+        "Machine-readable mode: output CUE directives for integration with AI agents",
       ),
   )
   |> glint.flag(
     "session",
     flag.string()
       |> flag.default("")
-      |> flag.description("Session ID for CUE mode (use with --cue)"),
+      |> flag.description(
+        "Session identifier for CUE mode (required with --cue flag)",
+      ),
   )
   |> glint.flag(
     "answer",
     flag.string()
       |> flag.default("")
       |> flag.description(
-        "Submit answer to current question (use with --cue --session)",
+        "Response value for current question in CUE mode (use with --cue and --session)",
       ),
   )
   |> glint.flag(
@@ -840,7 +865,7 @@ fn interview_command() -> glint.Command(Nil) {
     flag.bool()
       |> flag.default(False)
       |> flag.description(
-        "Preview interview questions without saving to sessions.jsonl",
+        "Preview interview questions without persisting to session storage",
       ),
   )
 }
@@ -2715,10 +2740,12 @@ fn sessions_command() -> glint.Command(Nil) {
       |> flag.description("Filter by profile (api, cli, event, etc.)"),
   )
   |> glint.flag(
-    "incomplete",
+    "force",
     flag.bool()
       |> flag.default(False)
-      |> flag.description("Show only incomplete sessions"),
+      |> flag.description(
+        "Overwrite existing generated files without confirmation",
+      ),
   )
 }
 
@@ -3166,10 +3193,17 @@ fn kirk_ears_command() -> glint.Command(Nil) {
                     #(
                       "errors",
                       json.array(result.errors, fn(e) {
+                        let #(message, suggestion) = ears_parser.error_message(e)
+                        let line = case e {
+                          ears_parser.PatternNotMatched(line:, ..) -> line
+                          ears_parser.PatternMatchFailed(line:, ..) -> line
+                          ears_parser.RegexCompileFailed(line:, ..) -> line
+                          ears_parser.ComponentExtractionFailed(line:, ..) -> line
+                        }
                         json.object([
-                          #("line", json.int(e.line)),
-                          #("message", json.string(e.message)),
-                          #("suggestion", json.string(e.suggestion)),
+                          #("line", json.int(line)),
+                          #("message", json.string(message)),
+                          #("suggestion", json.string(suggestion)),
                         ])
                       }),
                     ),
@@ -3229,18 +3263,20 @@ fn kirk_ears_command() -> glint.Command(Nil) {
   |> glint.flag(
     "output",
     flag.string()
-      |> flag.default("text")
-      |> flag.description("Output format: text, cue, json"),
+      |> flag.default("beads")
+      |> flag.description("Output directory path for generated test files"),
   )
   |> glint.flag(
     "out",
     flag.string() |> flag.default("") |> flag.description("Output file path"),
   )
   |> glint.flag(
-    "name",
+    "lang",
     flag.string()
-      |> flag.default("GeneratedSpec")
-      |> flag.description("Spec name for CUE output"),
+      |> flag.default("gleam")
+      |> flag.description(
+        "Programming language for generated tests: gleam, python, typescript, or rust",
+      ),
   )
 }
 
@@ -3317,10 +3353,17 @@ fn parse_command() -> glint.Command(Nil) {
                     #(
                       "errors",
                       json.array(result.errors, fn(e) {
+                        let #(message, suggestion) = ears_parser.error_message(e)
+                        let line = case e {
+                          ears_parser.PatternNotMatched(line:, ..) -> line
+                          ears_parser.PatternMatchFailed(line:, ..) -> line
+                          ears_parser.RegexCompileFailed(line:, ..) -> line
+                          ears_parser.ComponentExtractionFailed(line:, ..) -> line
+                        }
                         json.object([
-                          #("line", json.int(e.line)),
-                          #("message", json.string(e.message)),
-                          #("suggestion", json.string(e.suggestion)),
+                          #("line", json.int(line)),
+                          #("message", json.string(message)),
+                          #("suggestion", json.string(suggestion)),
                         ])
                       }),
                     ),
@@ -3393,12 +3436,19 @@ fn parse_command() -> glint.Command(Nil) {
                   True -> {
                     io.println("")
                     list.each(result.errors, fn(e) {
+                      let #(message, suggestion) = ears_parser.error_message(e)
+                      let line = case e {
+                        ears_parser.PatternNotMatched(line:, ..) -> line
+                        ears_parser.PatternMatchFailed(line:, ..) -> line
+                        ears_parser.RegexCompileFailed(line:, ..) -> line
+                        ears_parser.ComponentExtractionFailed(line:, ..) -> line
+                      }
                       io.println("Error parsing requirements:")
                       io.println(
-                        "Line " <> string.inspect(e.line) <> ": " <> e.message,
+                        "Line " <> string.inspect(line) <> ": " <> message,
                       )
                       io.println("  ❌ Does not match any EARS pattern")
-                      io.println("  💡 Suggestion: " <> e.suggestion)
+                      io.println("  💡 Suggestion: " <> suggestion)
                     })
                     io.println("")
                     io.println(

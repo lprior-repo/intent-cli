@@ -58,7 +58,7 @@ def get_work_beads [] {
 def ensure_zjj_spaces [beads: list] {
     print "\n🔧 Ensuring zjj spaces exist..."
 
-    let existing_spaces = (^zjj list --json | complete | get stdout | from json | get name)
+    let existing_spaces = (^zjj list --json | complete | get stdout | from json | get sessions | get name)
 
     $beads | each {|bead|
         let space_name = $"bead-($bead.id)"

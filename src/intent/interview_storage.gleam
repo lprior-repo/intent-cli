@@ -2,6 +2,11 @@
 /// Dual persistence: SQLite for querying, JSONL for git-friendly version control
 /// Mirrors Beads approach: git-native JSONL + local SQLite for performance
 /// Includes answer history tracking and diff comparison
+///
+/// Architecture: Functional Core / Imperative Shell
+/// - Pure serialization/deserialization functions at the core
+/// - File I/O operations accept reader/writer functions (dependency injection)
+/// - Simplifile wrappers provided for convenience
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json
@@ -17,6 +22,74 @@ import intent/question_types.{
   type Perspective, Business, Developer, Ops, Security, User,
 }
 import simplifile
+
+// =============================================================================
+// File I/O Function Types (Dependency Injection)
+// =============================================================================
+
+/// File reader function type - takes path, returns content or error
+pub type FileReader =
+  fn(String) -> Result(String, String)
+
+/// File writer function type - takes path and content, returns unit or error
+pub type FileWriter =
+  fn(String, String) -> Result(Nil, String)
+
+/// Directory creator function type - takes path, returns unit or error
+pub type DirectoryCreator =
+  fn(String) -> Result(Nil, String)
+
+// =============================================================================
+// Simplifile Adapter Functions
+// =============================================================================
+
+/// Create a FileReader that uses simplifile
+pub fn simplifile_reader() -> FileReader {
+  fn(path: String) -> Result(String, String) {
+    simplifile.read(path)
+    |> result.map_error(fn(err) {
+      "Failed to read file '" <> path <> "': " <> string.inspect(err)
+    })
+  }
+}
+
+/// Create a FileWriter that uses simplifile
+pub fn simplifile_writer() -> FileWriter {
+  fn(path: String, content: String) -> Result(Nil, String) {
+    simplifile.write(path, content)
+    |> result.map_error(fn(err) {
+      let err_msg = case err {
+        simplifile.Enoent -> "File or directory not found"
+        simplifile.Eacces -> "Permission denied"
+        simplifile.Enospc -> "No space left on device"
+        simplifile.Eio -> "I/O error"
+        _ -> "Unknown error"
+      }
+      "Failed to write file '" <> path <> "': " <> err_msg
+    })
+  }
+}
+
+/// Create a DirectoryCreator that uses simplifile
+pub fn simplifile_dir_creator() -> DirectoryCreator {
+  fn(path: String) -> Result(Nil, String) {
+    simplifile.create_directory_all(path)
+    |> result.map_error(fn(err) {
+      let err_msg = case err {
+        simplifile.Enoent -> "Parent directory not found"
+        simplifile.Eacces -> "Permission denied"
+        simplifile.Enospc -> "No space left on device"
+        simplifile.Eio -> "I/O error"
+        _ -> "Unknown error"
+      }
+      "Failed to create directory '" <> path <> "': " <> err_msg
+    })
+  }
+}
+
+// =============================================================================
+// Data Types
+// =============================================================================
 
 /// Session record for storage
 pub type SessionRecord {
@@ -113,7 +186,7 @@ pub type AnswerChangeType {
 }
 
 // =============================================================================
-// History Operations
+// History Operations (Pure Functions)
 // =============================================================================
 
 /// Create an AnswerVersion from an Answer
@@ -393,37 +466,11 @@ fn truncate(s: String, max_len: Int) -> String {
 }
 
 // =============================================================================
-// Session History JSONL
+// Session History JSONL - Pure Serialization Functions
 // =============================================================================
 
-/// Append a session snapshot to history JSONL
-/// File: .interview/history.jsonl
-pub fn append_to_history(
-  session: InterviewSession,
-  description: String,
-  history_path: String,
-) -> Result(Nil, String) {
-  let snapshot = create_snapshot(session, description)
-  let line = snapshot_to_jsonl_line(snapshot)
-
-  use existing <- result.try(
-    simplifile.read(history_path)
-    |> result.unwrap("")
-    |> Ok,
-  )
-
-  let content = case string.length(string.trim(existing)) {
-    0 -> line
-    _ -> existing <> "\n" <> line
-  }
-
-  simplifile.write(history_path, content)
-  |> result.map_error(fn(err) {
-    "Failed to write history: " <> string.inspect(err)
-  })
-}
-
-fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
+/// Serialize a snapshot to a JSONL line (pure)
+pub fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
   json.object([
     #("session_id", json.string(snapshot.session_id)),
     #("snapshot_id", json.string(snapshot.snapshot_id)),
@@ -443,35 +490,96 @@ fn snapshot_to_jsonl_line(snapshot: SessionSnapshot) -> String {
   |> json.to_string
 }
 
-/// List all snapshots for a session from history
+/// Append a snapshot to existing history content (pure)
+/// Returns the new complete content string
+pub fn append_history_content(
+  existing_content: String,
+  snapshot: SessionSnapshot,
+) -> String {
+  let line = snapshot_to_jsonl_line(snapshot)
+  case string.length(string.trim(existing_content)) {
+    0 -> line
+    _ -> existing_content <> "\n" <> line
+  }
+}
+
+/// Parse history content and filter by session ID (pure)
+pub fn parse_history_content(
+  content: String,
+  session_id: String,
+) -> List(SessionSnapshot) {
+  case string.length(string.trim(content)) {
+    0 -> []
+    _ -> {
+      string.split(content, "\n")
+      |> list.filter_map(fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> Error(Nil)
+          _ ->
+            json.decode(line, snapshot_decoder)
+            |> result.map_error(fn(_) { Nil })
+        }
+      })
+      |> list.filter(fn(s) { s.session_id == session_id })
+    }
+  }
+}
+
+// =============================================================================
+// Session History JSONL - I/O Functions with Dependency Injection
+// =============================================================================
+
+/// Append a session snapshot to history JSONL (with DI)
+/// Accepts reader/writer functions for testability
+pub fn append_to_history_with_io(
+  session: InterviewSession,
+  description: String,
+  history_path: String,
+  reader: FileReader,
+  writer: FileWriter,
+) -> Result(Nil, String) {
+  let snapshot = create_snapshot(session, description)
+  let existing = reader(history_path) |> result.unwrap("")
+  let new_content = append_history_content(existing, snapshot)
+  writer(history_path, new_content)
+}
+
+/// List all snapshots for a session from history (with DI)
+pub fn list_session_history_with_io(
+  history_path: String,
+  session_id: String,
+  reader: FileReader,
+) -> Result(List(SessionSnapshot), String) {
+  use content <- result.try(reader(history_path))
+  Ok(parse_history_content(content, session_id))
+}
+
+// =============================================================================
+// Session History JSONL - Simplifile Convenience Wrappers
+// =============================================================================
+
+/// Append a session snapshot to history JSONL using simplifile
+/// File: .interview/history.jsonl
+pub fn append_to_history(
+  session: InterviewSession,
+  description: String,
+  history_path: String,
+) -> Result(Nil, String) {
+  append_to_history_with_io(
+    session,
+    description,
+    history_path,
+    simplifile_reader(),
+    simplifile_writer(),
+  )
+}
+
+/// List all snapshots for a session from history using simplifile
 pub fn list_session_history(
   history_path: String,
   session_id: String,
 ) -> Result(List(SessionSnapshot), String) {
-  use content <- result.try(
-    simplifile.read(history_path)
-    |> result.map_error(fn(err) {
-      "Failed to read history: " <> string.inspect(err)
-    }),
-  )
-
-  case string.length(string.trim(content)) {
-    0 -> Ok([])
-    _ -> {
-      let lines = string.split(content, "\n")
-      let snapshots =
-        list.filter_map(lines, fn(line) {
-          case string.length(string.trim(line)) {
-            0 -> Error(Nil)
-            _ ->
-              json.decode(line, snapshot_decoder)
-              |> result.map_error(fn(_) { Nil })
-          }
-        })
-        |> list.filter(fn(s) { s.session_id == session_id })
-      Ok(snapshots)
-    }
-  }
+  list_session_history_with_io(history_path, session_id, simplifile_reader())
 }
 
 fn snapshot_decoder(
@@ -513,6 +621,10 @@ fn snapshot_decoder(
     stage: stage,
   ))
 }
+
+// =============================================================================
+// Session JSON Serialization - Pure Functions
+// =============================================================================
 
 /// JSONL operations - git-friendly line-delimited JSON
 /// Each line is a complete session snapshot
@@ -619,47 +731,25 @@ fn conflict_resolution_to_json(res: ConflictResolution) -> json.Json {
   ])
 }
 
-/// Encode session to JSONL line (for git storage)
+// =============================================================================
+// Sessions JSONL - Pure Functions
+// =============================================================================
+
+/// Encode session to JSONL line (pure - for git storage)
 pub fn session_to_jsonl_line(session: InterviewSession) -> String {
   session
   |> session_to_json
   |> json.to_string
 }
 
-/// Ensure parent directory exists for a file path
-pub fn ensure_parent_directory(file_path: String) -> Result(Nil, String) {
-  let parts = string.split(file_path, "/")
-  let dir_parts = list.take(parts, list.length(parts) - 1)
-  case list.length(dir_parts) {
-    0 -> Ok(Nil)
-    _ -> {
-      let dir_path = string.join(dir_parts, "/")
-      simplifile.create_directory_all(dir_path)
-      |> result.map_error(fn(err) {
-        let err_msg = case err {
-          simplifile.Enoent -> "Parent directory not found"
-          simplifile.Eacces -> "Permission denied"
-          simplifile.Enospc -> "No space left on device"
-          simplifile.Eio -> "I/O error"
-          _ -> "Unknown error"
-        }
-        "Failed to create directory '" <> dir_path <> "': " <> err_msg
-      })
-    }
-  }
-}
-
-/// Write session to .interview/sessions.jsonl
-/// Each session ID appears once, most recent last (for efficient updates)
-pub fn append_session_to_jsonl(
+/// Update sessions content by replacing/adding a session (pure)
+/// Filters out existing session with same ID and appends the new version
+/// Returns the new complete content string
+pub fn update_sessions_content(
+  existing_content: String,
   session: InterviewSession,
-  jsonl_path: String,
-) -> Result(Nil, String) {
-  let existing =
-    simplifile.read(jsonl_path)
-    |> result.unwrap("")
-
-  let lines = case existing {
+) -> String {
+  let lines = case existing_content {
     "" -> []
     content -> string.split(content, "\n")
   }
@@ -675,62 +765,141 @@ pub fn append_session_to_jsonl(
 
   let new_line = session_to_jsonl_line(session)
   let all_lines = list.append(filtered, [new_line])
-  let content = string.join(all_lines, "\n")
-
-  use _ <- result.try(ensure_parent_directory(jsonl_path))
-  simplifile.write(jsonl_path, content)
-  |> result.map_error(fn(err) {
-    let err_msg = case err {
-      simplifile.Enoent -> "File or directory not found"
-      simplifile.Eacces -> "Permission denied"
-      simplifile.Enospc -> "No space left on device"
-      simplifile.Eio -> "I/O error"
-      _ -> "Unknown error"
-    }
-    "Failed to write JSONL to '" <> jsonl_path <> "': " <> err_msg
-  })
+  string.join(all_lines, "\n")
 }
 
-/// List all sessions from JSONL file
-pub fn list_sessions_from_jsonl(
-  jsonl_path: String,
-) -> Result(List(InterviewSession), String) {
-  use content <- result.try(
-    simplifile.read(jsonl_path)
-    |> result.map_error(fn(err) {
-      "Failed to read JSONL: " <> string.inspect(err)
-    }),
-  )
-
+/// Parse sessions content (pure)
+/// Returns list of successfully parsed sessions
+pub fn parse_sessions_content(content: String) -> List(InterviewSession) {
   case string.length(string.trim(content)) {
-    0 -> Ok([])
+    0 -> []
     _ -> {
-      let lines = string.split(content, "\n")
-      let sessions =
-        list.filter_map(lines, fn(line) {
-          case string.length(string.trim(line)) {
-            0 -> Error(Nil)
-            _ ->
-              json.decode(line, session_decoder)
-              |> result.map_error(fn(_) { Nil })
-          }
-        })
-      Ok(sessions)
+      string.split(content, "\n")
+      |> list.filter_map(fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> Error(Nil)
+          _ ->
+            json.decode(line, session_decoder)
+            |> result.map_error(fn(_) { Nil })
+        }
+      })
     }
   }
 }
 
-/// Get session by ID from JSONL
+/// Find a session by ID in parsed sessions (pure)
+pub fn find_session_by_id(
+  sessions: List(InterviewSession),
+  session_id: String,
+) -> Result(InterviewSession, String) {
+  list.find(sessions, fn(s) { s.id == session_id })
+  |> result.map_error(fn(_) { "Session not found: " <> session_id })
+}
+
+/// Extract parent directory path from a file path (pure)
+pub fn get_parent_directory(file_path: String) -> Option(String) {
+  let parts = string.split(file_path, "/")
+  let dir_parts = list.take(parts, list.length(parts) - 1)
+  case list.length(dir_parts) {
+    0 -> option.None
+    _ -> option.Some(string.join(dir_parts, "/"))
+  }
+}
+
+// =============================================================================
+// Sessions JSONL - I/O Functions with Dependency Injection
+// =============================================================================
+
+/// Ensure parent directory exists for a file path (with DI)
+pub fn ensure_parent_directory_with_io(
+  file_path: String,
+  dir_creator: DirectoryCreator,
+) -> Result(Nil, String) {
+  case get_parent_directory(file_path) {
+    option.None -> Ok(Nil)
+    option.Some(dir_path) -> dir_creator(dir_path)
+  }
+}
+
+/// Write session to sessions.jsonl (with DI)
+/// Each session ID appears once, most recent last (for efficient updates)
+pub fn append_session_to_jsonl_with_io(
+  session: InterviewSession,
+  jsonl_path: String,
+  reader: FileReader,
+  writer: FileWriter,
+  dir_creator: DirectoryCreator,
+) -> Result(Nil, String) {
+  let existing = reader(jsonl_path) |> result.unwrap("")
+  let new_content = update_sessions_content(existing, session)
+  use _ <- result.try(ensure_parent_directory_with_io(jsonl_path, dir_creator))
+  writer(jsonl_path, new_content)
+}
+
+/// List all sessions from JSONL file (with DI)
+pub fn list_sessions_from_jsonl_with_io(
+  jsonl_path: String,
+  reader: FileReader,
+) -> Result(List(InterviewSession), String) {
+  use content <- result.try(reader(jsonl_path))
+  Ok(parse_sessions_content(content))
+}
+
+/// Get session by ID from JSONL (with DI)
+pub fn get_session_from_jsonl_with_io(
+  jsonl_path: String,
+  session_id: String,
+  reader: FileReader,
+) -> Result(InterviewSession, String) {
+  use sessions <- result.try(list_sessions_from_jsonl_with_io(
+    jsonl_path,
+    reader,
+  ))
+  find_session_by_id(sessions, session_id)
+}
+
+// =============================================================================
+// Sessions JSONL - Simplifile Convenience Wrappers
+// =============================================================================
+
+/// Ensure parent directory exists for a file path using simplifile
+pub fn ensure_parent_directory(file_path: String) -> Result(Nil, String) {
+  ensure_parent_directory_with_io(file_path, simplifile_dir_creator())
+}
+
+/// Write session to .interview/sessions.jsonl using simplifile
+/// Each session ID appears once, most recent last (for efficient updates)
+pub fn append_session_to_jsonl(
+  session: InterviewSession,
+  jsonl_path: String,
+) -> Result(Nil, String) {
+  append_session_to_jsonl_with_io(
+    session,
+    jsonl_path,
+    simplifile_reader(),
+    simplifile_writer(),
+    simplifile_dir_creator(),
+  )
+}
+
+/// List all sessions from JSONL file using simplifile
+pub fn list_sessions_from_jsonl(
+  jsonl_path: String,
+) -> Result(List(InterviewSession), String) {
+  list_sessions_from_jsonl_with_io(jsonl_path, simplifile_reader())
+}
+
+/// Get session by ID from JSONL using simplifile
 pub fn get_session_from_jsonl(
   jsonl_path: String,
   session_id: String,
 ) -> Result(InterviewSession, String) {
-  list_sessions_from_jsonl(jsonl_path)
-  |> result.try(fn(sessions) {
-    list.find(sessions, fn(s) { s.id == session_id })
-    |> result.map_error(fn(_) { "Session not found: " <> session_id })
-  })
+  get_session_from_jsonl_with_io(jsonl_path, session_id, simplifile_reader())
 }
+
+// =============================================================================
+// SQLite Operations (Stubs)
+// =============================================================================
 
 /// SQLite operations - local database for queries and performance
 /// Database schema:
@@ -806,6 +975,10 @@ pub fn query_ready_sessions(
   Ok([])
 }
 
+// =============================================================================
+// Sync Operations
+// =============================================================================
+
 /// Sync operations - keep SQLite and JSONL in sync
 /// Strategy: JSONL is source of truth for git
 /// 1. On read: load from JSONL, check SQLite is consistent
@@ -836,7 +1009,10 @@ pub fn sync_from_jsonl(
   |> result.map(fn(_) { sessions })
 }
 
-// Decoder helpers for JSON parsing
+// =============================================================================
+// Decoder Helpers for JSON Parsing
+// =============================================================================
+
 fn session_id_decoder(
   json_value: dynamic.Dynamic,
 ) -> Result(String, dynamic.DecodeErrors) {
