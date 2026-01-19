@@ -40,8 +40,8 @@ def main [] {
     let session_start = (now)
     let session_id = (random int 100000..999999 | into string)
 
-    let header_text = $"Parallel Bead Processor (session: ($session_id))"
-    print_header $header_text
+    let header = "Parallel Bead Processor"
+    print_header $"($header) - session ($session_id)"
 
     # Phase 1: Environment Validation
     print "\n📋 Phase 1: Environment Validation"
@@ -110,7 +110,7 @@ def validate_environment [] {
     ]
 
     let missing = ($required_tools | where {|tool|
-        let check_result = (^sh -c $tool.check out+err> /dev/null | complete)
+        let check_result = (^sh -c $tool.check | complete)
         $check_result.exit_code != 0
     })
 
@@ -166,9 +166,20 @@ def load_all_beads [] {
 
 def load_processed_beads [] {
     if (($PROCESSED_LOG | path exists)) {
-        (open $PROCESSED_LOG | lines | each {|line|
-            $line | from json
-        })
+        do {
+            try {
+                let raw = (open --raw $PROCESSED_LOG)
+                # Wrap in array if it's multi-line JSON objects
+                let wrapped = if ($raw | str starts-with "[") {
+                    $raw
+                } else {
+                    "[" + ($raw | str replace "}\n{" "},\n{") + "]"
+                }
+                $wrapped | from json
+            } catch {
+                []
+            }
+        }
     } else {
         []
     }
