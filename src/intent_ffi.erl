@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, int_to_float/1, get_env/1]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, int_to_float/1, get_env/1]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -41,6 +41,10 @@ to_hex(N, Width) ->
 current_timestamp() ->
     Now = erlang:system_time(millisecond),
     list_to_binary(calendar:system_time_to_rfc3339(Now, [{unit, millisecond}])).
+
+%% Alias for current_timestamp (used by Gleam external declarations)
+current_iso8601_timestamp() ->
+    current_timestamp().
 
 %% Convert integer to float
 int_to_float(I) when is_integer(I) ->
