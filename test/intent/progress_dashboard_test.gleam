@@ -149,9 +149,9 @@ pub fn estimated_remaining_test() {
   let dashboard =
     progress_dashboard.create_dashboard(10, None)
     |> progress_dashboard.record_pass(100)
-    |> progress_dashboard.record_pass(100)
+    |> progress_dashboard.record_pass(200)
 
-  // After 2 behaviors at 200ms total, avg is 100ms
+  // After 2 behaviors at 200ms total, avg is 100ms (200ms / 2 behaviors)
   // 8 pending * 100ms = 800ms estimated remaining
   dashboard.timing.avg_behavior_ms |> should.equal(Some(100))
   dashboard.timing.estimated_remaining_ms |> should.equal(Some(800))

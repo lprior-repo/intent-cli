@@ -141,7 +141,7 @@ pub fn verify_with_feedback_test() {
   let feedback =
     bead_feedback.create_success_feedback(
       "FEAT-001",
-      "All acceptance criteria met with tests written",
+      "All acceptance criteria met with tests written and documentation updated",
       "2026-01-01T00:00:00Z",
       1000,
     )

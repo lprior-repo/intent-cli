@@ -516,11 +516,19 @@ fn truncate(s: String, max_len: Int) -> String {
 /// CUE errors typically have format: "file.cue:42:10: error message"
 fn extract_line_number(stderr: String) -> Option(Int) {
   case string.split(stderr, ":") {
-    [_, line_str, ..] ->
-      case int.parse(string.trim(line_str)) {
-        Ok(n) -> Some(n)
-        Error(_) -> None
+    [file_path, line_str, ..] -> {
+      let trimmed_file = string.trim(file_path)
+      let trimmed_line = string.trim(line_str)
+      // Only extract line number if the first part looks like a file path
+      // (contains a dot for file extension) and second part is a valid number
+      case
+        string.contains(trimmed_file, "."),
+        int.parse(trimmed_line)
+      {
+        True, Ok(n) -> Some(n)
+        _, _ -> None
       }
+    }
     _ -> None
   }
 }
@@ -529,7 +537,19 @@ fn extract_line_number(stderr: String) -> Option(Int) {
 /// CUE errors typically have format: "file.cue:42:10: error message"
 fn extract_file_path(stderr: String) -> Option(String) {
   case string.split(stderr, ":") {
-    [file_path, ..] -> Some(string.trim(file_path))
+    [file_path, line_str, ..] -> {
+      let trimmed_file = string.trim(file_path)
+      let trimmed_line = string.trim(line_str)
+      // Only treat it as a file if it contains a dot (file extension)
+      // AND the second part is a valid line number
+      case
+        string.contains(trimmed_file, "."),
+        int.parse(trimmed_line)
+      {
+        True, Ok(_) -> Some(trimmed_file)
+        _, _ -> None
+      }
+    }
     _ -> None
   }
 }
