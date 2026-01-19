@@ -34,3 +34,6 @@ cover/
 # Backup files
 *.bak
 *.disabled
+
+# bv (beads viewer) local config and caches
+.bv/

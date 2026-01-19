@@ -6,7 +6,7 @@ import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option}
 import gleam/result
 import gleam/string
 import intent/interview.{

@@ -1975,7 +1975,7 @@ fn plan_command() -> glint.Command(Nil) {
 
     case input.args {
       [session_id, ..] -> {
-        case plan_mode.compute_plan(session_id) {
+        case compute_plan_with_session(session_id) {
           Error(err) -> {
             io.println_error(plan_mode.format_error(err))
             halt(exit_error)
@@ -2015,6 +2015,28 @@ fn plan_command() -> glint.Command(Nil) {
   )
 }
 
+/// Compute plan with rounds_completed from session JSONL
+/// Loads session to get rounds_completed, then computes plan with RCS score
+fn compute_plan_with_session(
+  session_id: String,
+) -> Result(plan_mode.ExecutionPlan, plan_mode.PlanError) {
+  let jsonl_path = ".interview/sessions.jsonl"
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  // Try to load rounds_completed from session JSONL (default to 0 if not found)
+  let rounds_completed =
+    interview_storage.get_session_from_jsonl(jsonl_path, session_id)
+    |> result.map(fn(session) { session.rounds_completed })
+    |> result.unwrap(0)
+
+  // Read the CUE content and compute plan with rounds_completed
+  case simplifile.read(session_path) {
+    Error(_) -> Error(plan_mode.SessionNotFound(session_id))
+    Ok(content) ->
+      plan_mode.compute_plan_from_content(session_id, content, rounds_completed)
+  }
+}
+
 /// The `plan-approve` command - approve execution plan for CI/automation
 fn plan_approve_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
@@ -2029,7 +2051,7 @@ fn plan_approve_command() -> glint.Command(Nil) {
     case input.args {
       [session_id, ..] -> {
         // First verify the session exists and has a valid plan
-        case plan_mode.compute_plan(session_id) {
+        case compute_plan_with_session(session_id) {
           Error(err) -> {
             io.println_error(plan_mode.format_error(err))
             halt(exit_error)

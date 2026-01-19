@@ -17,7 +17,7 @@ import intent/plan_mode.{
 
 pub fn compute_plan_from_content_with_empty_content_test() {
   // Empty content should return plan with no beads
-  let result = plan_mode.compute_plan_from_content("test-session", "")
+  let result = plan_mode.compute_plan_from_content("test-session", "", 0)
 
   should.be_ok(result)
 
@@ -40,7 +40,7 @@ name: \"test\"
 version: \"1.0\"
 "
 
-  let result = plan_mode.compute_plan_from_content("no-beads", content)
+  let result = plan_mode.compute_plan_from_content("no-beads", content, 0)
 
   should.be_ok(result)
 
@@ -58,7 +58,7 @@ pub fn compute_plan_from_content_preserves_session_id_test() {
   let session_ids = ["abc123", "my-session", "session-with-dashes"]
 
   list.each(session_ids, fn(session_id) {
-    let result = plan_mode.compute_plan_from_content(session_id, "")
+    let result = plan_mode.compute_plan_from_content(session_id, "", 0)
     should.be_ok(result)
 
     let plan = case result {
@@ -236,6 +236,7 @@ pub fn format_plan_human_includes_session_id_test() {
       total_effort: "0min",
       risk: Low,
       blockers: [],
+      rcs_score: 0.0,
     )
 
   let output = plan_mode.format_plan_human(plan)
@@ -256,6 +257,7 @@ pub fn format_plan_human_includes_effort_test() {
       total_effort: "1h 30min",
       risk: Medium,
       blockers: [],
+      rcs_score: 0.0,
     )
 
   let output = plan_mode.format_plan_human(plan)
@@ -280,6 +282,7 @@ pub fn format_plan_json_valid_structure_test() {
       total_effort: "0min",
       risk: Low,
       blockers: [],
+      rcs_score: 0.0,
     )
 
   let output = plan_mode.format_plan_json(plan)
@@ -313,6 +316,7 @@ pub fn format_plan_json_escapes_special_chars_test() {
       total_effort: "0min",
       risk: Low,
       blockers: [],
+      rcs_score: 0.0,
     )
 
   let output = plan_mode.format_plan_json(plan)

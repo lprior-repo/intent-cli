@@ -1,4 +1,3 @@
-import gleam/list
 import gleeunit/should
 import intent/doctor
 import intent/spec_linter
@@ -16,11 +15,11 @@ pub fn doctor_analysis_test() {
   // Verify Linting
   case report.lint {
     spec_linter.LintWarnings(warnings) -> {
-      { list.length(warnings) > 0 } |> should.be_true
+      { warnings != [] } |> should.be_true
     }
     _ -> should.fail()
   }
 
   // Verify Suggestions
-  { list.length(report.suggestions) > 0 } |> should.be_true
+  { report.suggestions != [] } |> should.be_true
 }

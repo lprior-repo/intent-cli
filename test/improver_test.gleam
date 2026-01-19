@@ -10,9 +10,8 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/improver.{
-  type ImprovementContext, type ImprovementSuggestion, AddExplanation,
-  AddMissingTest, AddResponseExample, ImprovementContext, ImprovementSuggestion,
-  RefineVagueRule, RenameForClarity,
+  type ImprovementContext, AddExplanation, AddMissingTest, AddResponseExample,
+  ImprovementContext, ImprovementSuggestion, RefineVagueRule, RenameForClarity,
 }
 import intent/quality_analyzer.{
   type QualityIssue, type QualityReport, MissingAIHints,

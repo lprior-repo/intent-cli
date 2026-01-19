@@ -406,7 +406,7 @@ fn check_has_verification(
   // This is a simplified check - in practice, we'd need more sophisticated
   // analysis of what behaviors actually verify what effects
   case effect.category {
-    ResourceLifecycle -> list.length(required_behaviors) > 0
+    ResourceLifecycle -> required_behaviors != []
     _ -> False
   }
 }
@@ -540,7 +540,7 @@ fn analyze_state_dependencies(
   behaviors: List(Behavior),
 ) -> List(StateDependency) {
   behaviors
-  |> list.filter(fn(b) { list.length(b.requires) > 0 })
+  |> list.filter(fn(b) { b.requires != [] })
   |> list.map(fn(b) {
     StateDependency(
       behavior: b.name,

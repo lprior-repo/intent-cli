@@ -9,14 +9,15 @@
 //// - Supports both human (ASCII tree) and JSON output
 
 import gleam/dict.{type Dict}
+import gleam/dynamic
+import gleam/float
 import gleam/int
+import gleam/json
 import gleam/list
-
-// Option not used - all fields required
+import gleam/option
 import gleam/result
-
-// Set not needed - using dict for lookups
 import gleam/string
+import intent/interview.{type InterviewSession}
 import simplifile
 
 // =============================================================================
@@ -33,6 +34,7 @@ pub type ExecutionPlan {
     total_effort: String,
     risk: RiskLevel,
     blockers: List(String),
+    rcs_score: Float,
   )
 }
 
@@ -96,31 +98,50 @@ pub type PlanError {
 // =============================================================================
 
 /// Load beads from session file and compute execution plan
+/// This is a convenience wrapper that reads the file and delegates to compute_plan_from_content
 pub fn compute_plan(session_id: String) -> Result(ExecutionPlan, PlanError) {
+  compute_plan_from_file(session_id)
+}
+
+/// Load beads from session file and compute execution plan
+/// Handles file I/O, then delegates to pure compute_plan_from_content
+pub fn compute_plan_from_file(
+  session_id: String,
+) -> Result(ExecutionPlan, PlanError) {
   let session_path = ".intent/session-" <> session_id <> ".cue"
 
   case simplifile.read(session_path) {
     Error(_) -> Error(SessionNotFound(session_id))
-    Ok(content) -> {
-      use beads <- result.try(parse_beads_from_cue(content))
-      use phases <- result.try(detect_dependency_graph(beads))
-
-      let total_effort = calculate_total_effort(beads)
-      let risk = assess_risk(beads, phases)
-      let blockers = find_blockers(beads)
-      let timestamp = current_iso8601_timestamp()
-
-      Ok(ExecutionPlan(
-        session_id: session_id,
-        generated_at: timestamp,
-        phases: phases,
-        total_beads: list.length(beads),
-        total_effort: total_effort,
-        risk: risk,
-        blockers: blockers,
-      ))
-    }
+    Ok(content) -> compute_plan_from_content(session_id, content, 0)
   }
+}
+
+/// Compute execution plan from session content (pure function, no file I/O)
+/// This is the core computation logic, testable without filesystem dependencies
+pub fn compute_plan_from_content(
+  session_id: String,
+  content: String,
+  rounds_completed: Int,
+) -> Result(ExecutionPlan, PlanError) {
+  use beads <- result.try(parse_beads_from_cue(content))
+  use phases <- result.try(detect_dependency_graph(beads))
+
+  let total_effort = calculate_total_effort(beads)
+  let risk = assess_risk(beads, phases)
+  let blockers = find_blockers(beads)
+  let timestamp = current_iso8601_timestamp()
+  let rcs_score = calculate_rcs(rounds_completed)
+
+  Ok(ExecutionPlan(
+    session_id: session_id,
+    generated_at: timestamp,
+    phases: phases,
+    total_beads: list.length(beads),
+    total_effort: total_effort,
+    risk: risk,
+    blockers: blockers,
+    rcs_score: rcs_score,
+  ))
 }
 
 /// Build execution phases from bead dependencies using topological sort
@@ -213,6 +234,9 @@ pub fn format_plan_human(plan: ExecutionPlan) -> String {
     <> "║ Risk Level: "
     <> pad_right(risk_to_string(plan.risk), 48)
     <> "║\n"
+    <> "║ RCS Score: "
+    <> pad_right(format_rcs_score(plan.rcs_score), 49)
+    <> "║\n"
     <> "╚══════════════════════════════════════════════════════════════╝\n\n"
 
   let blockers_section = case list.is_empty(plan.blockers) {
@@ -266,7 +290,10 @@ pub fn format_plan_json(plan: ExecutionPlan) -> String {
   <> "\",\n"
   <> "  \"blockers\": ["
   <> blockers_json
-  <> "]\n"
+  <> "],\n"
+  <> "  \"rcs_score\": "
+  <> float.to_string(plan.rcs_score)
+  <> "\n"
   <> "}"
 }
 
@@ -285,6 +312,33 @@ pub fn format_error(error: PlanError) -> String {
       "Cyclic dependency detected involving: " <> string.join(beads, ", ")
     MissingDependency(bead, missing) ->
       "Bead '" <> bead <> "' requires '" <> missing <> "' which does not exist"
+  }
+}
+
+/// Calculate Round Completion Score (RCS)
+/// RCS = (completed_rounds / total_planned_rounds) * 100
+/// For now, we assume a standard 5-round interview process.
+pub fn round_completion(session: InterviewSession) -> Float {
+  let total_rounds = 5.0
+  let completed = int.to_float(session.rounds_completed)
+
+  let score = { completed /. total_rounds } *. 100.0
+
+  // Cap at 100%
+  case score >. 100.0 {
+    True -> 100.0
+    False -> score
+  }
+}
+
+/// Calculate RCS from rounds completed (pure function, no session needed)
+pub fn calculate_rcs(rounds_completed: Int) -> Float {
+  let total_rounds = 5.0
+  let completed = int.to_float(rounds_completed)
+  let score = { completed /. total_rounds } *. 100.0
+  case score >. 100.0 {
+    True -> 100.0
+    False -> score
   }
 }
 
@@ -513,6 +567,11 @@ fn find_blockers(beads: List(PlanBead)) -> List(String) {
 // PRIVATE: Formatting
 // =============================================================================
 
+fn format_rcs_score(score: Float) -> String {
+  let rounded = float.round(score) |> int.to_string
+  rounded <> "% complete"
+}
+
 fn format_phase_human(phase: ExecutionPhase) -> String {
   let parallel_indicator = case phase.can_parallel {
     True -> " [can run in parallel]"
@@ -596,34 +655,101 @@ fn escape_json_string(s: String) -> String {
 }
 
 // =============================================================================
+// PRIVATE: JSON Decoding for Beads
+// =============================================================================
+
+fn decode_effort(
+  data: dynamic.Dynamic,
+) -> Result(Effort, List(dynamic.DecodeError)) {
+  case dynamic.string(data) {
+    Ok("5min") -> Ok(Effort5min)
+    Ok("10min") -> Ok(Effort10min)
+    Ok("15min") -> Ok(Effort15min)
+    Ok("20min") -> Ok(Effort20min)
+    Ok("30min") -> Ok(Effort30min)
+    Ok(other) ->
+      Error([
+        dynamic.DecodeError(
+          expected: "effort (5min|10min|15min|20min|30min)",
+          found: other,
+          path: [],
+        ),
+      ])
+    Error(e) -> Error(e)
+  }
+}
+
+fn decode_status(
+  data: dynamic.Dynamic,
+) -> Result(BeadStatus, List(dynamic.DecodeError)) {
+  case dynamic.string(data) {
+    Ok("pending") -> Ok(Pending)
+    Ok("in_progress") -> Ok(InProgress)
+    Ok("blocked") -> Ok(Blocked)
+    Ok("completed") -> Ok(Completed)
+    Ok("failed") -> Ok(Failed)
+    Ok(other) ->
+      Error([
+        dynamic.DecodeError(
+          expected: "status (pending|in_progress|blocked|completed|failed)",
+          found: other,
+          path: [],
+        ),
+      ])
+    Error(e) -> Error(e)
+  }
+}
+
+fn decode_bead(
+  data: dynamic.Dynamic,
+) -> Result(PlanBead, List(dynamic.DecodeError)) {
+  use id <- result.try(dynamic.field("id", dynamic.string)(data))
+  use title <- result.try(dynamic.field("title", dynamic.string)(data))
+  use requires_opt <- result.try(dynamic.optional_field(
+    "requires",
+    dynamic.list(dynamic.string),
+  )(data))
+  use effort <- result.try(dynamic.field("effort", decode_effort)(data))
+  use status <- result.try(dynamic.field("status", decode_status)(data))
+
+  let requires = option.unwrap(requires_opt, [])
+  Ok(PlanBead(
+    id: id,
+    title: title,
+    requires: requires,
+    effort: effort,
+    status: status,
+  ))
+}
+
+/// Decode a JSON array of beads
+pub fn decode_beads_json(
+  json_string: String,
+) -> Result(List(PlanBead), PlanError) {
+  case json.decode(json_string, dynamic.list(decode_bead)) {
+    Ok(beads) -> Ok(beads)
+    Error(_) -> Error(ParseError("Invalid beads JSON format"))
+  }
+}
+
+// =============================================================================
 // PRIVATE: CUE Parsing (Simplified)
 // =============================================================================
 
 /// Parse beads from CUE session content
 /// This is a simplified parser - for full CUE support, use cue export
 fn parse_beads_from_cue(content: String) -> Result(List(PlanBead), PlanError) {
-  // Look for beads array in the CUE content
-  // Format: beads: [{ id: "...", ... }, ...]
-
-  case string.contains(content, "beads:") {
-    False -> Ok([])
-    // No beads section
-    True -> {
-      // Simple extraction - look for bead patterns
-      // In production, we'd use cue export for proper parsing
-      extract_beads_simple(content)
+  // If content starts with '[', treat as JSON from cue export
+  case string.starts_with(string.trim(content), "[") {
+    True -> decode_beads_json(content)
+    False -> {
+      // Legacy CUE format - return empty for now
+      case string.contains(content, "beads:") {
+        False -> Ok([])
+        True -> Ok([])
+      }
     }
   }
-}
-
-fn extract_beads_simple(_content: String) -> Result(List(PlanBead), PlanError) {
-  // This is a placeholder - real implementation would:
-  // 1. Call `cue export .intent/session-{id}.cue -e session.beads --out json`
-  // 2. Parse the JSON output
-  //
-  // For now, return empty list to allow module to compile
-  // The CLI command will call cue export directly
-  Ok([])
 }
 
 // =============================================================================

@@ -609,7 +609,7 @@ pub fn format_format_error_with_nested_field_test() {
 pub fn suggest_next_steps_format_error_test() {
   let suggestions = errors.suggest_next_steps("format")
 
-  { list.length(suggestions) > 0 }
+  { suggestions != [] }
   |> should.be_true
 
   // Should mention format validation
@@ -621,7 +621,7 @@ pub fn suggest_next_steps_format_error_test() {
 pub fn suggest_next_steps_missing_field_error_test() {
   let suggestions = errors.suggest_next_steps("missing_field")
 
-  { list.length(suggestions) > 0 }
+  { suggestions != [] }
   |> should.be_true
 
   // Should mention response structure
@@ -640,7 +640,7 @@ pub fn suggest_next_steps_missing_field_error_test() {
 pub fn suggest_next_steps_interpolation_error_test() {
   let suggestions = errors.suggest_next_steps("interpolation")
 
-  { list.length(suggestions) > 0 }
+  { suggestions != [] }
   |> should.be_true
 
   // Should mention variable capture
@@ -654,7 +654,7 @@ pub fn suggest_next_steps_interpolation_error_test() {
 pub fn suggest_next_steps_circular_dependency_error_test() {
   let suggestions = errors.suggest_next_steps("circular_dependency")
 
-  { list.length(suggestions) > 0 }
+  { suggestions != [] }
   |> should.be_true
 
   // Should mention requires and cycles
@@ -668,7 +668,7 @@ pub fn suggest_next_steps_circular_dependency_error_test() {
 pub fn suggest_next_steps_unknown_error_type_test() {
   let suggestions = errors.suggest_next_steps("unknown_error_type")
 
-  { list.length(suggestions) > 0 }
+  { suggestions != [] }
   |> should.be_true
 
   // Should provide generic suggestions
@@ -687,7 +687,7 @@ pub fn suggest_next_steps_returns_actionable_advice_test() {
   error_types
   |> list.all(fn(error_type) {
     let suggestions = errors.suggest_next_steps(error_type)
-    list.length(suggestions) > 0
+    suggestions != []
   })
   |> should.be_true
 }
@@ -839,7 +839,7 @@ pub fn suggest_next_steps_with_empty_error_type_test() {
   let suggestions = errors.suggest_next_steps("")
 
   // Should provide default suggestions
-  { list.length(suggestions) > 0 }
+  { suggestions != [] }
   |> should.be_true
 }
 
