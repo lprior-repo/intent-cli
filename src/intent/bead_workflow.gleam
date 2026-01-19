@@ -10,13 +10,13 @@
 
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, Some}
 import gleam/string
-import intent/bead_feedback.{type BeadFeedback, type BeadResult, Success}
+import intent/bead_feedback.{type BeadFeedback}
 import intent/bead_types.{type BeadStatus, Closed, InProgress, Open}
 import intent/bead_verify.{
-  type HookReport, type VerificationHook, can_complete, hooks_for_issue_type,
-  run_hooks_of_type, verify_bead, PreComplete,
+  type HookReport, can_complete, hooks_for_issue_type,
+  verify_bead,
 }
 
 // =============================================================================

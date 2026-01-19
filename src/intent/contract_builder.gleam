@@ -5,7 +5,6 @@
 /// This module provides a fluent API for building validation contracts
 import gleam/dict.{type Dict}
 import gleam/int
-import gleam/json
 import gleam/list
 import gleam/string
 import intent/types.{type Check, Check}

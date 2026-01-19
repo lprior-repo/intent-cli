@@ -41,12 +41,11 @@ import gleam/dynamic
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option, None}
-import gleam/result
+import gleam/option
 import gleam/string
-import intent/anti_patterns.{type AntiPatternResult, AntiPatternDetected, NoAntiPatterns}
+import intent/anti_patterns.{type AntiPatternResult, NoAntiPatterns}
 import intent/bead_templates.{type BeadRecord, BeadRecord}
-import intent/output.{type BehaviorFailure, type Problem, type SpecResult}
+import intent/output.{type SpecResult}
 
 pub type FixBead {
   FixBead(

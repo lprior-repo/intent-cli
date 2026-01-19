@@ -758,8 +758,8 @@ fn extract_behavior_changes(
   feature_changes
   |> list.flat_map(fn(fc) {
     case fc {
-      FeatureAdded(name, _) -> []
-      FeatureRemoved(name, _) -> []
+      FeatureAdded(_name, _) -> []
+      FeatureRemoved(_name, _) -> []
       FeatureModified(_, _, behavior_changes) -> behavior_changes
     }
   })
@@ -787,7 +787,7 @@ fn format_diff_details(diff: SpecDiff) -> String {
   }
 
   let sections = case diff.description_changed {
-    Some(change) -> ["Description changed", ..sections]
+    Some(_change) -> ["Description changed", ..sections]
     None -> sections
   }
 

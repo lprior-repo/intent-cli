@@ -1,7 +1,6 @@
 import gleam/list
 import gleam/option
 import gleam/string
-import gleeunit
 import gleeunit/should
 import intent/bead_feedback
 import intent/bead_types

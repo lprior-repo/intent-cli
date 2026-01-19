@@ -4,7 +4,6 @@
 //// type-safe conversions and status checking helpers.
 
 import gleam/list
-import gleam/string
 
 /// Represents the current state of a bead in its lifecycle.
 pub type BeadStatus {

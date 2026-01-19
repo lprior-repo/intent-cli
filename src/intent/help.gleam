@@ -8,7 +8,6 @@
 /// 4. Options/flags (with types, defaults)
 /// 5. Examples (realistic usage)
 /// 6. Related commands (cross-references)
-import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}

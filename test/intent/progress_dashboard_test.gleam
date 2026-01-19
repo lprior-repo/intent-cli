@@ -3,9 +3,7 @@ import gleam/json
 import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
-import intent/progress_dashboard.{
-  Completed, Failed, Progress, ProgressCounts, Running, TimingInfo,
-}
+import intent/progress_dashboard.{Completed, Failed, Running}
 
 /// Test creating a new dashboard
 pub fn create_dashboard_test() {

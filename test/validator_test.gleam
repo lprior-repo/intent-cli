@@ -14,7 +14,7 @@ import gleeunit
 import gleeunit/should
 import intent/types.{type Behavior, type Check, Behavior, Check, Request, Response}
 import intent/validator.{
-  type ValidationIssue, CircularDependency, MissingCapture, MissingDependency,
+  CircularDependency, MissingCapture, MissingDependency,
   ValidationInvalid, ValidationValid,
 }
 import test_helpers.{
