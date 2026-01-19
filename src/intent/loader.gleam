@@ -59,6 +59,12 @@ pub type LoadError {
 pub type CommandExecutor =
   fn(String, List(String), String) -> Result(String, #(Int, String))
 
+/// High-level CUE validator function
+pub type CueValidator = fn(String) -> Result(Nil, LoadError)
+
+/// High-level CUE exporter function
+pub type CueExporter = fn(String) -> Result(String, LoadError)
+
 /// Default executor using shellout.command
 fn default_executor(
   cmd: String,
@@ -140,6 +146,11 @@ pub fn validate_cue_with_executor(
   }
 }
 
+/// Default implementation of CUE validation
+pub fn default_cue_validator(path: String) -> Result(Nil, LoadError) {
+  validate_cue_with_executor(path, default_executor)
+}
+
 /// Export CUE file to JSON using injected command executor (Imperative Shell)
 /// This function performs I/O but delegates business logic to pure functions
 pub fn export_cue_with_executor(
@@ -155,6 +166,11 @@ pub fn export_cue_with_executor(
     Error(security_error) ->
       Error(SecurityError(security.format_security_error(security_error)))
   }
+}
+
+/// Default implementation of CUE export
+pub fn default_cue_exporter(path: String) -> Result(String, LoadError) {
+  export_cue_with_executor(path, default_executor)
 }
 
 /// Load spec with injected command executor and optional spinner (Imperative Shell)
@@ -228,15 +244,21 @@ pub fn load_spec_with_executor(
 // ============================================================================
 
 /// Validate a CUE file without exporting (CUE syntax only)
-/// Uses default shellout executor
-pub fn validate_cue(path: String) -> Result(Nil, LoadError) {
-  validate_cue_with_executor(path, default_executor)
+/// Uses dependency injection for validation logic
+pub fn validate_cue(
+  path: String,
+  validator: CueValidator,
+) -> Result(Nil, LoadError) {
+  validator(path)
 }
 
 /// Export a spec to JSON format (for AI consumption)
-/// Uses default shellout executor
-pub fn export_spec_json(path: String) -> Result(String, LoadError) {
-  export_cue_with_executor(path, default_executor)
+/// Uses dependency injection for export logic
+pub fn export_spec_json(
+  path: String,
+  exporter: CueExporter,
+) -> Result(String, LoadError) {
+  exporter(path)
 }
 
 /// Load a spec from a CUE file (with spinner UI)

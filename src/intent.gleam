@@ -13,6 +13,7 @@ import glint/flag
 import intent/bead_feedback
 import intent/bead_templates
 import intent/cli_ui
+import intent/doctor
 import intent/improver
 import intent/interview
 import intent/interview_questions
@@ -372,7 +373,9 @@ fn show_command() -> glint.Command(Nil) {
       [spec_path, ..] -> {
         case is_json {
           True ->
-            case loader.export_spec_json(spec_path) {
+            case
+              loader.export_spec_json(spec_path, loader.default_cue_exporter)
+            {
               Ok(json_str) -> {
                 io.println(json_str)
                 halt(exit_pass)
@@ -477,7 +480,7 @@ fn export_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     case input.args {
       [spec_path, ..] -> {
-        case loader.export_spec_json(spec_path) {
+        case loader.export_spec_json(spec_path, loader.default_cue_exporter) {
           Ok(json_str) -> {
             io.println(json_str)
             halt(exit_pass)
@@ -602,12 +605,19 @@ fn improve_command() -> glint.Command(Nil) {
 /// The `doctor` command - health report with prioritized improvements
 fn doctor_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
-          Ok(_spec) -> {
-            io.println("Doctor command stub - health analysis coming soon")
-            io.println("Spec: " <> spec_path)
+          Ok(spec) -> {
+            let report = doctor.run_doctor(spec)
+            case is_json {
+              True -> doctor.json_output(report, spec_path)
+              False -> doctor.print_report(report, output_mode.Interactive)
+            }
             halt(exit_pass)
           }
           Error(e) -> {
@@ -625,6 +635,10 @@ fn doctor_command() -> glint.Command(Nil) {
   })
   |> glint.description(
     "Analyze spec health and generate prioritized improvement report",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
   )
 }
 
@@ -845,7 +859,7 @@ fn run_interview(
 
   // Load answers from file if provided
   // DISABLED: answer_loader module not available
-  let answers_dict = option.None
+  let _answers_dict = option.None
   let _ = answers_file
   // suppress unused warning
   let _ = strict_mode
@@ -863,10 +877,6 @@ fn run_interview(
   io.println("")
   io.println("Profile: " <> profile_to_display_string(profile))
   io.println("Session: " <> session_id)
-  case answers_dict {
-    option.None -> Nil
-    option.Some(_) -> io.println("Mode: Non-interactive (answers from file)")
-  }
   io.println("")
   io.println("This guided interview will help us discover and refine your")
   io.println("specification through structured questioning.")
@@ -2317,9 +2327,7 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error(
-                          "✗ Failed to update session: " <> err,
-                        )
+                        io.println_error("✗ Failed to update session: " <> err)
                         halt(exit_error)
                       }
                     }
@@ -3065,7 +3073,7 @@ fn kirk_effects_command() -> glint.Command(Nil) {
   )
 }
 
-/// The `compact` command - KIRK compact format (CIN)
+// The `compact` command - KIRK compact format (CIN)
 // DISABLED: compact_format module not available
 // fn kirk_compact_command() -> glint.Command(Nil) {
 //   ...

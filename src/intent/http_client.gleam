@@ -28,6 +28,14 @@ pub type ExecutionResult {
   )
 }
 
+/// HTTP Executor type for dependency injection
+pub type HttpExecutor =
+  fn(HttpRequest(String)) -> Result(HttpResponse(String), dynamic.Dynamic)
+
+/// Timer type for dependency injection
+pub type Timer =
+  fn() -> Int
+
 /// Error types for HTTP execution
 pub type ExecutionError {
   UrlParseError(message: String)
@@ -42,6 +50,17 @@ pub fn execute_request(
   config: Config,
   req: Request,
   ctx: Context,
+) -> Result(ExecutionResult, ExecutionError) {
+  execute_request_with_injectors(config, req, ctx, httpc.send, erlang_now_ms)
+}
+
+/// Execute request with full dependency injection
+pub fn execute_request_with_injectors(
+  config: Config,
+  req: Request,
+  ctx: Context,
+  executor: HttpExecutor,
+  timer: Timer,
 ) -> Result(ExecutionResult, ExecutionError) {
   // Build the full URL
   let base_url = config.base_url
@@ -76,8 +95,8 @@ pub fn execute_request(
     interpolated_body,
   ))
 
-  // Execute the request (pass method and path for rule checking)
-  execute_with_timing(http_req, req.method, path)
+  // Execute the request
+  execute_with_timing(http_req, req.method, path, executor, timer)
 }
 
 fn interpolate_path(
@@ -186,12 +205,14 @@ fn execute_with_timing(
   req: HttpRequest(String),
   method: types.Method,
   path: String,
+  executor: HttpExecutor,
+  timer: Timer,
 ) -> Result(ExecutionResult, ExecutionError) {
-  let start = erlang_now_ms()
+  let start = timer()
 
-  case httpc.send(req) {
+  case executor(req) {
     Ok(resp) -> {
-      let elapsed = erlang_now_ms() - start
+      let elapsed = timer() - start
       Ok(parse_response(resp, elapsed, method, path))
     }
     Error(e) -> Error(RequestError(format_httpc_error(e)))

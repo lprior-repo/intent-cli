@@ -425,7 +425,7 @@ pub fn format_report(report: QualityReport) -> String {
 }
 
 /// Format a quality issue
-fn format_issue(issue: QualityIssue) -> String {
+pub fn format_issue(issue: QualityIssue) -> String {
   case issue {
     MissingErrorTests -> "  • Missing error status code tests (4xx, 5xx)"
     MissingAuthenticationTest -> "  • Missing authentication tests"

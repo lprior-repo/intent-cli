@@ -1,0 +1,54 @@
+[
+  {
+    "id": "intent-cli-dsh6",
+    "title": "Implement bead_waves() topological sort",
+    "status": "open",
+    "priority": 0,
+    "issue_type": "feature",
+    "created_at": "2026-01-17T14:32:44.146664542-06:00",
+    "created_by": "lewis",
+    "updated_at": "2026-01-17T14:32:44.146664542-06:00",
+    "labels": [
+      "core",
+      "planner",
+      "wave-1"
+    ],
+    "dependencies": [
+      {
+        "id": "intent-cli-fge8",
+        "title": "Create BeadTypes module (Bead, BeadStatus, BeadKind)",
+        "status": "closed",
+        "priority": 0,
+        "issue_type": "task",
+        "created_at": "2026-01-17T14:32:40.121742728-06:00",
+        "created_by": "lewis",
+        "updated_at": "2026-01-17T14:53:00.734004318-06:00",
+        "closed_at": "2026-01-17T14:53:00.734004318-06:00",
+        "labels": [
+          "core",
+          "types",
+          "wave-1"
+        ],
+        "dependency_type": "blocks"
+      }
+    ],
+    "dependents": [
+      {
+        "id": "intent-cli-83dc",
+        "title": "Integrate bead waves display into plan",
+        "status": "open",
+        "priority": 1,
+        "issue_type": "feature",
+        "created_at": "2026-01-17T14:32:34.37193896-06:00",
+        "created_by": "lewis",
+        "updated_at": "2026-01-17T14:32:34.37193896-06:00",
+        "labels": [
+          "cli",
+          "plan",
+          "wave-2"
+        ],
+        "dependency_type": "blocks"
+      }
+    ]
+  }
+]

@@ -140,6 +140,58 @@ pub fn detect_dependency_graph(
   build_phases(beads, by_id)
 }
 
+/// Return waves of bead IDs grouped by dependency depth
+/// Each wave contains IDs of beads that can run in parallel
+pub fn bead_waves(
+  beads: List(PlanBead),
+) -> Result(List(List(String)), PlanError) {
+  // Handle empty list
+  case list.is_empty(beads) {
+    True -> Ok([])
+    False -> {
+      // Build a map from id to bead
+      let by_id =
+        beads
+        |> list.map(fn(b) { #(b.id, b) })
+        |> dict.from_list
+
+      // Check all dependencies exist
+      use _ <- result.try(validate_dependencies(beads, by_id))
+
+      // Calculate dependency depth for each bead
+      let depths = calculate_depths(beads, by_id)
+
+      // Check for cycles (depths will be incomplete)
+      let max_expected = list.length(beads)
+      case dict.size(depths) < max_expected {
+        True -> {
+          let missing =
+            beads
+            |> list.filter(fn(b) { !dict.has_key(depths, b.id) })
+            |> list.map(fn(b) { b.id })
+          Error(CyclicDependency(missing))
+        }
+        False -> {
+          // Group by depth level
+          let grouped = group_by_depth(beads, depths)
+
+          // Convert to List(List(String)) sorted by depth
+          let waves =
+            grouped
+            |> dict.to_list
+            |> list.sort(fn(a, b) { int.compare(a.0, b.0) })
+            |> list.map(fn(pair) {
+              let #(_, bead_ids) = pair
+              bead_ids
+            })
+
+          Ok(waves)
+        }
+      }
+    }
+  }
+}
+
 /// Format plan as human-readable ASCII tree
 pub fn format_plan_human(plan: ExecutionPlan) -> String {
   let header =
