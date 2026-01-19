@@ -1,7 +1,7 @@
 import gleam/io
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import gleam/string
 import intent/cli_ui
 import intent/improver.{type ImprovementSuggestion}

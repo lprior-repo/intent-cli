@@ -9,7 +9,7 @@ import gleam/dict
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None}
 import gleam/result
 import gleam/string
 import intent/bead_templates.{type BeadRecord}

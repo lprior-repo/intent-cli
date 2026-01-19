@@ -4,6 +4,7 @@
 /// Round 2 output: response.checks with rule+why
 /// This module provides a fluent API for building validation contracts
 import gleam/dict.{type Dict}
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/string
@@ -459,8 +460,8 @@ pub fn from_check(field: String, rule: String, why: String) -> ContractBuilder {
 
 /// Create contract builder from list of checks
 pub fn from_list(checks: List(#(String, String, String))) -> ContractBuilder {
-  list.fold(checks, new(), fn(builder, check) {
-    let #(field, rule, why) = check
+  list.fold(checks, new(), fn(builder, item) {
+    let #(field, rule, why) = item
     check(builder, field, rule, why)
   })
 }

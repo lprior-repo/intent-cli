@@ -1,5 +1,9 @@
-import gleam/should
+import gleam/list
+import gleam/option
 import gleam/string
+import gleeunit
+import gleeunit/should
+import intent/bead_feedback
 import intent/bead_types
 import intent/bead_verify
 import intent/bead_workflow
@@ -31,7 +35,8 @@ pub fn add_feedback_test() {
   let updated = bead_workflow.add_feedback(evidence, feedback)
 
   updated.feedback
-  |> should.have_length(1)
+  |> list.length
+  |> should.equal(1)
 
   updated.issue_type
   |> should.equal("bug")
@@ -44,7 +49,8 @@ pub fn add_custom_evidence_test() {
     bead_workflow.add_custom_evidence(evidence, ["Evidence 1", "Evidence 2"])
 
   updated.custom_evidence
-  |> should.have_length(2)
+  |> list.length
+  |> should.equal(2)
 }
 
 pub fn build_evidence_list_test() {
@@ -67,7 +73,8 @@ pub fn build_evidence_list_test() {
   let list = bead_workflow.build_evidence_list(evidence)
 
   list
-  |> should.have_length(2)
+  |> list.length
+  |> should.equal(2)
 }
 
 pub fn verify_bead_for_close_in_progress_test() {
@@ -100,7 +107,7 @@ pub fn verify_bead_for_close_open_test() {
   case result {
     bead_workflow.InvalidState(bead_id, reason) -> {
       bead_id |> should.equal("TEST-001")
-      reason |> should.contain("InProgress")
+      reason |> string.contains("InProgress") |> should.be_true()
     }
     _ -> {
       should.fail()
@@ -117,7 +124,7 @@ pub fn verify_bead_for_close_closed_test() {
   case result {
     bead_workflow.InvalidState(bead_id, reason) -> {
       bead_id |> should.equal("TEST-001")
-      reason |> should.contain("already closed")
+      reason |> string.contains("already closed") |> should.be_true()
     }
     _ -> {
       should.fail()
@@ -161,8 +168,8 @@ pub fn format_close_result_test() {
 
   let formatted = bead_workflow.format_close_result(result)
 
-  formatted |> should.contain("TEST-001")
-  formatted |> should.contain("closed successfully")
+  formatted |> string.contains("TEST-001") |> should.be_true()
+  formatted |> string.contains("closed successfully") |> should.be_true()
 }
 
 pub fn close_result_to_json_test() {
@@ -176,25 +183,28 @@ pub fn close_result_to_json_test() {
 
   let json = bead_workflow.close_result_to_json(result)
 
-  json |> should.not_be_none()
+  option.is_some(json) |> should.be_true()
 }
 
 pub fn hooks_for_issue_type_test() {
   let hooks = bead_verify.hooks_for_issue_type("feature")
 
   hooks
-  |> should.have_length(1)
+  |> list.length
+  |> should.equal(1)
 
-  let first = list.first(hooks) |> should.be_ok()
-
-  first.id |> should.equal("feature-complete")
+  case list.first(hooks) {
+    Ok(first) -> first.id |> should.equal("feature-complete")
+    Error(_) -> should.fail()
+  }
 }
 
 pub fn default_hooks_test() {
   let hooks = bead_verify.default_hooks()
 
   hooks
-  |> should.have_length(3)
+  |> list.length
+  |> should.equal(3)
 }
 
 pub fn verify_criterion_test() {

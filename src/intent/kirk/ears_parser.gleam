@@ -744,7 +744,7 @@ fn format_error(error: EarsError) -> String {
       pattern_suggestion(pattern),
     )
 
-    RegexCompileFailed(line:, pattern:, pattern_string: _) -> #(
+    RegexCompileFailed(line:, pattern:, ..) -> #(
       line,
       "Internal error: regex compilation failed for "
         <> pattern_to_string(pattern),
@@ -971,14 +971,14 @@ pub fn error_pattern(error: EarsError) -> Option(EarsPattern) {
 /// Get message and suggestion for an EarsError
 pub fn error_message(error: EarsError) -> #(String, String) {
   case error {
-    PatternNotMatched(line:, raw_text:) -> #(
+    PatternNotMatched(line: _, raw_text:) -> #(
       "Line doesn't match any EARS pattern: \""
         <> truncate(raw_text, 40)
         <> "\"",
       "Use patterns like 'WHEN [trigger] THE SYSTEM SHALL [behavior]'",
     )
 
-    PatternMatchFailed(line:, pattern:, raw_text:) -> #(
+    PatternMatchFailed(line: _, pattern:, raw_text:) -> #(
       "Failed to match "
         <> pattern_to_string(pattern)
         <> " pattern: \""
@@ -987,13 +987,13 @@ pub fn error_message(error: EarsError) -> #(String, String) {
       pattern_suggestion(pattern),
     )
 
-    RegexCompileFailed(line:, pattern:, ..) -> #(
+    RegexCompileFailed(line: _, pattern:, ..) -> #(
       "Internal error: regex compilation failed for "
         <> pattern_to_string(pattern),
       "This is a bug in the parser. Please report it.",
     )
 
-    ComponentExtractionFailed(line:, pattern:, missing:, raw_text:) -> #(
+    ComponentExtractionFailed(line: _, pattern:, missing:, raw_text:) -> #(
       "Missing "
         <> component_to_string(missing)
         <> " in "

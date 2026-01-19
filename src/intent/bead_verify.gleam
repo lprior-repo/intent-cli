@@ -276,7 +276,7 @@ pub fn verify_bead(
   let required_passed =
     list.all(results, fn(r) {
       case r {
-        HookPassed(id, _) -> True
+        HookPassed(_id, _) -> True
         HookSkipped(id, _) -> !list.contains(required_hook_ids, id)
         HookFailed(id, _, _) -> !list.contains(required_hook_ids, id)
       }
