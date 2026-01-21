@@ -10,7 +10,6 @@
 /// - prototext: Protobuf text format export
 /// - ears: EARS requirements parsing
 /// - parse: Parse EARS to spec
-
 import gleam/dict
 import gleam/float
 import gleam/io
@@ -30,7 +29,6 @@ import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
 import intent/kirk/quality_analyzer as kirk_quality
 import intent/loader
-import intent/stdin
 import simplifile
 
 /// Exit code constants for compatibility
@@ -388,9 +386,7 @@ pub fn compact_command() -> glint.Command(Nil) {
                 let #(full, compact_tokens, savings) =
                   compact_format.compare_token_usage(spec)
                 io.println("")
-                io.println(
-                  "-------------------------------------",
-                )
+                io.println("-------------------------------------")
                 io.println("Token Analysis:")
                 io.println(
                   "  Full JSON:    ~" <> string.inspect(full) <> " tokens",
@@ -620,7 +616,10 @@ pub fn parse_command() -> glint.Command(Nil) {
     case args_with_stdin {
       [requirements_path, ..] -> {
         let read_result = case requirements_path == "-" || use_stdin {
-          True -> stdin.read_all()
+          True ->
+            Error(
+              "Reading from stdin is not yet supported. Please provide a file path.",
+            )
           False ->
             simplifile.read(requirements_path)
             |> result.map_error(fn(_) { "Failed to read file" })
@@ -712,10 +711,7 @@ pub fn parse_command() -> glint.Command(Nil) {
                     io.println("Errors (" <> string.inspect(err_count) <> "):")
                     list.each(result.errors, fn(e) {
                       io.println(
-                        "  Line "
-                        <> string.inspect(e.line)
-                        <> ": "
-                        <> e.message,
+                        "  Line " <> string.inspect(e.line) <> ": " <> e.message,
                       )
                     })
                   }

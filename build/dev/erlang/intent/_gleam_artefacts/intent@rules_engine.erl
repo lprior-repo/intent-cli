@@ -121,16 +121,31 @@ check_when_conditions(When, Response) ->
         erlang:element(2, When),
         erlang:element(2, Response)
     ),
-    Method_ok = erlang:element(7, Response) =:= erlang:element(3, When),
-    Path_ok = check_path_pattern(
-        erlang:element(4, When),
-        erlang:element(8, Response)
-    ),
+    Method_ok = case erlang:element(3, When) of
+        {some, M} ->
+            erlang:element(7, Response) =:= M;
+
+        none ->
+            true
+    end,
+    Path_ok = case erlang:element(4, When) of
+        {some, P} ->
+            check_path_pattern(P, erlang:element(8, Response));
+
+        none ->
+            true
+    end,
     (Status_ok andalso Method_ok) andalso Path_ok.
 
 -spec rule_applies(intent@types:rule(), intent@http_client:execution_result()) -> boolean().
 rule_applies(Rule, Response) ->
-    check_when_conditions(erlang:element(4, Rule), Response).
+    case erlang:element(4, Rule) of
+        {some, When} ->
+            check_when_conditions(When, Response);
+
+        none ->
+            true
+    end.
 
 -spec contains_string(binary(), binary()) -> boolean().
 contains_string(Body, Needle) ->
@@ -174,17 +189,24 @@ field_exists(Body, Field_path) ->
     Parts = gleam@string:split(Field_path, <<"."/utf8>>),
     navigate_and_check(Body, Parts).
 
+-spec build_header_index(gleam@dict:dict(binary(), binary())) -> gleam@dict:dict(binary(), binary()).
+build_header_index(Headers) ->
+    _pipe = Headers,
+    _pipe@1 = maps:to_list(_pipe),
+    _pipe@2 = gleam@list:map(
+        _pipe@1,
+        fun(Pair) ->
+            {gleam@string:lowercase(erlang:element(1, Pair)),
+                erlang:element(2, Pair)}
+        end
+    ),
+    maps:from_list(_pipe@2).
+
 -spec header_exists(gleam@dict:dict(binary(), binary()), binary()) -> boolean().
 header_exists(Headers, Header_name) ->
     Lower_name = gleam@string:lowercase(Header_name),
-    _pipe = Headers,
-    _pipe@1 = maps:to_list(_pipe),
-    gleam@list:any(
-        _pipe@1,
-        fun(Pair) ->
-            gleam@string:lowercase(erlang:element(1, Pair)) =:= Lower_name
-        end
-    ).
+    Index = build_header_index(Headers),
+    gleam@dict:has_key(Index, Lower_name).
 
 -spec collect_violations(
     intent@types:rule_check(),

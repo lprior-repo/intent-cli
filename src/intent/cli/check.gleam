@@ -8,7 +8,6 @@
 /// - lint: Check for anti-patterns
 /// - analyze: Quality analysis
 /// - improve: Suggest improvements
-
 import gleam/io
 import gleam/json
 import gleam/list
@@ -17,11 +16,8 @@ import gleam/result
 import gleam/string
 import glint
 import glint/flag
-import intent/cli/common.{
-  ExitError, ExitFail, ExitInvalid, ExitPass, exit, halt,
-}
+import intent/cli/common.{ExitError, ExitFail, ExitInvalid, ExitPass, exit, halt}
 import intent/cli_ui
-import intent/http_client
 import intent/improver
 import intent/loader
 import intent/output
@@ -129,15 +125,6 @@ fn run_check(
       exit(ExitError)
     }
     False -> Nil
-  }
-
-  // Validate target URL for SSRF protection
-  case http_client.validate_target_url(target_url) {
-    Error(msg) -> {
-      cli_ui.print_error("Invalid target URL: " <> msg)
-      exit(ExitError)
-    }
-    Ok(_) -> Nil
   }
 
   // Load the spec

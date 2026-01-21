@@ -64,6 +64,35 @@
 
 -type answer_change_type() :: added | modified | removed.
 
+-spec format_file_error(simplifile:file_error(), binary()) -> binary().
+format_file_error(Err, Context) ->
+    case Err of
+        enoent ->
+            <<Context/binary, " - file not found"/utf8>>;
+
+        eacces ->
+            <<Context/binary, " - permission denied"/utf8>>;
+
+        eisdir ->
+            <<Context/binary, " - path is a directory"/utf8>>;
+
+        enospc ->
+            <<Context/binary, " - no space left on device"/utf8>>;
+
+        enotdir ->
+            <<Context/binary, " - not a directory"/utf8>>;
+
+        eexist ->
+            <<Context/binary, " - file already exists"/utf8>>;
+
+        eio ->
+            <<Context/binary, " - I/O error"/utf8>>;
+
+        _ ->
+            <<<<Context/binary, " - "/utf8>>/binary,
+                (gleam@string:inspect(Err))/binary>>
+    end.
+
 -spec answer_to_version(intent@interview:answer(), integer(), binary()) -> answer_version().
 answer_to_version(Answer, Version, Change_reason) ->
     {answer_version,
@@ -345,8 +374,7 @@ list_session_history(History_path, Session_id) ->
             gleam@result:map_error(
                 _pipe,
                 fun(Err) ->
-                    <<"Failed to read history: "/utf8,
-                        (gleam@string:inspect(Err))/binary>>
+                    format_file_error(Err, <<"Failed to read history"/utf8>>)
                 end
             )
         end,
@@ -634,8 +662,7 @@ append_to_history(Session, Description, History_path) ->
             gleam@result:map_error(
                 _pipe@2,
                 fun(Err) ->
-                    <<"Failed to write history: "/utf8,
-                        (gleam@string:inspect(Err))/binary>>
+                    format_file_error(Err, <<"Failed to write history"/utf8>>)
                 end
             )
         end
@@ -805,43 +832,37 @@ session_id_decoder(Json_value) ->
         nil} |
     {error, binary()}.
 append_session_to_jsonl(Session, Jsonl_path) ->
-    gleam@result:'try'(
-        begin
-            _pipe = simplifile:read(Jsonl_path),
-            gleam@result:map_error(_pipe, fun(_) -> <<""/utf8>> end)
-        end,
-        fun(Existing) ->
-            Lines = case Existing of
-                <<""/utf8>> ->
-                    [];
+    Existing = case simplifile:read(Jsonl_path) of
+        {ok, Content} ->
+            Content;
 
-                Content ->
-                    gleam@string:split(Content, <<"\n"/utf8>>)
-            end,
-            Filtered = gleam@list:filter(
-                Lines,
-                fun(Line) ->
-                    case gleam@json:decode(Line, fun session_id_decoder/1) of
-                        {ok, Id} ->
-                            Id /= erlang:element(2, Session);
+        {error, _} ->
+            <<""/utf8>>
+    end,
+    Lines = case Existing of
+        <<""/utf8>> ->
+            [];
 
-                        {error, _} ->
-                            true
-                    end
-                end
-            ),
-            New_line = session_to_jsonl_line(Session),
-            All_lines = lists:append(Filtered, [New_line]),
-            Content@1 = gleam@string:join(All_lines, <<"\n"/utf8>>),
-            _pipe@1 = simplifile:write(Jsonl_path, Content@1),
-            gleam@result:map_error(
-                _pipe@1,
-                fun(Err) ->
-                    <<"Failed to write JSONL: "/utf8,
-                        (gleam@string:inspect(Err))/binary>>
-                end
-            )
-        end
+        Content@1 ->
+            gleam@string:split(Content@1, <<"\n"/utf8>>)
+    end,
+    Filtered = gleam@list:filter(
+        Lines,
+        fun(Line) -> case gleam@json:decode(Line, fun session_id_decoder/1) of
+                {ok, Id} ->
+                    Id /= erlang:element(2, Session);
+
+                {error, _} ->
+                    true
+            end end
+    ),
+    New_line = session_to_jsonl_line(Session),
+    All_lines = lists:append(Filtered, [New_line]),
+    Content@2 = gleam@string:join(All_lines, <<"\n"/utf8>>),
+    _pipe = simplifile:write(Jsonl_path, Content@2),
+    gleam@result:map_error(
+        _pipe,
+        fun(Err) -> format_file_error(Err, <<"Failed to write JSONL"/utf8>>) end
     ).
 
 -spec sync_to_jsonl(intent@interview:interview_session(), binary(), binary()) -> {ok,
@@ -929,24 +950,26 @@ session_decoder(Json_value) ->
                                                         ))(Json_value),
                                                         fun(Stage_str) ->
                                                             gleam@result:'try'(
-                                                                case Stage_str of
-                                                                    <<"Discovery"/utf8>> ->
+                                                                case gleam@string:lowercase(
+                                                                    Stage_str
+                                                                ) of
+                                                                    <<"discovery"/utf8>> ->
                                                                         {ok,
                                                                             discovery};
 
-                                                                    <<"Refinement"/utf8>> ->
+                                                                    <<"refinement"/utf8>> ->
                                                                         {ok,
                                                                             refinement};
 
-                                                                    <<"Validation"/utf8>> ->
+                                                                    <<"validation"/utf8>> ->
                                                                         {ok,
                                                                             validation};
 
-                                                                    <<"Complete"/utf8>> ->
+                                                                    <<"complete"/utf8>> ->
                                                                         {ok,
                                                                             complete};
 
-                                                                    <<"Paused"/utf8>> ->
+                                                                    <<"paused"/utf8>> ->
                                                                         {ok,
                                                                             paused};
 
@@ -1030,8 +1053,7 @@ list_sessions_from_jsonl(Jsonl_path) ->
             gleam@result:map_error(
                 _pipe,
                 fun(Err) ->
-                    <<"Failed to read JSONL: "/utf8,
-                        (gleam@string:inspect(Err))/binary>>
+                    format_file_error(Err, <<"Failed to read JSONL"/utf8>>)
                 end
             )
         end,

@@ -53,11 +53,14 @@
 -type rule() :: {rule,
         binary(),
         binary(),
-        'when'(),
+        gleam@option:option('when'()),
         rule_check(),
         gleam@json:json()}.
 
--type 'when'() :: {'when', binary(), method(), binary()}.
+-type 'when'() :: {'when',
+        binary(),
+        gleam@option:option(method()),
+        gleam@option:option(binary())}.
 
 -type rule_check() :: {rule_check,
         list(binary()),

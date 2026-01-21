@@ -2,6 +2,8 @@
 //// Tests execution orchestration, filtering, and result aggregation
 //// Note: These are unit tests that don't make actual HTTP requests
 
+import gleam/dict
+import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
@@ -187,13 +189,16 @@ pub fn runner_custom_target_url_test() {
   let spec = make_test_spec([make_test_feature("API", [b])])
 
   let result =
-    runner.run_spec(spec, "http://nonexistent.invalid:9999", runner.default_options())
+    runner.run_spec(
+      spec,
+      "http://nonexistent.invalid:9999",
+      runner.default_options(),
+    )
 
   // Should attempt to run against the custom URL (1 behavior)
   // Verify the runner attempted to execute (total should be 1)
   result.total
   |> should.equal(1)
-
   // Note: Network errors may be classified as BehaviorError (not BehaviorFailed)
   // which means failed count might be 0 even though execution didn't succeed.
   // The important thing is that the behavior was attempted.
@@ -292,6 +297,7 @@ pub fn spec_result_fields_test() {
       total: 5,
       summary: "All 5 behaviors passed",
       failures: [],
+      error_failures: [],
       blocked_behaviors: [],
       rule_violations: [],
       anti_patterns_detected: [],
@@ -334,9 +340,35 @@ pub fn spec_result_with_failures_test() {
       failed: 2,
       blocked: 0,
       total: 5,
-      summary: "2 failures out of 5",
-      failures: [],
-      // Would contain BehaviorFailure in real use
+      summary: "2 failures, 0 blocked out of 5 behaviors",
+      failures: [
+        output.BehaviorFailure(
+          feature: "User API",
+          behavior: "create_user",
+          intent: "Create a new user account",
+          problems: [
+            output.Problem(
+              field: "status",
+              rule: "equals",
+              expected: "201",
+              actual: "200",
+              explanation: "",
+            ),
+          ],
+          request_sent: output.RequestSummary(
+            method: "POST",
+            url: "http://localhost:8080/users",
+            headers: dict.new(),
+          ),
+          response_received: output.ResponseSummary(
+            status: 200,
+            body: json.null(),
+          ),
+          hint: "",
+          see_also: [],
+        ),
+      ],
+      error_failures: [],
       blocked_behaviors: [],
       rule_violations: [],
       anti_patterns_detected: [],
@@ -361,10 +393,10 @@ pub fn spec_result_with_blocked_test() {
       failed: 1,
       blocked: 2,
       total: 5,
-      summary: "1 failure, 2 blocked",
+      summary: "1 failure, 2 blocked out of 5 behaviors",
       failures: [],
+      error_failures: [],
       blocked_behaviors: [],
-      // Would contain BlockedBehavior in real use
       rule_violations: [],
       anti_patterns_detected: [],
     )

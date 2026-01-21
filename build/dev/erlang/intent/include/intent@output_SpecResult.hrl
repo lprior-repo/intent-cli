@@ -6,6 +6,7 @@
     total :: integer(),
     summary :: binary(),
     failures :: list(intent@output:behavior_failure()),
+    error_failures :: list(intent@output:behavior_error_info()),
     blocked_behaviors :: list(intent@output:blocked_behavior()),
     rule_violations :: list(intent@output:rule_violation_group()),
     anti_patterns_detected :: list(intent@anti_patterns:anti_pattern_result())

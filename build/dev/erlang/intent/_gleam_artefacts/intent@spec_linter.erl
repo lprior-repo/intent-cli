@@ -251,21 +251,36 @@ check_for_duplicate_behaviors(Behaviors) ->
             gleam@list:filter_map(
                 _pipe@2,
                 fun(Other) ->
-                    Similarity = calculate_behavior_similarity(Behavior, Other),
-                    case Similarity > 0.7 of
-                        true ->
-                            {ok,
-                                {duplicate_behavior,
-                                    erlang:element(2, Behavior),
-                                    erlang:element(2, Other),
-                                    <<<<"Similar request path and method (similarity: "/utf8,
-                                            (gleam@string:trim(
-                                                float_to_string(Similarity, 2)
-                                            ))/binary>>/binary,
-                                        ")"/utf8>>}};
-
+                    case erlang:element(2, erlang:element(8, Behavior)) =:= erlang:element(
+                        2,
+                        erlang:element(8, Other)
+                    ) of
                         false ->
-                            {error, nil}
+                            {error, nil};
+
+                        true ->
+                            Similarity = calculate_behavior_similarity(
+                                Behavior,
+                                Other
+                            ),
+                            case Similarity > 0.7 of
+                                true ->
+                                    {ok,
+                                        {duplicate_behavior,
+                                            erlang:element(2, Behavior),
+                                            erlang:element(2, Other),
+                                            <<<<"Similar request path and method with same status code (similarity: "/utf8,
+                                                    (gleam@string:trim(
+                                                        float_to_string(
+                                                            Similarity,
+                                                            2
+                                                        )
+                                                    ))/binary>>/binary,
+                                                ")"/utf8>>}};
+
+                                false ->
+                                    {error, nil}
+                            end
                     end
                 end
             ) end

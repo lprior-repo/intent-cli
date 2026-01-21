@@ -454,20 +454,27 @@ parse_when(Data) ->
             Data
         ),
         fun(Status) ->
-            gleam@result:'try'(
-                (gleam@dynamic:field(<<"method"/utf8>>, fun parse_method/1))(
-                    Data
-                ),
-                fun(Method) ->
-                    gleam@result:'try'(
-                        (gleam@dynamic:field(
-                            <<"path"/utf8>>,
-                            fun gleam@dynamic:string/1
-                        ))(Data),
-                        fun(Path) -> {ok, {'when', Status, Method, Path}} end
-                    )
-                end
-            )
+            Method = case (gleam@dynamic:field(
+                <<"method"/utf8>>,
+                fun parse_method/1
+            ))(Data) of
+                {ok, M} ->
+                    {some, M};
+
+                {error, _} ->
+                    none
+            end,
+            Path = case (gleam@dynamic:field(
+                <<"path"/utf8>>,
+                fun gleam@dynamic:string/1
+            ))(Data) of
+                {ok, P} ->
+                    {some, P};
+
+                {error, _} ->
+                    none
+            end,
+            {ok, {'when', Status, Method, Path}}
         end
     ).
 
@@ -475,64 +482,74 @@ parse_when(Data) ->
         intent@types:rule_check()} |
     {error, list(gleam@dynamic:decode_error())}.
 parse_rule_check(Data) ->
-    gleam@result:'try'(
-        (gleam@dynamic:field(
-            <<"body_must_not_contain"/utf8>>,
-            gleam@dynamic:list(fun gleam@dynamic:string/1)
-        ))(Data),
-        fun(Body_must_not_contain) ->
-            gleam@result:'try'(
-                (gleam@dynamic:field(
-                    <<"body_must_contain"/utf8>>,
-                    gleam@dynamic:list(fun gleam@dynamic:string/1)
-                ))(Data),
-                fun(Body_must_contain) ->
-                    gleam@result:'try'(
-                        (gleam@dynamic:field(
-                            <<"fields_must_exist"/utf8>>,
-                            gleam@dynamic:list(fun gleam@dynamic:string/1)
-                        ))(Data),
-                        fun(Fields_must_exist) ->
-                            gleam@result:'try'(
-                                (gleam@dynamic:field(
-                                    <<"fields_must_not_exist"/utf8>>,
-                                    gleam@dynamic:list(
-                                        fun gleam@dynamic:string/1
-                                    )
-                                ))(Data),
-                                fun(Fields_must_not_exist) ->
-                                    gleam@result:'try'(
-                                        (gleam@dynamic:field(
-                                            <<"header_must_exist"/utf8>>,
-                                            fun gleam@dynamic:string/1
-                                        ))(Data),
-                                        fun(Header_must_exist) ->
-                                            gleam@result:'try'(
-                                                (gleam@dynamic:field(
-                                                    <<"header_must_not_exist"/utf8>>,
-                                                    fun gleam@dynamic:string/1
-                                                ))(Data),
-                                                fun(Header_must_not_exist) ->
-                                                    {ok,
-                                                        {rule_check,
-                                                            Body_must_not_contain,
-                                                            Body_must_contain,
-                                                            Fields_must_exist,
-                                                            Fields_must_not_exist,
-                                                            Header_must_exist,
-                                                            Header_must_not_exist}}
-                                                end
-                                            )
-                                        end
-                                    )
-                                end
-                            )
-                        end
-                    )
-                end
-            )
-        end
-    ).
+    Body_must_not_contain = case (gleam@dynamic:field(
+        <<"body_must_not_contain"/utf8>>,
+        gleam@dynamic:list(fun gleam@dynamic:string/1)
+    ))(Data) of
+        {ok, V} ->
+            V;
+
+        {error, _} ->
+            []
+    end,
+    Body_must_contain = case (gleam@dynamic:field(
+        <<"body_must_contain"/utf8>>,
+        gleam@dynamic:list(fun gleam@dynamic:string/1)
+    ))(Data) of
+        {ok, V@1} ->
+            V@1;
+
+        {error, _} ->
+            []
+    end,
+    Fields_must_exist = case (gleam@dynamic:field(
+        <<"fields_must_exist"/utf8>>,
+        gleam@dynamic:list(fun gleam@dynamic:string/1)
+    ))(Data) of
+        {ok, V@2} ->
+            V@2;
+
+        {error, _} ->
+            []
+    end,
+    Fields_must_not_exist = case (gleam@dynamic:field(
+        <<"fields_must_not_exist"/utf8>>,
+        gleam@dynamic:list(fun gleam@dynamic:string/1)
+    ))(Data) of
+        {ok, V@3} ->
+            V@3;
+
+        {error, _} ->
+            []
+    end,
+    Header_must_exist = case (gleam@dynamic:field(
+        <<"header_must_exist"/utf8>>,
+        fun gleam@dynamic:string/1
+    ))(Data) of
+        {ok, V@4} ->
+            V@4;
+
+        {error, _} ->
+            <<""/utf8>>
+    end,
+    Header_must_not_exist = case (gleam@dynamic:field(
+        <<"header_must_not_exist"/utf8>>,
+        fun gleam@dynamic:string/1
+    ))(Data) of
+        {ok, V@5} ->
+            V@5;
+
+        {error, _} ->
+            <<""/utf8>>
+    end,
+    {ok,
+        {rule_check,
+            Body_must_not_contain,
+            Body_must_contain,
+            Fields_must_exist,
+            Fields_must_not_exist,
+            Header_must_exist,
+            Header_must_not_exist}}.
 
 -spec parse_rule(gleam@dynamic:dynamic_()) -> {ok, intent@types:rule()} |
     {error, list(gleam@dynamic:decode_error())}.
@@ -546,34 +563,34 @@ parse_rule(Data) ->
                     fun gleam@dynamic:string/1
                 ))(Data),
                 fun(Description) ->
+                    When = case (gleam@dynamic:field(
+                        <<"when"/utf8>>,
+                        fun parse_when/1
+                    ))(Data) of
+                        {ok, W} ->
+                            {some, W};
+
+                        {error, _} ->
+                            none
+                    end,
                     gleam@result:'try'(
-                        (gleam@dynamic:field(<<"when"/utf8>>, fun parse_when/1))(
-                            Data
-                        ),
-                        fun(When) ->
-                            gleam@result:'try'(
-                                (gleam@dynamic:field(
-                                    <<"check"/utf8>>,
-                                    fun parse_rule_check/1
-                                ))(Data),
-                                fun(Check) ->
-                                    gleam@result:'try'(
-                                        (gleam@dynamic:field(
-                                            <<"example"/utf8>>,
-                                            fun parse_json_value/1
-                                        ))(Data),
-                                        fun(Example) ->
-                                            {ok,
-                                                {rule,
-                                                    Name,
-                                                    Description,
-                                                    When,
-                                                    Check,
-                                                    Example}}
-                                        end
-                                    )
-                                end
-                            )
+                        (gleam@dynamic:field(
+                            <<"check"/utf8>>,
+                            fun parse_rule_check/1
+                        ))(Data),
+                        fun(Check) ->
+                            Example = case (gleam@dynamic:field(
+                                <<"example"/utf8>>,
+                                fun parse_json_value/1
+                            ))(Data) of
+                                {ok, E} ->
+                                    E;
+
+                                {error, _} ->
+                                    gleam@json:null()
+                            end,
+                            {ok,
+                                {rule, Name, Description, When, Check, Example}}
                         end
                     )
                 end

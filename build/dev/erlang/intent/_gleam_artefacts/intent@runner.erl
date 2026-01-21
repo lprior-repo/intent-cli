@@ -76,6 +76,50 @@ apply_filters(Behaviors, Options) ->
         end
     ).
 
+-spec convert_response_check_result(intent@checker:response_check_result()) -> intent@checker@types:response_check_result().
+convert_response_check_result(Result) ->
+    Passed = gleam@list:map(
+        erlang:element(2, Result),
+        fun(Check) -> case Check of
+                {check_passed, Field, Rule} ->
+                    {check_passed, Field, Rule};
+
+                {check_failed, Field@1, Rule@1, Expected, Actual, Explanation} ->
+                    {check_failed,
+                        Field@1,
+                        Rule@1,
+                        Expected,
+                        Actual,
+                        Explanation}
+            end end
+    ),
+    Failed = gleam@list:map(
+        erlang:element(3, Result),
+        fun(Check@1) -> case Check@1 of
+                {check_passed, Field@2, Rule@2} ->
+                    {check_passed, Field@2, Rule@2};
+
+                {check_failed,
+                    Field@3,
+                    Rule@3,
+                    Expected@1,
+                    Actual@1,
+                    Explanation@1} ->
+                    {check_failed,
+                        Field@3,
+                        Rule@3,
+                        Expected@1,
+                        Actual@1,
+                        Explanation@1}
+            end end
+    ),
+    {response_check_result,
+        Passed,
+        Failed,
+        erlang:element(4, Result),
+        erlang:element(5, Result),
+        erlang:element(6, Result)}.
+
 -spec apply_captures(
     intent@interpolate:context(),
     intent@types:behavior(),
@@ -172,7 +216,7 @@ execute_single_behavior(Rb, Config, _, Ctx, Failed_set, Executor) ->
                             Failure = intent@output:create_failure(
                                 erlang:element(2, Rb),
                                 erlang:element(3, Rb),
-                                Check_result,
+                                convert_response_check_result(Check_result),
                                 Execution,
                                 erlang:element(2, Config)
                             ),
@@ -365,6 +409,7 @@ run_spec_with_executor(Spec, Target_url, Options, Executor) ->
                 [],
                 [],
                 [],
+                [],
                 []};
 
         {ok, Resolved} ->
@@ -431,6 +476,64 @@ run_spec_with_executor(Spec, Target_url, Options, Executor) ->
                             {error, nil}
                     end end
             ),
+            Error_failures = gleam@list:filter_map(
+                Results,
+                fun(R@5) -> case R@5 of
+                        {behavior_error, Name@1, Error} ->
+                            {Error_type, Message} = case Error of
+                                {url_parse_error, Msg} ->
+                                    {<<"URL_PARSE_ERROR"/utf8>>, Msg};
+
+                                {interpolation_error, Msg@1} ->
+                                    {<<"INTERPOLATION_ERROR"/utf8>>, Msg@1};
+
+                                {request_error, Msg@2} ->
+                                    Contains_refused = gleam_stdlib:contains_string(
+                                        Msg@2,
+                                        <<"connection refused"/utf8>>
+                                    ),
+                                    Contains_timeout = gleam_stdlib:contains_string(
+                                        Msg@2,
+                                        <<"timeout"/utf8>>
+                                    ),
+                                    Contains_resolve = gleam_stdlib:contains_string(
+                                        Msg@2,
+                                        <<"resolve"/utf8>>
+                                    ),
+                                    case {Contains_refused,
+                                        Contains_timeout,
+                                        Contains_resolve} of
+                                        {true, _, _} ->
+                                            {<<"CONNECTION_REFUSED"/utf8>>,
+                                                Msg@2};
+
+                                        {_, true, _} ->
+                                            {<<"TIMEOUT"/utf8>>, Msg@2};
+
+                                        {_, _, true} ->
+                                            {<<"DNS_FAILURE"/utf8>>, Msg@2};
+
+                                        {_, _, _} ->
+                                            {<<"REQUEST_ERROR"/utf8>>, Msg@2}
+                                    end;
+
+                                {response_parse_error, Msg@3} ->
+                                    {<<"RESPONSE_PARSE_ERROR"/utf8>>, Msg@3};
+
+                                {ssrf_blocked, Msg@4} ->
+                                    {<<"SSRF_BLOCKED"/utf8>>, Msg@4}
+                            end,
+                            {ok,
+                                intent@output:create_error_info(
+                                    Name@1,
+                                    Error_type,
+                                    Message
+                                )};
+
+                        _ ->
+                            {error, nil}
+                    end end
+            ),
             Rule_violations = collect_rule_violations(
                 Results,
                 erlang:element(9, Spec)
@@ -461,6 +564,7 @@ run_spec_with_executor(Spec, Target_url, Options, Executor) ->
                 Total,
                 Summary,
                 Failures,
+                Error_failures,
                 Blocked_behaviors,
                 Rule_violations,
                 Anti_patterns}

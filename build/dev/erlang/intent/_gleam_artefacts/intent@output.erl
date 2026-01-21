@@ -1,8 +1,8 @@
 -module(intent@output).
 -compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
 
--export([spec_result_to_json/1, spec_result_to_text/1, create_failure/5, create_blocked/2]).
--export_type([spec_result/0, behavior_failure/0, problem/0, request_summary/0, response_summary/0, blocked_behavior/0, rule_violation_group/0, behavior_violation/0]).
+-export([spec_result_to_json/1, spec_result_to_text/1, create_failure/5, create_blocked/2, create_error_info/3]).
+-export_type([spec_result/0, behavior_failure/0, problem/0, request_summary/0, response_summary/0, blocked_behavior/0, behavior_error_info/0, rule_violation_group/0, behavior_violation/0]).
 
 -type spec_result() :: {spec_result,
         boolean(),
@@ -12,6 +12,7 @@
         integer(),
         binary(),
         list(behavior_failure()),
+        list(behavior_error_info()),
         list(blocked_behavior()),
         list(rule_violation_group()),
         list(intent@anti_patterns:anti_pattern_result())}.
@@ -36,6 +37,12 @@
 -type response_summary() :: {response_summary, integer(), gleam@json:json()}.
 
 -type blocked_behavior() :: {blocked_behavior, binary(), binary(), binary()}.
+
+-type behavior_error_info() :: {behavior_error_info,
+        binary(),
+        binary(),
+        binary(),
+        binary()}.
 
 -type rule_violation_group() :: {rule_violation_group,
         binary(),
@@ -117,6 +124,15 @@ blocked_behavior_to_json(Blocked) ->
             {<<"hint"/utf8>>, gleam@json:string(erlang:element(4, Blocked))}]
     ).
 
+-spec behavior_error_to_json(behavior_error_info()) -> gleam@json:json().
+behavior_error_to_json(Error) ->
+    gleam@json:object(
+        [{<<"behavior"/utf8>>, gleam@json:string(erlang:element(2, Error))},
+            {<<"error_type"/utf8>>, gleam@json:string(erlang:element(3, Error))},
+            {<<"message"/utf8>>, gleam@json:string(erlang:element(4, Error))},
+            {<<"hint"/utf8>>, gleam@json:string(erlang:element(5, Error))}]
+    ).
+
 -spec behavior_violation_to_json(behavior_violation()) -> gleam@json:json().
 behavior_violation_to_json(Violation) ->
     gleam@json:object(
@@ -183,19 +199,24 @@ spec_result_to_json(Result) ->
                     erlang:element(8, Result),
                     fun behavior_failure_to_json/1
                 )},
-            {<<"blocked"/utf8>>,
+            {<<"error_failures"/utf8>>,
                 gleam@json:array(
                     erlang:element(9, Result),
+                    fun behavior_error_to_json/1
+                )},
+            {<<"blocked"/utf8>>,
+                gleam@json:array(
+                    erlang:element(10, Result),
                     fun blocked_behavior_to_json/1
                 )},
             {<<"rule_violations"/utf8>>,
                 gleam@json:array(
-                    erlang:element(10, Result),
+                    erlang:element(11, Result),
                     fun rule_violation_group_to_json/1
                 )},
             {<<"anti_patterns_detected"/utf8>>,
                 gleam@json:array(
-                    erlang:element(11, Result),
+                    erlang:element(12, Result),
                     fun anti_pattern_result_to_json/1
                 )}]
     ).
@@ -265,6 +286,21 @@ format_blocked(Blocked) ->
                 <<<<" ("/utf8, Hint/binary>>/binary, ")"/utf8>>
         end)/binary>>.
 
+-spec format_error_failure(behavior_error_info()) -> binary().
+format_error_failure(Error) ->
+    <<<<<<<<<<<<"- "/utf8, (erlang:element(2, Error))/binary>>/binary,
+                        " ["/utf8>>/binary,
+                    (erlang:element(3, Error))/binary>>/binary,
+                "]: "/utf8>>/binary,
+            (erlang:element(4, Error))/binary>>/binary,
+        (case erlang:element(5, Error) of
+            <<""/utf8>> ->
+                <<""/utf8>>;
+
+            Hint ->
+                <<"\n  Hint: "/utf8, Hint/binary>>
+        end)/binary>>.
+
 -spec format_rule_violation_group(rule_violation_group()) -> binary().
 format_rule_violation_group(Group) ->
     Violations_text = begin
@@ -312,7 +348,18 @@ spec_result_to_text(Result) ->
                     <<"\n\n"/utf8>>
                 ))/binary>>
     end,
-    Blocked_text = case erlang:element(9, Result) of
+    Error_failures_text = case erlang:element(9, Result) of
+        [] ->
+            <<""/utf8>>;
+
+        Errors ->
+            <<"\n\nERRORS:\n"/utf8,
+                (gleam@string:join(
+                    gleam@list:map(Errors, fun format_error_failure/1),
+                    <<"\n"/utf8>>
+                ))/binary>>
+    end,
+    Blocked_text = case erlang:element(10, Result) of
         [] ->
             <<""/utf8>>;
 
@@ -323,7 +370,7 @@ spec_result_to_text(Result) ->
                     <<"\n"/utf8>>
                 ))/binary>>
     end,
-    Rules_text = case erlang:element(10, Result) of
+    Rules_text = case erlang:element(11, Result) of
         [] ->
             <<""/utf8>>;
 
@@ -337,7 +384,7 @@ spec_result_to_text(Result) ->
                     <<"\n"/utf8>>
                 ))/binary>>
     end,
-    Anti_patterns_text = case erlang:element(11, Result) of
+    Anti_patterns_text = case erlang:element(12, Result) of
         [] ->
             <<""/utf8>>;
 
@@ -351,17 +398,18 @@ spec_result_to_text(Result) ->
                     <<"\n"/utf8>>
                 ))/binary>>
     end,
-    <<<<<<<<<<<<<<<<Header/binary, "\n"/utf8>>/binary, Score/binary>>/binary,
-                            "\n"/utf8>>/binary,
-                        (erlang:element(7, Result))/binary>>/binary,
-                    Failures_text/binary>>/binary,
+    <<<<<<<<<<<<<<<<<<Header/binary, "\n"/utf8>>/binary, Score/binary>>/binary,
+                                "\n"/utf8>>/binary,
+                            (erlang:element(7, Result))/binary>>/binary,
+                        Failures_text/binary>>/binary,
+                    Error_failures_text/binary>>/binary,
                 Blocked_text/binary>>/binary,
             Rules_text/binary>>/binary,
         Anti_patterns_text/binary>>.
 
 -spec generate_hint(
     intent@types:behavior(),
-    intent@checker:response_check_result()
+    intent@checker@types:response_check_result()
 ) -> binary().
 generate_hint(_, Check_result) ->
     case erlang:element(4, Check_result) of
@@ -396,7 +444,7 @@ generate_hint(_, Check_result) ->
 -spec create_failure(
     binary(),
     intent@types:behavior(),
-    intent@checker:response_check_result(),
+    intent@checker@types:response_check_result(),
     intent@http_client:execution_result(),
     binary()
 ) -> behavior_failure().
@@ -457,3 +505,26 @@ create_blocked(Behavior_name, Failed_dependency) ->
             "' which failed"/utf8>>,
         <<<<"Fix '"/utf8, Failed_dependency/binary>>/binary,
             "' first, then this will run"/utf8>>}.
+
+-spec create_error_info(binary(), binary(), binary()) -> behavior_error_info().
+create_error_info(Behavior_name, Error_type, Message) ->
+    Hint = case Error_type of
+        <<"SSRF_BLOCKED"/utf8>> ->
+            <<"This URL was blocked for security reasons. Use a publicly accessible URL."/utf8>>;
+
+        <<"CONNECTION_REFUSED"/utf8>> ->
+            <<"Ensure the target server is running and accessible."/utf8>>;
+
+        <<"TIMEOUT"/utf8>> ->
+            <<"The request timed out. Check network connectivity or increase timeout."/utf8>>;
+
+        <<"DNS_FAILURE"/utf8>> ->
+            <<"Could not resolve hostname. Check the URL is correct."/utf8>>;
+
+        <<"URL_PARSE_ERROR"/utf8>> ->
+            <<"The URL could not be parsed. Check for typos or invalid characters."/utf8>>;
+
+        _ ->
+            <<"Check the error message for details."/utf8>>
+    end,
+    {behavior_error_info, Behavior_name, Error_type, Message, Hint}.

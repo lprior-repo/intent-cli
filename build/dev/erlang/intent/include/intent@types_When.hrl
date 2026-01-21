@@ -1,5 +1,5 @@
 -record('when', {
     status :: binary(),
-    method :: intent@types:method(),
-    path :: binary()
+    method :: gleam@option:option(intent@types:method()),
+    path :: gleam@option:option(binary())
 }).

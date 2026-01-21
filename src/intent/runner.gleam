@@ -1,5 +1,4 @@
 /// Main test runner - orchestrates behavior execution and validation
-
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -8,7 +7,8 @@ import gleam/string
 import gleam_community/ansi
 import intent/anti_patterns
 import intent/checker
-import intent/http_client.{type ExecutionResult, type ExecutionError}
+import intent/checker/types as checker_types
+import intent/http_client.{type ExecutionError, type ExecutionResult}
 import intent/interpolate.{type Context}
 import intent/output.{type SpecResult}
 import intent/resolver.{type ResolvedBehavior}
@@ -20,7 +20,8 @@ import spinner
 /// This allows tests to mock HTTP responses without making real network requests
 pub type BehaviorExecutor {
   BehaviorExecutor(
-    execute: fn(Config, Request, Context) -> Result(ExecutionResult, ExecutionError),
+    execute: fn(Config, Request, Context) ->
+      Result(ExecutionResult, ExecutionError),
   )
 }
 
@@ -101,8 +102,10 @@ pub fn run_spec_with_executor(
         failed: 0,
         blocked: 0,
         total: 0,
-        summary: "Failed to resolve behavior order: " <> resolver.format_error(e),
+        summary: "Failed to resolve behavior order: "
+          <> resolver.format_error(e),
         failures: [],
+        error_failures: [],
         blocked_behaviors: [],
         rule_violations: [],
         anti_patterns_detected: [],
@@ -121,7 +124,14 @@ pub fn run_spec_with_executor(
 
       // Execute behaviors in order with the provided executor
       let #(results, _ctx, _failed_set) =
-        execute_behaviors_with_spinner(filtered, config, spec, set.new(), sp, executor)
+        execute_behaviors_with_spinner(
+          filtered,
+          config,
+          spec,
+          set.new(),
+          sp,
+          executor,
+        )
 
       // Stop spinner
       spinner.stop(sp)
@@ -142,7 +152,8 @@ pub fn run_spec_with_executor(
         list.count(results, fn(r) {
           case r {
             BehaviorFailed(_, _) -> True
-            BehaviorError(_, _) -> True  // NOW COUNTED AS FAILURE
+            BehaviorError(_, _) -> True
+            // NOW COUNTED AS FAILURE
             _ -> False
           }
         })
@@ -175,6 +186,42 @@ pub fn run_spec_with_executor(
           }
         })
 
+      // Collect error failures (network/execution errors)
+      let error_failures =
+        list.filter_map(results, fn(r) {
+          case r {
+            BehaviorError(name, error) -> {
+              let #(error_type, message) = case error {
+                http_client.UrlParseError(msg) -> #("URL_PARSE_ERROR", msg)
+                http_client.InterpolationError(msg) -> #(
+                  "INTERPOLATION_ERROR",
+                  msg,
+                )
+                http_client.RequestError(msg) -> {
+                  // Extract specific error types from message
+                  let contains_refused =
+                    string.contains(msg, "connection refused")
+                  let contains_timeout = string.contains(msg, "timeout")
+                  let contains_resolve = string.contains(msg, "resolve")
+                  case contains_refused, contains_timeout, contains_resolve {
+                    True, _, _ -> #("CONNECTION_REFUSED", msg)
+                    _, True, _ -> #("TIMEOUT", msg)
+                    _, _, True -> #("DNS_FAILURE", msg)
+                    _, _, _ -> #("REQUEST_ERROR", msg)
+                  }
+                }
+                http_client.ResponseParseError(msg) -> #(
+                  "RESPONSE_PARSE_ERROR",
+                  msg,
+                )
+                http_client.SSRFBlocked(msg) -> #("SSRF_BLOCKED", msg)
+              }
+              Ok(output.create_error_info(name, error_type, message))
+            }
+            _ -> Error(Nil)
+          }
+        })
+
       // Collect rule violations
       let rule_violations = collect_rule_violations(results, spec.rules)
 
@@ -203,6 +250,7 @@ pub fn run_spec_with_executor(
         total: total,
         summary: summary,
         failures: failures,
+        error_failures: error_failures,
         blocked_behaviors: blocked_behaviors,
         rule_violations: rule_violations,
         anti_patterns_detected: anti_patterns,
@@ -272,9 +320,8 @@ fn execute_single_behavior(
   executor: BehaviorExecutor,
 ) -> #(BehaviorResult, Context, Set(String)) {
   // Check if any dependencies failed
-  let blocked_by = list.find(rb.behavior.requires, fn(dep) {
-    set.contains(failed_set, dep)
-  })
+  let blocked_by =
+    list.find(rb.behavior.requires, fn(dep) { set.contains(failed_set, dep) })
 
   case blocked_by {
     Ok(dep) -> {
@@ -315,7 +362,7 @@ fn execute_single_behavior(
                 output.create_failure(
                   rb.feature_name,
                   rb.behavior,
-                  check_result,
+                  convert_response_check_result(check_result),
                   execution,
                   config.base_url,
                 )
@@ -327,6 +374,41 @@ fn execute_single_behavior(
       }
     }
   }
+}
+
+/// Convert checker.ResponseCheckResult to checker_types.ResponseCheckResult
+/// This bridges the gap between the duplicate type definitions until they're fully consolidated
+fn convert_response_check_result(
+  result: checker.ResponseCheckResult,
+) -> checker_types.ResponseCheckResult {
+  // Convert CheckResult items
+  let passed =
+    list.map(result.passed, fn(check) {
+      case check {
+        checker.CheckPassed(field, rule) ->
+          checker_types.CheckPassed(field, rule)
+        checker.CheckFailed(field, rule, expected, actual, explanation) ->
+          checker_types.CheckFailed(field, rule, expected, actual, explanation)
+      }
+    })
+
+  let failed =
+    list.map(result.failed, fn(check) {
+      case check {
+        checker.CheckPassed(field, rule) ->
+          checker_types.CheckPassed(field, rule)
+        checker.CheckFailed(field, rule, expected, actual, explanation) ->
+          checker_types.CheckFailed(field, rule, expected, actual, explanation)
+      }
+    })
+
+  checker_types.ResponseCheckResult(
+    passed: passed,
+    failed: failed,
+    status_ok: result.status_ok,
+    status_expected: result.status_expected,
+    status_actual: result.status_actual,
+  )
 }
 
 fn apply_captures(
@@ -350,7 +432,8 @@ fn collect_rule_violations(
   results
   |> list.flat_map(fn(result) {
     case result {
-      BehaviorPassed(execution) -> check_rules_for_execution(execution, rules, "")
+      BehaviorPassed(execution) ->
+        check_rules_for_execution(execution, rules, "")
       BehaviorFailed(failure, execution) ->
         check_rules_for_execution(execution, rules, failure.behavior)
       _ -> []
