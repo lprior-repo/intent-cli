@@ -1,7 +1,7 @@
 {
-  "last_failure": "2026-01-15T06:43:27.431236238-06:00",
-  "failure_count": 3,
-  "backoff_until": "2026-01-15T06:45:27.431236438-06:00",
-  "needs_manual_sync": true,
+  "last_failure": "2026-01-20T20:19:18.205747483-06:00",
+  "failure_count": 1,
+  "backoff_until": "2026-01-20T20:19:48.205747743-06:00",
+  "needs_manual_sync": false,
   "failure_reason": "git pull failed in worktree: exit status 128\nerror: Pulling is not possible because you have unmerged files.\nhint: Fix them up in the work tree, and then use 'git add/rm \u003cfile\u003e'\nhint: as appropriate to mark resolution and make a commit.\nfatal: Exiting because of an unresolved conflict.\n"
 }
