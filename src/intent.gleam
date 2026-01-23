@@ -1480,25 +1480,52 @@ fn run_interview_cue_answer(
                     Some(next_q) ->
                       output_cue_question(sess_final, next_q, next_round)
                     None -> {
-                      // Check if there are more rounds
-                      case next_round < 5 {
-                        True -> {
-                          case
-                            get_next_unanswered_question(
-                              sess_final,
-                              next_round + 1,
-                            )
-                          {
-                            Some(next_q) ->
-                              output_cue_question(
-                                sess_final,
-                                next_q,
-                                next_round + 1,
-                              )
-                            None -> output_cue_complete(sess_final)
+                      // Round is complete - increment rounds_completed
+                      let sess_round_completed =
+                        interview.complete_round(sess_final)
+
+                      // Save round completion (skip in dry-run mode)
+                      let round_save_result = case
+                        is_dry_run_session || dry_run
+                      {
+                        True -> Ok(Nil)
+                        False ->
+                          interview_storage.append_session_to_jsonl(
+                            sess_round_completed,
+                            ".interview/sessions.jsonl",
+                          )
+                      }
+
+                      case round_save_result {
+                        Error(err) -> {
+                          output_cue_error(
+                            "Failed to save round completion: " <> err,
+                          )
+                          halt(exit_error)
+                        }
+                        Ok(_) -> {
+                          // Check if there are more rounds
+                          case next_round < 5 {
+                            True -> {
+                              case
+                                get_next_unanswered_question(
+                                  sess_round_completed,
+                                  next_round + 1,
+                                )
+                              {
+                                Some(next_q) ->
+                                  output_cue_question(
+                                    sess_round_completed,
+                                    next_q,
+                                    next_round + 1,
+                                  )
+                                None ->
+                                  output_cue_complete(sess_round_completed)
+                              }
+                            }
+                            False -> output_cue_complete(sess_round_completed)
                           }
                         }
-                        False -> output_cue_complete(sess_final)
                       }
                     }
                   }
