@@ -19,15 +19,15 @@ import intent/improver
 import intent/interview
 import intent/interview_questions
 import intent/interview_storage
-import intent/list_limits
+import intent/json_output
 import intent/kirk/coverage_analyzer
 import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
 import intent/kirk/quality_analyzer as kirk_quality
+import intent/list_limits
 import intent/loader
-import intent/json_output
 import intent/output
 import intent/output_mode
 import intent/plan_mode
@@ -712,17 +712,18 @@ fn interview_command() -> glint.Command(Nil) {
     case cue_mode {
       True -> {
         // Check if this is answering a question or starting/resuming
+        let has_resume = !string.is_empty(resume_id)
         let has_session = !string.is_empty(session_flag)
         let has_answer = !string.is_empty(answer_text)
 
-        case has_session, has_answer {
+        case has_resume, has_session, has_answer {
+          // Resume session in CUE mode (--resume takes precedence)
+          True, _, _ -> run_interview_cue_resume(resume_id, dry_run)
           // Submitting an answer to an existing session
-          True, True ->
+          False, True, True ->
             run_interview_cue_answer(session_flag, answer_text, dry_run)
-          // Resume session in CUE mode
-          True, False -> run_interview_cue_resume(session_flag, dry_run)
           // Start new session in CUE mode
-          False, False -> {
+          False, False, False -> {
             let profile = parse_profile(profile_str)
             case profile {
               Ok(p) -> run_interview_cue_start(p, dry_run)
@@ -733,8 +734,15 @@ fn interview_command() -> glint.Command(Nil) {
             }
           }
           // Invalid: answer without session
-          False, True -> {
+          False, False, True -> {
             output_cue_error("--answer requires --session flag")
+            halt(exit_error)
+          }
+          // Invalid: session without answer
+          False, True, False -> {
+            output_cue_error(
+              "--session requires --answer flag (use --resume to resume a session)",
+            )
             halt(exit_error)
           }
         }
@@ -2757,7 +2765,10 @@ fn sessions_command() -> glint.Command(Nil) {
           True -> {
             let data =
               json.object([
-                #("sessions", json.array(limited, interview_storage.session_to_json)),
+                #(
+                  "sessions",
+                  json.array(limited, interview_storage.session_to_json),
+                ),
                 #("total", json.int(total_count)),
                 #("shown", json.int(shown_count)),
                 #("truncated", json.bool(was_limited)),
@@ -3378,12 +3389,14 @@ fn kirk_ears_command() -> glint.Command(Nil) {
                     #(
                       "errors",
                       json.array(result.errors, fn(e) {
-                        let #(message, suggestion) = ears_parser.error_message(e)
+                        let #(message, suggestion) =
+                          ears_parser.error_message(e)
                         let line = case e {
                           ears_parser.PatternNotMatched(line:, ..) -> line
                           ears_parser.PatternMatchFailed(line:, ..) -> line
                           ears_parser.RegexCompileFailed(line:, ..) -> line
-                          ears_parser.ComponentExtractionFailed(line:, ..) -> line
+                          ears_parser.ComponentExtractionFailed(line:, ..) ->
+                            line
                         }
                         json.object([
                           #("line", json.int(line)),
@@ -3552,12 +3565,14 @@ fn parse_command() -> glint.Command(Nil) {
                     #(
                       "errors",
                       json.array(result.errors, fn(e) {
-                        let #(message, suggestion) = ears_parser.error_message(e)
+                        let #(message, suggestion) =
+                          ears_parser.error_message(e)
                         let line = case e {
                           ears_parser.PatternNotMatched(line:, ..) -> line
                           ears_parser.PatternMatchFailed(line:, ..) -> line
                           ears_parser.RegexCompileFailed(line:, ..) -> line
-                          ears_parser.ComponentExtractionFailed(line:, ..) -> line
+                          ears_parser.ComponentExtractionFailed(line:, ..) ->
+                            line
                         }
                         json.object([
                           #("line", json.int(line)),
