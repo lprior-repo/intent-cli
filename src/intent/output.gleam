@@ -7,7 +7,9 @@ import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/string
 import intent/anti_patterns.{type AntiPatternResult}
-import intent/checker.{type ResponseCheckResult}
+import intent/checker/types.{
+  type ResponseCheckResult, CheckFailed, CheckPassed,
+}
 import intent/http_client.{type ExecutionResult}
 import intent/json_output
 import intent/types.{type Behavior}
@@ -22,6 +24,7 @@ pub type SpecResult {
     total: Int,
     summary: String,
     failures: List(BehaviorFailure),
+    error_failures: List(BehaviorErrorInfo),
     blocked_behaviors: List(BlockedBehavior),
     rule_violations: List(RuleViolationGroup),
     anti_patterns_detected: List(AntiPatternResult),
@@ -68,6 +71,17 @@ pub type BlockedBehavior {
   BlockedBehavior(behavior: String, reason: String, hint: String)
 }
 
+/// A behavior that failed due to a network or execution error
+/// (separate from BehaviorFailure which has response data)
+pub type BehaviorErrorInfo {
+  BehaviorErrorInfo(
+    behavior: String,
+    error_type: String,
+    message: String,
+    hint: String,
+  )
+}
+
 /// A group of rule violations
 pub type RuleViolationGroup {
   RuleViolationGroup(
@@ -101,6 +115,10 @@ pub fn spec_result_to_json(result: SpecResult) -> Json {
     ),
     #("summary", json.string(result.summary)),
     #("failures", json.array(result.failures, behavior_failure_to_json)),
+    #(
+      "error_failures",
+      json.array(result.error_failures, behavior_error_to_json),
+    ),
     #("blocked", json.array(result.blocked_behaviors, blocked_behavior_to_json)),
     #(
       "rule_violations",
@@ -152,10 +170,7 @@ fn request_summary_to_json(req: RequestSummary) -> Json {
 }
 
 fn response_summary_to_json(resp: ResponseSummary) -> Json {
-  json.object([
-    #("status", json.int(resp.status)),
-    #("body", resp.body),
-  ])
+  json.object([#("status", json.int(resp.status)), #("body", resp.body)])
 }
 
 fn blocked_behavior_to_json(blocked: BlockedBehavior) -> Json {
@@ -163,6 +178,15 @@ fn blocked_behavior_to_json(blocked: BlockedBehavior) -> Json {
     #("behavior", json.string(blocked.behavior)),
     #("reason", json.string(blocked.reason)),
     #("hint", json.string(blocked.hint)),
+  ])
+}
+
+fn behavior_error_to_json(error: BehaviorErrorInfo) -> Json {
+  json.object([
+    #("behavior", json.string(error.behavior)),
+    #("error_type", json.string(error.error_type)),
+    #("message", json.string(error.message)),
+    #("hint", json.string(error.hint)),
   ])
 }
 
@@ -249,6 +273,7 @@ pub fn spec_result_to_text(result: SpecResult) -> String {
   <> "\n"
   <> result.summary
   <> failures_text
+  <> error_failures_text
   <> blocked_text
   <> rules_text
   <> anti_patterns_text
@@ -304,6 +329,19 @@ fn format_blocked(blocked: BlockedBehavior) -> String {
   }
 }
 
+fn format_error_failure(error: BehaviorErrorInfo) -> String {
+  "- "
+  <> error.behavior
+  <> " ["
+  <> error.error_type
+  <> "]: "
+  <> error.message
+  <> case error.hint {
+    "" -> ""
+    hint -> "\n  Hint: " <> hint
+  }
+}
+
 fn format_rule_violation_group(group: RuleViolationGroup) -> String {
   let violations_text =
     group.violations
@@ -318,7 +356,7 @@ fn format_rule_violation_group(group: RuleViolationGroup) -> String {
 /// Create a BehaviorFailure from check results
 pub fn create_failure(
   feature_name: String,
-  behavior: Behavior,
+  behavior: domain_types.Behavior,
   check_result: ResponseCheckResult,
   execution: ExecutionResult,
   base_url: String,
@@ -327,7 +365,7 @@ pub fn create_failure(
     check_result.failed
     |> list.map(fn(check) {
       case check {
-        checker.CheckFailed(field, rule, expected, actual, explanation) ->
+        CheckFailed(field, rule, expected, actual, explanation) ->
           Problem(field, rule, expected, actual, explanation)
         checker.CheckPassed(_, _) -> Problem("", "", "", "", "")
         // Shouldn't happen
@@ -357,7 +395,7 @@ pub fn create_failure(
     intent: behavior.intent,
     problems: problems,
     request_sent: RequestSummary(
-      method: types.method_to_string(behavior.request.method),
+      method: domain_types.method_to_string(behavior.request.method),
       url: url,
       headers: behavior.request.headers,
     ),
@@ -371,7 +409,7 @@ pub fn create_failure(
 }
 
 fn generate_hint(
-  _behavior: Behavior,
+  _behavior: domain_types.Behavior,
   check_result: ResponseCheckResult,
 ) -> String {
   case check_result.status_ok {
