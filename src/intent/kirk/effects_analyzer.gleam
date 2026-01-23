@@ -2,6 +2,7 @@
 // Second-Order Thinking: "What happens after the immediate effect?"
 // Traces consequences beyond first-order results
 
+import gleam/float
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
@@ -732,43 +733,10 @@ fn format_state_dependency(dep: StateDependency) -> String {
 }
 
 fn float_to_string_1dp(f: Float) -> String {
-  let int_part = float_to_int_safe(f)
-  let decimal_part = float_to_int_safe({ f -. int.to_float(int_part) } *. 10.0)
+  // Use float.truncate to get integer part, avoiding infinite recursion
+  let int_part = float.truncate(f)
+  let decimal_part = float.truncate({ f -. int.to_float(int_part) } *. 10.0)
   int.to_string(int_part) <> "." <> int.to_string(decimal_part)
-}
-
-fn float_to_int_safe(f: Float) -> Int {
-  case f >=. 0.0 {
-    True -> float_floor(f)
-    False -> 0
-  }
-}
-
-fn float_floor(f: Float) -> Int {
-  // Simple floor implementation
-  let str = float_to_string(f)
-  case string.split(str, ".") {
-    [int_str, ..] ->
-      case int.parse(int_str) {
-        Ok(i) -> i
-        Error(_) -> 0
-      }
-    _ -> 0
-  }
-}
-
-fn float_to_string(f: Float) -> String {
-  // This is a workaround - Gleam doesn't have direct float to string
-  // We'll use string interpolation trick
-  let result = f *. 1.0
-  case result {
-    _ ->
-      int.to_string(float_floor(result))
-      <> "."
-      <> int.to_string(float_floor(
-        { result -. int.to_float(float_floor(result)) } *. 10.0,
-      ))
-  }
 }
 
 // =============================================================================
