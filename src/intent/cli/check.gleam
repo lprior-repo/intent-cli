@@ -151,6 +151,7 @@ fn run_check(
             b -> Some(b)
           },
           output_level: output_level,
+          timeout_ms: None,
         )
 
       // Run the spec

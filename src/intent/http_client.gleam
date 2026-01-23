@@ -4,7 +4,6 @@ import gleam/dynamic
 import gleam/http
 import gleam/http/request.{type Request as HttpRequest}
 import gleam/http/response.{type Response as HttpResponse}
-import gleam/httpc
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -14,6 +13,9 @@ import gleam/uri
 import intent/interpolate.{type Context}
 import intent/parser
 import intent/types.{type Config, type Request}
+
+/// Default timeout in milliseconds (30 seconds per AI guardrails spec)
+pub const default_timeout_ms = 30_000
 
 /// Result of executing a request
 pub type ExecutionResult {
@@ -61,8 +63,96 @@ pub fn execute_request(
   req: Request,
   ctx: Context,
 ) -> Result(ExecutionResult, ExecutionError) {
-  execute_request_with_injectors(config, req, ctx, httpc.send, erlang_now_ms)
+  execute_request_with_timeout(config, req, ctx, config.timeout_ms)
 }
+
+/// Execute a behavior request with a specific timeout override
+pub fn execute_request_with_timeout(
+  config: Config,
+  req: Request,
+  ctx: Context,
+  timeout_ms: Int,
+) -> Result(ExecutionResult, ExecutionError) {
+  execute_request_with_injectors(
+    config,
+    req,
+    ctx,
+    create_timeout_executor(timeout_ms),
+    erlang_now_ms,
+  )
+}
+
+/// Create an HTTP executor with configured timeout
+fn create_timeout_executor(
+  timeout_ms: Int,
+) -> fn(HttpRequest(String)) -> Result(HttpResponse(String), dynamic.Dynamic) {
+  fn(req: HttpRequest(String)) {
+    execute_with_timeout(req, timeout_ms)
+  }
+}
+
+/// Execute HTTP request with timeout via Erlang FFI
+fn execute_with_timeout(
+  req: HttpRequest(String),
+  timeout_ms: Int,
+) -> Result(HttpResponse(String), dynamic.Dynamic) {
+  // Build full URL
+  let url = request.to_uri(req) |> uri.to_string
+
+  // Convert headers to list of tuples
+  let headers = req.headers
+
+  // Convert method to atom string for FFI
+  let method = case req.method {
+    http.Get -> "get"
+    http.Post -> "post"
+    http.Put -> "put"
+    http.Patch -> "patch"
+    http.Delete -> "delete"
+    http.Head -> "head"
+    http.Options -> "options"
+    http.Trace -> "trace"
+    http.Connect -> "connect"
+    _ -> "get"
+  }
+
+  // Call FFI with body for methods that support it
+  case req.method {
+    http.Get | http.Head | http.Options ->
+      http_request_with_timeout_ffi(method, url, headers, timeout_ms)
+    _ ->
+      http_request_with_body_ffi(
+        method,
+        url,
+        headers,
+        req.body,
+        timeout_ms,
+      )
+  }
+  |> result.map(fn(resp) {
+    let #(status, resp_headers, body) = resp
+    response.Response(status: status, headers: resp_headers, body: body)
+  })
+}
+
+/// FFI for HTTP request without body (GET, HEAD, OPTIONS)
+@external(erlang, "intent_http_ffi", "request_no_body")
+fn http_request_with_timeout_ffi(
+  method: String,
+  url: String,
+  headers: List(#(String, String)),
+  timeout_ms: Int,
+) -> Result(#(Int, List(#(String, String)), String), dynamic.Dynamic)
+
+/// FFI for HTTP request with body (POST, PUT, PATCH, DELETE)
+@external(erlang, "intent_http_ffi", "request_with_body")
+fn http_request_with_body_ffi(
+  method: String,
+  url: String,
+  headers: List(#(String, String)),
+  body: String,
+  timeout_ms: Int,
+) -> Result(#(Int, List(#(String, String)), String), dynamic.Dynamic)
 
 /// Execute request with full dependency injection
 pub fn execute_request_with_injectors(

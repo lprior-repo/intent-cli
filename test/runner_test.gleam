@@ -37,6 +37,7 @@ pub fn runner_custom_options_verbose_test() {
       feature_filter: Some("auth"),
       behavior_filter: Some("login"),
       output_level: runner.Verbose,
+      timeout_ms: None,
     )
 
   options.feature_filter
@@ -61,6 +62,7 @@ pub fn runner_custom_options_quiet_test() {
       feature_filter: None,
       behavior_filter: None,
       output_level: runner.Quiet,
+      timeout_ms: None,
     )
 
   options.output_level
@@ -79,6 +81,7 @@ pub fn runner_output_level_normal_test() {
       feature_filter: None,
       behavior_filter: None,
       output_level: runner.Normal,
+      timeout_ms: None,
     )
 
   runner.is_verbose(options)

@@ -32,6 +32,13 @@ pub fn default_executor() -> BehaviorExecutor {
   BehaviorExecutor(execute: http_client.execute_request)
 }
 
+/// Create an executor with a specific timeout
+pub fn executor_with_timeout(timeout_ms: Int) -> BehaviorExecutor {
+  BehaviorExecutor(execute: fn(config, req, ctx) {
+    http_client.execute_request_with_timeout(config, req, ctx, timeout_ms)
+  })
+}
+
 /// UI callbacks for progress indication during spec execution
 /// Allows CLI layer to inject spinner/progress UI without runner knowing about specific UI implementation
 pub type UiCallbacks {
@@ -67,12 +74,34 @@ pub type RunOptions {
     feature_filter: Option(String),
     behavior_filter: Option(String),
     output_level: OutputLevel,
+    timeout_ms: Option(Int),
   )
 }
 
-/// Default run options with Normal output level
+/// Default timeout in milliseconds (30 seconds per AI guardrails spec)
+pub const default_timeout_ms = 30_000
+
+/// Default run options with Normal output level and no timeout override
 pub fn default_options() -> RunOptions {
-  RunOptions(feature_filter: None, behavior_filter: None, output_level: Normal)
+  RunOptions(
+    feature_filter: None,
+    behavior_filter: None,
+    output_level: Normal,
+    timeout_ms: None,
+  )
+}
+
+/// Set timeout override on RunOptions
+pub fn with_timeout(options: RunOptions, timeout_ms: Int) -> RunOptions {
+  RunOptions(..options, timeout_ms: Some(timeout_ms))
+}
+
+/// Get effective timeout: CLI flag overrides spec config
+pub fn effective_timeout(cli_timeout: Option(Int), spec_timeout: Int) -> Int {
+  case cli_timeout {
+    Some(t) -> t
+    None -> spec_timeout
+  }
 }
 
 /// Check if output level is verbose
@@ -92,13 +121,17 @@ pub fn is_quiet(options: RunOptions) -> Bool {
 }
 
 /// Run a spec and return the results (uses default HTTP executor)
+/// If options.timeout_ms is set, it overrides the spec's config.timeout_ms
 pub fn run_spec(
   spec: Spec,
   target_url: String,
   options: RunOptions,
   mode: OutputMode,
 ) -> SpecResult {
-  run_spec_with_executor(spec, target_url, options, default_executor(), mode)
+  // Determine effective timeout: CLI flag overrides spec config
+  let timeout = effective_timeout(options.timeout_ms, spec.config.timeout_ms)
+  let executor = executor_with_timeout(timeout)
+  run_spec_with_executor(spec, target_url, options, executor, mode)
 }
 
 /// Run a spec with a custom executor - enables dependency injection for testing

@@ -185,6 +185,12 @@ fn check_command() -> glint.Command(Nil) {
       |> result.unwrap(False)
       || is_localhost_allowed_by_env()
 
+    // Parse timeout flag - None means use spec config, Some(ms) overrides
+    let timeout_ms: Option(Int) = case flag.get_int(input.flags, "timeout") {
+      Ok(t) if t > 0 -> Some(t)
+      _ -> None
+    }
+
     case input.args {
       [spec_path, ..] -> {
         run_check(
@@ -195,6 +201,7 @@ fn check_command() -> glint.Command(Nil) {
           only_filter,
           output_level,
           allow_localhost,
+          timeout_ms,
         )
       }
       [] -> {
@@ -259,6 +266,14 @@ fn check_command() -> glint.Command(Nil) {
         "Permit localhost URLs for local development (bypasses SSRF protection)",
       ),
   )
+  |> glint.flag(
+    "timeout",
+    flag.int()
+      |> flag.default(0)
+      |> flag.description(
+        "HTTP request timeout in milliseconds (overrides spec config, default: 30000ms)",
+      ),
+  )
 }
 
 fn run_check(
@@ -269,6 +284,7 @@ fn run_check(
   only_filter: String,
   output_level: runner.OutputLevel,
   allow_localhost: Bool,
+  timeout_ms: Option(Int),
 ) -> Nil {
   // Determine output mode based on --json flag
   let mode = output_mode.from_json_flag(is_json)
@@ -301,7 +317,7 @@ fn run_check(
     Ok(spec) -> {
       cli_ui.print_header("Checking spec: " <> spec.name, mode)
 
-      // Build run options
+      // Build run options with timeout override
       let options =
         runner.RunOptions(
           feature_filter: case feature_filter {
@@ -313,6 +329,7 @@ fn run_check(
             b -> Some(b)
           },
           output_level: output_level,
+          timeout_ms: timeout_ms,
         )
 
       // Run the spec
