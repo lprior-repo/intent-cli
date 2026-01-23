@@ -18,6 +18,7 @@ import intent/improver
 import intent/interview
 import intent/interview_questions
 import intent/interview_storage
+import intent/list_limits
 import intent/kirk/coverage_analyzer
 import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
@@ -1755,6 +1756,10 @@ fn beads_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
 
+    let max_items =
+      flag.get_int(input.flags, "max-items")
+      |> result.unwrap(list_limits.default_max_items)
+
     case input.args {
       [session_id, ..] -> {
         // Load session from JSONL
@@ -1770,11 +1775,16 @@ fn beads_command() -> glint.Command(Nil) {
           }
           Ok(session) -> {
             // Generate beads from session
-            let beads = bead_templates.generate_beads_from_session(session)
-            let bead_count = list.length(beads)
+            let all_beads = bead_templates.generate_beads_from_session(session)
+            let total_count = list.length(all_beads)
 
-            // Export to .beads/issues.jsonl
-            let jsonl_output = bead_templates.beads_to_jsonl(beads)
+            // Apply max-items limit for output (AI guardrail)
+            let beads = list_limits.apply_limit(all_beads, max_items)
+            let bead_count = list.length(beads)
+            let was_limited = total_count > bead_count
+
+            // Export to .beads/issues.jsonl (all beads, not limited)
+            let jsonl_output = bead_templates.beads_to_jsonl(all_beads)
 
             case
               simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
@@ -1782,7 +1792,7 @@ fn beads_command() -> glint.Command(Nil) {
               Ok(Nil) -> {
                 case is_json {
                   True -> {
-                    // Output JSON for AI agents
+                    // Output JSON for AI agents (limited)
                     let json_output =
                       bead_templates.beads_to_action_json(beads, session_id)
                     io.println(json.to_string(json_output))
@@ -1800,16 +1810,27 @@ fn beads_command() -> glint.Command(Nil) {
                     io.println("")
                     io.println(
                       "Generated "
-                      <> string.inspect(bead_count)
+                      <> string.inspect(total_count)
                       <> " work items from session: "
                       <> session_id,
                     )
+                    case was_limited {
+                      True ->
+                        io.println(
+                          "(showing first "
+                          <> string.inspect(bead_count)
+                          <> " of "
+                          <> string.inspect(total_count)
+                          <> ")",
+                        )
+                      False -> Nil
+                    }
                     io.println("")
                     io.println("✓ Beads exported to: .beads/issues.jsonl")
                     io.println("")
 
                     // Show stats
-                    let stats = bead_templates.bead_stats(beads)
+                    let stats = bead_templates.bead_stats(all_beads)
                     io.println("Summary:")
                     io.println("  Total beads: " <> string.inspect(stats.total))
                   }
@@ -1828,7 +1849,9 @@ fn beads_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads <session_id> [--json]")
+        io.println_error(
+          "Usage: intent beads <session_id> [--json] [--max-items N]",
+        )
         io.println_error("")
         io.println_error("Example: intent beads interview-abc123def456")
         halt(exit_error)
@@ -1841,6 +1864,14 @@ fn beads_command() -> glint.Command(Nil) {
     flag.bool()
       |> flag.default(False)
       |> flag.description("Output JSON for machine consumption"),
+  )
+  |> glint.flag(
+    "max-items",
+    flag.int()
+      |> flag.default(list_limits.default_max_items)
+      |> flag.description(
+        "Maximum number of beads to return (default: 100, AI guardrail)",
+      ),
   )
 }
 
@@ -2487,6 +2518,10 @@ fn history_command() -> glint.Command(Nil) {
     let history_path = ".interview/history.jsonl"
     let mode = output_mode.Interactive
 
+    let max_items =
+      flag.get_int(input.flags, "max-items")
+      |> result.unwrap(list_limits.default_max_items)
+
     case input.args {
       [session_id, ..] -> {
         case interview_storage.list_session_history(history_path, session_id) {
@@ -2506,9 +2541,27 @@ fn history_command() -> glint.Command(Nil) {
             io.println("during an interview with --snapshot flag.")
             halt(exit_pass)
           }
-          Ok(snapshots) -> {
+          Ok(all_snapshots) -> {
+            // Apply max-items limit (AI guardrail)
+            let total_count = list.length(all_snapshots)
+            let snapshots = list_limits.apply_limit(all_snapshots, max_items)
+            let shown_count = list.length(snapshots)
+            let was_limited = total_count > shown_count
+
             cli_ui.print_header("Session History: " <> session_id, mode)
             io.println("")
+
+            case was_limited {
+              True ->
+                io.println(
+                  "(showing "
+                  <> string.inspect(shown_count)
+                  <> " of "
+                  <> string.inspect(total_count)
+                  <> " snapshots)",
+                )
+              False -> Nil
+            }
 
             list.each(snapshots, fn(snapshot) {
               io.println("┌─ " <> snapshot.snapshot_id)
@@ -2533,7 +2586,7 @@ fn history_command() -> glint.Command(Nil) {
       [] -> {
         cli_ui.print_error("Session ID required", mode)
         io.println("")
-        io.println("Usage: intent history <session-id>")
+        io.println("Usage: intent history <session-id> [--max-items N]")
         io.println("")
         io.println("Example: intent history interview-abc123")
         halt(exit_error)
@@ -2541,6 +2594,14 @@ fn history_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("View snapshot history for an interview session")
+  |> glint.flag(
+    "max-items",
+    flag.int()
+      |> flag.default(list_limits.default_max_items)
+      |> flag.description(
+        "Maximum number of history snapshots to return (default: 100, AI guardrail)",
+      ),
+  )
 }
 
 /// The `diff` command - compare two sessions
@@ -2643,6 +2704,10 @@ fn sessions_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "incomplete")
       |> result.unwrap(False)
 
+    let max_items =
+      flag.get_int(input.flags, "max-items")
+      |> result.unwrap(list_limits.default_max_items)
+
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(_) -> {
         // File doesn't exist yet - treat as empty
@@ -2681,17 +2746,35 @@ fn sessions_command() -> glint.Command(Nil) {
           False -> filtered
         }
 
+        // Apply max-items limit (AI guardrail)
+        let total_count = list.length(filtered)
+        let limited = list_limits.apply_limit(filtered, max_items)
+        let shown_count = list.length(limited)
+        let was_limited = total_count > shown_count
+
         case is_json {
           True -> {
             let json_sessions =
-              json.array(filtered, interview_storage.session_to_json)
+              json.array(limited, interview_storage.session_to_json)
             io.println(json.to_string(json_sessions))
           }
           False -> {
             cli_ui.print_header("Interview Sessions", mode)
             io.println("")
 
-            list.each(filtered, fn(session) {
+            case was_limited {
+              True ->
+                io.println(
+                  "(showing "
+                  <> string.inspect(shown_count)
+                  <> " of "
+                  <> string.inspect(total_count)
+                  <> " sessions)",
+                )
+              False -> Nil
+            }
+
+            list.each(limited, fn(session) {
               let status_icon = case session.stage {
                 interview.Complete -> "✓"
                 interview.Paused -> "⏸"
@@ -2716,8 +2799,12 @@ fn sessions_command() -> glint.Command(Nil) {
 
             io.println(
               "Total: "
-              <> string.inspect(list.length(filtered))
-              <> " session(s)",
+              <> string.inspect(total_count)
+              <> " session(s)"
+              <> case was_limited {
+                True -> " (limited to " <> string.inspect(shown_count) <> ")"
+                False -> ""
+              },
             )
           }
         }
@@ -2740,11 +2827,17 @@ fn sessions_command() -> glint.Command(Nil) {
       |> flag.description("Filter by profile (api, cli, event, etc.)"),
   )
   |> glint.flag(
-    "force",
+    "incomplete",
     flag.bool()
       |> flag.default(False)
+      |> flag.description("Show only incomplete sessions"),
+  )
+  |> glint.flag(
+    "max-items",
+    flag.int()
+      |> flag.default(list_limits.default_max_items)
       |> flag.description(
-        "Overwrite existing generated files without confirmation",
+        "Maximum number of sessions to return (default: 100, AI guardrail)",
       ),
   )
 }
