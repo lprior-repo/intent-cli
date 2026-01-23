@@ -4,7 +4,7 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import intent/anti_patterns.{type AntiPatternResult}
 import intent/checker/types as checker_types
@@ -492,10 +492,59 @@ pub fn spec_result_to_action_json(result: SpecResult, spec_name: String) -> Json
 
   let data = spec_result_to_json(result)
 
-  json_output.create_response(
+  // Build next_actions based on result
+  let next_actions = case result.pass {
+    True -> [
+      json_output.next_action(
+        "intent coverage " <> spec_name <> " --json",
+        "Verify edge case coverage",
+      ),
+      json_output.next_action(
+        "intent analyze " <> spec_name <> " --json",
+        "Check overall quality score",
+      ),
+    ]
+    False -> [
+      json_output.next_action(
+        "intent feedback " <> spec_name <> " --results <output.json>",
+        "Generate fix tasks from failures",
+      ),
+      json_output.next_action(
+        "intent doctor " <> spec_name <> " --json",
+        "Get prioritized recommendations",
+      ),
+    ]
+  }
+
+  // Build errors from failures
+  let errors =
+    result.failures
+    |> list.map(fn(f) {
+      let problem_msg =
+        f.problems
+        |> list.map(fn(p) { p.explanation })
+        |> string.join("; ")
+      json_output.JsonError(
+        code: "CHECK_FAILED",
+        message: problem_msg,
+        location: Some("behavior: " <> f.behavior),
+        fix_hint: case f.hint {
+          "" -> None
+          h -> Some(h)
+        },
+        fix_command: Some(
+          "intent prompt " <> spec_name <> " --behavior '" <> f.behavior <> "'",
+        ),
+      )
+    })
+
+  json_output.create_full_response(
+    result.pass,
     "check_result",
     "check",
     data,
+    errors,
+    next_actions,
     Some(spec_name),
     exit_code,
   )

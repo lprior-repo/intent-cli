@@ -159,7 +159,7 @@ fn run_check(
       // Output results
       case is_json {
         True -> {
-          let json_result = output.spec_result_to_json(result)
+          let json_result = output.spec_result_to_action_json(result, spec_path)
           io.println(json.to_string(json_result))
         }
         False -> {

@@ -15,12 +15,14 @@ import gleam/float
 import gleam/io
 import gleam/json
 import gleam/list
+import gleam/option.{Some}
 import gleam/result
 import gleam/string
 import glint
 import glint/flag
 import intent/cli/common.{ExitError, ExitFail, ExitInvalid, ExitPass, exit, halt}
 import intent/cli_ui
+import intent/json_output
 import intent/kirk/compact_format
 import intent/output_mode
 import intent/kirk/coverage_analyzer
@@ -52,9 +54,10 @@ pub fn quality_command() -> glint.Command(Nil) {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = kirk_quality.analyze_quality(spec)
+            let has_issues = !list.is_empty(report.issues)
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("completeness", json.float(report.completeness)),
                     #("consistency", json.float(report.consistency)),
@@ -78,13 +81,42 @@ pub fn quality_command() -> glint.Command(Nil) {
                       }),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = case has_issues {
+                  True -> [
+                    json_output.next_action(
+                      "intent improve " <> spec_path <> " --json",
+                      "Get suggestions to fix quality issues",
+                    ),
+                  ]
+                  False -> [
+                    json_output.next_action(
+                      "intent check " <> spec_path <> " --target <url> --json",
+                      "Run tests against target API",
+                    ),
+                  ]
+                }
+                let exit_code = case has_issues {
+                  True -> 1
+                  False -> 0
+                }
+                let response =
+                  json_output.create_full_response(
+                    !has_issues,
+                    "quality_result",
+                    "quality",
+                    data,
+                    [],
+                    next_actions,
+                    Some(spec_path),
+                    exit_code,
+                  )
+                json_output.output(response)
               }
               False -> io.println(kirk_quality.format_report(report))
             }
-            case list.is_empty(report.issues) {
-              True -> halt(exit_pass)
-              False -> exit(ExitFail)
+            case has_issues {
+              False -> halt(exit_pass)
+              True -> exit(ExitFail)
             }
           }
           Error(e) -> {
@@ -120,9 +152,13 @@ pub fn invert_command() -> glint.Command(Nil) {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = inversion_checker.analyze_inversions(spec)
+            let has_gaps =
+              !list.is_empty(report.security_gaps)
+              || !list.is_empty(report.usability_gaps)
+              || !list.is_empty(report.integration_gaps)
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("score", json.float(report.score)),
                     #(
@@ -149,7 +185,29 @@ pub fn invert_command() -> glint.Command(Nil) {
                       }),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = case has_gaps {
+                  True -> [
+                    json_output.next_action(
+                      "intent improve " <> spec_path <> " --json",
+                      "Get suggestions to add missing failure cases",
+                    ),
+                  ]
+                  False -> [
+                    json_output.next_action(
+                      "intent effects " <> spec_path <> " --json",
+                      "Analyze second-order effects",
+                    ),
+                  ]
+                }
+                let response =
+                  json_output.success(
+                    "invert_result",
+                    "invert",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> io.println(inversion_checker.format_report(report))
             }
@@ -202,9 +260,10 @@ pub fn coverage_command() -> glint.Command(Nil) {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = coverage_analyzer.analyze_coverage(spec)
+            let has_missing = !list.is_empty(report.owasp.missing)
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("overall_score", json.float(report.overall_score)),
                     #(
@@ -229,7 +288,33 @@ pub fn coverage_command() -> glint.Command(Nil) {
                       json.array(report.owasp.missing, json.string),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = case has_missing {
+                  True -> [
+                    json_output.next_action(
+                      "intent invert " <> spec_path <> " --json",
+                      "Find missing failure cases",
+                    ),
+                    json_output.next_action(
+                      "intent improve " <> spec_path <> " --json",
+                      "Get suggestions to improve coverage",
+                    ),
+                  ]
+                  False -> [
+                    json_output.next_action(
+                      "intent check " <> spec_path <> " --target <url> --json",
+                      "Run tests against target API",
+                    ),
+                  ]
+                }
+                let response =
+                  json_output.success(
+                    "coverage_result",
+                    "coverage",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> io.println(coverage_analyzer.format_report(report))
             }
@@ -268,9 +353,10 @@ pub fn gaps_command() -> glint.Command(Nil) {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = gap_detector.detect_gaps(spec)
+            let has_gaps = report.total_gaps > 0
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("total_gaps", json.int(report.total_gaps)),
                     #(
@@ -306,7 +392,33 @@ pub fn gaps_command() -> glint.Command(Nil) {
                       json.array(report.security_gaps, detected_gap_to_json),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = case has_gaps {
+                  True -> [
+                    json_output.next_action(
+                      "intent improve " <> spec_path <> " --json",
+                      "Get suggestions to fill gaps",
+                    ),
+                    json_output.next_action(
+                      "intent doctor " <> spec_path <> " --json",
+                      "Get prioritized fix recommendations",
+                    ),
+                  ]
+                  False -> [
+                    json_output.next_action(
+                      "intent check " <> spec_path <> " --target <url> --json",
+                      "Spec is complete - run tests",
+                    ),
+                  ]
+                }
+                let response =
+                  json_output.success(
+                    "gaps_result",
+                    "gaps",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> io.println(gap_detector.format_report(report))
             }
