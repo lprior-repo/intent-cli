@@ -7,12 +7,10 @@ import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/string
 import intent/anti_patterns.{type AntiPatternResult}
-import intent/checker/types.{
-  type ResponseCheckResult, CheckFailed, CheckPassed,
-}
+import intent/checker/types as checker_types
 import intent/http_client.{type ExecutionResult}
 import intent/json_output
-import intent/types.{type Behavior}
+import intent/types.{type Behavior, method_to_string}
 
 /// Overall result of running a spec
 pub type SpecResult {
@@ -244,6 +242,13 @@ pub fn spec_result_to_text(result: SpecResult) -> String {
       <> string.join(list.map(failures, format_failure), "\n\n")
   }
 
+  let error_failures_text = case result.error_failures {
+    [] -> ""
+    errors ->
+      "\n\nERRORS:\n"
+      <> string.join(list.map(errors, format_error_failure), "\n\n")
+  }
+
   let blocked_text = case result.blocked_behaviors {
     [] -> ""
     blocked ->
@@ -356,8 +361,8 @@ fn format_rule_violation_group(group: RuleViolationGroup) -> String {
 /// Create a BehaviorFailure from check results
 pub fn create_failure(
   feature_name: String,
-  behavior: domain_types.Behavior,
-  check_result: ResponseCheckResult,
+  behavior: Behavior,
+  check_result: checker_types.ResponseCheckResult,
   execution: ExecutionResult,
   base_url: String,
 ) -> BehaviorFailure {
@@ -365,9 +370,9 @@ pub fn create_failure(
     check_result.failed
     |> list.map(fn(check) {
       case check {
-        CheckFailed(field, rule, expected, actual, explanation) ->
+        checker_types.CheckFailed(field, rule, expected, actual, explanation) ->
           Problem(field, rule, expected, actual, explanation)
-        checker.CheckPassed(_, _) -> Problem("", "", "", "", "")
+        checker_types.CheckPassed(_, _) -> Problem("", "", "", "", "")
         // Shouldn't happen
       }
     })
@@ -395,7 +400,7 @@ pub fn create_failure(
     intent: behavior.intent,
     problems: problems,
     request_sent: RequestSummary(
-      method: domain_types.method_to_string(behavior.request.method),
+      method: method_to_string(behavior.request.method),
       url: url,
       headers: behavior.request.headers,
     ),
@@ -409,8 +414,8 @@ pub fn create_failure(
 }
 
 fn generate_hint(
-  _behavior: domain_types.Behavior,
-  check_result: ResponseCheckResult,
+  _behavior: Behavior,
+  check_result: checker_types.ResponseCheckResult,
 ) -> String {
   case check_result.status_ok {
     False ->
@@ -441,6 +446,36 @@ pub fn create_blocked(
     behavior: behavior_name,
     reason: "Requires '" <> failed_dependency <> "' which failed",
     hint: "Fix '" <> failed_dependency <> "' first, then this will run",
+  )
+}
+
+/// Create a BehaviorErrorInfo from error details
+pub fn create_error_info(
+  behavior_name: String,
+  error_type: String,
+  message: String,
+) -> BehaviorErrorInfo {
+  let hint = case error_type {
+    "CONNECTION_REFUSED" ->
+      "Check that the API server is running and accessible"
+    "TIMEOUT" -> "The server took too long to respond. Check server health"
+    "DNS_FAILURE" -> "Could not resolve hostname. Check the URL configuration"
+    "SSL_ERROR" -> "SSL/TLS connection failed. Check certificate validity"
+    "NETWORK_UNREACHABLE" -> "Network is unreachable. Check connectivity"
+    "PERMISSION_DENIED" -> "Permission denied. Check firewall/access rules"
+    "URL_PARSE_ERROR" -> "Invalid URL format. Check base_url and path"
+    "INTERPOLATION_ERROR" ->
+      "Variable substitution failed. Check captured values"
+    "RESPONSE_PARSE_ERROR" ->
+      "Could not parse response. Check Content-Type and body format"
+    "SSRF_BLOCKED" -> "Request blocked for security. URL may be unsafe"
+    _ -> ""
+  }
+  BehaviorErrorInfo(
+    behavior: behavior_name,
+    error_type: error_type,
+    message: message,
+    hint: hint,
   )
 }
 

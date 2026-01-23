@@ -305,8 +305,8 @@ pub fn severity_to_string_warning_test() {
 }
 
 pub fn severity_to_string_error_test() {
-  // Contract: ErrorLevel severity converts correctly
-  let result = quality_analyzer.severity_to_string(quality_analyzer.ErrorLevel)
+  // Contract: Error severity converts correctly
+  let result = quality_analyzer.severity_to_string(quality_analyzer.Error)
   result |> string.lowercase |> string.contains("error") |> should.be_true
 }
 

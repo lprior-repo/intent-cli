@@ -145,6 +145,7 @@ fn decode_spec_result(dyn: dynamic.Dynamic) -> Result(SpecResult, List(dynamic.D
         total: score.total,
         summary: summary,
         failures: failures,
+        error_failures: [],
         blocked_behaviors: blocked,
         rule_violations: violations,
         anti_patterns_detected: patterns,

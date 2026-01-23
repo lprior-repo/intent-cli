@@ -1,3 +1,4 @@
 [tools]
 cue = "latest"
+erlang = "latest"
 gleam = "latest"

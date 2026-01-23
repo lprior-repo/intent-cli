@@ -1,7 +1,13 @@
 /// Intent CLI - Human-writes, AI-verifies, AI-implements
 /// Contract-driven API testing tool
 import argv
+import gleam/dict
 import gleam/io
+import gleam/json
+import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/result
+import gleam/string
 import glint
 import glint/flag
 import intent/bead_feedback

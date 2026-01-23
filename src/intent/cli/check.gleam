@@ -21,6 +21,7 @@ import intent/cli_ui
 import intent/improver
 import intent/loader
 import intent/output
+import intent/output_mode
 import intent/quality_analyzer
 import intent/runner
 import intent/spec_linter
@@ -117,10 +118,12 @@ fn run_check(
   only_filter: String,
   output_level: runner.OutputLevel,
 ) -> Nil {
+  let mode = output_mode.from_json_flag(is_json)
+
   // Validate target URL is provided
   case string.is_empty(target_url) {
     True -> {
-      cli_ui.print_error("--target URL is required")
+      cli_ui.print_error("--target URL is required", mode)
       io.println("Usage: intent check <spec.cue> --target=<url>")
       exit(ExitError)
     }
@@ -130,11 +133,11 @@ fn run_check(
   // Load the spec
   case loader.load_spec(spec_path) {
     Error(e) -> {
-      cli_ui.print_error(loader.format_error(e))
+      cli_ui.print_error(loader.format_error(e), mode)
       exit(ExitInvalid)
     }
     Ok(spec) -> {
-      cli_ui.print_header("Checking spec: " <> spec.name)
+      cli_ui.print_header("Checking spec: " <> spec.name, mode)
 
       // Build run options
       let options =
@@ -151,7 +154,7 @@ fn run_check(
         )
 
       // Run the spec
-      let result = runner.run_spec(spec, target_url, options)
+      let result = runner.run_spec(spec, target_url, options, mode)
 
       // Output results
       case is_json {
@@ -167,15 +170,15 @@ fn run_check(
       // Exit with appropriate code
       case result {
         output.SpecResult(pass: True, ..) -> {
-          cli_ui.print_success("All checks passed!")
+          cli_ui.print_success("All checks passed!", mode)
           exit(ExitPass)
         }
         output.SpecResult(blocked: blocked, ..) if blocked > 0 -> {
-          cli_ui.print_warning("Blocked behaviors detected")
+          cli_ui.print_warning("Blocked behaviors detected", mode)
           halt(2)
         }
         _ -> {
-          cli_ui.print_error("Check failed")
+          cli_ui.print_error("Check failed", mode)
           exit(ExitFail)
         }
       }
@@ -186,22 +189,23 @@ fn run_check(
 /// The `validate` command - validate CUE spec syntax AND structure
 pub fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
     case input.args {
       [spec_path, ..] -> {
         // Use load_spec_quiet to validate both CUE syntax AND spec structure
         case loader.load_spec_quiet(spec_path) {
           Ok(_) -> {
-            cli_ui.print_success("Valid spec: " <> spec_path)
+            cli_ui.print_success("Valid spec: " <> spec_path, mode)
             exit(ExitPass)
           }
           Error(e) -> {
-            cli_ui.print_error("Invalid spec: " <> loader.format_error(e))
+            cli_ui.print_error("Invalid spec: " <> loader.format_error(e), mode)
             exit(ExitInvalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent validate <spec.cue>")
         exit(ExitError)
       }
@@ -221,7 +225,7 @@ pub fn show_command() -> glint.Command(Nil) {
       [spec_path, ..] -> {
         case is_json {
           True ->
-            case loader.export_spec_json(spec_path) {
+            case loader.export_spec_json(spec_path, loader.default_cue_exporter) {
               Ok(json_str) -> {
                 io.println(json_str)
                 exit(ExitPass)
@@ -326,7 +330,7 @@ pub fn export_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     case input.args {
       [spec_path, ..] -> {
-        case loader.export_spec_json(spec_path) {
+        case loader.export_spec_json(spec_path, loader.default_cue_exporter) {
           Ok(json_str) -> {
             io.println(json_str)
             exit(ExitPass)

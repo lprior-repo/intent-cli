@@ -12,7 +12,7 @@ import gleam/dict
 import gleam/io
 import gleam/json
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option
 import gleam/result
 import gleam/string
 import glint
@@ -21,6 +21,7 @@ import intent/answer_loader
 import intent/bead_feedback
 import intent/bead_templates
 import intent/cli_ui
+import intent/output_mode
 import intent/interview
 import intent/interview_questions
 import intent/interview_storage
@@ -317,18 +318,20 @@ fn run_interview(
 
 /// Resume an existing interview session
 fn run_resume_interview(session_id: String, export_to: String) -> Nil {
+  let mode = output_mode.Interactive
   let jsonl_path = ".interview/sessions.jsonl"
 
   // Load the session from JSONL
   case interview_storage.get_session_from_jsonl(jsonl_path, session_id) {
     Error(err) -> {
-      cli_ui.print_error(err)
+      cli_ui.print_error(err, mode)
       halt(exit_error)
     }
     Ok(session) -> {
-      cli_ui.print_header("Resuming Interview: " <> session.id)
+      cli_ui.print_header("Resuming Interview: " <> session.id, mode)
       cli_ui.print_info(
         "Profile: " <> profile_to_display_string(session.profile),
+        mode,
       )
       io.println("")
 
@@ -367,10 +370,10 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
       case save_result {
         Ok(Nil) -> {
           io.println("")
-          cli_ui.print_success("Session updated: " <> session.id)
+          cli_ui.print_success("Session updated: " <> session.id, mode)
         }
         Error(err) -> {
-          cli_ui.print_error("Failed to save session: " <> err)
+          cli_ui.print_error("Failed to save session: " <> err, mode)
         }
       }
 
@@ -381,11 +384,12 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
           let spec_cue = spec_builder.build_spec_from_session(final_session)
           case simplifile.write(path, spec_cue) {
             Ok(Nil) -> {
-              cli_ui.print_success("Spec exported to: " <> path)
+              cli_ui.print_success("Spec exported to: " <> path, mode)
             }
             Error(err) -> {
               cli_ui.print_error(
                 "Failed to export spec: " <> string.inspect(err),
+                mode,
               )
             }
           }
@@ -1214,6 +1218,7 @@ pub fn history_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [session_id, ..] -> {
@@ -1244,7 +1249,7 @@ pub fn history_command() -> glint.Command(Nil) {
                 io.println(json.to_string(json_answers))
               }
               False -> {
-                cli_ui.print_header("Session History: " <> session.id)
+                cli_ui.print_header("Session History: " <> session.id, mode)
                 io.println("")
 
                 list.each(session.answers, fn(answer) {
@@ -1289,6 +1294,7 @@ pub fn history_command() -> glint.Command(Nil) {
 /// The `diff` command - compare two interview sessions
 pub fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
     case input.args {
       [session_id1, session_id2, ..] -> {
         let jsonl_path = ".interview/sessions.jsonl"
@@ -1297,7 +1303,7 @@ pub fn diff_command() -> glint.Command(Nil) {
           interview_storage.get_session_from_jsonl(jsonl_path, session_id2)
         {
           Ok(session1), Ok(session2) -> {
-            cli_ui.print_header("Session Diff")
+            cli_ui.print_header("Session Diff", mode)
             io.println("")
             io.println("Session 1: " <> session1.id)
             io.println("Session 2: " <> session2.id)
@@ -1369,6 +1375,7 @@ pub fn sessions_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+    let mode = output_mode.from_json_flag(is_json)
 
     let profile_filter =
       flag.get_string(input.flags, "profile")
@@ -1377,14 +1384,14 @@ pub fn sessions_command() -> glint.Command(Nil) {
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(_) -> {
         // File doesn't exist yet - treat as empty
-        cli_ui.print_warning("No interview sessions found")
+        cli_ui.print_warning("No interview sessions found", mode)
         io.println("")
         io.println("Start a new interview with:")
         io.println("  intent interview --profile api")
         halt(exit_pass)
       }
       Ok([]) -> {
-        cli_ui.print_warning("No interview sessions found")
+        cli_ui.print_warning("No interview sessions found", mode)
         io.println("")
         io.println("Start a new interview with:")
         io.println("  intent interview --profile api")
@@ -1407,7 +1414,7 @@ pub fn sessions_command() -> glint.Command(Nil) {
             io.println(json.to_string(json_sessions))
           }
           False -> {
-            cli_ui.print_header("Interview Sessions")
+            cli_ui.print_header("Interview Sessions", mode)
             io.println("")
 
             list.each(filtered, fn(session) {

@@ -22,6 +22,7 @@ import glint/flag
 import intent/cli/common.{ExitError, ExitFail, ExitInvalid, ExitPass, exit, halt}
 import intent/cli_ui
 import intent/kirk/compact_format
+import intent/output_mode
 import intent/kirk/coverage_analyzer
 import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
@@ -44,6 +45,7 @@ pub fn quality_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -86,13 +88,13 @@ pub fn quality_command() -> glint.Command(Nil) {
             }
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent quality <spec.cue> [--json]")
         halt(exit_error)
       }
@@ -111,6 +113,7 @@ pub fn invert_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -153,13 +156,13 @@ pub fn invert_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             exit(ExitInvalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent invert <spec.cue> [--json]")
         exit(ExitError)
       }
@@ -192,6 +195,7 @@ pub fn coverage_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -232,13 +236,13 @@ pub fn coverage_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             exit(ExitInvalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent coverage <spec.cue> [--json]")
         exit(ExitError)
       }
@@ -257,6 +261,7 @@ pub fn gaps_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
@@ -308,13 +313,13 @@ pub fn gaps_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             exit(ExitInvalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent gaps <spec.cue> [--json]")
         exit(ExitError)
       }
@@ -337,9 +342,52 @@ fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
   ])
 }
 
+fn ears_error_to_json(err: ears_parser.EarsError) -> json.Json {
+  case err {
+    ears_parser.PatternNotMatched(line, raw_text) ->
+      json.object([
+        #("line", json.int(line)),
+        #("message", json.string("Pattern not matched")),
+        #("raw_text", json.string(raw_text)),
+      ])
+    ears_parser.PatternMatchFailed(line, _pattern, raw_text) ->
+      json.object([
+        #("line", json.int(line)),
+        #("message", json.string("Pattern match failed")),
+        #("raw_text", json.string(raw_text)),
+      ])
+    ears_parser.RegexCompileFailed(line, _pattern, pattern_string) ->
+      json.object([
+        #("line", json.int(line)),
+        #("message", json.string("Regex compile failed")),
+        #("pattern", json.string(pattern_string)),
+      ])
+    ears_parser.ComponentExtractionFailed(line, _pattern, _missing, raw_text) ->
+      json.object([
+        #("line", json.int(line)),
+        #("message", json.string("Component extraction failed")),
+        #("raw_text", json.string(raw_text)),
+      ])
+  }
+}
+
+fn format_ears_error(err: ears_parser.EarsError) -> String {
+  case err {
+    ears_parser.PatternNotMatched(line, _raw_text) ->
+      "Line " <> string.inspect(line) <> ": Pattern not matched"
+    ears_parser.PatternMatchFailed(line, _pattern, _raw_text) ->
+      "Line " <> string.inspect(line) <> ": Pattern match failed"
+    ears_parser.RegexCompileFailed(line, _pattern, _pattern_string) ->
+      "Line " <> string.inspect(line) <> ": Regex compile failed"
+    ears_parser.ComponentExtractionFailed(line, _pattern, _missing, _raw_text) ->
+      "Line " <> string.inspect(line) <> ": Component extraction failed"
+  }
+}
+
 /// The `effects` command - KIRK second-order effects analysis
 pub fn effects_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -349,13 +397,13 @@ pub fn effects_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             exit(ExitInvalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent effects <spec.cue>")
         exit(ExitError)
       }
@@ -369,6 +417,7 @@ pub fn effects_command() -> glint.Command(Nil) {
 /// The `compact` command - KIRK compact format (CIN)
 pub fn compact_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
     let show_tokens =
       flag.get_bool(input.flags, "tokens")
       |> result.unwrap(False)
@@ -383,23 +432,24 @@ pub fn compact_command() -> glint.Command(Nil) {
 
             case show_tokens {
               True -> {
-                let #(full, compact_tokens, savings) =
-                  compact_format.compare_token_usage(spec)
+                let comparison = compact_format.compare_token_usage(spec)
                 io.println("")
                 io.println("-------------------------------------")
                 io.println("Token Analysis:")
                 io.println(
-                  "  Full JSON:    ~" <> string.inspect(full) <> " tokens",
+                  "  Full JSON:    ~"
+                    <> string.inspect(comparison.full_tokens)
+                    <> " tokens",
                 )
                 io.println(
                   "  Compact CIN:  ~"
-                  <> string.inspect(compact_tokens)
-                  <> " tokens",
+                    <> string.inspect(comparison.compact_tokens)
+                    <> " tokens",
                 )
                 io.println(
                   "  Savings:      "
-                  <> string.inspect(float.round(savings))
-                  <> "%",
+                    <> string.inspect(float.round(comparison.savings_percent))
+                    <> "%",
                 )
               }
               False -> Nil
@@ -408,13 +458,13 @@ pub fn compact_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             exit(ExitInvalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent compact <spec.cue> [--tokens]")
         exit(ExitError)
       }
@@ -434,6 +484,7 @@ pub fn compact_command() -> glint.Command(Nil) {
 /// The `prototext` command - KIRK protobuf text format output
 pub fn prototext_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -443,13 +494,13 @@ pub fn prototext_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             exit(ExitInvalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required")
+        cli_ui.print_error("spec file path required", mode)
         io.println("Usage: intent prototext <spec.cue>")
         exit(ExitError)
       }
@@ -461,6 +512,7 @@ pub fn prototext_command() -> glint.Command(Nil) {
 /// The `ears` command - KIRK EARS requirements parser
 pub fn ears_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
     let output_format =
       flag.get_string(input.flags, "output")
       |> result.unwrap("text")
@@ -515,13 +567,7 @@ pub fn ears_command() -> glint.Command(Nil) {
                     ),
                     #(
                       "errors",
-                      json.array(result.errors, fn(e) {
-                        json.object([
-                          #("line", json.int(e.line)),
-                          #("message", json.string(e.message)),
-                          #("suggestion", json.string(e.suggestion)),
-                        ])
-                      }),
+                      json.array(result.errors, ears_error_to_json),
                     ),
                     #("warnings", json.array(result.warnings, json.string)),
                   ])
@@ -535,7 +581,8 @@ pub fn ears_command() -> glint.Command(Nil) {
               path -> {
                 case simplifile.write(path, output) {
                   Ok(_) -> io.println("Written to: " <> path)
-                  Error(_) -> cli_ui.print_error("Failed to write to: " <> path)
+                  Error(_) ->
+                    cli_ui.print_error("Failed to write to: " <> path, mode)
                 }
               }
             }
@@ -543,13 +590,13 @@ pub fn ears_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(_) -> {
-            cli_ui.print_error("Failed to read: " <> requirements_path)
+            cli_ui.print_error("Failed to read: " <> requirements_path, mode)
             exit(ExitError)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("requirements file path required")
+        cli_ui.print_error("requirements file path required", mode)
         io.println(
           "Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
         )
@@ -599,6 +646,7 @@ pub fn parse_command() -> glint.Command(Nil) {
     let is_json =
       flag.get_bool(input.flags, "json")
       |> result.unwrap(False)
+    let mode = output_mode.from_json_flag(is_json)
 
     let output_file =
       flag.get_string(input.flags, "o")
@@ -674,16 +722,7 @@ pub fn parse_command() -> glint.Command(Nil) {
                         ])
                       }),
                     ),
-                    #(
-                      "errors",
-                      json.array(result.errors, fn(e) {
-                        json.object([
-                          #("line", json.int(e.line)),
-                          #("message", json.string(e.message)),
-                          #("suggestion", json.string(e.suggestion)),
-                        ])
-                      }),
-                    ),
+                    #("errors", json.array(result.errors, ears_error_to_json)),
                     #("warnings", json.array(result.warnings, json.string)),
                     #("count", json.int(req_count)),
                   ])
@@ -710,9 +749,7 @@ pub fn parse_command() -> glint.Command(Nil) {
                     io.println("")
                     io.println("Errors (" <> string.inspect(err_count) <> "):")
                     list.each(result.errors, fn(e) {
-                      io.println(
-                        "  Line " <> string.inspect(e.line) <> ": " <> e.message,
-                      )
+                      io.println("  " <> format_ears_error(e))
                     })
                   }
                   False -> Nil
@@ -726,7 +763,8 @@ pub fn parse_command() -> glint.Command(Nil) {
                 let cue_output = ears_parser.to_cue(result, "ParsedSpec")
                 case simplifile.write(path, cue_output) {
                   Ok(_) -> io.println("Written to: " <> path)
-                  Error(_) -> cli_ui.print_error("Failed to write to: " <> path)
+                  Error(_) ->
+                    cli_ui.print_error("Failed to write to: " <> path, mode)
                 }
               }
             }
@@ -734,13 +772,13 @@ pub fn parse_command() -> glint.Command(Nil) {
             exit(ExitPass)
           }
           Error(msg) -> {
-            cli_ui.print_error(msg)
+            cli_ui.print_error(msg, mode)
             exit(ExitError)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("requirements file path required")
+        cli_ui.print_error("requirements file path required", mode)
         io.println("Usage: intent parse <requirements.md> [--json] [-o <file>]")
         io.println("       echo 'THE SYSTEM SHALL...' | intent parse --stdin")
         exit(ExitError)

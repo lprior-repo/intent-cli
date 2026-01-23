@@ -10,7 +10,7 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/anti_patterns
-import intent/checker
+import intent/checker/types as checker_types
 import intent/http_client
 import intent/output
 import intent/types
@@ -34,6 +34,7 @@ fn make_passing_result() -> output.SpecResult {
     total: 1,
     summary: "All tests passed",
     failures: [],
+    error_failures: [],
     blocked_behaviors: [],
     rule_violations: [],
     anti_patterns_detected: [],
@@ -50,6 +51,7 @@ fn make_failing_result() -> output.SpecResult {
     total: 1,
     summary: "Tests failed",
     failures: [make_test_failure()],
+    error_failures: [],
     blocked_behaviors: [],
     rule_violations: [],
     anti_patterns_detected: [],
@@ -121,13 +123,13 @@ fn make_execution_result(status: Int) -> http_client.ExecutionResult {
 
 /// Create a ResponseCheckResult for testing
 fn make_check_result(
-  passed: List(checker.CheckResult),
-  failed: List(checker.CheckResult),
+  passed: List(checker_types.CheckResult),
+  failed: List(checker_types.CheckResult),
   status_ok: Bool,
   status_expected: Int,
   status_actual: Int,
-) -> checker.ResponseCheckResult {
-  checker.ResponseCheckResult(
+) -> checker_types.ResponseCheckResult {
+  checker_types.ResponseCheckResult(
     passed: passed,
     failed: failed,
     status_ok: status_ok,
@@ -213,6 +215,7 @@ pub fn spec_result_to_json_score_fields_test() {
       total: 8,
       summary: "Mixed results",
       failures: [],
+      error_failures: [],
       blocked_behaviors: [],
       rule_violations: [],
       anti_patterns_detected: [],
@@ -469,6 +472,7 @@ pub fn spec_result_to_text_shows_score_test() {
       total: 10,
       summary: "Mixed",
       failures: [],
+      error_failures: [],
       blocked_behaviors: [],
       rule_violations: [],
       anti_patterns_detected: [],
@@ -913,7 +917,7 @@ pub fn create_failure_includes_status_mismatch_test() {
 pub fn create_failure_includes_check_failures_test() {
   let behavior = make_test_behavior("test-checks", [])
   let failed_checks = [
-    checker.CheckFailed(
+    checker_types.CheckFailed(
       field: "$.name",
       rule: "exists",
       expected: "present",
@@ -947,7 +951,7 @@ pub fn create_failure_includes_check_failures_test() {
 pub fn create_failure_combines_status_and_check_failures_test() {
   let behavior = make_test_behavior("test-combined", [])
   let failed_checks = [
-    checker.CheckFailed(
+    checker_types.CheckFailed(
       field: "$.email",
       rule: "valid",
       expected: "valid@email.com",
@@ -1087,7 +1091,7 @@ pub fn create_failure_generates_hint_for_500_test() {
 pub fn create_failure_generates_hint_for_field_failures_test() {
   let behavior = make_test_behavior("test-fields", [])
   let failed_checks = [
-    checker.CheckFailed(
+    checker_types.CheckFailed(
       field: "$.name",
       rule: "exists",
       expected: "present",
@@ -1175,6 +1179,7 @@ pub fn spec_result_all_zeros_test() {
       total: 0,
       summary: "No tests",
       failures: [],
+      error_failures: [],
       blocked_behaviors: [],
       rule_violations: [],
       anti_patterns_detected: [],
@@ -1201,6 +1206,7 @@ pub fn spec_result_large_numbers_test() {
       total: 11_499,
       summary: "Large test suite",
       failures: [],
+      error_failures: [],
       blocked_behaviors: [],
       rule_violations: [],
       anti_patterns_detected: [],
@@ -1323,6 +1329,7 @@ pub fn mixed_results_comprehensive_test() {
       total: 8,
       summary: "Mixed results with all types",
       failures: [failure],
+      error_failures: [],
       blocked_behaviors: [blocked],
       rule_violations: [violation],
       anti_patterns_detected: [anti_pattern],
@@ -1363,6 +1370,7 @@ pub fn spec_result_pass_false_with_no_failures_test() {
       total: 1,
       summary: "Failed for other reasons",
       failures: [],
+      error_failures: [],
       blocked_behaviors: [],
       rule_violations: [],
       anti_patterns_detected: [],

@@ -8,6 +8,7 @@ import gleam/string
 import gleam_community/ansi
 import intent/anti_patterns
 import intent/checker
+import intent/checker/types as checker_types
 import intent/http_client.{type ExecutionError, type ExecutionResult}
 import intent/interpolate.{type Context}
 import intent/output.{type SpecResult}
@@ -235,18 +236,17 @@ pub fn run_spec_with_executor_and_ui(
                   "INTERPOLATION_ERROR",
                   msg,
                 )
-                http_client.RequestError(msg) -> {
-                  // Extract specific error types from message
-                  let contains_refused =
-                    string.contains(msg, "connection refused")
-                  let contains_timeout = string.contains(msg, "timeout")
-                  let contains_resolve = string.contains(msg, "resolve")
-                  case contains_refused, contains_timeout, contains_resolve {
-                    True, _, _ -> #("CONNECTION_REFUSED", msg)
-                    _, True, _ -> #("TIMEOUT", msg)
-                    _, _, True -> #("DNS_FAILURE", msg)
-                    _, _, _ -> #("REQUEST_ERROR", msg)
+                http_client.RequestError(code:, message:, details: _) -> {
+                  let error_type = case code {
+                    http_client.Timeout -> "TIMEOUT"
+                    http_client.ConnectionRefused -> "CONNECTION_REFUSED"
+                    http_client.DNSFailure -> "DNS_FAILURE"
+                    http_client.SSLError -> "SSL_ERROR"
+                    http_client.NetworkUnreachable -> "NETWORK_UNREACHABLE"
+                    http_client.PermissionDenied -> "PERMISSION_DENIED"
+                    http_client.Unknown -> "REQUEST_ERROR"
                   }
+                  #(error_type, message)
                 }
                 http_client.ResponseParseError(msg) -> #(
                   "RESPONSE_PARSE_ERROR",
