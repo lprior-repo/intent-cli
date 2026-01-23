@@ -356,7 +356,17 @@ pub fn beads_to_action_json(beads: List(BeadRecord), session_id: String) -> Json
       ),
     ])
 
-  json_output.create_response("beads_generated", "beads", data, None, 0)
+  let next_actions = [
+    json_output.next_action(
+      "intent bead-status --bead-id <id> --status success",
+      "Mark a bead as complete",
+    ),
+    json_output.next_action(
+      "intent interview --resume " <> session_id,
+      "Continue refining the interview",
+    ),
+  ]
+  json_output.success("beads_generated", "beads", data, None, next_actions)
   |> json_output.to_json
 }
 

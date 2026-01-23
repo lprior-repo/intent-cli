@@ -27,6 +27,7 @@ import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
 import intent/kirk/quality_analyzer as kirk_quality
 import intent/loader
+import intent/json_output
 import intent/output
 import intent/output_mode
 import intent/plan_mode
@@ -337,7 +338,7 @@ fn run_check(
       // Output results
       case is_json {
         True -> {
-          let json_result = output.spec_result_to_json(result)
+          let json_result = output.spec_result_to_action_json(result, spec_path)
           io.println(json.to_string(json_result))
         }
         False -> {
@@ -2754,9 +2755,32 @@ fn sessions_command() -> glint.Command(Nil) {
 
         case is_json {
           True -> {
-            let json_sessions =
-              json.array(limited, interview_storage.session_to_json)
-            io.println(json.to_string(json_sessions))
+            let data =
+              json.object([
+                #("sessions", json.array(limited, interview_storage.session_to_json)),
+                #("total", json.int(total_count)),
+                #("shown", json.int(shown_count)),
+                #("truncated", json.bool(was_limited)),
+              ])
+            let next_actions = [
+              json_output.next_action(
+                "intent interview --resume <id>",
+                "Resume an incomplete session",
+              ),
+              json_output.next_action(
+                "intent beads <session_id>",
+                "Generate work items from session",
+              ),
+            ]
+            let response =
+              json_output.success(
+                "sessions_result",
+                "sessions",
+                data,
+                None,
+                next_actions,
+              )
+            json_output.output(response)
           }
           False -> {
             cli_ui.print_header("Interview Sessions", mode)
@@ -2872,7 +2896,7 @@ fn kirk_quality_command() -> glint.Command(Nil) {
             let report = kirk_quality.analyze_quality(spec)
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("completeness", json.float(report.completeness)),
                     #("consistency", json.float(report.consistency)),
@@ -2896,7 +2920,25 @@ fn kirk_quality_command() -> glint.Command(Nil) {
                       }),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = [
+                  json_output.next_action(
+                    "intent gaps " <> spec_path <> " --json",
+                    "Find coverage gaps",
+                  ),
+                  json_output.next_action(
+                    "intent invert " <> spec_path <> " --json",
+                    "Analyze failure modes",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "quality_result",
+                    "quality",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> io.println(kirk_quality.format_report(report))
             }
@@ -2938,7 +2980,7 @@ fn kirk_invert_command() -> glint.Command(Nil) {
             let report = inversion_checker.analyze_inversions(spec)
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("score", json.float(report.score)),
                     #(
@@ -2965,7 +3007,25 @@ fn kirk_invert_command() -> glint.Command(Nil) {
                       }),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = [
+                  json_output.next_action(
+                    "intent coverage " <> spec_path <> " --json",
+                    "Check OWASP coverage",
+                  ),
+                  json_output.next_action(
+                    "intent effects " <> spec_path <> " --json",
+                    "Analyze second-order effects",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "invert_result",
+                    "invert",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> io.println(inversion_checker.format_report(report))
             }
@@ -3019,7 +3079,7 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
             let report = coverage_analyzer.analyze_coverage(spec)
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("overall_score", json.float(report.overall_score)),
                     #(
@@ -3044,7 +3104,25 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
                       json.array(report.owasp.missing, json.string),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = [
+                  json_output.next_action(
+                    "intent gaps " <> spec_path <> " --json",
+                    "Detect mental model gaps",
+                  ),
+                  json_output.next_action(
+                    "intent quality " <> spec_path <> " --json",
+                    "Check overall quality",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "coverage_result",
+                    "coverage",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> io.println(coverage_analyzer.format_report(report))
             }
@@ -3086,7 +3164,7 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
             let report = gap_detector.detect_gaps(spec)
             case is_json {
               True -> {
-                let json_obj =
+                let data =
                   json.object([
                     #("total_gaps", json.int(report.total_gaps)),
                     #(
@@ -3122,7 +3200,25 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
                       json.array(report.security_gaps, detected_gap_to_json),
                     ),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = [
+                  json_output.next_action(
+                    "intent doctor " <> spec_path,
+                    "Get prioritized recommendations",
+                  ),
+                  json_output.next_action(
+                    "intent improve " <> spec_path,
+                    "Get improvement suggestions",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "gaps_result",
+                    "gaps",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> io.println(gap_detector.format_report(report))
             }
@@ -3251,7 +3347,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
               }
               "json" -> {
                 let behaviors = ears_parser.to_behaviors(result)
-                let json_obj =
+                let data =
                   json.object([
                     #(
                       "requirements",
@@ -3298,7 +3394,21 @@ fn kirk_ears_command() -> glint.Command(Nil) {
                     ),
                     #("warnings", json.array(result.warnings, json.string)),
                   ])
-                json.to_string(json_obj)
+                let next_actions = [
+                  json_output.next_action(
+                    "intent ears " <> requirements_path <> " --output cue",
+                    "Generate CUE spec from requirements",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "ears_result",
+                    "ears",
+                    data,
+                    None,
+                    next_actions,
+                  )
+                json.to_string(json_output.to_json(response))
               }
               _ -> ears_parser.format_result(result)
             }
@@ -3411,7 +3521,7 @@ fn parse_command() -> glint.Command(Nil) {
             case is_json {
               True -> {
                 let behaviors = ears_parser.to_behaviors(result)
-                let json_obj =
+                let data =
                   json.object([
                     #(
                       "requirements",
@@ -3459,7 +3569,25 @@ fn parse_command() -> glint.Command(Nil) {
                     #("warnings", json.array(result.warnings, json.string)),
                     #("count", json.int(req_count)),
                   ])
-                io.println(json.to_string(json_obj))
+                let next_actions = [
+                  json_output.next_action(
+                    "intent parse " <> requirements_path <> " -o spec.cue",
+                    "Generate CUE spec file",
+                  ),
+                  json_output.next_action(
+                    "intent validate spec.cue",
+                    "Validate generated spec",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "parse_result",
+                    "parse",
+                    data,
+                    None,
+                    next_actions,
+                  )
+                json_output.output(response)
               }
               False -> {
                 // Print parsing progress
