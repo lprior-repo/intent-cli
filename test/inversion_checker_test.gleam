@@ -94,8 +94,9 @@ pub fn analyze_inversions_sql_injection_test() {
 
 pub fn analyze_inversions_not_found_test() {
   // Contract: 404 behavior covers not-found
-  let behaviors =
-    [test_helpers.make_test_behavior_with_status("not-found-test", 404, [])]
+  let behaviors = [
+    test_helpers.make_test_behavior_with_status("not-found-test", 404, []),
+  ]
   let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
 
   let report = inversion_checker.analyze_inversions(spec)
@@ -106,8 +107,9 @@ pub fn analyze_inversions_not_found_test() {
 
 pub fn analyze_inversions_rate_limit_test() {
   // Contract: 429 status covers rate-limit
-  let behaviors =
-    [test_helpers.make_test_behavior_with_status("rate-limit-test", 429, [])]
+  let behaviors = [
+    test_helpers.make_test_behavior_with_status("rate-limit-test", 429, []),
+  ]
   let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
 
   let report = inversion_checker.analyze_inversions(spec)

@@ -210,7 +210,11 @@ pub fn format_help(help: CommandHelp) -> String {
 /// This produces a compact format that works well with glint's help output
 /// which shows the description alongside flag documentation
 pub fn format_for_glint(help: CommandHelp) -> String {
-  let parts = [help.short_desc, format_glint_examples(help), format_glint_related(help)]
+  let parts = [
+    help.short_desc,
+    format_glint_examples(help),
+    format_glint_related(help),
+  ]
 
   parts
   |> list.filter(fn(s) { !string.is_empty(s) })

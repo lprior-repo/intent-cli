@@ -12,10 +12,12 @@ import gleam/list
 import gleam/string
 import gleeunit
 import gleeunit/should
-import intent/types.{type Behavior, type Check, Behavior, Check, Request, Response}
+import intent/types.{
+  type Behavior, type Check, Behavior, Check, Request, Response,
+}
 import intent/validator.{
-  CircularDependency, MissingCapture, MissingDependency,
-  ValidationInvalid, ValidationValid,
+  CircularDependency, MissingCapture, MissingDependency, ValidationInvalid,
+  ValidationValid,
 }
 import test_helpers.{
   make_test_behavior, make_test_feature, make_test_spec,

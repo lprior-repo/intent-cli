@@ -521,10 +521,7 @@ fn extract_line_number(stderr: String) -> Option(Int) {
       let trimmed_line = string.trim(line_str)
       // Only extract line number if the first part looks like a file path
       // (contains a dot for file extension) and second part is a valid number
-      case
-        string.contains(trimmed_file, "."),
-        int.parse(trimmed_line)
-      {
+      case string.contains(trimmed_file, "."), int.parse(trimmed_line) {
         True, Ok(n) -> Some(n)
         _, _ -> None
       }
@@ -542,10 +539,7 @@ fn extract_file_path(stderr: String) -> Option(String) {
       let trimmed_line = string.trim(line_str)
       // Only treat it as a file if it contains a dot (file extension)
       // AND the second part is a valid line number
-      case
-        string.contains(trimmed_file, "."),
-        int.parse(trimmed_line)
-      {
+      case string.contains(trimmed_file, "."), int.parse(trimmed_line) {
         True, Ok(_) -> Some(trimmed_file)
         _, _ -> None
       }

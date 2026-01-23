@@ -21,7 +21,6 @@
 /// - load_spec_quiet: Loads without UI
 ///
 /// Refactored to address beads: intent-cli-3lom, intent-cli-27i7, intent-cli-qc44
-
 import gleam/dynamic
 import gleam/json
 import gleam/list
@@ -60,10 +59,12 @@ pub type CommandExecutor =
   fn(String, List(String), String) -> Result(String, #(Int, String))
 
 /// High-level CUE validator function
-pub type CueValidator = fn(String) -> Result(Nil, LoadError)
+pub type CueValidator =
+  fn(String) -> Result(Nil, LoadError)
 
 /// High-level CUE exporter function
-pub type CueExporter = fn(String) -> Result(String, LoadError)
+pub type CueExporter =
+  fn(String) -> Result(String, LoadError)
 
 /// Default executor using shellout.command
 fn default_executor(
@@ -205,7 +206,9 @@ pub fn load_spec_with_executor(
             executor("cue", ["export", validated_path, "-e", "spec"], ".")
 
           // Parse export result and convert to Spec using pure functions
-          let result = case parse_cue_export_result(validated_path, export_result) {
+          let result = case
+            parse_cue_export_result(validated_path, export_result)
+          {
             Ok(json_str) -> parse_json_to_spec(json_str)
             Error(e) -> Error(e)
           }
@@ -271,10 +274,12 @@ pub fn load_spec(path: String) -> Result(Spec, LoadError) {
     |> spinner.start
 
   let spinner_handle =
-    Some(SpinnerHandle(
-      set_text: fn(text) { spinner.set_text(sp, text) },
-      stop: fn() { spinner.stop(sp) },
-    ))
+    Some(
+      SpinnerHandle(
+        set_text: fn(text) { spinner.set_text(sp, text) },
+        stop: fn() { spinner.stop(sp) },
+      ),
+    )
 
   load_spec_with_executor(path, default_executor, spinner_handle)
 }

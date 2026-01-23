@@ -10,7 +10,7 @@ import gleam/dynamic
 import gleam/json
 import gleam/option.{None}
 import gleeunit/should
-import intent/http_client.{ExecutionResult, RequestError, ConnectionRefused}
+import intent/http_client.{ConnectionRefused, ExecutionResult, RequestError}
 import intent/interpolate
 import intent/output_mode
 import intent/runner.{type BehaviorExecutor, BehaviorExecutor}
@@ -383,11 +383,12 @@ pub fn executor_receives_target_url_override_test() {
             request_path: "/test",
           ))
         }
-        _ -> Error(RequestError(
-          code: ConnectionRefused,
-          message: "Wrong base_url: " <> config.base_url,
-          details: None,
-        ))
+        _ ->
+          Error(RequestError(
+            code: ConnectionRefused,
+            message: "Wrong base_url: " <> config.base_url,
+            details: None,
+          ))
       }
     })
 

@@ -1,7 +1,6 @@
 /// KIRK Compact Intent Notation (CIN)
 /// Token-efficient format for AI prompts
 /// Stub implementation - functions return placeholder data
-
 import gleam/dict
 import gleam/int
 import gleam/list
@@ -54,11 +53,7 @@ pub type CompactAntiPattern {
 }
 
 pub type TokenComparison {
-  TokenComparison(
-    full_tokens: Int,
-    compact_tokens: Int,
-    savings_percent: Float,
-  )
+  TokenComparison(full_tokens: Int, compact_tokens: Int, savings_percent: Float)
 }
 
 /// Convert a spec to compact format

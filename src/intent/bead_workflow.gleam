@@ -15,8 +15,7 @@ import gleam/string
 import intent/bead_feedback.{type BeadFeedback}
 import intent/bead_types.{type BeadStatus, Closed, InProgress, Open}
 import intent/bead_verify.{
-  type HookReport, can_complete, hooks_for_issue_type,
-  verify_bead,
+  type HookReport, can_complete, hooks_for_issue_type, verify_bead,
 }
 
 // =============================================================================
@@ -51,17 +50,11 @@ pub fn empty_evidence(issue_type: String) -> Evidence {
 
 /// Add feedback to evidence collection.
 pub fn add_feedback(evidence: Evidence, feedback: BeadFeedback) -> Evidence {
-  Evidence(
-    ..evidence,
-    feedback: list.append(evidence.feedback, [feedback]),
-  )
+  Evidence(..evidence, feedback: list.append(evidence.feedback, [feedback]))
 }
 
 /// Add custom evidence items to the evidence collection.
-pub fn add_custom_evidence(
-  evidence: Evidence,
-  items: List(String),
-) -> Evidence {
+pub fn add_custom_evidence(evidence: Evidence, items: List(String)) -> Evidence {
   Evidence(
     ..evidence,
     custom_evidence: list.append(evidence.custom_evidence, items),
@@ -96,10 +89,7 @@ pub fn verify_bead_for_close(
   case status {
     Closed -> InvalidState(bead_id, "Bead is already closed")
     Open -> {
-      InvalidState(
-        bead_id,
-        "Bead must be InProgress to close (currently Open)",
-      )
+      InvalidState(bead_id, "Bead must be InProgress to close (currently Open)")
     }
     InProgress -> {
       // Get verification hooks for this issue type
@@ -157,10 +147,7 @@ pub fn format_close_result(result: CloseResult) -> String {
       <> bool_to_string(report.required_passed)
 
     InvalidState(bead_id, reason) ->
-      "✗ Cannot close bead "
-      <> bead_id
-      <> ": "
-      <> reason
+      "✗ Cannot close bead " <> bead_id <> ": " <> reason
   }
 }
 

@@ -427,7 +427,12 @@ fn extract_line_number(stderr: String) -> Option(Int) {
 fn format_decode_errors(errors: List(DecodeError)) -> String {
   errors
   |> list.map(fn(err) {
-    "Expected " <> err.expected <> " but found " <> err.found <> " at " <> string.join(err.path, ".")
+    "Expected "
+    <> err.expected
+    <> " but found "
+    <> err.found
+    <> " at "
+    <> string.join(err.path, ".")
   })
   |> string.join("; ")
 }

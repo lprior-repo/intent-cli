@@ -175,7 +175,8 @@ pub fn analyze_coverage_owasp_score_test() {
   let report = coverage_analyzer.analyze_coverage(spec)
 
   // OWASP score should be in range [0, 100]
-  { report.owasp.score >=. 0.0 && report.owasp.score <=. 100.0 } |> should.be_true
+  { report.owasp.score >=. 0.0 && report.owasp.score <=. 100.0 }
+  |> should.be_true
 }
 
 pub fn analyze_coverage_edge_cases_test() {
@@ -302,8 +303,6 @@ pub fn format_report_includes_methods_test() {
   let formatted = coverage_analyzer.format_report(report)
 
   // Should mention GET and POST
-  {
-    string.contains(formatted, "GET") || string.contains(formatted, "POST")
-  }
+  { string.contains(formatted, "GET") || string.contains(formatted, "POST") }
   |> should.be_true
 }

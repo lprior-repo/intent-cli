@@ -125,14 +125,7 @@ pub fn to_json_structure_test() {
 /// Test from_results helper
 pub fn from_results_test() {
   let dashboard =
-    progress_dashboard.from_results(
-      8,
-      1,
-      1,
-      10,
-      5000,
-      Some("spec.cue"),
-    )
+    progress_dashboard.from_results(8, 1, 1, 10, 5000, Some("spec.cue"))
 
   dashboard.status |> should.equal(Failed)
   dashboard.progress.percentage |> should.equal(100)

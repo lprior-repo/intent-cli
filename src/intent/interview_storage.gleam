@@ -1047,11 +1047,11 @@ fn session_decoder(
   )
   use stage_str <- result.try(dynamic.field("stage", dynamic.string)(json_value))
   use stage <- result.try(case stage_str {
-    "Discovery" -> Ok(interview.Discovery)
-    "Refinement" -> Ok(interview.Refinement)
-    "Validation" -> Ok(interview.Validation)
-    "Complete" -> Ok(interview.Complete)
-    "Paused" -> Ok(interview.Paused)
+    "discovery" -> Ok(interview.Discovery)
+    "refinement" -> Ok(interview.Refinement)
+    "validation" -> Ok(interview.Validation)
+    "complete" -> Ok(interview.Complete)
+    "paused" -> Ok(interview.Paused)
     _ -> Error([dynamic.DecodeError("stage", "invalid stage", [])])
   })
   use rounds_completed <- result.try(dynamic.field(

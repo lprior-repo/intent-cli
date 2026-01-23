@@ -1,6 +1,5 @@
 /// Answer loader for pre-filling interview responses
 /// Loads question answers from JSON files
-
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json

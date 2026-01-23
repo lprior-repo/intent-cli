@@ -518,7 +518,9 @@ pub fn export_prompts_to_file(
   case simplifile.write(file_path, content) {
     Ok(Nil) -> Ok(Nil)
     Error(err) ->
-      Error(WriteError("Failed to write to " <> file_path <> ": " <> string.inspect(err)))
+      Error(WriteError(
+        "Failed to write to " <> file_path <> ": " <> string.inspect(err),
+      ))
   }
 }
 
@@ -563,9 +565,11 @@ fn pad_number(n: Int, width: Int) -> String {
   case string.length(num_str) >= width {
     True -> num_str
     False ->
-      list.fold(list.range(0, width - string.length(num_str)), num_str, fn(acc, _) {
-        "0" <> acc
-      })
+      list.fold(
+        list.range(0, width - string.length(num_str)),
+        num_str,
+        fn(acc, _) { "0" <> acc },
+      )
   }
 }
 
@@ -574,14 +578,15 @@ pub fn export_prompts_to_jsonl(
   prompts: List(Prompt),
   file_path: String,
 ) -> Result(Nil, PromptExportError) {
-  let json_lines = list.map(prompts, fn(p) {
-    prompt_to_json(p) |> json.to_string
-  })
+  let json_lines =
+    list.map(prompts, fn(p) { prompt_to_json(p) |> json.to_string })
   let content = string.join(json_lines, "\n")
   case simplifile.write(file_path, content) {
     Ok(Nil) -> Ok(Nil)
     Error(err) ->
-      Error(WriteError("Failed to write to " <> file_path <> ": " <> string.inspect(err)))
+      Error(WriteError(
+        "Failed to write to " <> file_path <> ": " <> string.inspect(err),
+      ))
   }
 }
 
@@ -595,7 +600,9 @@ pub fn export_single_prompt(
   case simplifile.write(file_path, content) {
     Ok(Nil) -> Ok(Nil)
     Error(err) ->
-      Error(WriteError("Failed to write to " <> file_path <> ": " <> string.inspect(err)))
+      Error(WriteError(
+        "Failed to write to " <> file_path <> ": " <> string.inspect(err),
+      ))
   }
 }
 
@@ -611,7 +618,8 @@ pub fn export_prompt_summary(
         "by_type",
         json.object(
           list.fold(prompts, dict.new(), fn(acc, p) {
-            let current = dict.get(acc, p.metadata.issue_type) |> result.unwrap(0)
+            let current =
+              dict.get(acc, p.metadata.issue_type) |> result.unwrap(0)
             dict.insert(acc, p.metadata.issue_type, current + 1)
           })
           |> dict.to_list
@@ -635,6 +643,8 @@ pub fn export_prompt_summary(
   case simplifile.write(file_path, summary) {
     Ok(Nil) -> Ok(Nil)
     Error(err) ->
-      Error(WriteError("Failed to write to " <> file_path <> ": " <> string.inspect(err)))
+      Error(WriteError(
+        "Failed to write to " <> file_path <> ": " <> string.inspect(err),
+      ))
   }
 }

@@ -30,7 +30,9 @@ pub fn analyze_effects_empty_spec_test() {
 
 pub fn analyze_effects_get_behavior_test() {
   // Contract: GET behaviors have minimal second-order effects (mainly caching)
-  let behaviors = [test_helpers.make_test_behavior_with_method("get-user", Get, [])]
+  let behaviors = [
+    test_helpers.make_test_behavior_with_method("get-user", Get, []),
+  ]
   let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
 
   let report = effects_analyzer.analyze_effects(spec)
@@ -51,8 +53,9 @@ pub fn analyze_effects_get_behavior_test() {
 
 pub fn analyze_effects_delete_behavior_test() {
   // Contract: DELETE triggers orphan detection
-  let behaviors =
-    [test_helpers.make_test_behavior_with_method("delete-user", Delete, [])]
+  let behaviors = [
+    test_helpers.make_test_behavior_with_method("delete-user", Delete, []),
+  ]
   let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
 
   let report = effects_analyzer.analyze_effects(spec)
@@ -142,7 +145,9 @@ pub fn analyze_effects_create_behavior_test() {
     Ok(be) -> {
       be.behavior_name |> should.equal("create-user")
       // POST (create) should have first-order effect about creation
-      be.first_order |> string.lowercase |> string.contains("create")
+      be.first_order
+      |> string.lowercase
+      |> string.contains("create")
       |> should.be_true
     }
     Error(_) -> should.fail()
@@ -157,7 +162,8 @@ pub fn analyze_effects_with_dependencies_test() {
     test_helpers.make_test_behavior_with_method("update-user", Put, [
       "create-user",
     ])
-  let spec = test_helpers.make_test_spec_from_behaviors([create_user, update_user])
+  let spec =
+    test_helpers.make_test_spec_from_behaviors([create_user, update_user])
 
   let report = effects_analyzer.analyze_effects(spec)
 
@@ -203,7 +209,9 @@ pub fn analyze_effects_cascade_detection_test() {
   case list.first(report.behavior_effects) {
     Ok(be) -> {
       // Should have delete-related effects
-      be.first_order |> string.lowercase |> string.contains("delete")
+      be.first_order
+      |> string.lowercase
+      |> string.contains("delete")
       |> should.be_true
     }
     Error(_) -> should.fail()
@@ -261,8 +269,9 @@ pub fn format_report_with_behaviors_test() {
 
 pub fn format_report_includes_coverage_test() {
   // Contract: Report includes coverage score
-  let behaviors =
-    [test_helpers.make_test_behavior_with_method("get-user", Get, [])]
+  let behaviors = [
+    test_helpers.make_test_behavior_with_method("get-user", Get, []),
+  ]
   let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
   let report = effects_analyzer.analyze_effects(spec)
 

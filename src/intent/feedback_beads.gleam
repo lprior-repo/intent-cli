@@ -101,7 +101,9 @@ pub type ParseError {
   MissingField(String)
 }
 
-pub fn parse_check_results(json_content: String) -> Result(CheckResults, ParseError) {
+pub fn parse_check_results(
+  json_content: String,
+) -> Result(CheckResults, ParseError) {
   case json.decode(json_content, decode_spec_result) {
     Ok(result) -> Ok(convert_spec_result(result))
     Error(e) -> Error(InvalidJson(format_json_error(e)))
@@ -112,17 +114,27 @@ fn format_json_error(_e: json.DecodeError) -> String {
   "Failed to decode check results JSON"
 }
 
-fn decode_spec_result(dyn: dynamic.Dynamic) -> Result(SpecResult, List(dynamic.DecodeError)) {
+fn decode_spec_result(
+  dyn: dynamic.Dynamic,
+) -> Result(SpecResult, List(dynamic.DecodeError)) {
   let pass_result = dynamic.field("pass", dynamic.bool)(dyn)
   let score_result = dynamic.field("score", decode_score)(dyn)
   let summary_result = dynamic.field("summary", dynamic.string)(dyn)
-  let failures_result = dynamic.field("failures", dynamic.list(decode_failure))(dyn)
+  let failures_result =
+    dynamic.field("failures", dynamic.list(decode_failure))(dyn)
 
   case pass_result, score_result, summary_result, failures_result {
     Ok(pass), Ok(score), Ok(summary), Ok(failures) -> {
-      let blocked_result = dynamic.field("blocked", dynamic.list(decode_blocked))(dyn)
-      let violations_result = dynamic.field("rule_violations", dynamic.list(decode_violation_group))(dyn)
-      let patterns_result = dynamic.field("anti_patterns_detected", dynamic.list(decode_pattern))(dyn)
+      let blocked_result =
+        dynamic.field("blocked", dynamic.list(decode_blocked))(dyn)
+      let violations_result =
+        dynamic.field("rule_violations", dynamic.list(decode_violation_group))(
+          dyn,
+        )
+      let patterns_result =
+        dynamic.field("anti_patterns_detected", dynamic.list(decode_pattern))(
+          dyn,
+        )
 
       let blocked = case blocked_result {
         Ok(b) -> b
@@ -159,19 +171,24 @@ type Score {
   Score(passed: Int, failed: Int, blocked: Int, total: Int)
 }
 
-fn decode_score(dyn: dynamic.Dynamic) -> Result(Score, List(dynamic.DecodeError)) {
+fn decode_score(
+  dyn: dynamic.Dynamic,
+) -> Result(Score, List(dynamic.DecodeError)) {
   let passed = dynamic.field("passed", dynamic.int)(dyn)
   let failed = dynamic.field("failed", dynamic.int)(dyn)
   let blocked = dynamic.field("blocked", dynamic.int)(dyn)
   let total = dynamic.field("total", dynamic.int)(dyn)
 
   case passed, failed, blocked, total {
-    Ok(p), Ok(f), Ok(b), Ok(t) -> Ok(Score(passed: p, failed: f, blocked: b, total: t))
+    Ok(p), Ok(f), Ok(b), Ok(t) ->
+      Ok(Score(passed: p, failed: f, blocked: b, total: t))
     _, _, _, _ -> Error([])
   }
 }
 
-fn decode_failure(dyn: dynamic.Dynamic) -> Result(output.BehaviorFailure, List(dynamic.DecodeError)) {
+fn decode_failure(
+  dyn: dynamic.Dynamic,
+) -> Result(output.BehaviorFailure, List(dynamic.DecodeError)) {
   let feature = dynamic.field("feature", dynamic.string)(dyn)
   let behavior = dynamic.field("behavior", dynamic.string)(dyn)
   let intent = dynamic.field("intent", dynamic.string)(dyn)
@@ -188,8 +205,15 @@ fn decode_failure(dyn: dynamic.Dynamic) -> Result(output.BehaviorFailure, List(d
         behavior: b,
         intent: i,
         problems: p,
-        request_sent: output.RequestSummary(method: r.method, url: r.url, headers: r.headers),
-        response_received: output.ResponseSummary(status: resp.status, body: resp.body),
+        request_sent: output.RequestSummary(
+          method: r.method,
+          url: r.url,
+          headers: r.headers,
+        ),
+        response_received: output.ResponseSummary(
+          status: resp.status,
+          body: resp.body,
+        ),
         hint: h,
         see_also: so,
       ))
@@ -202,7 +226,9 @@ type DecodedRequest {
   DecodedRequest(method: String, url: String, headers: Dict(String, String))
 }
 
-fn decode_request(dyn: dynamic.Dynamic) -> Result(DecodedRequest, List(dynamic.DecodeError)) {
+fn decode_request(
+  dyn: dynamic.Dynamic,
+) -> Result(DecodedRequest, List(dynamic.DecodeError)) {
   let method = dynamic.field("method", dynamic.string)(dyn)
   let url = dynamic.field("url", dynamic.string)(dyn)
   let headers = dynamic.field("headers", decode_headers)(dyn)
@@ -213,7 +239,9 @@ fn decode_request(dyn: dynamic.Dynamic) -> Result(DecodedRequest, List(dynamic.D
   }
 }
 
-fn decode_headers(dyn: dynamic.Dynamic) -> Result(Dict(String, String), List(dynamic.DecodeError)) {
+fn decode_headers(
+  dyn: dynamic.Dynamic,
+) -> Result(Dict(String, String), List(dynamic.DecodeError)) {
   case dynamic.dict(dynamic.string, dynamic.string)(dyn) {
     Ok(obj) -> Ok(obj)
     Error(_) -> Ok(dict.new())
@@ -224,7 +252,9 @@ type DecodedResponse {
   DecodedResponse(status: Int, body: Json)
 }
 
-fn decode_response(dyn: dynamic.Dynamic) -> Result(DecodedResponse, List(dynamic.DecodeError)) {
+fn decode_response(
+  dyn: dynamic.Dynamic,
+) -> Result(DecodedResponse, List(dynamic.DecodeError)) {
   let status = dynamic.field("status", dynamic.int)(dyn)
 
   case status {
@@ -236,7 +266,9 @@ fn decode_response(dyn: dynamic.Dynamic) -> Result(DecodedResponse, List(dynamic
   }
 }
 
-fn decode_problem(dyn: dynamic.Dynamic) -> Result(output.Problem, List(dynamic.DecodeError)) {
+fn decode_problem(
+  dyn: dynamic.Dynamic,
+) -> Result(output.Problem, List(dynamic.DecodeError)) {
   let field = dynamic.field("field", dynamic.string)(dyn)
   let rule = dynamic.field("rule", dynamic.string)(dyn)
   let expected = dynamic.field("expected", dynamic.string)(dyn)
@@ -245,45 +277,68 @@ fn decode_problem(dyn: dynamic.Dynamic) -> Result(output.Problem, List(dynamic.D
 
   case field, rule, expected, actual, explanation {
     Ok(f), Ok(r), Ok(e), Ok(a), Ok(ex) -> {
-      Ok(output.Problem(field: f, rule: r, expected: e, actual: a, explanation: ex))
+      Ok(output.Problem(
+        field: f,
+        rule: r,
+        expected: e,
+        actual: a,
+        explanation: ex,
+      ))
     }
     _, _, _, _, _ -> Error([])
   }
 }
 
-fn decode_blocked(dyn: dynamic.Dynamic) -> Result(output.BlockedBehavior, List(dynamic.DecodeError)) {
+fn decode_blocked(
+  dyn: dynamic.Dynamic,
+) -> Result(output.BlockedBehavior, List(dynamic.DecodeError)) {
   let behavior = dynamic.field("behavior", dynamic.string)(dyn)
   let reason = dynamic.field("reason", dynamic.string)(dyn)
   let hint = dynamic.field("hint", dynamic.string)(dyn)
 
   case behavior, reason, hint {
-    Ok(b), Ok(r), Ok(h) -> Ok(output.BlockedBehavior(behavior: b, reason: r, hint: h))
+    Ok(b), Ok(r), Ok(h) ->
+      Ok(output.BlockedBehavior(behavior: b, reason: r, hint: h))
     _, _, _ -> Error([])
   }
 }
 
-fn decode_violation_group(dyn: dynamic.Dynamic) -> Result(output.RuleViolationGroup, List(dynamic.DecodeError)) {
+fn decode_violation_group(
+  dyn: dynamic.Dynamic,
+) -> Result(output.RuleViolationGroup, List(dynamic.DecodeError)) {
   let rule = dynamic.field("rule", dynamic.string)(dyn)
   let description = dynamic.field("description", dynamic.string)(dyn)
-  let violations = dynamic.field("violations", dynamic.list(decode_violation))(dyn)
+  let violations =
+    dynamic.field("violations", dynamic.list(decode_violation))(dyn)
 
   case rule, description, violations {
-    Ok(r), Ok(d), Ok(v) -> Ok(output.RuleViolationGroup(rule: r, description: d, violations: v))
+    Ok(r), Ok(d), Ok(v) ->
+      Ok(output.RuleViolationGroup(rule: r, description: d, violations: v))
     _, _, _ -> Error([])
   }
 }
 
-fn decode_violation(dyn: dynamic.Dynamic) -> Result(output.BehaviorViolation, List(dynamic.DecodeError)) {
+fn decode_violation(
+  dyn: dynamic.Dynamic,
+) -> Result(output.BehaviorViolation, List(dynamic.DecodeError)) {
   let behavior = dynamic.field("behavior", dynamic.string)(dyn)
-  let violations = dynamic.field("violations", dynamic.list(dynamic.string))(dyn)
+  let violations =
+    dynamic.field("violations", dynamic.list(dynamic.string))(dyn)
 
   case behavior, violations {
-    Ok(b), Ok(v) -> Ok(output.BehaviorViolation(behavior: b, violations: v, response: option.None))
+    Ok(b), Ok(v) ->
+      Ok(output.BehaviorViolation(
+        behavior: b,
+        violations: v,
+        response: option.None,
+      ))
     _, _ -> Error([])
   }
 }
 
-fn decode_pattern(dyn: dynamic.Dynamic) -> Result(AntiPatternResult, List(dynamic.DecodeError)) {
+fn decode_pattern(
+  dyn: dynamic.Dynamic,
+) -> Result(AntiPatternResult, List(dynamic.DecodeError)) {
   let pattern = dynamic.field("pattern", dynamic.string)(dyn)
   case pattern {
     Ok(_p) -> Ok(NoAntiPatterns)
@@ -365,7 +420,10 @@ fn summarize_problems(problems: List(FixBeadProblem)) -> String {
   }
 }
 
-fn build_bead_description(failure: FixBeadFailure, problem_summary: String) -> String {
+fn build_bead_description(
+  failure: FixBeadFailure,
+  problem_summary: String,
+) -> String {
   "## Intent\n"
   <> failure.intent
   <> "\n\n"
@@ -421,7 +479,11 @@ fn build_ai_hints(failure: FixBeadFailure) -> String {
   let field_hints = case failure.problems {
     [] -> ""
     problems -> {
-      "\nField-specific issues:\n" <> string.join(list.map(problems, fn(p) { "- " <> p.field <> ": " <> p.explanation }), "\n")
+      "\nField-specific issues:\n"
+      <> string.join(
+        list.map(problems, fn(p) { "- " <> p.field <> ": " <> p.explanation }),
+        "\n",
+      )
     }
   }
 
@@ -430,7 +492,8 @@ fn build_ai_hints(failure: FixBeadFailure) -> String {
   <> field_hints
   <> "\n\n"
   <> "## Implementation Notes\n"
-  <> "- Review the behavior intent: " <> failure.intent
+  <> "- Review the behavior intent: "
+  <> failure.intent
   <> "\n"
   <> "- Test with actual API response to confirm fix"
 }
@@ -442,13 +505,10 @@ fn build_acceptance_criteria(failure: FixBeadFailure) -> List(String) {
     _ -> "Response returns expected data"
   }
 
-  let field_criteria = list.map(failure.problems, fn(p) {
-    "Field '"
-    <> p.field
-    <> "' passes '"
-    <> p.rule
-    <> "' check"
-  })
+  let field_criteria =
+    list.map(failure.problems, fn(p) {
+      "Field '" <> p.field <> "' passes '" <> p.rule <> "' check"
+    })
 
   list.append([status_criteria], field_criteria)
 }
@@ -467,10 +527,18 @@ pub fn format_feedback_summary(results: CheckResults) -> String {
   <> status
   <> "\n\n"
   <> "Score:\n"
-  <> "- Passed: " <> int.to_string(results.passed) <> "\n"
-  <> "- Failed: " <> int.to_string(results.failed) <> "\n"
-  <> "- Blocked: " <> int.to_string(results.blocked) <> "\n"
-  <> "- Total: " <> int.to_string(results.total) <> "\n\n"
+  <> "- Passed: "
+  <> int.to_string(results.passed)
+  <> "\n"
+  <> "- Failed: "
+  <> int.to_string(results.failed)
+  <> "\n"
+  <> "- Blocked: "
+  <> int.to_string(results.blocked)
+  <> "\n"
+  <> "- Total: "
+  <> int.to_string(results.total)
+  <> "\n\n"
   <> "## Summary\n"
   <> results.summary
   <> case results.failures {

@@ -86,9 +86,7 @@ pub fn execute_request_with_timeout(
 fn create_timeout_executor(
   timeout_ms: Int,
 ) -> fn(HttpRequest(String)) -> Result(HttpResponse(String), dynamic.Dynamic) {
-  fn(req: HttpRequest(String)) {
-    execute_with_timeout(req, timeout_ms)
-  }
+  fn(req: HttpRequest(String)) { execute_with_timeout(req, timeout_ms) }
 }
 
 /// Execute HTTP request with timeout via Erlang FFI
@@ -120,14 +118,7 @@ fn execute_with_timeout(
   case req.method {
     http.Get | http.Head | http.Options ->
       http_request_with_timeout_ffi(method, url, headers, timeout_ms)
-    _ ->
-      http_request_with_body_ffi(
-        method,
-        url,
-        headers,
-        req.body,
-        timeout_ms,
-      )
+    _ -> http_request_with_body_ffi(method, url, headers, req.body, timeout_ms)
   }
   |> result.map(fn(resp) {
     let #(status, resp_headers, body) = resp
