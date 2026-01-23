@@ -2,6 +2,9 @@
 build/
 _build/
 
+# Moon build cache
+.moon/
+
 # Erlang artifacts
 *.beam
 *.app

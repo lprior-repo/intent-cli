@@ -1,0 +1,41 @@
+# Gitleaks false positive ignore file
+# These are intentional test data and build artifacts, not real secrets
+
+# ============================================================================
+# Moon build cache - Erlang compilation hashes (look like hex API keys)
+# ============================================================================
+30e0186df1d89333e8b8254e3c68498b4c12e5fb:.moon/cache/hashes/aab9d55b4739c48baabbceac6def089bc4c4440eafe86933006f209cb5359589.json:generic-api-key:1
+30e0186df1d89333e8b8254e3c68498b4c12e5fb:.moon/cache/hashes/0e40a30b755ac086a051b114b05bde995965443c0dca03c7cb23e95e6952b606.json:generic-api-key:1
+30e0186df1d89333e8b8254e3c68498b4c12e5fb:.moon/cache/hashes/4781a26f490a7642a81051e41c43073c5d4dcd3b7e5c2c5eb644f1ececfd51e5.json:generic-api-key:1
+fa75393558d97adc4e98156c1eb16f36cf782964:.moon/cache/hashes/0e40a30b755ac086a051b114b05bde995965443c0dca03c7cb23e95e6952b606.json:generic-api-key:1
+fa75393558d97adc4e98156c1eb16f36cf782964:.moon/cache/hashes/4781a26f490a7642a81051e41c43073c5d4dcd3b7e5c2c5eb644f1ececfd51e5.json:generic-api-key:1
+fa75393558d97adc4e98156c1eb16f36cf782964:.moon/cache/hashes/aab9d55b4739c48baabbceac6def089bc4c4440eafe86933006f209cb5359589.json:generic-api-key:1
+
+# ============================================================================
+# Test JWT tokens - intentionally fake for testing JWT validation rules
+# ============================================================================
+0aa6e3473d6dc4d02b01d7a529f42cebfbda5346:test/checker_rules_test.gleam:jwt:83
+0aa6e3473d6dc4d02b01d7a529f42cebfbda5346:test/checker_rules_test.gleam:jwt:98
+404852dcabc674b9e54831bfb48e7ba6ff031dbd:test/checker_rules_test.gleam:jwt:83
+404852dcabc674b9e54831bfb48e7ba6ff031dbd:test/checker_rules_test.gleam:jwt:98
+69a56c3ef36dc15715158f719cff3b48baa387ae:test/checker_rules_test.gleam:jwt:83
+69a56c3ef36dc15715158f719cff3b48baa387ae:test/checker_rules_test.gleam:jwt:98
+
+# ============================================================================
+# Example CUE specs - fake API keys for documentation/examples
+# ============================================================================
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:generic-api-key:244
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:generic-api-key:245
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:generic-api-key:460
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:stripe-access-token:705
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:generic-api-key:1202
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:generic-api-key:1205
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:generic-api-key:1444
+4e53f6413cfca6e28c289adf7c8cc7ba8e5eab7d:examples/authentication-api.cue:generic-api-key:1450
+
+# ============================================================================
+# Documentation examples - fake API keys for illustration
+# ============================================================================
+ff8da13b6c70d209a8c408991cce3729a89f5023:docs/schema-antipattern-aihints.md:generic-api-key:225
+ff8da13b6c70d209a8c408991cce3729a89f5023:docs/schema-config-type.md:stripe-access-token:94
+ff8da13b6c70d209a8c408991cce3729a89f5023:docs/schema-feature-type.md:generic-api-key:111
