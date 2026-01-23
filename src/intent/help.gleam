@@ -206,6 +206,39 @@ pub fn format_help(help: CommandHelp) -> String {
   |> string.join("\n")
 }
 
+/// Format command help for glint's description field
+/// This produces a compact format that works well with glint's help output
+/// which shows the description alongside flag documentation
+pub fn format_for_glint(help: CommandHelp) -> String {
+  let parts = [help.short_desc, format_glint_examples(help), format_glint_related(help)]
+
+  parts
+  |> list.filter(fn(s) { !string.is_empty(s) })
+  |> string.join("\n\n")
+}
+
+/// Format examples section for glint output
+fn format_glint_examples(help: CommandHelp) -> String {
+  case help.examples {
+    [] -> ""
+    examples -> {
+      let example_lines =
+        examples
+        |> list.map(fn(ex) { "  " <> ex.command })
+        |> string.join("\n")
+      "Examples:\n" <> example_lines
+    }
+  }
+}
+
+/// Format related commands for glint output
+fn format_glint_related(help: CommandHelp) -> String {
+  case help.related {
+    [] -> ""
+    related -> "Related: " <> string.join(related, ", ")
+  }
+}
+
 fn format_name_section(help: CommandHelp) -> String {
   "NAME\n    intent " <> help.name <> " - " <> help.short_desc <> "\n"
 }

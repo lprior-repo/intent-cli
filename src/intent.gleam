@@ -14,6 +14,7 @@ import intent/bead_feedback
 import intent/bead_templates
 import intent/cli_ui
 import intent/doctor
+import intent/help
 import intent/improver
 import intent/interview
 import intent/interview_questions
@@ -211,9 +212,7 @@ fn check_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "check: Execute specification tests against target API endpoint",
-  )
+  |> glint.description(help.format_for_glint(help.check_help()))
   |> glint.flag(
     "target",
     flag.string()
@@ -392,9 +391,7 @@ fn validate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "validate: Verify CUE specification syntax and structure validity",
-  )
+  |> glint.description(help.format_for_glint(help.validate_help()))
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -441,9 +438,7 @@ fn show_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "show: Parse and display human-readable specification summary",
-  )
+  |> glint.description(help.format_for_glint(help.show_help()))
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -535,9 +530,7 @@ fn export_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "export: Convert specification to machine-readable JSON format",
-  )
+  |> glint.description(help.format_for_glint(help.export_help()))
 }
 
 /// The `lint` command - check for specification anti-patterns
@@ -572,9 +565,7 @@ fn lint_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "lint: Analyze specification for anti-patterns, style issues, and quality concerns",
-  )
+  |> glint.description(help.format_for_glint(help.lint_help()))
 }
 
 /// The `analyze` command - analyze spec quality
@@ -601,9 +592,7 @@ fn analyze_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "gaps: Identify missing scenarios and edge cases not covered by specification (KIRK module)",
-  )
+  |> glint.description(help.format_for_glint(help.analyze_help()))
 }
 
 /// The `improve` command - suggest improvements
@@ -638,9 +627,7 @@ fn improve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "improve: Generate actionable suggestions to enhance specification quality",
-  )
+  |> glint.description(help.format_for_glint(help.improve_help()))
 }
 
 /// The `doctor` command - health report with prioritized improvements
@@ -674,9 +661,7 @@ fn doctor_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "doctor: Run comprehensive health check and produce prioritized improvement roadmap",
-  )
+  |> glint.description(help.format_for_glint(help.doctor_help()))
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -815,9 +800,7 @@ fn interview_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "interview: Guided interactive session to discover and define specification through structured questioning",
-  )
+  |> glint.description(help.format_for_glint(help.interview_help()))
   |> glint.flag(
     "profile",
     flag.string()
@@ -1875,7 +1858,7 @@ fn beads_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Generate work items (beads) from an interview session")
+  |> glint.description(help.format_for_glint(help.beads_help()))
   |> glint.flag(
     "json",
     flag.bool()
@@ -2012,7 +1995,7 @@ fn bead_status_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Mark bead execution status (success/failed/blocked)")
+  |> glint.description(help.format_for_glint(help.bead_status_help()))
   |> glint.flag(
     "bead-id",
     flag.string() |> flag.default("") |> flag.description("Bead ID (required)"),
@@ -2079,7 +2062,7 @@ fn plan_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Display execution plan from session beads")
+  |> glint.description(help.format_for_glint(help.plan_help()))
   |> glint.flag(
     "format",
     flag.string()
@@ -2236,7 +2219,7 @@ fn plan_approve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Approve execution plan for session")
+  |> glint.description(help.format_for_glint(help.plan_approve_help()))
   |> glint.flag(
     "yes",
     flag.bool()
@@ -2456,7 +2439,7 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Regenerate failed/blocked beads with adjusted approach")
+  |> glint.description(help.format_for_glint(help.beads_regenerate_help()))
   |> glint.flag(
     "strategy",
     flag.string()
@@ -2610,7 +2593,7 @@ fn history_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("View snapshot history for an interview session")
+  |> glint.description(help.format_for_glint(help.history_help()))
   |> glint.flag(
     "max-items",
     flag.int()
@@ -2699,7 +2682,7 @@ fn diff_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Compare two interview sessions and show differences")
+  |> glint.description(help.format_for_glint(help.diff_help()))
 }
 
 /// The `sessions` command - list all interview sessions
@@ -2830,7 +2813,7 @@ fn sessions_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("List all interview sessions")
+  |> glint.description(help.format_for_glint(help.sessions_help()))
   |> glint.flag(
     "json",
     flag.bool()
@@ -2932,7 +2915,7 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
+  |> glint.description(help.format_for_glint(help.quality_help()))
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -3001,9 +2984,7 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "KIRK: Inversion analysis - what failure cases are missing?",
-  )
+  |> glint.description(help.format_for_glint(help.invert_help()))
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -3082,7 +3063,7 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
+  |> glint.description(help.format_for_glint(help.coverage_help()))
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -3160,7 +3141,7 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Detect gaps using mental models")
+  |> glint.description(help.format_for_glint(help.gaps_help()))
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -3221,9 +3202,7 @@ fn kirk_effects_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description(
-    "KIRK: Analyze second-order effects (consequence tracing)",
-  )
+  |> glint.description(help.format_for_glint(help.effects_help()))
   |> glint.flag(
     "json",
     flag.bool()
@@ -3369,7 +3348,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
+  |> glint.description(help.format_for_glint(help.ears_help()))
   |> glint.flag(
     "output",
     flag.string()
@@ -3649,7 +3628,7 @@ fn parse_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Parse EARS requirements to Intent behaviors")
+  |> glint.description(help.format_for_glint(help.parse_help()))
   |> glint.flag(
     "o",
     flag.string()
