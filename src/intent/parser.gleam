@@ -36,7 +36,10 @@ pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
     "anti_patterns",
     dynamic.list(parse_anti_pattern),
   )(data))
-  use ai_hints <- result.try(dynamic.field("ai_hints", parse_ai_hints)(data))
+  // ai_hints is optional in schema - provide default if missing
+  let ai_hints =
+    dynamic.field("ai_hints", parse_ai_hints)(data)
+    |> result.unwrap(default_ai_hints())
 
   Ok(Spec(
     name: name,
@@ -279,6 +282,21 @@ fn parse_anti_pattern(data: Dynamic) -> Result(AntiPattern, List(DecodeError)) {
     good_example: good_example,
     why: why,
   ))
+}
+
+/// Default empty AI hints when not provided in spec
+fn default_ai_hints() -> AIHints {
+  AIHints(
+    implementation: ImplementationHints(suggested_stack: []),
+    entities: dict.new(),
+    security: SecurityHints(
+      password_hashing: "",
+      jwt_algorithm: "",
+      jwt_expiry: "",
+      rate_limiting: "",
+    ),
+    pitfalls: [],
+  )
 }
 
 fn parse_ai_hints(data: Dynamic) -> Result(AIHints, List(DecodeError)) {

@@ -899,15 +899,7 @@ pub fn to_cue(result: EarsParseResult, spec_name: String) -> String {
 
   let footer =
     "  rules: []\n"
-    <> "  anti_patterns: []\n\n"
-    <> "  ai_hints: {\n"
-    <> "    implementation: {\n"
-    <> "      suggested_stack: [\"HTTP server\", \"REST API framework\"]\n"
-    <> "    }\n"
-    <> "    entities: {}\n"
-    <> "    security: {}\n"
-    <> "    pitfalls: []\n"
-    <> "  }\n"
+    <> "  anti_patterns: []\n"
     <> "}\n"
 
   header <> features_section <> footer
