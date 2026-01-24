@@ -582,10 +582,30 @@ fn lint_command() -> glint.Command(Nil) {
             case lint_result {
               spec_linter.LintValid -> {
                 io.println("✓ Spec is well-formed - no linting issues found")
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent check "
+                  <> spec_path
+                  <> " --target=URL - Test against API",
+                )
+                io.println(
+                  "  • intent quality " <> spec_path <> " - Check overall quality",
+                )
                 halt(exit_pass)
               }
               spec_linter.LintWarnings(warnings) -> {
                 io.println(spec_linter.format_warnings(warnings))
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent improve "
+                  <> spec_path
+                  <> " - Get actionable suggestions",
+                )
+                io.println(
+                  "  • intent doctor " <> spec_path <> " - Prioritized improvements",
+                )
                 halt(exit_fail)
               }
             }
