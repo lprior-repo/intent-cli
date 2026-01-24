@@ -47,12 +47,13 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 
 **Beads/Planning** (5):
 ```jsonl
-{"cmd":"beads","args":"<spec|--session=ID> [--json=true]","desc":"generate work items"}
+{"cmd":"beads","args":"<session-id> [--json=true] [--max-items=N]","desc":"generate work items from interview session"}
 {"cmd":"beads-regenerate","args":"<spec>","desc":"regenerate beads from spec"}
-{"cmd":"bead-status","args":"<spec>","desc":"show bead completion status"}
-{"cmd":"plan","args":"<spec> [--json=true] [--rounds=1..5]","desc":"health + waves + beads"}
-{"cmd":"plan-approve","args":"<session-id>","desc":"approve execution plan"}
+{"cmd":"bead-status","args":"--bead-id <id> --status success|failed|blocked [--reason 'text']","desc":"update individual bead execution status"}
+{"cmd":"plan","args":"<session-id> [--json=true] [--rounds=1..5]","desc":"health + waves + beads"}
+{"cmd":"plan-approve","args":"<session-id> [--yes] [--notes 'text']","desc":"approve execution plan"}
 ```
+Note: Get session IDs with `intent sessions [--profile=api|cli]`
 
 **Parsing** (2):
 ```jsonl
@@ -154,37 +155,38 @@ Intent owns Plan phase. All work decomposition flows from CUE specs.
 
 ## AI-Native Features
 
-### Robot Mode
+### JSON Output (Implemented)
 ```jsonl
-{"flag":"--json","desc":"standard JSON output"}
-{"flag":"--robot","desc":"action metadata wrapper"}
-{"flag":"--cin","desc":"Compact Intent Notation"}
-{"flag":"--json-out FILE","desc":"write to file"}
+{"flag":"--json=true","desc":"Machine-readable JSON output for all KIRK and analysis commands"}
+{"commands":"quality, coverage, gaps, invert, effects, doctor, check, validate","status":"implemented"}
+{"usage":"intent quality api.cue --json=true | jq '.data.overall_score'"}
 ```
 
-### Bead-to-Prompt Pipeline
+### Planned Features (Not Yet Implemented)
 ```jsonl
-[NOTE: 'prompt' command not yet implemented - planned feature for AI context generation]
+{"flag":"--robot","desc":"Action metadata wrapper","status":"planned","task":"#10"}
+{"flag":"--cin","desc":"Compact Intent Notation","status":"planned"}
+{"flag":"--json-out FILE","desc":"Write JSON to file","status":"planned"}
+{"cmd":"prompt","desc":"AI context generation from beads","status":"planned","task":"#5"}
+{"cmd":"verify","desc":"Auto-verification workflow","status":"planned"}
+{"cmd":"feedback","desc":"Generate fix beads from check failures","status":"planned","task":"#12"}
 ```
 
 ### Action JSON Schema
+Commands with --json=true return this structure:
 ```json
-{"action":"<cmd>_result","command":"<cmd>","exit_code":0,"data":{}}
+{"success":true,"action":"<cmd>_result","command":"<cmd>","data":{...},"errors":[],"next_actions":[...],"metadata":{"timestamp":"...","version":"...","exit_code":0},"spec_path":"..."}
 ```
 
-### Auto-Verification Workflow
-```jsonl
-{"step":1,"cmd":"bd update <id> --status in_progress","desc":"claim bead"}
-{"step":2,"cmd":"<implement>","desc":"do work"}
-{"step":3,"cmd":"intent verify --bead <id>","desc":"run checks"}
-{"step":4,"cmd":"bd close <id> --reason '...'","desc":"close with proof"}
+### next_actions Field
+AI workflow guidance - commands suggest logical next steps:
+```json
+"next_actions": [
+  {"command": "intent gaps spec.cue --json", "reason": "Find coverage gaps"},
+  {"command": "intent invert spec.cue --json", "reason": "Analyze failure modes"}
+]
 ```
-
-### Feedback Loop
-```jsonl
-{"step":1,"cmd":"intent check <spec> --json-out results.json","desc":"capture failures"}
-{"step":2,"cmd":"intent feedback <spec> --results results.json","desc":"generate fix beads"}
-```
+Supported by: quality, coverage (more commands planned)
 
 ## Modules
 ```jsonl
