@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 17
+iteration: 18
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -141,3 +141,12 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Enhanced error message to show both options
 - All 1689 tests passing
 - Commit: 048257f
+
+### ITERATION 18 - COMPLETE ✅
+- Fixed `intent-cli-22yv`: Added 'intent help <command>' for contextual help
+- Displays detailed help for specific commands
+- Shows usage, arguments, flags, examples, related commands
+- Error handling for unknown commands with available command list
+- Enables AI agents to get focused documentation without viewing all 24 commands
+- All 1689 tests passing
+- Commit: 7396ce1
