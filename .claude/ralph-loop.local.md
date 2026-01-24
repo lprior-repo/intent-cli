@@ -84,3 +84,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - CI/CD scripts can now distinguish between usage errors and data errors
 - All 1689 tests passing
 - Commit: f6d1474
+
+### ITERATION 11 - COMPLETE ✅
+- Fixed `intent-cli-aukh`: Improved beads command error messages with usage hints
+- Detects common mistake: passing .cue file instead of session ID
+- Provides helpful hint to run 'intent sessions' to see available IDs
+- Smart exit codes: 4 for .cue files (usage error), 3 for other invalid IDs
+- All 1689 tests passing
+- Commit: 7f39d87
