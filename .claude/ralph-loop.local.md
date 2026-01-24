@@ -150,3 +150,13 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Enables AI agents to get focused documentation without viewing all 24 commands
 - All 1689 tests passing
 - Commit: 7396ce1
+
+### ITERATION 19 - COMPLETE ✅
+- Fixed `intent-cli-kd98`: Documented recommended AI analysis pipeline in README
+- Added comprehensive Workflows section with 6-step analysis progression
+- Documents both machine-readable (--json) and human-readable modes
+- Includes full analysis script example with jq parsing
+- Documents environment variables (INTENT_TARGET_URL, INTENT_ALLOW_LOCALHOST)
+- Progressive disclosure: simple to advanced workflows
+- All 1689 tests passing
+- Commit: cc62cbe
