@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 15
+iteration: 16
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -124,3 +124,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Suggests correct alternatives: 'bd list' and 'intent beads'
 - All 1689 tests passing
 - Commit: 53a8a8d
+
+### ITERATION 16 - COMPLETE ✅
+- Verified `intent-cli-eerc`: analyze and improve ALREADY have --json support
+- Found analyze command has --json flag at lines 1032-1035
+- Found improve command has --json flag at lines 1126-1129
+- Both commands have full JSON output with next_actions
+- No code changes needed - bead was already mostly complete
+- All 1689 tests passing
