@@ -570,6 +570,13 @@ spec: intent.#Spec & {
 			}
 		}
 
+		security: {
+			password_hashing: "bcrypt with cost factor >= 10"
+			jwt_algorithm:    "HS256 or RS256"
+			jwt_expiry:       "1 hour minimum"
+			rate_limiting:    "1000 requests per hour per user"
+		}
+
 		pitfalls: [
 			"Validate at every nesting level, not just top-level",
 			"Handle missing intermediate paths gracefully",

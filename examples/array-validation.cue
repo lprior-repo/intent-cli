@@ -361,6 +361,13 @@ spec: intent.#Spec & {
 			}
 		}
 
+		security: {
+			password_hashing: "N/A - uses API keys, no passwords"
+			jwt_algorithm:    "HS256 for optional JWT authentication"
+			jwt_expiry:       "24 hours for session tokens"
+			rate_limiting:    "1000 requests per hour per client"
+		}
+
 		pitfalls: [
 			"Don't return null for empty arrays",
 			"Don't exceed pagination limits",

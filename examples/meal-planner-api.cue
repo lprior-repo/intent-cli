@@ -712,7 +712,10 @@ spec: intent.#Spec & {
 		}
 
 		security: {
-			rate_limiting: "100 requests per minute per IP for scraping"
+			password_hashing: "N/A - no user authentication required"
+			jwt_algorithm:    "N/A - no user authentication required"
+			jwt_expiry:       "N/A - no user authentication required"
+			rate_limiting:    "100 requests per minute per IP for scraping"
 		}
 
 		pitfalls: [

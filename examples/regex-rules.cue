@@ -618,6 +618,13 @@ spec: intent.#Spec & {
 			}
 		}
 
+		security: {
+			password_hashing: "bcrypt with cost factor >= 10 for user passwords"
+			jwt_algorithm:    "HS256 with secure secret key"
+			jwt_expiry:       "1 hour for access tokens, 7 days for refresh tokens"
+			rate_limiting:    "100 requests per minute per user"
+		}
+
 		pitfalls: [
 			"Validate regex patterns on input, not just output",
 			"Be careful with regex escaping in different languages",
