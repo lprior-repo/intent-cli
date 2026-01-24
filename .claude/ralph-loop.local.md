@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 12
+iteration: 13
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -100,3 +100,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Ensures consistent behavior across all output modes
 - All 1689 tests passing
 - Commit: 0566b2f
+
+### ITERATION 13 - COMPLETE ✅
+- Fixed `intent-cli-z8n5`: diff command exit code for nonexistent sessions
+- Changed from exit 4 (usage error) to exit 3 (invalid input)
+- Maintains consistency with validate command pattern
+- Both 'from' and 'to' session lookups use exit 3 for not found
+- All 1689 tests passing
+- Commit: 6718ebe
