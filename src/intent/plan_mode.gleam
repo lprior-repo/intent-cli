@@ -300,13 +300,25 @@ pub fn format_plan_json(plan: ExecutionPlan) -> String {
 /// Format error as human-readable string
 pub fn format_error(error: PlanError) -> String {
   case error {
-    SessionNotFound(id) ->
-      "Session not found: "
-      <> id
-      <> "\n"
-      <> "Expected file: .intent/session-"
-      <> id
-      <> ".cue"
+    SessionNotFound(id) -> {
+      // Check if user passed a file path instead of session ID
+      case string.contains(id, "/") || string.ends_with(id, ".cue") {
+        True ->
+          "Invalid session ID: "
+          <> id
+          <> "\n\n"
+          <> "The plan command requires a session ID, not a spec file path.\n"
+          <> "To see available sessions, run: intent sessions\n"
+          <> "Example: intent plan abc123"
+        False ->
+          "Session not found: "
+          <> id
+          <> "\n"
+          <> "Expected file: .intent/session-"
+          <> id
+          <> ".cue"
+      }
+    }
     ParseError(msg) -> "Failed to parse session: " <> msg
     CyclicDependency(beads) ->
       "Cyclic dependency detected involving: " <> string.join(beads, ", ")
