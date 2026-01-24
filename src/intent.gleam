@@ -2357,7 +2357,25 @@ fn beads_command() -> glint.Command(Nil) {
         {
           Error(err) -> {
             io.println_error("Error: " <> err)
-            halt(exit_invalid)
+            io.println_error("")
+            // Detect common usage mistake: passing a spec file instead of session ID
+            case string.ends_with(session_id, ".cue") {
+              True -> {
+                io.println_error(
+                  "Hint: The beads command expects a session ID, not a spec file.",
+                )
+                io.println_error(
+                  "      Run 'intent sessions' to see available session IDs.",
+                )
+                halt(exit_error)
+              }
+              False -> {
+                io.println_error(
+                  "Hint: Run 'intent sessions' to see available session IDs.",
+                )
+                halt(exit_invalid)
+              }
+            }
           }
           Ok(session) -> {
             // Generate beads from session
