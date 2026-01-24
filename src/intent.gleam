@@ -378,15 +378,53 @@ fn run_check(
       // Exit with appropriate code
       let exit_code = case result {
         output.SpecResult(pass: True, ..) -> {
-          cli_ui.print_success("All checks passed!", mode)
+          cli_ui.print_success("✓ All checks passed!", mode)
+          case is_json {
+            False -> {
+              io.println("")
+              io.println("Next steps:")
+              io.println(
+                "  • intent quality " <> spec_path <> " - Analyze overall quality",
+              )
+              io.println(
+                "  • intent gaps " <> spec_path <> " - Find coverage gaps",
+              )
+            }
+            True -> Nil
+          }
           exit_pass
         }
         output.SpecResult(blocked: blocked, ..) if blocked > 0 -> {
           cli_ui.print_warning("Blocked behaviors detected", mode)
+          case is_json {
+            False -> {
+              io.println("")
+              io.println("Next steps:")
+              io.println(
+                "  • intent doctor " <> spec_path <> " - Get prioritized fixes",
+              )
+            }
+            True -> Nil
+          }
           exit_blocked
         }
         _ -> {
           cli_ui.print_error("Check failed", mode)
+          case is_json {
+            False -> {
+              io.println("")
+              io.println("Next steps:")
+              io.println(
+                "  • intent doctor "
+                <> spec_path
+                <> " - Prioritized improvement plan",
+              )
+              io.println(
+                "  • intent improve " <> spec_path <> " - Actionable suggestions",
+              )
+            }
+            True -> Nil
+          }
           exit_fail
         }
       }
