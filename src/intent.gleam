@@ -478,38 +478,108 @@ fn run_check(
 /// The `validate` command - validate CUE spec syntax AND structure
 fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let mode = output_mode.Interactive
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
         // Use load_spec_quiet to validate both CUE syntax AND spec structure
         case loader.load_spec_quiet(spec_path) {
           Ok(_) -> {
-            cli_ui.print_success("✓ Valid spec: " <> spec_path, mode)
-            io.println("")
-            io.println("Next steps:")
-            io.println("  • intent lint " <> spec_path <> " - Check for quality issues")
-            io.println(
-              "  • intent check "
-              <> spec_path
-              <> " --target=URL - Test against API",
-            )
+            case is_json {
+              True -> {
+                let next_actions = [
+                  json_output.next_action(
+                    "intent lint " <> spec_path,
+                    "Check for quality issues",
+                  ),
+                  json_output.next_action(
+                    "intent check " <> spec_path <> " --target=URL",
+                    "Test against API",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "validate_result",
+                    "validate",
+                    json.object([#("valid", json.bool(True))]),
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
+              }
+              False -> {
+                cli_ui.print_success("✓ Valid spec: " <> spec_path, mode)
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent lint " <> spec_path <> " - Check for quality issues",
+                )
+                io.println(
+                  "  • intent check "
+                  <> spec_path
+                  <> " --target=URL - Test against API",
+                )
+              }
+            }
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error("Invalid spec: " <> loader.format_error(e), mode)
+            case is_json {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "validate_failed",
+                    "validate",
+                    json.null(),
+                    [json_output.error("validation_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> {
+                cli_ui.print_error("Invalid spec: " <> loader.format_error(e), mode)
+              }
+            }
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        cli_ui.print_error("spec file path required", mode)
-        io.println("Usage: intent validate <spec.cue>")
+        case is_json {
+          True -> {
+            let response =
+              json_output.failure(
+                "validate_failed",
+                "validate",
+                json.null(),
+                [json_output.error("usage_error", "spec file path required")],
+                None,
+                [],
+                exit_error,
+              )
+            json_output.output(response)
+          }
+          False -> {
+            cli_ui.print_error("spec file path required", mode)
+            io.println("Usage: intent validate <spec.cue> [--json]")
+          }
+        }
         halt(exit_error)
       }
     }
   })
   |> glint.description(help.format_for_glint(help.validate_help()))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `show` command - pretty print a parsed spec
