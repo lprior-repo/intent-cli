@@ -1,6 +1,6 @@
 ---
 active: false
-iteration: 24
+iteration: 26
 max_iterations: 30
 completion_promise: "Natural completion point reached - all systematic improvements complete"
 started_at: "2026-01-24T05:36:16Z"
@@ -211,3 +211,13 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - All 6 call sites (api/cli/event/data/workflow/ui) pass dry_run parameter
 - All 1689 tests passing
 - Commit: c92c493
+
+### ITERATION 25 - COMPLETE ✅
+- Fixed `intent-cli-9o56`: ears generates incomplete ai_hints causing validation failure
+- Added complete ai_hints section to ears_parser.to_cue() function
+- Includes all 4 required subfields: implementation, entities, security, pitfalls
+- Security defaults: bcrypt >=12, RS256/ES256 JWT, 15min/7day expiry, 100 req/min rate limit
+- Pitfalls: 4 helpful reminders about EARS capturing intent vs complete design
+- Generated specs now pass validation (tested with intent validate)
+- All 1689 tests passing
+- Commit: 56703b0
