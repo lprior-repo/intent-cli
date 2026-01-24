@@ -1304,6 +1304,7 @@ fn interview_command() -> glint.Command(Nil) {
                   answers_file,
                   strict_mode,
                   export_to,
+                  dry_run,
                 )
               "cli" ->
                 run_interview(
@@ -1311,6 +1312,7 @@ fn interview_command() -> glint.Command(Nil) {
                   answers_file,
                   strict_mode,
                   export_to,
+                  dry_run,
                 )
               "event" ->
                 run_interview(
@@ -1318,6 +1320,7 @@ fn interview_command() -> glint.Command(Nil) {
                   answers_file,
                   strict_mode,
                   export_to,
+                  dry_run,
                 )
               "data" ->
                 run_interview(
@@ -1325,6 +1328,7 @@ fn interview_command() -> glint.Command(Nil) {
                   answers_file,
                   strict_mode,
                   export_to,
+                  dry_run,
                 )
               "workflow" ->
                 run_interview(
@@ -1332,6 +1336,7 @@ fn interview_command() -> glint.Command(Nil) {
                   answers_file,
                   strict_mode,
                   export_to,
+                  dry_run,
                 )
               "ui" ->
                 run_interview(
@@ -1339,6 +1344,7 @@ fn interview_command() -> glint.Command(Nil) {
                   answers_file,
                   strict_mode,
                   export_to,
+                  dry_run,
                 )
               _ -> {
                 io.println_error(
@@ -1431,9 +1437,13 @@ fn run_interview(
   answers_file: String,
   strict_mode: Bool,
   export_to: String,
+  dry_run: Bool,
 ) -> Nil {
   // Initialize session
-  let session_id = "interview-" <> generate_uuid()
+  let session_id = case dry_run {
+    True -> "dry-run-" <> generate_uuid()
+    False -> "interview-" <> generate_uuid()
+  }
   let timestamp = current_timestamp()
 
   let session = interview.create_session(session_id, profile, timestamp)
@@ -1470,7 +1480,11 @@ fn run_interview(
   io.println("  • Round 5: Operations (how does it run in production?)")
   io.println("")
   io.println("Press Ctrl+C to save and exit at any time.")
-  io.println("Session will be saved to: .interview/sessions.jsonl")
+  case dry_run {
+    True ->
+      io.println("Dry-run mode: session will NOT be saved to storage")
+    False -> io.println("Session will be saved to: .interview/sessions.jsonl")
+  }
   io.println("")
   io.println("Ready? Let's begin.")
   io.println("")
@@ -1478,21 +1492,31 @@ fn run_interview(
   // Run the interview loop
   let final_session = interview_loop(session, 1)
 
-  // Save session to JSONL
-  let save_result =
-    interview_storage.append_session_to_jsonl(
-      final_session,
-      ".interview/sessions.jsonl",
-    )
+  // Save session to JSONL (skip in dry-run mode)
+  let save_result = case dry_run {
+    True -> Ok(Nil)
+    False ->
+      interview_storage.append_session_to_jsonl(
+        final_session,
+        ".interview/sessions.jsonl",
+      )
+  }
 
-  case save_result {
-    Ok(Nil) -> {
+  case dry_run {
+    True -> {
       io.println("")
-      io.println("✓ Session saved: " <> session_id)
+      io.println("✓ Dry-run complete (session not saved)")
     }
-    Error(err) -> {
-      io.println_error("✗ Failed to save session: " <> err)
-    }
+    False ->
+      case save_result {
+        Ok(Nil) -> {
+          io.println("")
+          io.println("✓ Session saved: " <> session_id)
+        }
+        Error(err) -> {
+          io.println_error("✗ Failed to save session: " <> err)
+        }
+      }
   }
 
   // Export to spec if requested
