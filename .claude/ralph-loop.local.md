@@ -15,3 +15,9 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Provides context-aware suggestions for both clean specs and specs with warnings
 - All 1689 tests passing
 - Commit: 6963b7e
+
+### ITERATION 2 - COMPLETE ✅
+- Fixed `intent-cli-nunb`: Added next-step guidance to check command
+- Context-aware suggestions for pass/blocked/fail outcomes
+- All 1689 tests passing
+- Commit: 8e4d379
