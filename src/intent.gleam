@@ -1904,6 +1904,15 @@ fn output_cue_question(
       True -> "\t\tdry_run: true\n"
       False -> ""
     }
+    <> "\t}\n\n"
+    <> "\tnext_action: {\n"
+    <> "\t\tcommand: \"intent interview --cue --session="
+    <> session.id
+    <> " --answer='<your-answer>'\"\n"
+    <> "\t\tdescription: \"Submit your answer to continue the interview\"\n"
+    <> "\t\texample: \"intent interview --cue --session="
+    <> session.id
+    <> " --answer='THE SYSTEM SHALL validate all API inputs'\"\n"
     <> "\t}\n"
     <> "}"
 
