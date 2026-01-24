@@ -92,3 +92,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Smart exit codes: 4 for .cue files (usage error), 3 for other invalid IDs
 - All 1689 tests passing
 - Commit: 7f39d87
+
+### ITERATION 12 - COMPLETE ✅
+- Fixed `intent-cli-e27v`: parse command -o flag now writes output file
+- Added file writing logic to JSON mode (was only in text mode)
+- JSON mode writes silently, text mode shows 'Written to:' message
+- Ensures consistent behavior across all output modes
+- All 1689 tests passing
+- Commit: 0566b2f
