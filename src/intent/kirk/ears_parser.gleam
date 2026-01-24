@@ -551,7 +551,7 @@ fn generate_behavior_name(req: EarsRequirement) -> String {
     _ -> ""
   }
 
-  req.id <> "-" <> name <> suffix
+  string.lowercase(req.id) <> "-" <> name <> suffix
 }
 
 fn slugify(text: String) -> String {
@@ -898,7 +898,17 @@ pub fn to_cue(result: EarsParseResult, spec_name: String) -> String {
     <> "  ]\n\n"
 
   let footer =
-    "  rules: []\n" <> "  anti_patterns: []\n" <> "  ai_hints: {}\n" <> "}\n"
+    "  rules: []\n"
+    <> "  anti_patterns: []\n\n"
+    <> "  ai_hints: {\n"
+    <> "    implementation: {\n"
+    <> "      suggested_stack: [\"HTTP server\", \"REST API framework\"]\n"
+    <> "    }\n"
+    <> "    entities: {}\n"
+    <> "    security: {}\n"
+    <> "    pitfalls: []\n"
+    <> "  }\n"
+    <> "}\n"
 
   header <> features_section <> footer
 }
