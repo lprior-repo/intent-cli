@@ -1,6 +1,6 @@
 ---
 active: false
-iteration: 21
+iteration: 22
 max_iterations: 30
 completion_promise: "Natural completion point reached - all systematic improvements complete"
 started_at: "2026-01-24T05:36:16Z"
@@ -189,3 +189,14 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Fallback to original error for valid session ID formats
 - All 1689 tests passing
 - Commit: 6391b99
+
+### ITERATION 23 - COMPLETE ✅
+- Fixed `intent-cli-e9og`: Clarified interview commands need session IDs in help text
+- Updated help text for diff, history, and export commands
+- diff/history: Added notes explaining they need session IDs (not spec files)
+- Included example session ID format: interview-FDCB25A5-3F55-3D02-5823-2A90B9C307F6
+- Shows how to get session IDs: "intent sessions [--profile=api|cli]"
+- export: Clarified it exports SPEC FILES to JSON (not interview sessions)
+- Explains how to export interview: "intent interview --resume <id> --export <file>"
+- All 1689 tests passing
+- Commit: ac22833
