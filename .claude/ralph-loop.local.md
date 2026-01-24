@@ -108,3 +108,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Both 'from' and 'to' session lookups use exit 3 for not found
 - All 1689 tests passing
 - Commit: 6718ebe
+
+### ITERATION 14 - COMPLETE ✅
+- Fixed `intent-cli-1eis`: export command documentation for --output flag
+- Added note to help text: no --output flag, use shell redirection
+- Clarifies stdout-only behavior for AI agents
+- Helps prevent common mistake of trying --output instead of > file.json
+- All 1689 tests passing
+- Commit: bb59f38
