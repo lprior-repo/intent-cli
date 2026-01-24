@@ -451,7 +451,9 @@ fn run_check(
               io.println("")
               io.println("Next steps:")
               io.println(
-                "  • intent quality " <> spec_path <> " - Analyze overall quality",
+                "  • intent quality "
+                <> spec_path
+                <> " - Analyze overall quality",
               )
               io.println(
                 "  • intent gaps " <> spec_path <> " - Find coverage gaps",
@@ -487,7 +489,9 @@ fn run_check(
                 <> " - Prioritized improvement plan",
               )
               io.println(
-                "  • intent improve " <> spec_path <> " - Actionable suggestions",
+                "  • intent improve "
+                <> spec_path
+                <> " - Actionable suggestions",
               )
             }
             True -> Nil
@@ -541,7 +545,9 @@ fn validate_command() -> glint.Command(Nil) {
                 io.println("")
                 io.println("Next steps:")
                 io.println(
-                  "  • intent lint " <> spec_path <> " - Check for quality issues",
+                  "  • intent lint "
+                  <> spec_path
+                  <> " - Check for quality issues",
                 )
                 io.println(
                   "  • intent check "
@@ -569,7 +575,10 @@ fn validate_command() -> glint.Command(Nil) {
                 json_output.output(response)
               }
               False -> {
-                cli_ui.print_error("Invalid spec: " <> loader.format_error(e), mode)
+                cli_ui.print_error(
+                  "Invalid spec: " <> loader.format_error(e),
+                  mode,
+                )
               }
             }
             halt(exit_invalid)
@@ -648,7 +657,9 @@ fn show_command() -> glint.Command(Nil) {
                   }
                   Error(_) -> {
                     // Fallback: shouldn't happen since export_spec_json produces valid JSON
-                    io.println_error("Error: failed to parse exported spec JSON")
+                    io.println_error(
+                      "Error: failed to parse exported spec JSON",
+                    )
                     halt(exit_error)
                   }
                 }
@@ -842,7 +853,9 @@ fn lint_command() -> glint.Command(Nil) {
                     json_output.output(response)
                   }
                   False -> {
-                    io.println("✓ Spec is well-formed - no linting issues found")
+                    io.println(
+                      "✓ Spec is well-formed - no linting issues found",
+                    )
                     io.println("")
                     io.println("Next steps:")
                     io.println(
@@ -851,7 +864,9 @@ fn lint_command() -> glint.Command(Nil) {
                       <> " --target=URL - Test against API",
                     )
                     io.println(
-                      "  • intent quality " <> spec_path <> " - Check overall quality",
+                      "  • intent quality "
+                      <> spec_path
+                      <> " - Check overall quality",
                     )
                   }
                 }
@@ -868,7 +883,8 @@ fn lint_command() -> glint.Command(Nil) {
                     }
 
                     let errors = warnings_by_severity(spec_linter.SeverityError)
-                    let warns = warnings_by_severity(spec_linter.SeverityWarning)
+                    let warns =
+                      warnings_by_severity(spec_linter.SeverityWarning)
                     let infos = warnings_by_severity(spec_linter.SeverityInfo)
 
                     let next_actions = [
@@ -915,7 +931,9 @@ fn lint_command() -> glint.Command(Nil) {
                       <> " - Get actionable suggestions",
                     )
                     io.println(
-                      "  • intent doctor " <> spec_path <> " - Prioritized improvements",
+                      "  • intent doctor "
+                      <> spec_path
+                      <> " - Prioritized improvements",
                     )
                   }
                 }
@@ -1489,8 +1507,7 @@ fn run_interview(
   io.println("")
   io.println("Press Ctrl+C to save and exit at any time.")
   case dry_run {
-    True ->
-      io.println("Dry-run mode: session will NOT be saved to storage")
+    True -> io.println("Dry-run mode: session will NOT be saved to storage")
     False -> io.println("Session will be saved to: .interview/sessions.jsonl")
   }
   io.println("")
@@ -2565,12 +2582,8 @@ fn bead_status_command() -> glint.Command(Nil) {
           "  • bd list --status=open                  (view bead statuses)",
         )
         io.println_error("")
-        io.println_error(
-          "Or to mark a bead complete, use flags not arguments:",
-        )
-        io.println_error(
-          "  intent bead-status --bead-id <id> --status success",
-        )
+        io.println_error("Or to mark a bead complete, use flags not arguments:")
+        io.println_error("  intent bead-status --bead-id <id> --status success")
         halt(exit_error)
       }
       [] -> {
@@ -2597,78 +2610,20 @@ fn bead_status_command() -> glint.Command(Nil) {
             )
             halt(exit_error)
           }
-      False -> {
-        case status {
-          "success" -> {
-            case
-              bead_feedback.mark_bead_executed(
-                session_id,
-                bead_id,
-                bead_feedback.Success,
-                reason,
-                0,
-              )
-            {
-              Ok(Nil) -> {
-                io.println("✓ Bead " <> bead_id <> " marked as success")
-                halt(exit_pass)
-              }
-              Error(err) -> {
-                io.println_error(
-                  "✗ Failed to mark bead: "
-                  <> bead_feedback_error_to_string(err),
-                )
-                halt(exit_error)
-              }
-            }
-          }
-          "failed" -> {
-            case
-              bead_feedback.mark_bead_failed(
-                session_id,
-                bead_id,
-                reason,
-                "execution_error",
-                "Bead execution failed",
-                option.None,
-                0,
-              )
-            {
-              Ok(Nil) -> {
-                io.println("✓ Bead " <> bead_id <> " marked as failed")
-                halt(exit_pass)
-              }
-              Error(err) -> {
-                io.println_error(
-                  "✗ Failed to mark bead: "
-                  <> bead_feedback_error_to_string(err),
-                )
-                halt(exit_error)
-              }
-            }
-          }
-          "blocked" -> {
-            case string.is_empty(reason) {
-              True -> {
-                io.println_error("Error: --status blocked requires --reason")
-                halt(exit_error)
-              }
-              False -> {
+          False -> {
+            case status {
+              "success" -> {
                 case
-                  bead_feedback.mark_bead_blocked(
+                  bead_feedback.mark_bead_executed(
                     session_id,
                     bead_id,
+                    bead_feedback.Success,
                     reason,
-                    "user_action",
-                    "User blocked this bead",
-                    "Manual resume required",
                     0,
                   )
                 {
                   Ok(Nil) -> {
-                    io.println(
-                      "✓ Bead " <> bead_id <> " marked as blocked: " <> reason,
-                    )
+                    io.println("✓ Bead " <> bead_id <> " marked as success")
                     halt(exit_pass)
                   }
                   Error(err) -> {
@@ -2680,16 +2635,79 @@ fn bead_status_command() -> glint.Command(Nil) {
                   }
                 }
               }
+              "failed" -> {
+                case
+                  bead_feedback.mark_bead_failed(
+                    session_id,
+                    bead_id,
+                    reason,
+                    "execution_error",
+                    "Bead execution failed",
+                    option.None,
+                    0,
+                  )
+                {
+                  Ok(Nil) -> {
+                    io.println("✓ Bead " <> bead_id <> " marked as failed")
+                    halt(exit_pass)
+                  }
+                  Error(err) -> {
+                    io.println_error(
+                      "✗ Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
+                    )
+                    halt(exit_error)
+                  }
+                }
+              }
+              "blocked" -> {
+                case string.is_empty(reason) {
+                  True -> {
+                    io.println_error(
+                      "Error: --status blocked requires --reason",
+                    )
+                    halt(exit_error)
+                  }
+                  False -> {
+                    case
+                      bead_feedback.mark_bead_blocked(
+                        session_id,
+                        bead_id,
+                        reason,
+                        "user_action",
+                        "User blocked this bead",
+                        "Manual resume required",
+                        0,
+                      )
+                    {
+                      Ok(Nil) -> {
+                        io.println(
+                          "✓ Bead "
+                          <> bead_id
+                          <> " marked as blocked: "
+                          <> reason,
+                        )
+                        halt(exit_pass)
+                      }
+                      Error(err) -> {
+                        io.println_error(
+                          "✗ Failed to mark bead: "
+                          <> bead_feedback_error_to_string(err),
+                        )
+                        halt(exit_error)
+                      }
+                    }
+                  }
+                }
+              }
+              _ -> {
+                io.println_error("Error: invalid status '" <> status <> "'")
+                io.println_error("Valid statuses: success, failed, blocked")
+                halt(exit_error)
+              }
             }
           }
-          _ -> {
-            io.println_error("Error: invalid status '" <> status <> "'")
-            io.println_error("Valid statuses: success, failed, blocked")
-            halt(exit_error)
-          }
         }
-      }
-    }
       }
     }
   })
@@ -3189,9 +3207,7 @@ fn feedback_command() -> glint.Command(Nil) {
           Ok(json_content) -> {
             // Generate beads from failures
             case
-              bead_from_failures.generate_beads_from_check_results(
-                json_content,
-              )
+              bead_from_failures.generate_beads_from_check_results(json_content)
             {
               Error(err) -> {
                 io.println_error("Error parsing check results: " <> err)
@@ -3227,7 +3243,9 @@ fn feedback_command() -> glint.Command(Nil) {
                       }
                       False -> {
                         io.println("")
-                        io.println("✓ No failures found - all behaviors passed!")
+                        io.println(
+                          "✓ No failures found - all behaviors passed!",
+                        )
                         io.println("")
                         io.println(
                           "No fix beads needed. All check behaviors are working correctly.",
@@ -3247,10 +3265,7 @@ fn feedback_command() -> glint.Command(Nil) {
                               #("description", json.string(bead.description)),
                               #("priority", json.int(bead.priority)),
                               #("issue_type", json.string(bead.issue_type)),
-                              #(
-                                "labels",
-                                json.array(bead.labels, json.string),
-                              ),
+                              #("labels", json.array(bead.labels, json.string)),
                               #("ai_hints", json.string(bead.ai_hints)),
                               #(
                                 "acceptance_criteria",
@@ -3290,7 +3305,9 @@ fn feedback_command() -> glint.Command(Nil) {
                         io.println(
                           "═══════════════════════════════════════════════════════════════════",
                         )
-                        io.println("                FIX BEADS FROM CHECK FAILURES")
+                        io.println(
+                          "                FIX BEADS FROM CHECK FAILURES",
+                        )
                         io.println(
                           "═══════════════════════════════════════════════════════════════════",
                         )
@@ -3306,14 +3323,14 @@ fn feedback_command() -> glint.Command(Nil) {
                           io.println(
                             string.inspect(idx + 1) <> ". " <> bead.title,
                           )
-                          io.println("   Priority: P" <> string.inspect(bead.priority))
+                          io.println(
+                            "   Priority: P" <> string.inspect(bead.priority),
+                          )
                           io.println("   Type: " <> bead.issue_type)
                           io.println("   Description:")
                           // Print description with proper indentation
                           string.split(bead.description, "\n")
-                          |> list.each(fn(line) {
-                            io.println("     " <> line)
-                          })
+                          |> list.each(fn(line) { io.println("     " <> line) })
                           io.println("")
                         })
 
@@ -3472,7 +3489,9 @@ fn prompt_command() -> glint.Command(Nil) {
                     io.println("Next steps:")
                     io.println("  1. Review generated prompts")
                     io.println("  2. Use prompts to guide AI implementation")
-                    io.println("  3. Run 'intent check' to verify implementation")
+                    io.println(
+                      "  3. Run 'intent check' to verify implementation",
+                    )
                     io.println("")
                   }
                 }
@@ -3483,7 +3502,9 @@ fn prompt_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent prompt <session-id> [--json] [--max-items N]")
+        io.println_error(
+          "Usage: intent prompt <session-id> [--json] [--max-items N]",
+        )
         io.println_error("")
         io.println_error("Example: intent prompt interview-abc123def456")
         io.println_error("")
@@ -4312,7 +4333,9 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
                 io.println("")
                 io.println("Next steps:")
                 io.println(
-                  "  • intent gaps " <> spec_path <> " - Detect mental model gaps",
+                  "  • intent gaps "
+                  <> spec_path
+                  <> " - Detect mental model gaps",
                 )
                 io.println(
                   "  • intent quality "
@@ -4436,7 +4459,9 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
                 io.println("")
                 io.println("Next steps:")
                 io.println(
-                  "  • intent doctor " <> spec_path <> " - Get prioritized fixes",
+                  "  • intent doctor "
+                  <> spec_path
+                  <> " - Get prioritized fixes",
                 )
                 io.println(
                   "  • intent improve "
@@ -4522,7 +4547,9 @@ fn kirk_effects_command() -> glint.Command(Nil) {
                 io.println("")
                 io.println("Next steps:")
                 io.println(
-                  "  • intent doctor " <> spec_path <> " - Get prioritized fixes",
+                  "  • intent doctor "
+                  <> spec_path
+                  <> " - Get prioritized fixes",
                 )
                 io.println(
                   "  • intent check "
@@ -4712,10 +4739,14 @@ fn kirk_ears_command() -> glint.Command(Nil) {
                         io.println("")
                         io.println("Next steps:")
                         io.println(
-                          "  • intent validate " <> path <> " - Verify spec syntax",
+                          "  • intent validate "
+                          <> path
+                          <> " - Verify spec syntax",
                         )
                         io.println(
-                          "  • intent lint " <> path <> " - Check for quality issues",
+                          "  • intent lint "
+                          <> path
+                          <> " - Check for quality issues",
                         )
                         io.println(
                           "  • intent quality "

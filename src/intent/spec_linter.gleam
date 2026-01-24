@@ -341,12 +341,24 @@ pub fn warning_to_json(warning: LintWarning) -> Json {
   let message = format_warning(warning)
 
   let location = case warning {
-    AntiPatternDetected(behavior, _, _) -> json.object([#("behavior", json.string(behavior))])
-    VagueRule(behavior, field, _) -> json.object([#("behavior", json.string(behavior)), #("field", json.string(field))])
-    MissingExample(behavior) -> json.object([#("behavior", json.string(behavior))])
-    UnusedAntiPattern(pattern) -> json.object([#("anti_pattern", json.string(pattern))])
-    NamingConvention(behavior, _) -> json.object([#("behavior", json.string(behavior))])
-    DuplicateBehavior(behavior1, behavior2, _) -> json.object([#("behavior1", json.string(behavior1)), #("behavior2", json.string(behavior2))])
+    AntiPatternDetected(behavior, _, _) ->
+      json.object([#("behavior", json.string(behavior))])
+    VagueRule(behavior, field, _) ->
+      json.object([
+        #("behavior", json.string(behavior)),
+        #("field", json.string(field)),
+      ])
+    MissingExample(behavior) ->
+      json.object([#("behavior", json.string(behavior))])
+    UnusedAntiPattern(pattern) ->
+      json.object([#("anti_pattern", json.string(pattern))])
+    NamingConvention(behavior, _) ->
+      json.object([#("behavior", json.string(behavior))])
+    DuplicateBehavior(behavior1, behavior2, _) ->
+      json.object([
+        #("behavior1", json.string(behavior1)),
+        #("behavior2", json.string(behavior2)),
+      ])
   }
 
   json.object([

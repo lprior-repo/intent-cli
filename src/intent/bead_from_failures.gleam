@@ -1,6 +1,5 @@
 /// Generate beads from check command failures
 /// Converts failed behaviors into actionable fix tasks
-
 import gleam/dynamic.{type Dynamic}
 import gleam/json
 import gleam/list
@@ -31,8 +30,7 @@ pub fn generate_beads_from_check_results(
     |> result.map_error(fn(_) { "Invalid JSON format" }),
   )
 
-  let failure_beads =
-    list.map(parsed.error_failures, create_bead_for_failure)
+  let failure_beads = list.map(parsed.error_failures, create_bead_for_failure)
   let blocked_beads = list.map(parsed.blocked, create_bead_for_blocked)
 
   Ok(list.append(failure_beads, blocked_beads))
@@ -55,9 +53,15 @@ fn create_bead_for_failure(failure: CheckFailure) -> BeadRecord {
   }
 
   let description =
-    "Fix failing behavior: " <> failure.behavior <> "\n\n" <> "Error type: " <> failure.error_type <> "\n" <> "Message: " <> failure.message <> case
-      failure.hint
-    {
+    "Fix failing behavior: "
+    <> failure.behavior
+    <> "\n\n"
+    <> "Error type: "
+    <> failure.error_type
+    <> "\n"
+    <> "Message: "
+    <> failure.message
+    <> case failure.hint {
       "" -> ""
       hint -> "\n\nHint: " <> hint
     }
@@ -83,9 +87,12 @@ fn create_bead_for_failure(failure: CheckFailure) -> BeadRecord {
 fn create_bead_for_blocked(blocked: BlockedBehavior) -> BeadRecord {
   BeadRecord(
     title: "Unblock " <> blocked.behavior <> " behavior",
-    description: "Blocked behavior: " <> blocked.behavior <> "\n\n" <> "Reason: " <> blocked.reason <> case
-      blocked.hint
-    {
+    description: "Blocked behavior: "
+      <> blocked.behavior
+      <> "\n\n"
+      <> "Reason: "
+      <> blocked.reason
+      <> case blocked.hint {
       "" -> ""
       hint -> "\n\nHint: " <> hint
     },
@@ -114,7 +121,8 @@ type CheckResults {
   )
 }
 
-fn check_results_decoder() -> fn(Dynamic) -> Result(CheckResults, List(dynamic.DecodeError)) {
+fn check_results_decoder() -> fn(Dynamic) ->
+  Result(CheckResults, List(dynamic.DecodeError)) {
   fn(data: Dynamic) -> Result(CheckResults, List(dynamic.DecodeError)) {
     use data_obj <- result.try(dynamic.field("data", dynamic.dynamic)(data))
     use error_failures <- result.try(dynamic.field(
@@ -130,7 +138,8 @@ fn check_results_decoder() -> fn(Dynamic) -> Result(CheckResults, List(dynamic.D
   }
 }
 
-fn failure_decoder() -> fn(Dynamic) -> Result(CheckFailure, List(dynamic.DecodeError)) {
+fn failure_decoder() -> fn(Dynamic) ->
+  Result(CheckFailure, List(dynamic.DecodeError)) {
   fn(data: Dynamic) -> Result(CheckFailure, List(dynamic.DecodeError)) {
     use behavior <- result.try(dynamic.field("behavior", dynamic.string)(data))
     use error_type <- result.try(dynamic.field("error_type", dynamic.string)(
@@ -148,7 +157,8 @@ fn failure_decoder() -> fn(Dynamic) -> Result(CheckFailure, List(dynamic.DecodeE
   }
 }
 
-fn blocked_decoder() -> fn(Dynamic) -> Result(BlockedBehavior, List(dynamic.DecodeError)) {
+fn blocked_decoder() -> fn(Dynamic) ->
+  Result(BlockedBehavior, List(dynamic.DecodeError)) {
   fn(data: Dynamic) -> Result(BlockedBehavior, List(dynamic.DecodeError)) {
     use behavior <- result.try(dynamic.field("behavior", dynamic.string)(data))
     use reason <- result.try(dynamic.field("reason", dynamic.string)(data))

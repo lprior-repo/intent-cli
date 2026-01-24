@@ -547,7 +547,10 @@ pub fn check_help() -> CommandHelp {
   )
   |> with_usage("intent check <spec.cue> --target <url> [OPTIONS]")
   |> with_arg("spec.cue", "Path to the CUE specification file")
-  |> with_required_string_flag("target", "Target base URL to test against (or use INTENT_TARGET_URL env var)")
+  |> with_required_string_flag(
+    "target",
+    "Target base URL to test against (or use INTENT_TARGET_URL env var)",
+  )
   |> with_bool_flag("json", "Output results as JSON")
   |> with_string_flag("feature", "Filter to a specific feature", None)
   |> with_string_flag("only", "Run only a specific behavior", None)
