@@ -120,8 +120,11 @@ pub fn extract_security_requirements(answers: List(Answer)) -> String {
   case security_answers {
     [] ->
       "security: {
-  authentication: \"todo\"
-  authorization: \"todo\"
+  // No security requirements captured during interview
+  // Add authentication requirements (e.g., \"JWT bearer tokens\", \"OAuth 2.0\", \"API keys\")
+  authentication: \"TODO: Specify authentication method\"
+  // Add authorization requirements (e.g., \"RBAC\", \"User owns resource\", \"Admin only\")
+  authorization: \"TODO: Specify authorization rules\"
 }"
     answers -> "security: {
 " <> {
