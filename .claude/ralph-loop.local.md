@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 3
+iteration: 4
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -28,3 +28,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - CUE generation mode suggests full validation workflow
 - All 1689 tests passing
 - Commit: 2b50f65
+
+### ITERATION 4 - COMPLETE ✅
+- Fixed `intent-cli-lltw`: Added next-step guidance to all KIRK analysis commands
+- Enhanced quality, invert, coverage, gaps, effects, improve, doctor commands
+- Each provides context-aware workflow suggestions in text mode
+- Completes comprehensive next-step guidance across all major commands
+- All 1689 tests passing
+- Commit: 832efe1
