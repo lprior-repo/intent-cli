@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 7
+iteration: 8
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -60,3 +60,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Maintains all exit codes for backward compatibility
 - All 1689 tests passing
 - Commit: 68667db
+
+### ITERATION 8 - COMPLETE ✅
+- Fixed `intent-cli-chsw`: Added --json flag to lint command with severity levels
+- Categorizes warnings by severity: error/warning/info
+- JSON output includes severity counts, categorized findings with location metadata
+- Enables AI tools to filter by severity and programmatically process linting results
+- All 1689 tests passing
+- Commit: 6dedfb4
