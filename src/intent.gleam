@@ -3766,10 +3766,56 @@ fn kirk_ears_command() -> glint.Command(Nil) {
             }
 
             case output_file {
-              "" -> io.println(output)
+              "" -> {
+                io.println(output)
+                // Add next-step guidance for text/JSON output modes (not CUE since CUE writes to file)
+                case output_format {
+                  "cue" | "json" -> Nil
+                  _ -> {
+                    io.println("")
+                    io.println("Next steps:")
+                    io.println(
+                      "  • intent ears "
+                      <> requirements_path
+                      <> " --output=cue --out=spec.cue - Generate CUE spec",
+                    )
+                    io.println(
+                      "  • intent ears "
+                      <> requirements_path
+                      <> " --output=json - Machine-readable output",
+                    )
+                  }
+                }
+              }
               path -> {
                 case simplifile.write(path, output) {
-                  Ok(_) -> io.println("Written to: " <> path)
+                  Ok(_) -> {
+                    io.println("✓ Written to: " <> path)
+                    // Add next-step guidance after writing CUE file
+                    case output_format {
+                      "cue" -> {
+                        io.println("")
+                        io.println("Next steps:")
+                        io.println(
+                          "  • intent validate " <> path <> " - Verify spec syntax",
+                        )
+                        io.println(
+                          "  • intent lint " <> path <> " - Check for quality issues",
+                        )
+                        io.println(
+                          "  • intent quality "
+                          <> path
+                          <> " - Analyze overall quality",
+                        )
+                        io.println(
+                          "  • intent check "
+                          <> path
+                          <> " --target=URL - Test against API",
+                        )
+                      }
+                      _ -> Nil
+                    }
+                  }
                   Error(_) ->
                     cli_ui.print_error("Failed to write to: " <> path, mode)
                 }
