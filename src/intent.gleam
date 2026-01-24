@@ -193,6 +193,7 @@ pub fn main() {
     |> glint.add(at: ["history"], do: history_command())
     |> glint.add(at: ["diff"], do: diff_command())
     |> glint.add(at: ["sessions"], do: sessions_command())
+    |> glint.add(at: ["help"], do: help_command())
     // KIRK commands
     |> glint.add(at: ["quality"], do: kirk_quality_command())
     |> glint.add(at: ["invert"], do: kirk_invert_command())
@@ -3349,6 +3350,60 @@ fn diff_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description(help.format_for_glint(help.diff_help()))
+}
+
+/// The `help` command - show detailed help for a specific command
+fn help_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [command_name] -> {
+        case help.get_command_help(command_name) {
+          Some(cmd_help) -> {
+            io.println(help.format_help(cmd_help))
+            halt(exit_pass)
+          }
+          None -> {
+            io.println_error("Error: Unknown command '" <> command_name <> "'")
+            io.println("")
+            io.println("Available commands:")
+            io.println(
+              "  check, validate, show, export, lint, analyze, improve, doctor,",
+            )
+            io.println(
+              "  interview, beads, bead-status, history, diff, sessions,",
+            )
+            io.println(
+              "  quality, invert, coverage, gaps, ears, parse, effects,",
+            )
+            io.println("  plan, plan-approve, beads-regenerate")
+            io.println("")
+            io.println("Usage: intent help <command>")
+            halt(exit_error)
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Error: Command name required")
+        io.println("")
+        io.println("Usage: intent help <command>")
+        io.println("")
+        io.println("Examples:")
+        io.println("  intent help check      - Show help for check command")
+        io.println("  intent help validate   - Show help for validate command")
+        io.println("  intent help analyze    - Show help for analyze command")
+        halt(exit_error)
+      }
+      _ -> {
+        io.println_error("Error: Too many arguments")
+        io.println("")
+        io.println("Usage: intent help <command>")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Show detailed help for a specific command with usage examples and related commands",
+  )
 }
 
 /// The `sessions` command - list all interview sessions
