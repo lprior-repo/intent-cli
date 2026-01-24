@@ -810,6 +810,29 @@ pub fn feedback_help() -> CommandHelp {
   |> with_related(["check", "beads", "doctor"])
 }
 
+pub fn prompt_help() -> CommandHelp {
+  command(
+    name: "prompt",
+    short_desc: "Generate AI implementation prompts from session beads",
+    category: Execution,
+  )
+  |> with_long_desc(
+    "Generates AI-ready implementation prompts from beads in an interview session. Each prompt includes task context, requirements, suggested approach, pitfalls to avoid, and guardrails. Designed for AI agents to understand both task requirements and existing codebase patterns.",
+  )
+  |> with_usage("intent prompt <session-id> [--json]")
+  |> with_arg("session-id", "Interview session ID (e.g., interview-abc123)")
+  |> with_bool_flag("json", "Output JSON for machine consumption")
+  |> with_example(
+    "intent prompt interview-abc123def456",
+    "Generate prompts from session beads",
+  )
+  |> with_example(
+    "intent prompt interview-abc123def456 --json",
+    "Get JSON output for AI automation",
+  )
+  |> with_related(["beads", "interview", "plan"])
+}
+
 pub fn bead_status_help() -> CommandHelp {
   command(
     name: "bead-status",

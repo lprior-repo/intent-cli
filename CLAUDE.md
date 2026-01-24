@@ -15,7 +15,7 @@ Contract-driven API testing in Gleam. CUE specs → HTTP tests → verification.
 ```
 CRITICAL: Never bare `bv` - launches blocking TUI.
 
-## Commands (24 total)
+## Commands (26 total)
 
 **Core Spec Operations** (5):
 ```jsonl
@@ -45,13 +45,15 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 {"cmd":"export","args":"<session-id> [--output=spec.cue]","desc":"export session to CUE spec"}
 ```
 
-**Beads/Planning** (5):
+**Beads/Planning** (7):
 ```jsonl
 {"cmd":"beads","args":"<session-id> [--json=true] [--max-items=N]","desc":"generate work items from interview session"}
 {"cmd":"beads-regenerate","args":"<spec>","desc":"regenerate beads from spec"}
 {"cmd":"bead-status","args":"--bead-id <id> --status success|failed|blocked [--reason 'text']","desc":"update individual bead execution status"}
 {"cmd":"plan","args":"<session-id> [--json=true] [--rounds=1..5]","desc":"health + waves + beads"}
 {"cmd":"plan-approve","args":"<session-id> [--yes] [--notes 'text']","desc":"approve execution plan"}
+{"cmd":"prompt","args":"<session-id> [--json=true] [--max-items=N]","desc":"generate AI implementation prompts from session beads"}
+{"cmd":"feedback","args":"--results <check-output.json> [--json=true]","desc":"generate fix beads from check command failures"}
 ```
 Note: Get session IDs with `intent sessions [--profile=api|cli]`
 
@@ -162,14 +164,19 @@ Intent owns Plan phase. All work decomposition flows from CUE specs.
 {"usage":"intent quality api.cue --json=true | jq '.data.overall_score'"}
 ```
 
+### Implemented AI-Native Features
+```jsonl
+{"cmd":"prompt","desc":"AI context generation from beads","status":"implemented"}
+{"cmd":"feedback","desc":"Generate fix beads from check failures","status":"implemented"}
+{"flag":"--json","desc":"Machine-readable JSON output for all analysis commands","status":"implemented"}
+```
+
 ### Planned Features (Not Yet Implemented)
 ```jsonl
 {"flag":"--robot","desc":"Action metadata wrapper","status":"planned","task":"#10"}
 {"flag":"--cin","desc":"Compact Intent Notation","status":"planned"}
 {"flag":"--json-out FILE","desc":"Write JSON to file","status":"planned"}
-{"cmd":"prompt","desc":"AI context generation from beads","status":"planned","task":"#5"}
 {"cmd":"verify","desc":"Auto-verification workflow","status":"planned"}
-{"cmd":"feedback","desc":"Generate fix beads from check failures","status":"planned","task":"#12"}
 ```
 
 ### Action JSON Schema

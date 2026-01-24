@@ -33,6 +33,7 @@ import intent/output
 import intent/output_mode
 import intent/parser
 import intent/plan_mode
+import intent/prompt_generator
 import intent/quality_analyzer
 import intent/question_types.{type Question}
 import intent/runner
@@ -211,6 +212,7 @@ pub fn main() {
     |> glint.add(at: ["plan-approve"], do: plan_approve_command())
     |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
     |> glint.add(at: ["feedback"], do: feedback_command())
+    |> glint.add(at: ["prompt"], do: prompt_command())
 
   // Execute and handle flag parsing errors
   // Glint's .run() exits with 0 even on flag errors, so we use .execute()
@@ -3345,6 +3347,165 @@ fn feedback_command() -> glint.Command(Nil) {
     flag.bool()
       |> flag.default(False)
       |> flag.description("Output JSON for machine consumption"),
+  )
+}
+
+/// Generate AI-ready implementation prompts from session beads
+fn prompt_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let max_items =
+      flag.get_int(input.flags, "max-items")
+      |> result.unwrap(list_limits.default_max_items)
+
+    case input.args {
+      [session_id, ..] -> {
+        // Load session from JSONL
+        case
+          interview_storage.get_session_from_jsonl(
+            ".interview/sessions.jsonl",
+            session_id,
+          )
+        {
+          Error(err) -> {
+            io.println_error("Error: " <> err)
+            io.println_error("")
+            io.println_error(
+              "Hint: Run 'intent sessions' to see available session IDs.",
+            )
+            halt(exit_error)
+          }
+          Ok(session) -> {
+            // Generate beads from session
+            let all_beads = bead_templates.generate_beads_from_session(session)
+            let total_count = list.length(all_beads)
+
+            case list.is_empty(all_beads) {
+              True -> {
+                io.println_error("")
+                io.println_error("No beads found in session: " <> session_id)
+                io.println_error("")
+                io.println_error(
+                  "This session may not have enough information to generate work items.",
+                )
+                halt(exit_fail)
+              }
+              False -> {
+                // Apply max-items limit for output
+                let beads = list_limits.apply_limit(all_beads, max_items)
+                let bead_count = list.length(beads)
+
+                // Generate implementation prompts for each bead
+                let prompts =
+                  list.map(beads, fn(bead) {
+                    prompt_generator.generate_gleam_prompt(bead, "intent-cli")
+                  })
+
+                case is_json {
+                  True -> {
+                    // JSON output for AI consumption
+                    let prompts_json =
+                      json.array(prompts, prompt_generator.prompt_to_json)
+
+                    let data =
+                      json.object([
+                        #("prompts", prompts_json),
+                        #("count", json.int(bead_count)),
+                        #("total_beads", json.int(total_count)),
+                        #("session_id", json.string(session_id)),
+                      ])
+
+                    let response =
+                      json_output.success(
+                        "prompt_result",
+                        "prompt",
+                        data,
+                        option.None,
+                        [],
+                      )
+                    json_output.output(response)
+                  }
+                  False -> {
+                    // Human-readable text output
+                    io.println("")
+                    io.println(
+                      "═══════════════════════════════════════════════════════════════════",
+                    )
+                    io.println("           IMPLEMENTATION PROMPTS FROM SESSION")
+                    io.println(
+                      "═══════════════════════════════════════════════════════════════════",
+                    )
+                    io.println("")
+                    io.println(
+                      "Generated "
+                      <> string.inspect(bead_count)
+                      <> " implementation prompts from session: "
+                      <> session_id,
+                    )
+                    case total_count > bead_count {
+                      True ->
+                        io.println(
+                          "(showing first "
+                          <> string.inspect(bead_count)
+                          <> " of "
+                          <> string.inspect(total_count)
+                          <> " beads)",
+                        )
+                      False -> Nil
+                    }
+                    io.println("")
+                    io.println(
+                      "═══════════════════════════════════════════════════════════════════",
+                    )
+                    io.println("")
+
+                    // Output each prompt
+                    list.each(prompts, fn(prompt) {
+                      io.println(prompt_generator.prompt_to_text(prompt))
+                      io.println("")
+                    })
+
+                    io.println("")
+                    io.println("Next steps:")
+                    io.println("  1. Review generated prompts")
+                    io.println("  2. Use prompts to guide AI implementation")
+                    io.println("  3. Run 'intent check' to verify implementation")
+                    io.println("")
+                  }
+                }
+                halt(exit_pass)
+              }
+            }
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Usage: intent prompt <session-id> [--json] [--max-items N]")
+        io.println_error("")
+        io.println_error("Example: intent prompt interview-abc123def456")
+        io.println_error("")
+        io.println_error("Run 'intent sessions' to see available session IDs.")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(help.format_for_glint(help.prompt_help()))
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output JSON for machine consumption"),
+  )
+  |> glint.flag(
+    "max-items",
+    flag.int()
+      |> flag.default(list_limits.default_max_items)
+      |> flag.description(
+        "Maximum number of prompts to generate (default: 100, AI guardrail)",
+      ),
   )
 }
 
