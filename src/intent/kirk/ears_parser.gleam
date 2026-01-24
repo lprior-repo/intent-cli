@@ -130,7 +130,7 @@ pub fn parse(text: String) -> EarsParseResult {
 
 fn parse_line(line: String, line_num: Int) -> Result(EarsRequirement, EarsError) {
   let upper = string.uppercase(line)
-  let id = "REQ-" <> int.to_string(line_num)
+  let id = "req-" <> int.to_string(line_num)
 
   // Pre-compute all string checks
   let has_while = string.contains(upper, "WHILE")
