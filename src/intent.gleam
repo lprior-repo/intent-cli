@@ -2585,8 +2585,27 @@ fn history_command() -> glint.Command(Nil) {
       [session_id, ..] -> {
         case interview_storage.list_session_history(history_path, session_id) {
           Error(err) -> {
-            cli_ui.print_error(err, mode)
-            halt(exit_error)
+            // Handle missing history file gracefully
+            case string.contains(err, "Enoent") {
+              True -> {
+                cli_ui.print_warning(
+                  "No history snapshots exist yet",
+                  mode,
+                )
+                io.println("")
+                io.println(
+                  "Session history is created when you use the --snapshot flag",
+                )
+                io.println("during an interview to save progress points.")
+                io.println("")
+                io.println("Example: intent interview myprofile --snapshot")
+                halt(exit_pass)
+              }
+              False -> {
+                cli_ui.print_error(err, mode)
+                halt(exit_error)
+              }
+            }
           }
           Ok([]) -> {
             cli_ui.print_warning(
