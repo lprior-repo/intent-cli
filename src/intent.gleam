@@ -1394,6 +1394,28 @@ fn find_unanswered_in_rounds(
   }
 }
 
+/// Get the next unanswered question within a specific round only
+/// Returns None if all questions in the round are answered
+/// Does NOT advance to subsequent rounds (unlike get_next_unanswered_question)
+fn get_next_unanswered_question_in_round(
+  session: interview.InterviewSession,
+  round: Int,
+) -> Option(Question) {
+  let profile_str = profile_to_string(session.profile)
+  let answered_ids = list.map(session.answers, fn(a) { a.question_id })
+
+  // Only search within the specified round
+  let questions =
+    interview_questions.get_questions_for_round(profile_str, round)
+  let unanswered =
+    list.filter(questions, fn(q) { !list.contains(answered_ids, q.id) })
+
+  case unanswered {
+    [first, ..] -> Some(first)
+    [] -> None
+  }
+}
+
 /// Submit an answer to a session in CUE mode
 fn run_interview_cue_answer(
   session_id: String,
@@ -1498,12 +1520,19 @@ fn run_interview_cue_answer(
                   halt(exit_error)
                 }
                 Ok(_) -> {
-                  // Get next question or complete
-                  case get_next_unanswered_question(sess_final, next_round) {
-                    Some(next_q) ->
+                  // Check if there are more questions in the current round
+                  case
+                    get_next_unanswered_question_in_round(
+                      sess_final,
+                      next_round,
+                    )
+                  {
+                    Some(next_q) -> {
+                      // More questions in current round - continue
                       output_cue_question(sess_final, next_q, next_round)
+                    }
                     None -> {
-                      // Round is complete - increment rounds_completed
+                      // Current round is complete - increment rounds_completed
                       let sess_round_completed =
                         interview.complete_round(sess_final)
 

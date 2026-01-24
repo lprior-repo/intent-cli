@@ -66,7 +66,6 @@ pub fn exit_codes_are_sequential_test() {
 
   codes |> should.equal(sorted)
 }
-
 // Future: Add integration tests for actual exit code behavior
 // These would require subprocess execution capabilities:
 //
