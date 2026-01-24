@@ -1,6 +1,6 @@
 ---
 active: false
-iteration: 19
+iteration: 21
 max_iterations: 30
 completion_promise: "Natural completion point reached - all systematic improvements complete"
 started_at: "2026-01-24T05:36:16Z"
@@ -160,3 +160,12 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Progressive disclosure: simple to advanced workflows
 - All 1689 tests passing
 - Commit: cc62cbe
+
+### ITERATION 20 - COMPLETE ✅
+- Fixed `intent-cli-ti0g`: interview command validates positional arguments
+- Detects invalid positional args (intent interview xyz) instead of silently ignoring
+- Shows helpful error with suggested --profile= syntax
+- Lists valid profiles: api, cli, event, data, workflow, ui
+- Uses exit code 4 (usage error) consistently
+- All 1689 tests passing
+- Commit: 0107c5b
