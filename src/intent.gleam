@@ -12,6 +12,7 @@ import gleam/string
 import glint
 import glint/flag
 import intent/bead_feedback
+import intent/bead_from_failures
 import intent/bead_templates
 import intent/cli_ui
 import intent/doctor
@@ -209,6 +210,7 @@ pub fn main() {
     |> glint.add(at: ["plan"], do: plan_command())
     |> glint.add(at: ["plan-approve"], do: plan_approve_command())
     |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
+    |> glint.add(at: ["feedback"], do: feedback_command())
 
   // Execute and handle flag parsing errors
   // Glint's .run() exits with 0 even on flag errors, so we use .execute()
@@ -3141,6 +3143,208 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
       |> flag.description(
         "Regeneration strategy: hybrid, inversion, or premortem",
       ),
+  )
+}
+
+/// Generate fix beads from check command failures
+fn feedback_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let results_path =
+      flag.get_string(input.flags, "results")
+      |> result.map_error(fn(_) { "Missing required --results flag" })
+
+    case results_path {
+      Error(err) -> {
+        io.println_error("Error: " <> err)
+        io.println_error("")
+        io.println_error(
+          "Usage: intent feedback --results <check-output.json> [--json]",
+        )
+        io.println_error("")
+        io.println_error("Example:")
+        io.println_error(
+          "  intent check api.cue --target=http://localhost:8080 --json > results.json",
+        )
+        io.println_error("  intent feedback --results results.json")
+        halt(exit_error)
+      }
+      Ok(path) -> {
+        // Read the check results JSON file
+        case simplifile.read(path) {
+          Error(_) -> {
+            io.println_error("Error: Cannot read file: " <> path)
+            io.println_error("")
+            io.println_error("Make sure the file exists and is readable.")
+            io.println_error(
+              "Run 'intent check <spec> --target=<url> --json > results.json' first.",
+            )
+            halt(exit_invalid)
+          }
+          Ok(json_content) -> {
+            // Generate beads from failures
+            case
+              bead_from_failures.generate_beads_from_check_results(
+                json_content,
+              )
+            {
+              Error(err) -> {
+                io.println_error("Error parsing check results: " <> err)
+                io.println_error("")
+                io.println_error(
+                  "Ensure the file contains valid JSON output from 'intent check --json'",
+                )
+                halt(exit_invalid)
+              }
+              Ok(beads) -> {
+                case list.is_empty(beads) {
+                  True -> {
+                    case is_json {
+                      True -> {
+                        let data =
+                          json.object([
+                            #("beads", json.array([], fn(_) { json.null() })),
+                            #("count", json.int(0)),
+                            #(
+                              "message",
+                              json.string("No failures - all behaviors passed"),
+                            ),
+                          ])
+                        let response =
+                          json_output.success(
+                            "feedback_result",
+                            "feedback",
+                            data,
+                            option.None,
+                            [],
+                          )
+                        json_output.output(response)
+                      }
+                      False -> {
+                        io.println("")
+                        io.println("✓ No failures found - all behaviors passed!")
+                        io.println("")
+                        io.println(
+                          "No fix beads needed. All check behaviors are working correctly.",
+                        )
+                      }
+                    }
+                    halt(exit_pass)
+                  }
+                  False -> {
+                    let bead_count = list.length(beads)
+                    case is_json {
+                      True -> {
+                        let beads_json =
+                          json.array(beads, fn(bead) {
+                            json.object([
+                              #("title", json.string(bead.title)),
+                              #("description", json.string(bead.description)),
+                              #("priority", json.int(bead.priority)),
+                              #("issue_type", json.string(bead.issue_type)),
+                              #(
+                                "labels",
+                                json.array(bead.labels, json.string),
+                              ),
+                              #("ai_hints", json.string(bead.ai_hints)),
+                              #(
+                                "acceptance_criteria",
+                                json.array(
+                                  bead.acceptance_criteria,
+                                  json.string,
+                                ),
+                              ),
+                            ])
+                          })
+
+                        let data =
+                          json.object([
+                            #("beads", beads_json),
+                            #("count", json.int(bead_count)),
+                            #(
+                              "message",
+                              json.string(
+                                "Generated "
+                                <> string.inspect(bead_count)
+                                <> " fix beads",
+                              ),
+                            ),
+                          ])
+                        let response =
+                          json_output.success(
+                            "feedback_result",
+                            "feedback",
+                            data,
+                            option.None,
+                            [],
+                          )
+                        json_output.output(response)
+                      }
+                      False -> {
+                        io.println("")
+                        io.println(
+                          "═══════════════════════════════════════════════════════════════════",
+                        )
+                        io.println("                FIX BEADS FROM CHECK FAILURES")
+                        io.println(
+                          "═══════════════════════════════════════════════════════════════════",
+                        )
+                        io.println("")
+                        io.println(
+                          "Generated "
+                          <> string.inspect(bead_count)
+                          <> " fix beads:",
+                        )
+                        io.println("")
+
+                        list.index_map(beads, fn(bead, idx) {
+                          io.println(
+                            string.inspect(idx + 1) <> ". " <> bead.title,
+                          )
+                          io.println("   Priority: P" <> string.inspect(bead.priority))
+                          io.println("   Type: " <> bead.issue_type)
+                          io.println("   Description:")
+                          // Print description with proper indentation
+                          string.split(bead.description, "\n")
+                          |> list.each(fn(line) {
+                            io.println("     " <> line)
+                          })
+                          io.println("")
+                        })
+
+                        io.println("")
+                        io.println("Next steps:")
+                        io.println(
+                          "  1. Create these beads in your issue tracker (bd create)",
+                        )
+                        io.println("  2. Fix the underlying issues")
+                        io.println("  3. Re-run check command to verify fixes")
+                      }
+                    }
+                    halt(exit_pass)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  |> glint.description(help.format_for_glint(help.feedback_help()))
+  |> glint.flag(
+    "results",
+    flag.string()
+      |> flag.description("Path to JSON file from 'intent check --json' output"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output JSON for machine consumption"),
   )
 }
 

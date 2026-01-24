@@ -784,6 +784,32 @@ pub fn beads_help() -> CommandHelp {
   |> with_related(["interview", "bead-status", "plan"])
 }
 
+pub fn feedback_help() -> CommandHelp {
+  command(
+    name: "feedback",
+    short_desc: "Generate fix beads from check command failures",
+    category: Kirk,
+  )
+  |> with_long_desc(
+    "Analyzes check command JSON output and generates actionable fix beads for each failure. Converts test failures into tracked work items.",
+  )
+  |> with_usage("intent feedback --results <check-output.json>")
+  |> with_required_string_flag(
+    "results",
+    "Path to JSON file from 'intent check --json' output",
+  )
+  |> with_bool_flag("json", "Output JSON for machine consumption")
+  |> with_example(
+    "intent check api.cue --target=http://localhost:8080 --json > results.json",
+    "Run check and save results",
+  )
+  |> with_example(
+    "intent feedback --results results.json",
+    "Generate fix beads from failures",
+  )
+  |> with_related(["check", "beads", "doctor"])
+}
+
 pub fn bead_status_help() -> CommandHelp {
   command(
     name: "bead-status",
