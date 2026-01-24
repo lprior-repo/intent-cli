@@ -25,7 +25,6 @@ import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
-import intent/kirk/quality_analyzer as kirk_quality
 import intent/list_limits
 import intent/loader
 import intent/output
@@ -2918,7 +2917,7 @@ fn stage_to_display_string(stage: interview.InterviewStage) -> String {
 // KIRK COMMANDS
 // =============================================================================
 
-/// The `quality` command - KIRK quality analysis
+/// The `quality` command - Quality analysis (alias for analyze)
 fn kirk_quality_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let is_json =
@@ -2931,31 +2930,25 @@ fn kirk_quality_command() -> glint.Command(Nil) {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
-            let report = kirk_quality.analyze_quality(spec)
+            let report = quality_analyzer.analyze_spec(spec)
             case is_json {
               True -> {
                 let data =
                   json.object([
-                    #("completeness", json.float(report.completeness)),
-                    #("consistency", json.float(report.consistency)),
-                    #("testability", json.float(report.testability)),
-                    #("clarity", json.float(report.clarity)),
-                    #("security", json.float(report.security)),
-                    #("overall", json.float(report.overall)),
+                    #("coverage_score", json.int(report.coverage_score)),
+                    #("clarity_score", json.int(report.clarity_score)),
+                    #("testability_score", json.int(report.testability_score)),
+                    #("ai_readiness_score", json.int(report.ai_readiness_score)),
+                    #("overall_score", json.int(report.overall_score)),
                     #(
                       "issues",
                       json.array(report.issues, fn(i) {
-                        json.object([
-                          #("field", json.string(i.field)),
-                          #("issue", json.string(i.issue)),
-                          #(
-                            "severity",
-                            json.string(kirk_quality.severity_to_string(
-                              i.severity,
-                            )),
-                          ),
-                        ])
+                        json.string(quality_analyzer.format_issue(i))
                       }),
+                    ),
+                    #(
+                      "suggestions",
+                      json.array(report.suggestions, fn(s) { json.string(s) }),
                     ),
                   ])
                 let next_actions = [
@@ -2978,7 +2971,7 @@ fn kirk_quality_command() -> glint.Command(Nil) {
                   )
                 json_output.output(response)
               }
-              False -> io.println(kirk_quality.format_report(report))
+              False -> io.println(quality_analyzer.format_report(report))
             }
             halt(exit_pass)
           }
