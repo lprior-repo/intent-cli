@@ -75,6 +75,7 @@ pub type RunOptions {
     behavior_filter: Option(String),
     output_level: OutputLevel,
     timeout_ms: Option(Int),
+    allow_localhost: Bool,
   )
 }
 
@@ -88,6 +89,7 @@ pub fn default_options() -> RunOptions {
     behavior_filter: None,
     output_level: Normal,
     timeout_ms: None,
+    allow_localhost: False,
   )
 }
 
@@ -162,10 +164,16 @@ pub fn run_spec_with_executor_and_ui(
   _mode: OutputMode,
   ui: UiCallbacks,
 ) -> SpecResult {
-  // Override base_url with target if provided
+  // Override base_url and allow_localhost from CLI options
   let config = case string.is_empty(target_url) {
-    True -> spec.config
-    False -> types.Config(..spec.config, base_url: target_url)
+    True ->
+      types.Config(..spec.config, allow_localhost: options.allow_localhost)
+    False ->
+      types.Config(
+        ..spec.config,
+        base_url: target_url,
+        allow_localhost: options.allow_localhost,
+      )
   }
 
   // Resolve behavior execution order

@@ -333,7 +333,7 @@ fn run_check(
     Ok(spec) -> {
       cli_ui.print_header("Checking spec: " <> spec.name, mode)
 
-      // Build run options with timeout override
+      // Build run options with timeout override and allow_localhost
       let options =
         runner.RunOptions(
           feature_filter: case feature_filter {
@@ -346,6 +346,7 @@ fn run_check(
           },
           output_level: output_level,
           timeout_ms: timeout_ms,
+          allow_localhost: allow_localhost,
         )
 
       // Run the spec

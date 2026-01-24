@@ -26,6 +26,7 @@ pub fn run_options_custom_timeout_test() {
       behavior_filter: None,
       output_level: runner.Normal,
       timeout_ms: Some(5000),
+      allow_localhost: False,
     )
 
   options.timeout_ms

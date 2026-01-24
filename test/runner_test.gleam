@@ -38,6 +38,7 @@ pub fn runner_custom_options_verbose_test() {
       behavior_filter: Some("login"),
       output_level: runner.Verbose,
       timeout_ms: None,
+      allow_localhost: False,
     )
 
   options.feature_filter
@@ -63,6 +64,7 @@ pub fn runner_custom_options_quiet_test() {
       behavior_filter: None,
       output_level: runner.Quiet,
       timeout_ms: None,
+      allow_localhost: False,
     )
 
   options.output_level
@@ -82,6 +84,7 @@ pub fn runner_output_level_normal_test() {
       behavior_filter: None,
       output_level: runner.Normal,
       timeout_ms: None,
+      allow_localhost: False,
     )
 
   runner.is_verbose(options)
