@@ -394,7 +394,7 @@ fn run_check(
   case security.validate_url(final_target_url, allow_localhost) {
     Error(e) -> {
       cli_ui.print_error(security.format_security_error(e), mode)
-      halt(exit_error)
+      halt(exit_invalid)
     }
     Ok(_) -> Nil
   }
