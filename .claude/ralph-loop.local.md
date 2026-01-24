@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 4
+iteration: 5
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -36,3 +36,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Completes comprehensive next-step guidance across all major commands
 - All 1689 tests passing
 - Commit: 832efe1
+
+### ITERATION 5 - COMPLETE ✅
+- Fixed `intent-cli-c2yx`: Added workflow ASCII diagram to main help
+- Shows typical workflow, discovery workflow, and requirements parsing
+- Displays when running 'intent' without args or with --help
+- Makes CLI self-documenting for AI agents
+- All 1689 tests passing
+- Commit: 78c91c6
