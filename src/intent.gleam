@@ -129,7 +129,7 @@ fn do_normalize(args: List(String)) -> List(String) {
 
 pub fn main() {
   let raw_args = argv.load().arguments
-  let _args = normalize_flag_syntax(raw_args)
+  let normalized_args = normalize_flag_syntax(raw_args)
 
   let _app =
     glint.new()
@@ -167,7 +167,7 @@ pub fn main() {
     // Context scanning
     // TODO: Re-enable when context_scan_command is implemented
     // |> glint.add(at: ["context-scan"], do: context_scan_command())
-    |> glint.run(argv.load().arguments)
+    |> glint.run(normalized_args)
 }
 
 /// The `check` command - run spec against a target
