@@ -543,11 +543,11 @@ pub fn check_help() -> CommandHelp {
     category: Core,
   )
   |> with_long_desc(
-    "Loads a CUE specification file and executes all behaviors against the specified target URL, verifying that the API conforms to the spec. Returns exit code 0 on success, 1 on test failures, 2 if behaviors are blocked, 3 for invalid spec, 4 for errors.",
+    "Loads a CUE specification file and executes all behaviors against the specified target URL, verifying that the API conforms to the spec. Returns exit code 0 on success, 1 on test failures, 2 if behaviors are blocked, 3 for invalid spec, 4 for errors.\n\nTarget URL can be provided via --target flag or INTENT_TARGET_URL environment variable.",
   )
   |> with_usage("intent check <spec.cue> --target <url> [OPTIONS]")
   |> with_arg("spec.cue", "Path to the CUE specification file")
-  |> with_required_string_flag("target", "Target base URL to test against")
+  |> with_required_string_flag("target", "Target base URL to test against (or use INTENT_TARGET_URL env var)")
   |> with_bool_flag("json", "Output results as JSON")
   |> with_string_flag("feature", "Filter to a specific feature", None)
   |> with_string_flag("only", "Run only a specific behavior", None)
@@ -572,6 +572,10 @@ pub fn check_help() -> CommandHelp {
   |> with_example(
     "intent check api.cue --target http://localhost:8080 --allow-localhost",
     "Test against local development server",
+  )
+  |> with_example(
+    "export INTENT_TARGET_URL=https://api.example.com && intent check api.cue",
+    "Use environment variable for target URL",
   )
   |> with_related(["validate", "lint", "doctor"])
 }

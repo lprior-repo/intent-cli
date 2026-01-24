@@ -361,18 +361,36 @@ fn run_check(
   // Determine output mode based on --json flag
   let mode = output_mode.from_json_flag(is_json)
 
-  // Validate target URL is provided
-  case string.is_empty(target_url) {
+  // Use environment variable fallback if --target not provided
+  let final_target_url = case string.is_empty(target_url) {
+    True ->
+      case get_env("INTENT_TARGET_URL") {
+        Ok(env_url) ->
+          case string.is_empty(env_url) {
+            True -> ""
+            False -> env_url
+          }
+        Error(_) -> ""
+      }
+    False -> target_url
+  }
+
+  // Validate target URL is provided (either via flag or env)
+  case string.is_empty(final_target_url) {
     True -> {
       cli_ui.print_error("--target URL is required", mode)
       io.println("Usage: intent check <spec.cue> --target=<url>")
+      io.println("")
+      io.println("Alternatively, set INTENT_TARGET_URL environment variable:")
+      io.println("  export INTENT_TARGET_URL=https://api.example.com")
+      io.println("  intent check <spec.cue>")
       halt(exit_error)
     }
     False -> Nil
   }
 
   // Validate target URL for SSRF protection
-  case security.validate_url(target_url, allow_localhost) {
+  case security.validate_url(final_target_url, allow_localhost) {
     Error(e) -> {
       cli_ui.print_error(security.format_security_error(e), mode)
       halt(exit_error)
@@ -406,7 +424,7 @@ fn run_check(
         )
 
       // Run the spec
-      let result = runner.run_spec(spec, target_url, options, mode)
+      let result = runner.run_spec(spec, final_target_url, options, mode)
 
       // Output results
       case is_json {
