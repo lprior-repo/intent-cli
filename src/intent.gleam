@@ -1030,7 +1030,11 @@ fn analyze_command() -> glint.Command(Nil) {
                   )
                 json_output.output(response)
               }
-              False -> io.println(quality_analyzer.format_report(report))
+              False -> {
+                io.println(quality_analyzer.format_report(report))
+                io.println("")
+                io.println("Note: 'analyze' is an alias for 'quality' command")
+              }
             }
             halt(exit_pass)
           }
@@ -4676,6 +4680,13 @@ fn parse_command() -> glint.Command(Nil) {
                     }
                   }
                 }
+
+                // Add hint about ears command for detailed analysis
+                io.println("")
+                io.println(
+                  "Hint: For detailed EARS analysis with pattern breakdown, use: intent ears "
+                  <> requirements_path,
+                )
               }
             }
 
