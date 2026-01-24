@@ -589,15 +589,60 @@ fn lint_command() -> glint.Command(Nil) {
 /// The `analyze` command - Quality analysis (alias for quality, text output only)
 fn analyze_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let mode = output_mode.Interactive
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
 
     case input.args {
       [spec_path, ..] -> {
-        // analyze is an alias for quality with text output
-        case loader.load_spec(spec_path) {
+        // analyze is an alias for quality - now supports both text and JSON output
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let report = quality_analyzer.analyze_spec(spec)
-            io.println(quality_analyzer.format_report(report))
+            case is_json {
+              True -> {
+                let data =
+                  json.object([
+                    #("coverage_score", json.int(report.coverage_score)),
+                    #("clarity_score", json.int(report.clarity_score)),
+                    #("testability_score", json.int(report.testability_score)),
+                    #("ai_readiness_score", json.int(report.ai_readiness_score)),
+                    #("overall_score", json.int(report.overall_score)),
+                    #(
+                      "issues",
+                      json.array(report.issues, fn(i) {
+                        json.string(quality_analyzer.format_issue(i))
+                      }),
+                    ),
+                    #(
+                      "suggestions",
+                      json.array(report.suggestions, fn(s) { json.string(s) }),
+                    ),
+                  ])
+                let next_actions = [
+                  json_output.next_action(
+                    "intent gaps " <> spec_path <> " --json",
+                    "Find coverage gaps",
+                  ),
+                  json_output.next_action(
+                    "intent invert " <> spec_path <> " --json",
+                    "Analyze failure modes",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "analyze_result",
+                    "analyze",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
+              }
+              False -> io.println(quality_analyzer.format_report(report))
+            }
             halt(exit_pass)
           }
           Error(e) -> {
@@ -608,23 +653,30 @@ fn analyze_command() -> glint.Command(Nil) {
       }
       [] -> {
         cli_ui.print_error("spec file path required", mode)
-        io.println("Usage: intent analyze <spec.cue>")
-        io.println("")
-        io.println("Note: 'analyze' is an alias for 'quality' (text output)")
-        io.println("For JSON output, use: intent quality <spec.cue> --json")
+        io.println("Usage: intent analyze <spec.cue> [--json]")
         halt(exit_error)
       }
     }
   })
   |> glint.description(help.format_for_glint(help.analyze_help()))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `improve` command - suggest improvements
 fn improve_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    let mode = output_mode.from_json_flag(is_json)
+
     case input.args {
       [spec_path, ..] -> {
-        case loader.load_spec(spec_path) {
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let quality_report = quality_analyzer.analyze_spec(spec)
             let lint_result = spec_linter.lint_spec(spec)
@@ -635,23 +687,62 @@ fn improve_command() -> glint.Command(Nil) {
                 spec: spec,
               )
             let suggestions = improver.suggest_improvements(context)
-            io.println(improver.format_improvements(suggestions))
+
+            case is_json {
+              True -> {
+                let data =
+                  json.object([
+                    #(
+                      "suggestions",
+                      json.array(suggestions, fn(s) {
+                        json.object([
+                          #("title", json.string(s.title)),
+                          #("description", json.string(s.description)),
+                          #("reasoning", json.string(s.reasoning)),
+                          #("impact_score", json.int(s.impact_score)),
+                        ])
+                      }),
+                    ),
+                    #("suggestion_count", json.int(list.length(suggestions))),
+                  ])
+                let next_actions = [
+                  json_output.next_action(
+                    "intent doctor " <> spec_path <> " --json",
+                    "Get prioritized recommendations",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "improve_result",
+                    "improve",
+                    data,
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
+              }
+              False -> io.println(improver.format_improvements(suggestions))
+            }
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent improve <spec.cue>")
+        cli_ui.print_error("spec file path required", mode)
+        io.println("Usage: intent improve <spec.cue> [--json]")
         halt(exit_error)
       }
     }
   })
   |> glint.description(help.format_for_glint(help.improve_help()))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `doctor` command - health report with prioritized improvements
