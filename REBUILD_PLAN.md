@@ -5,10 +5,10 @@
 Intent CLI is a **complete engineering specification system** that takes you from "I want to build X" all the way down to database schemas, algorithms, security configurations, test cases, and atomic work items. It guides humans and AI through a structured 4-phase process ensuring ZERO ambiguity before implementation.
 
 **What it produces:**
-- Database schemas with exact field types, constraints, and indexes
-- Security configurations (algorithms, cost factors, token expiry)
-- Implementation patterns and anti-patterns
-- Complete test cases with edge cases enumerated
+- Vertical slice architecture with small files (<200 lines) AI can work with
+- Functional programming structure (Result types, pure core, pipelines)
+- Complete test cases with edge cases and property-based tests
+- Implementation patterns and anti-patterns with examples
 - Atomic work items (beads) with all ambiguities resolved
 
 **What it is:**
@@ -356,60 +356,86 @@ After EARS parsing, 6 question categories resolve ALL remaining ambiguity:
 
 // === DEEP AI IMPLEMENTATION HINTS ===
 #AIHints: {
-    // Implementation Stack
-    implementation: {
-        language: string           // "TypeScript", "Go", "Rust"
-        framework: string          // "Express", "Gin", "Axum"
-        database: string           // "PostgreSQL", "MongoDB"
-        patterns: {
-            error_handling: string // "try-catch with typed errors"
-            validation: string     // "zod schemas at controller boundary"
-            auth: string           // "passport-jwt middleware"
+    // Architecture Principles
+    architecture: {
+        style: "vertical_slice" | "clean" | "hexagonal"
+
+        // Vertical Slice: Each feature is self-contained
+        slices: [...{
+            name: string           // "create-user", "delete-item"
+            files: [...string]     // All files for this slice
+            public_api: string     // Single entry point
+        }]
+
+        // File Size Constraints (AI-friendly)
+        constraints: {
+            max_file_lines: int    // Default: 200 lines
+            max_function_lines: int // Default: 30 lines
+            max_parameters: int    // Default: 4
         }
     }
 
-    // Database Schemas with EXACT Types
+    // Functional Programming Principles
+    functional: {
+        // Result types for all fallible operations
+        error_handling: "result_type" | "option_type" | "either"
+
+        // Pure functions at the core
+        patterns: {
+            pure_core: bool        // Business logic is pure
+            imperative_shell: bool // IO at the edges only
+            immutable_data: bool   // No mutation
+            pipeline_style: bool   // |> composition
+        }
+
+        // Type system usage
+        types: {
+            exhaustive_matching: bool  // All cases handled
+            newtype_wrappers: bool     // UserId not String
+            phantom_types: bool        // Compile-time state
+        }
+    }
+
+    // Data Models (structure, not SQL)
     entities: {[string]: {
-        table: string
-        fields: {[string]: string} // field_name: "SQL_TYPE CONSTRAINTS"
-        indexes: [...string]
-        relations?: [...{
+        fields: {[string]: string} // field_name: "Type + constraints description"
+        validations: [...string]   // Business rules for this entity
+        relations: [...{
             to: string
-            type: "one_to_one" | "one_to_many" | "many_to_many"
-            foreign_key: string
+            cardinality: "one" | "many"
         }]
     }}
 
-    // Security Configuration
-    security: {
-        password_hashing: {
-            algorithm: "bcrypt" | "argon2id" | "scrypt"
-            cost_factor?: int      // bcrypt cost or argon2 memory
-            code_example: string   // "await bcrypt.hash(password, 12)"
+    // Test Strategy
+    testing: {
+        unit: {
+            coverage_target: int   // e.g., 80
+            patterns: [...string]  // "property-based", "example-based"
         }
-        jwt: {
-            algorithm: "HS256" | "RS256" | "ES256"
-            expiry_seconds: int
-            refresh_enabled: bool
+        integration: {
+            scope: string          // "vertical slice boundaries"
+            patterns: [...string]
         }
-        rate_limiting?: {
-            requests_per_minute: int
-            burst: int
-        }
+        edge_cases: [...{
+            input: string
+            expected: string
+            rationale: string
+        }]
     }
 
-    // Explicit Pitfalls (What NOT to do)
+    // Explicit Anti-Patterns (What NOT to do)
     pitfalls: [...{
-        mistake: string            // "Returning password field"
-        consequence: string        // "Security breach"
-        prevention: string         // "Exclude in all SELECT queries"
+        mistake: string            // "God object with 50 methods"
+        consequence: string        // "Impossible to test in isolation"
+        prevention: string         // "Split into vertical slices"
     }]
 
-    // Code Patterns
+    // Code Patterns to Follow
     code_patterns: [...{
         name: string
         description: string
         example: string            // Actual code snippet
+        when_to_use: string
     }]
 }
 
@@ -447,99 +473,166 @@ After EARS parsing, 6 question categories resolve ALL remaining ambiguity:
 
 ---
 
-## Example: Deep ai_hints for User API
+## Example: Deep ai_hints for User Management Feature
 
 ```cue
 ai_hints: {
-    implementation: {
-        language: "TypeScript"
-        framework: "Express"
-        database: "PostgreSQL"
+    architecture: {
+        style: "vertical_slice"
+
+        slices: [
+            {
+                name: "create-user"
+                files: [
+                    "src/features/user/create/handler.gleam",    // ~50 lines
+                    "src/features/user/create/validator.gleam",  // ~30 lines
+                    "src/features/user/create/repository.gleam", // ~40 lines
+                    "src/features/user/create/types.gleam",      // ~20 lines
+                ]
+                public_api: "create_user(input: CreateUserInput) -> Result(User, CreateUserError)"
+            },
+            {
+                name: "get-user"
+                files: [
+                    "src/features/user/get/handler.gleam",
+                    "src/features/user/get/repository.gleam",
+                ]
+                public_api: "get_user(id: UserId) -> Result(User, GetUserError)"
+            }
+        ]
+
+        constraints: {
+            max_file_lines: 200
+            max_function_lines: 30
+            max_parameters: 4
+        }
+    }
+
+    functional: {
+        error_handling: "result_type"
+
         patterns: {
-            error_handling: "try-catch with typed errors, never expose stack traces"
-            validation: "zod schemas at controller boundary"
-            auth: "passport-jwt middleware on protected routes"
+            pure_core: true         // All business logic is pure
+            imperative_shell: true  // IO only at edges (main, handlers)
+            immutable_data: true    // No let mut, no reassignment
+            pipeline_style: true    // input |> validate |> transform |> persist
+        }
+
+        types: {
+            exhaustive_matching: true  // Every Result/Option case handled
+            newtype_wrappers: true     // UserId(String), Email(String)
+            phantom_types: false       // Not needed for this scope
         }
     }
 
     entities: {
         User: {
-            table: "users"
             fields: {
-                id: "VARCHAR(20) PRIMARY KEY DEFAULT gen_user_id()"
-                email: "VARCHAR(255) UNIQUE NOT NULL"
-                password_hash: "VARCHAR(60) NOT NULL -- bcrypt output"
-                name: "VARCHAR(100) NOT NULL"
-                created_at: "TIMESTAMPTZ DEFAULT NOW()"
-                updated_at: "TIMESTAMPTZ DEFAULT NOW()"
-                deleted_at: "TIMESTAMPTZ -- soft delete"
+                id: "UserId - prefixed random string, immutable after creation"
+                email: "Email - validated format, unique across system"
+                name: "String - 1-100 chars, trimmed"
+                created_at: "DateTime - set once at creation"
             }
-            indexes: ["email", "created_at"]
-        }
-        Session: {
-            table: "sessions"
-            fields: {
-                id: "VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()"
-                user_id: "VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE CASCADE"
-                token_hash: "VARCHAR(64) NOT NULL"
-                expires_at: "TIMESTAMPTZ NOT NULL"
-                created_at: "TIMESTAMPTZ DEFAULT NOW()"
-            }
-            indexes: ["user_id", "expires_at"]
-            relations: [{
-                to: "User"
-                type: "many_to_one"
-                foreign_key: "user_id"
-            }]
+            validations: [
+                "Email must be valid format",
+                "Name must be 1-100 characters",
+                "Email must be unique (check before insert)"
+            ]
+            relations: [
+                { to: "Session", cardinality: "many" }
+            ]
         }
     }
 
-    security: {
-        password_hashing: {
-            algorithm: "bcrypt"
-            cost_factor: 12
-            code_example: "const hash = await bcrypt.hash(password, 12)"
+    testing: {
+        unit: {
+            coverage_target: 90
+            patterns: ["property-based for validators", "example-based for transformers"]
         }
-        jwt: {
-            algorithm: "HS256"
-            expiry_seconds: 3600
-            refresh_enabled: true
+        integration: {
+            scope: "Each vertical slice tested end-to-end"
+            patterns: ["in-memory repository for speed", "real DB for CI"]
         }
-        rate_limiting: {
-            requests_per_minute: 60
-            burst: 10
-        }
+        edge_cases: [
+            {
+                input: "email with unicode: user@例子.中国"
+                expected: "accepted if unicode emails enabled, rejected otherwise"
+                rationale: "Unicode domain names are valid per RFC 6531"
+            },
+            {
+                input: "empty string email"
+                expected: "Error(ValidationError(EmptyEmail))"
+                rationale: "Email is required, empty is not valid format"
+            },
+            {
+                input: "name with only whitespace"
+                expected: "Error(ValidationError(BlankName))"
+                rationale: "Trimmed length must be >= 1"
+            }
+        ]
     }
 
     pitfalls: [
         {
-            mistake: "Returning password or password_hash in any response"
-            consequence: "Critical security breach, credential exposure"
-            prevention: "SELECT queries must explicitly list columns, never SELECT *"
+            mistake: "God module with all user operations"
+            consequence: "500+ line file, impossible to test in isolation, merge conflicts"
+            prevention: "Split into vertical slices: create/, get/, update/, delete/"
         },
         {
-            mistake: "Using sequential integer IDs for users"
-            consequence: "User enumeration attacks, IDOR vulnerabilities"
-            prevention: "Use prefixed random strings: usr_abc123xyz"
+            mistake: "Business logic mixed with IO"
+            consequence: "Can't unit test without mocking everything"
+            prevention: "Pure core: validate(input) -> Result, then persist at edge"
         },
         {
-            mistake: "Storing plain-text passwords or using weak hashing"
-            consequence: "Mass credential theft if database breached"
-            prevention: "bcrypt with cost factor 12+, never MD5/SHA1"
+            mistake: "Stringly-typed IDs and emails"
+            consequence: "Easy to mix up UserId with SessionId, no compile-time safety"
+            prevention: "Newtype wrappers: type UserId { UserId(String) }"
+        },
+        {
+            mistake: "Ignoring error cases, using unwrap/expect"
+            consequence: "Runtime panics, unclear error messages"
+            prevention: "Exhaustive pattern matching on all Result/Option"
         }
     ]
 
     code_patterns: [
         {
-            name: "User ID Generation"
-            description: "Generate collision-resistant prefixed IDs"
+            name: "Railway-Oriented Pipeline"
+            description: "Chain operations that can fail, short-circuit on first error"
+            when_to_use: "Any multi-step operation where each step can fail"
             example: """
-                function genUserId(): string {
-                    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-                    const random = Array.from({length: 16}, () =>
-                        chars[Math.floor(Math.random() * chars.length)]
-                    ).join('');
-                    return `usr_${random}`;
+                pub fn create_user(input: CreateUserInput, repo: Repository) -> Result(User, CreateUserError) {
+                    input
+                    |> validate_email
+                    |> result.try(validate_name)
+                    |> result.try(check_email_unique(_, repo))
+                    |> result.try(build_user)
+                    |> result.try(persist(_, repo))
+                }
+            """
+        },
+        {
+            name: "Newtype Wrapper"
+            description: "Type-safe wrapper to prevent mixing up String IDs"
+            when_to_use: "Any identifier that could be confused with another"
+            example: """
+                pub type UserId { UserId(String) }
+                pub type SessionId { SessionId(String) }
+
+                // Compile error: can't pass SessionId where UserId expected
+                pub fn get_user(id: UserId) -> Result(User, Error)
+            """
+        },
+        {
+            name: "Pure Validator"
+            description: "Validation as pure function returning Result"
+            when_to_use: "All input validation"
+            example: """
+                pub fn validate_email(input: String) -> Result(Email, ValidationError) {
+                    case string.contains(input, "@") {
+                        True -> Ok(Email(string.trim(input)))
+                        False -> Error(InvalidEmailFormat)
+                    }
                 }
             """
         }
@@ -807,11 +900,11 @@ export <session-id> [--output=plan.cue]
 4. **Vision alignment check** ensures no drift from Phase 1 to Phase 4
 
 ### Engineering Depth
-5. **Database schemas generated** with exact SQL types, constraints, indexes, relations
-6. **Security configurations specified** - algorithm choices, cost factors, expiry times
+5. **Vertical slice architecture** - each feature self-contained with small files (<200 lines)
+6. **Functional programming principles** - pure core, Result types, exhaustive matching, pipelines
 7. **Design by Contract** - every behavior has preconditions, postconditions, invariants
 8. **Zero ambiguity** - Interactive Questioning resolves ALL unclear requirements
-9. **Complete test cases** - edge cases enumerated, failure modes documented
+9. **Complete test cases** - edge cases enumerated, property-based tests where applicable
 
 ### Quality Validation
 10. **5-dimension quality scoring** - Completeness, Consistency, Testability, Clarity, Security
@@ -839,21 +932,31 @@ export <session-id> [--output=plan.cue]
 - **Interactive Questioning** resolves every edge case BEFORE implementation
 - **Beads** are self-contained - all context embedded
 
-### 2. Complete Engineering Depth
-- Not just "what" but "exactly how":
-  - `VARCHAR(255) UNIQUE NOT NULL` not "email field"
-  - `bcrypt cost 12` not "hash passwords"
-  - `TIMESTAMPTZ DEFAULT NOW()` not "timestamp"
-- Test cases generated from postconditions
-- Anti-patterns with bad/good examples
+### 2. AI-Friendly Architecture
+- **Small files** (<200 lines) - fits in AI context window
+- **Vertical slices** - each feature self-contained, easy to understand
+- **Pure functions** - predictable, testable, no hidden state
+- **Explicit types** - UserId not String, compile-time safety
 
-### 3. Mental Model Integration
+### 3. Functional Programming Rigor
+- **Result types** for all fallible operations (no exceptions)
+- **Exhaustive matching** - every case handled at compile time
+- **Pipeline style** - `input |> validate |> transform |> persist`
+- **Pure core / Imperative shell** - IO only at the edges
+
+### 4. Mental Model Integration
 - **Inversion**: "What could fail?" → comprehensive failure modes
 - **Pre-mortem**: "Why did this fail?" → proactive risk mitigation
 - **Second-order**: "What happens after?" → cascade effects handled
 - **Empathy Engine**: "What confuses users?" → friction eliminated
 
-### 4. AI-Native Design
+### 5. Test-First Quality
+- **Property-based tests** for validators and transformers
+- **Edge cases enumerated** in spec before implementation
+- **Vertical slice integration tests** - each feature tested end-to-end
+- **Anti-patterns documented** with bad/good examples
+
+### 6. AI-Native Design
 - **Token efficiency**: CIN format for 50% reduction
 - **Structured prompts**: Beads → implementation without hallucination
 - **next_actions**: AI knows exactly what to do next
@@ -948,10 +1051,31 @@ export <session-id> [--output=plan.cue]
 | Toposort | Kahn's algorithm for dependency ordering |
 | CIN | Compact Intent Notation - 50% token reduction format |
 
-### AI Hints
+### AI Hints (Architecture & Code Quality)
 | Term | Definition |
 |------|------------|
-| ai_hints.entities | Database schemas with exact SQL types, constraints, indexes |
-| ai_hints.security | Algorithm choices, cost factors, token expiry |
-| ai_hints.implementation | Language, framework, database, patterns |
-| ai_hints.pitfalls | Mistake + consequence + prevention |
+| ai_hints.architecture | Vertical slice structure, file constraints, public APIs |
+| ai_hints.functional | FP principles - Result types, pure core, pipeline style |
+| ai_hints.entities | Data models with fields, validations, relations |
+| ai_hints.testing | Coverage targets, patterns, edge cases |
+| ai_hints.pitfalls | Architectural mistake + consequence + prevention |
+| ai_hints.code_patterns | Named patterns with examples and when to use |
+
+### Functional Programming
+| Term | Definition |
+|------|------------|
+| Result Type | `Result(Ok, Error)` - explicit success/failure, no exceptions |
+| Pure Function | Same input always produces same output, no side effects |
+| Pure Core / Imperative Shell | Business logic pure, IO only at edges |
+| Pipeline Style | `input \|> step1 \|> step2 \|> step3` composition |
+| Exhaustive Matching | Every case in sum type must be handled |
+| Newtype Wrapper | `type UserId { UserId(String) }` - compile-time safety |
+| Railway-Oriented | Chain Result-returning functions, short-circuit on error |
+
+### Architecture
+| Term | Definition |
+|------|------------|
+| Vertical Slice | Feature-organized code - all files for one feature together |
+| Small Files | <200 lines per file - AI-friendly, easy to understand |
+| Public API | Single entry point per slice - clean boundaries |
+| Feature Boundary | Clear separation between features, minimal coupling |
