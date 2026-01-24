@@ -17,11 +17,10 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 
 ## Commands
 ```jsonl
-{"cmd":"check","args":"<spec> [--target URL] [--json]","desc":"run spec against API"}
-{"cmd":"plan","args":"<spec> [--json] [--rounds 1..5]","desc":"health + waves + beads"}
+{"cmd":"check","args":"<spec> [--target=URL] [--json=true]","desc":"run spec against API"}
+{"cmd":"plan","args":"<session-id> [--format=json]","desc":"display execution plan from session beads"}
 {"cmd":"doctor","args":"<spec>","desc":"prioritized improvements"}
-{"cmd":"prompt","args":"<spec> [--bead ID] [--profile ai] [--format cin]","desc":"AI-ready prompts"}
-{"cmd":"beads","args":"<spec|--session ID>","desc":"generate work items"}
+{"cmd":"beads","args":"<session-id>","desc":"generate work items from interview session"}
 {"cmd":"feedback","args":"<spec> --results <json>","desc":"failures → fix beads"}
 {"cmd":"interview","args":"<profile> [--resume ID] [--export spec.cue]","desc":"guided spec discovery"}
 {"cmd":"validate","args":"<spec>","desc":"CUE syntax check"}
@@ -133,10 +132,7 @@ Intent owns Plan phase. All work decomposition flows from CUE specs.
 
 ### Bead-to-Prompt Pipeline
 ```jsonl
-{"cmd":"intent prompt --bead <id>","desc":"bead-specific context"}
-{"cmd":"intent prompt <spec> --profile ai","desc":"full spec + AI hints"}
-{"cmd":"intent prompt <spec> --format cin","desc":"compact notation"}
-{"cmd":"intent prompt <spec> --behavior <name>","desc":"single behavior"}
+[NOTE: 'prompt' command not yet implemented - planned feature for AI context generation]
 ```
 
 ### Action JSON Schema
