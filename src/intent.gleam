@@ -4394,6 +4394,30 @@ fn parse_command() -> glint.Command(Nil) {
                     next_actions,
                   )
                 json_output.output(response)
+
+                // Write to output file if specified (JSON mode)
+                case output_file {
+                  "" -> Nil
+                  path -> {
+                    let spec_name = case string.split(path, "/") {
+                      [] -> "GeneratedSpec"
+                      parts ->
+                        case list.last(parts) {
+                          Ok(filename) ->
+                            case string.split(filename, ".") {
+                              [name, ..] -> name
+                              [] -> "GeneratedSpec"
+                            }
+                          Error(_) -> "GeneratedSpec"
+                        }
+                    }
+                    let cue_output = ears_parser.to_cue(result, spec_name)
+                    case simplifile.write(path, cue_output) {
+                      Ok(_) -> Nil
+                      Error(_) -> Nil
+                    }
+                  }
+                }
               }
               False -> {
                 // Print parsing progress
