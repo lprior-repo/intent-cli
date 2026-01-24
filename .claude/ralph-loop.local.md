@@ -169,3 +169,13 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Uses exit code 4 (usage error) consistently
 - All 1689 tests passing
 - Commit: 0107c5b
+
+### ITERATION 21 - COMPLETE ✅
+- Fixed `intent-cli-erx0`: Security validation errors now return exit 3 instead of exit 4
+- Changed security.validate_url error handling to use exit_invalid (3) not exit_error (4)
+- Invalid URL format → exit 3 (invalid input, not usage error)
+- SSRF attempts → exit 3 (invalid input, not usage error)
+- Missing --target flag → still exit 4 (correct - usage error)
+- CI/CD scripts can now distinguish input errors from usage errors
+- All 1689 tests passing
+- Commit: 1974699
