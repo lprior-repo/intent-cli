@@ -3236,13 +3236,13 @@ fn diff_command() -> glint.Command(Nil) {
         case interview_storage.get_session_from_jsonl(jsonl_path, from_id) {
           Error(err) -> {
             cli_ui.print_error("Failed to load 'from' session: " <> err, mode)
-            halt(exit_error)
+            halt(exit_invalid)
           }
           Ok(from_session) -> {
             case interview_storage.get_session_from_jsonl(jsonl_path, to_id) {
               Error(err) -> {
                 cli_ui.print_error("Failed to load 'to' session: " <> err, mode)
-                halt(exit_error)
+                halt(exit_invalid)
               }
               Ok(to_session) -> {
                 // Compute and display diff
