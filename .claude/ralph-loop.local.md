@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 19
+iteration: 17
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -132,3 +132,12 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Both commands have full JSON output with next_actions
 - No code changes needed - bead was already mostly complete
 - All 1689 tests passing
+
+### ITERATION 17 - COMPLETE ✅
+- Fixed `intent-cli-yh4z`: Added INTENT_TARGET_URL environment variable fallback
+- check command now uses env var when --target flag not provided
+- Flag takes precedence over env var (backward compatible)
+- Updated help text with env var documentation and example
+- Enhanced error message to show both options
+- All 1689 tests passing
+- Commit: 048257f
