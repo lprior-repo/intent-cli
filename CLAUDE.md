@@ -15,23 +15,55 @@ Contract-driven API testing in Gleam. CUE specs → HTTP tests → verification.
 ```
 CRITICAL: Never bare `bv` - launches blocking TUI.
 
-## Commands
+## Commands (24 total)
+
+**Core Spec Operations** (5):
 ```jsonl
-{"cmd":"check","args":"<spec> [--target=URL] [--json=true]","desc":"run spec against API"}
-{"cmd":"plan","args":"<session-id> [--format=json]","desc":"display execution plan from session beads"}
-{"cmd":"doctor","args":"<spec>","desc":"prioritized improvements"}
-{"cmd":"beads","args":"<session-id>","desc":"generate work items from interview session"}
-{"cmd":"feedback","args":"<spec> --results <json>","desc":"failures → fix beads"}
-{"cmd":"interview","args":"<profile> [--resume ID] [--export spec.cue]","desc":"guided spec discovery"}
 {"cmd":"validate","args":"<spec>","desc":"CUE syntax check"}
+{"cmd":"check","args":"<spec> [--target=URL] [--json=true]","desc":"run spec against API"}
+{"cmd":"analyze","args":"<spec>","desc":"quality scoring (alias for quality)"}
 {"cmd":"lint","args":"<spec>","desc":"anti-pattern detection"}
-{"cmd":"analyze","args":"<spec>","desc":"quality scoring"}
 {"cmd":"improve","args":"<spec>","desc":"improvement suggestions"}
-{"cmd":"coverage","args":"<spec>","desc":"OWASP + edge case coverage"}
-{"cmd":"invert","args":"<spec>","desc":"failure mode analysis"}
-{"cmd":"gaps","args":"<spec>","desc":"mental model gap detection"}
-{"cmd":"effects","args":"<spec>","desc":"second-order effects"}
-{"cmd":"ears","args":"<file>","desc":"parse EARS requirements"}
+```
+
+**KIRK Analysis** (6):
+```jsonl
+{"cmd":"quality","args":"<spec> [--json=true]","desc":"quality scoring (5 dimensions)"}
+{"cmd":"coverage","args":"<spec> [--json=true]","desc":"OWASP + edge case coverage"}
+{"cmd":"gaps","args":"<spec> [--json=true]","desc":"mental model gap detection"}
+{"cmd":"invert","args":"<spec> [--json=true]","desc":"failure mode analysis"}
+{"cmd":"effects","args":"<spec> [--json=true]","desc":"second-order effects"}
+{"cmd":"ears","args":"<file> [--output=cue|json]","desc":"parse EARS requirements"}
+```
+
+**Interview Workflow** (5):
+```jsonl
+{"cmd":"interview","args":"<profile> [--resume=ID] [--export=spec.cue]","desc":"guided spec discovery"}
+{"cmd":"sessions","args":"[--profile=api|cli]","desc":"list interview sessions"}
+{"cmd":"history","args":"","desc":"show interview snapshots"}
+{"cmd":"diff","args":"<session-id1> <session-id2>","desc":"compare interview sessions"}
+{"cmd":"export","args":"<session-id> [--output=spec.cue]","desc":"export session to CUE spec"}
+```
+
+**Beads/Planning** (5):
+```jsonl
+{"cmd":"beads","args":"<spec|--session=ID> [--json=true]","desc":"generate work items"}
+{"cmd":"beads-regenerate","args":"<spec>","desc":"regenerate beads from spec"}
+{"cmd":"bead-status","args":"<spec>","desc":"show bead completion status"}
+{"cmd":"plan","args":"<spec> [--json=true] [--rounds=1..5]","desc":"health + waves + beads"}
+{"cmd":"plan-approve","args":"<session-id>","desc":"approve execution plan"}
+```
+
+**Parsing** (2):
+```jsonl
+{"cmd":"parse","args":"<requirements.md>","desc":"quick EARS validation"}
+{"cmd":"ears","args":"<file> [--output=cue|json]","desc":"detailed EARS analysis"}
+```
+
+**Utilities** (2):
+```jsonl
+{"cmd":"doctor","args":"<spec> [--json=true]","desc":"prioritized improvements"}
+{"cmd":"show","args":"<spec>","desc":"display spec details"}
 ```
 
 ## Key Files

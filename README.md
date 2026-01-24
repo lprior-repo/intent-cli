@@ -191,6 +191,54 @@ intent quality api.cue        # Same text output as analyze
 intent quality api.cue --json # Machine-readable scores
 ```
 
+## Exit Codes
+
+Intent CLI uses semantic exit codes to enable machine-readable error handling:
+
+| Code | Meaning | Use Cases | CI/CD Action |
+|------|---------|-----------|--------------|
+| 0 | Success | Spec valid, tests pass, analysis complete | Continue pipeline |
+| 1 | General failure | Tests failed, linting warnings found | Fail pipeline, review needed |
+| 2 | Blocked behaviors | Check command found blocked behaviors | Investigate blocking issues |
+| 3 | Invalid input | File not found, CUE parse error | Fix file path or syntax |
+| 4 | Usage error | Missing required args, invalid flags | Fix command invocation |
+
+**Examples**:
+
+```bash
+# Success (exit 0)
+intent validate api.cue && echo "Valid spec"
+
+# General failure (exit 1)
+intent quality api.cue || echo "Quality issues found"
+
+# Invalid input (exit 3)
+intent validate missing.cue || echo "File not found or invalid"
+
+# Usage error (exit 4)
+intent check || echo "Missing required spec argument"
+```
+
+**CI/CD Integration**:
+
+```yaml
+# GitHub Actions example
+- name: Validate API spec
+  run: intent validate api.cue
+  # Fails pipeline on exit code 1, 2, 3, or 4
+
+- name: Quality check (non-blocking)
+  run: intent quality api.cue || true
+  # Continue pipeline even on failure
+
+- name: Check for blocked behaviors
+  run: |
+    intent check api.cue --target=${{ secrets.API_URL }}
+    if [ $? -eq 2 ]; then
+      echo "::warning::Blocked behaviors detected"
+    fi
+```
+
 ## Project Structure
 
 ```
