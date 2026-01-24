@@ -620,7 +620,7 @@ pub fn export_help() -> CommandHelp {
     category: Core,
   )
   |> with_long_desc(
-    "Exports the CUE specification to JSON format. Useful for integration with other tools or for debugging spec structure.\n\nNote: Output is written to stdout. There is no --output flag. Use shell redirection (>) or pipe (|) to save or process the JSON.",
+    "Exports the CUE specification to JSON format. Useful for integration with other tools or for debugging spec structure.\n\nNote: This exports SPEC FILES to JSON. To export an interview session to a spec, use: intent interview --resume <session-id> --export <spec.cue>\n\nOutput is written to stdout. There is no --output flag. Use shell redirection (>) or pipe (|) to save or process the JSON.",
   )
   |> with_usage("intent export <spec.cue>")
   |> with_arg("spec.cue", "Path to the CUE specification file")
@@ -820,7 +820,7 @@ pub fn history_help() -> CommandHelp {
     category: Interview,
   )
   |> with_long_desc(
-    "Shows the history of snapshots taken during an interview session, including timestamps, stages, and answer counts.",
+    "Shows the history of snapshots taken during an interview session, including timestamps, stages, and answer counts.\n\nNote: This command requires a session ID (e.g., 'interview-FDCB25A5-3F55-3D02-5823-2A90B9C307F6'), not a spec file path. To see available session IDs, run: intent sessions [--profile=api|cli]",
   )
   |> with_usage("intent history <session-id>")
   |> with_arg("session-id", "Interview session ID")
@@ -835,7 +835,7 @@ pub fn diff_help() -> CommandHelp {
     category: Interview,
   )
   |> with_long_desc(
-    "Compares two interview sessions and displays the differences in answers, gaps, conflicts, and stage progression.",
+    "Compares two interview sessions and displays the differences in answers, gaps, conflicts, and stage progression.\n\nNote: This command requires session IDs (e.g., 'interview-FDCB25A5-3F55-3D02-5823-2A90B9C307F6'), not spec file paths. To see available session IDs, run: intent sessions [--profile=api|cli]",
   )
   |> with_usage("intent diff <from-session> <to-session>")
   |> with_arg("from-session", "First session ID to compare")
