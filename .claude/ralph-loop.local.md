@@ -475,3 +475,62 @@ accurate. Build size reasonable for a CLI tool with 54 source modules.
 **Conclusion**:
 Build output quality excellent. Incremental compilation functioning
 properly. Quality plateau continues.
+
+## Iteration 17 Summary
+
+**Status**: Git Repository Health & History Analysis
+**Beads**: 1 open (intent-cli-g3lc - HIGH complexity, deferred)
+**Tests**: 1686/1686 passing
+
+**Actions Taken**:
+1. Analyzed git repository size - 165MB total
+2. Counted git objects - 7817 in pack, 1752 loose
+3. Identified largest files in history
+4. Checked .gitignore completeness
+5. Verified tracked vs ignored file status
+6. Analyzed recent commit activity (7 days)
+7. Checked for uncommitted/untracked files
+
+**Repository Metrics**:
+- Total .git size: 165MB
+- Pack files: 143MB (4 packs)
+- Loose objects: 18.88MB (1752 objects)
+- Garbage: 0 bytes (clean)
+- Recent commits (7 days): 284
+
+**Commit Activity**:
+- Intent CLI (bot): 208 commits
+- Lewis Prior: 63 commits
+- Lewis.Prior: 8 commits
+- lprior-repo: 3 commits
+- Test: 2 commits
+
+**Repository Bloat Identified**:
+- **.moon/cache/outputs/**: 86 tar.gz files (~112MB on disk)
+  - Status: In .gitignore BUT 236 files still tracked in history
+  - Largest: Multiple 4.1-4.2MB cache tarballs
+  - Issue: Added to .gitignore after files were committed
+- **meal-planner-api binary**: 17MB in history
+  - Status: Not in working tree (removed), still in history
+  - Impact: Bloating repository by 17MB
+
+**Repository Health**:
+- No uncommitted changes
+- No garbage objects
+- Prune-packable: 240 objects (minor cleanup opportunity)
+- .gitignore comprehensive (includes .moon/, build/, .interview/, etc.)
+- Active development (284 commits in 7 days)
+
+**Findings**:
+Repository functional but contains historical bloat from .moon cache
+files (112MB) and deleted binaries (17MB). These were committed before
+.gitignore rules added. Total bloat: ~129MB in git history.
+
+**Note**:
+Removing these from history would require git filter-repo or BFG
+Repo-Cleaner, which rewrites history and requires force-push. This is
+a maintenance task but not critical for functionality.
+
+**Conclusion**:
+Repository health good despite historical bloat. .gitignore rules
+correct going forward. Quality plateau continues.
