@@ -132,7 +132,33 @@ intent ears <requirements.md> --output cue   # Parse EARS to CUE
 gleam build
 
 # Run
-gleam run -- check examples/user-api.cue --target http://localhost:8080
+gleam run -- check examples/user-api.cue --target=http://localhost:8080
+```
+
+## Common Issues
+
+### Flag Syntax
+
+**IMPORTANT**: All flags require `--flag=value` syntax (with equals sign), not `--flag value`.
+
+```bash
+# ✅ CORRECT
+intent check api.cue --target=https://api.com
+intent interview --profile=api --cue=true
+intent quality api.cue --json=true
+
+# ❌ WRONG
+intent check api.cue --target https://api.com
+intent interview --profile api
+intent quality api.cue --json
+```
+
+**Why**: The CLI uses Glint which only supports the `=` syntax. Using spaces will cause "flag has no assigned value" errors.
+
+**Tip**: Boolean flags can omit the value if true:
+```bash
+intent check api.cue --json           # Same as --json=true
+intent interview --cue                # Same as --cue=true
 ```
 
 ## Project Structure
