@@ -2,6 +2,7 @@
 /// Contract-driven API testing tool
 import argv
 import gleam/dict
+import gleam/dynamic
 import gleam/io
 import gleam/json
 import gleam/list
@@ -29,6 +30,7 @@ import intent/list_limits
 import intent/loader
 import intent/output
 import intent/output_mode
+import intent/parser
 import intent/plan_mode
 import intent/quality_analyzer
 import intent/question_types.{type Question}
@@ -597,11 +599,50 @@ fn show_command() -> glint.Command(Nil) {
               loader.export_spec_json(spec_path, loader.default_cue_exporter)
             {
               Ok(json_str) -> {
-                io.println(json_str)
-                halt(exit_pass)
+                // Parse the spec JSON string to embed as data
+                case json.decode(json_str, dynamic.dynamic) {
+                  Ok(spec_json) -> {
+                    let next_actions = [
+                      json_output.next_action(
+                        "intent check " <> spec_path <> " --target=URL",
+                        "Test spec against API",
+                      ),
+                      json_output.next_action(
+                        "intent quality " <> spec_path <> " --json",
+                        "Analyze spec quality",
+                      ),
+                    ]
+                    let response =
+                      json_output.success(
+                        "show_result",
+                        "show",
+                        parser.dynamic_to_json(spec_json),
+                        Some(spec_path),
+                        next_actions,
+                      )
+                    json_output.output(response)
+                    halt(exit_pass)
+                  }
+                  Error(_) -> {
+                    // Fallback: shouldn't happen since export_spec_json produces valid JSON
+                    io.println_error("Error: failed to parse exported spec JSON")
+                    halt(exit_error)
+                  }
+                }
               }
               Error(e) -> {
-                io.println_error("Error: " <> loader.format_error(e))
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "show_failed",
+                    "show",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_error,
+                  )
+                json_output.output(response)
                 halt(exit_error)
               }
             }
@@ -620,8 +661,25 @@ fn show_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent show <spec.cue> [--json]")
+        case is_json {
+          True -> {
+            let response =
+              json_output.failure(
+                "show_failed",
+                "show",
+                json.null(),
+                [json_output.error("usage_error", "spec file path required")],
+                None,
+                [],
+                exit_error,
+              )
+            json_output.output(response)
+          }
+          False -> {
+            io.println_error("Error: spec file path required")
+            io.println_error("Usage: intent show <spec.cue> [--json]")
+          }
+        }
         halt(exit_error)
       }
     }
