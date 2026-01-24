@@ -161,6 +161,36 @@ intent check api.cue --json           # Same as --json=true
 intent interview --cue                # Same as --cue=true
 ```
 
+### Command Aliases and Differences
+
+**parse vs ears** - Both parse EARS requirements but serve different purposes:
+
+```bash
+# parse: Quick validation with pattern counts
+intent parse requirements.md
+# Output: ✓ Parsed 5 ubiquitous requirements, ✓ Parsed 3 event-driven requirements...
+
+# ears: Detailed analysis with multiple output formats
+intent ears requirements.md               # Detailed box format
+intent ears requirements.md --output=cue  # Generate CUE spec
+intent ears requirements.md --output=json # Machine-readable output
+```
+
+**When to use**:
+- `parse`: Quick validation during editing, see pattern distribution
+- `ears`: Full analysis, generating specs, or detailed requirement review
+
+**analyze vs quality** - Identical output, different flags:
+
+```bash
+# analyze: Text output only (alias for quality)
+intent analyze api.cue
+
+# quality: Supports JSON output
+intent quality api.cue        # Same text output as analyze
+intent quality api.cue --json # Machine-readable scores
+```
+
 ## Project Structure
 
 ```
