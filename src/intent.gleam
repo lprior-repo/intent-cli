@@ -2357,7 +2357,7 @@ fn beads_command() -> glint.Command(Nil) {
         {
           Error(err) -> {
             io.println_error("Error: " <> err)
-            halt(exit_error)
+            halt(exit_invalid)
           }
           Ok(session) -> {
             // Generate beads from session
