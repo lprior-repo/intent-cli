@@ -1,6 +1,6 @@
 ---
 active: false
-iteration: 27
+iteration: 28
 max_iterations: 30
 completion_promise: "Natural completion point reached - all systematic improvements complete"
 started_at: "2026-01-24T05:36:16Z"
@@ -231,3 +231,12 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Tested both flag and env var - both correctly bypass SSRF protection for local development
 - No code changes needed - feature complete
 - All 1689 tests passing
+
+### ITERATION 27 - COMPLETE ✅
+- Fixed `intent-cli-bb27`: Add command alias hints to related commands
+- parse command now shows: "Hint: For detailed EARS analysis with pattern breakdown, use: intent ears <file>"
+- analyze command now shows: "Note: 'analyze' is an alias for 'quality' command"
+- Hints only appear in text mode (human users), not JSON mode (AI agents)
+- Helps users discover more powerful commands and understand relationships
+- All 1689 tests passing
+- Commit: b7d7cda
