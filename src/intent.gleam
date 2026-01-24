@@ -800,7 +800,21 @@ fn improve_command() -> glint.Command(Nil) {
                   )
                 json_output.output(response)
               }
-              False -> io.println(improver.format_improvements(suggestions))
+              False -> {
+                io.println(improver.format_improvements(suggestions))
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent doctor "
+                  <> spec_path
+                  <> " - Get prioritized recommendations",
+                )
+                io.println(
+                  "  • intent check "
+                  <> spec_path
+                  <> " --target=URL - Test improvements",
+                )
+              }
             }
             halt(exit_pass)
           }
@@ -838,7 +852,21 @@ fn doctor_command() -> glint.Command(Nil) {
             let report = doctor.run_doctor(spec)
             case is_json {
               True -> doctor.json_output(report, spec_path)
-              False -> doctor.print_report(report, output_mode.Interactive)
+              False -> {
+                doctor.print_report(report, output_mode.Interactive)
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent improve "
+                  <> spec_path
+                  <> " - Get detailed improvement suggestions",
+                )
+                io.println(
+                  "  • intent check "
+                  <> spec_path
+                  <> " --target=URL - Test current state",
+                )
+              }
             }
             halt(exit_pass)
           }
@@ -3210,7 +3238,19 @@ fn kirk_quality_command() -> glint.Command(Nil) {
                   )
                 json_output.output(response)
               }
-              False -> io.println(quality_analyzer.format_report(report))
+              False -> {
+                io.println(quality_analyzer.format_report(report))
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent gaps " <> spec_path <> " - Find coverage gaps",
+                )
+                io.println(
+                  "  • intent invert "
+                  <> spec_path
+                  <> " - Analyze failure modes",
+                )
+              }
             }
             halt(exit_pass)
           }
@@ -3313,7 +3353,21 @@ fn kirk_invert_command() -> glint.Command(Nil) {
                   )
                 json_output.output(response)
               }
-              False -> io.println(inversion_checker.format_report(report))
+              False -> {
+                io.println(inversion_checker.format_report(report))
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent coverage "
+                  <> spec_path
+                  <> " - Check OWASP coverage",
+                )
+                io.println(
+                  "  • intent effects "
+                  <> spec_path
+                  <> " - Analyze second-order effects",
+                )
+              }
             }
             halt(exit_pass)
           }
@@ -3426,7 +3480,19 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
                   )
                 json_output.output(response)
               }
-              False -> io.println(coverage_analyzer.format_report(report))
+              False -> {
+                io.println(coverage_analyzer.format_report(report))
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent gaps " <> spec_path <> " - Detect mental model gaps",
+                )
+                io.println(
+                  "  • intent quality "
+                  <> spec_path
+                  <> " - Check overall quality",
+                )
+              }
             }
             halt(exit_pass)
           }
@@ -3538,7 +3604,19 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
                   )
                 json_output.output(response)
               }
-              False -> io.println(gap_detector.format_report(report))
+              False -> {
+                io.println(gap_detector.format_report(report))
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent doctor " <> spec_path <> " - Get prioritized fixes",
+                )
+                io.println(
+                  "  • intent improve "
+                  <> spec_path
+                  <> " - Get actionable suggestions",
+                )
+              }
             }
             halt(exit_pass)
           }
@@ -3614,6 +3692,16 @@ fn kirk_effects_command() -> glint.Command(Nil) {
               }
               False -> {
                 io.println(effects_analyzer.format_report(report))
+                io.println("")
+                io.println("Next steps:")
+                io.println(
+                  "  • intent doctor " <> spec_path <> " - Get prioritized fixes",
+                )
+                io.println(
+                  "  • intent check "
+                  <> spec_path
+                  <> " --target=URL - Test against API",
+                )
               }
             }
 
