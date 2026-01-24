@@ -84,7 +84,7 @@ pub fn normalize_value_with_equals_test() {
 pub fn normalize_real_world_example_test() {
   [
     "check",
-    "examples/pokemon-api.cue",
+    "examples/user-api.cue",
     "--target",
     "http://localhost:8080",
     "--json",
@@ -93,7 +93,7 @@ pub fn normalize_real_world_example_test() {
   |> intent.normalize_flag_syntax
   |> should.equal([
     "check",
-    "examples/pokemon-api.cue",
+    "examples/user-api.cue",
     "--target=http://localhost:8080",
     "--json",
     "--verbose=false",
