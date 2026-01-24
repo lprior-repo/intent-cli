@@ -179,3 +179,13 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - CI/CD scripts can now distinguish input errors from usage errors
 - All 1689 tests passing
 - Commit: 1974699
+
+### ITERATION 22 - COMPLETE ✅
+- Fixed `intent-cli-o6c7`: plan command now detects file paths and shows helpful error
+- Detects when session_id contains "/" or ends with ".cue" (file path pattern)
+- Before: "Expected file: .intent/session-examples/user-api.cue.cue" (confusing double extension)
+- After: Clear error explaining plan requires session ID, not spec file path
+- Suggests "intent sessions" to see available IDs
+- Fallback to original error for valid session ID formats
+- All 1689 tests passing
+- Commit: 6391b99
