@@ -125,6 +125,103 @@ intent gaps <spec.cue>        # Gap detection via mental models
 intent ears <requirements.md> --output cue   # Parse EARS to CUE
 ```
 
+## Workflows
+
+### AI-Driven Spec Analysis Pipeline
+
+When analyzing a spec (either for initial review or continuous improvement), follow this progressive workflow:
+
+```bash
+# 1. Syntax Validation (exit 0 = valid)
+intent validate api.cue
+
+# 2. Quality Baseline (get overall scores)
+intent quality api.cue --json=true
+
+# 3. Coverage Analysis (OWASP Top 10 + edge cases)
+intent coverage api.cue --json=true
+
+# 4. Gap Detection (mental model gaps)
+intent gaps api.cue --json=true
+
+# 5. Prioritized Fixes (actionable improvements)
+intent doctor api.cue --json=true
+
+# 6. Detailed Suggestions (specific fixes)
+intent improve api.cue
+```
+
+**Why This Order?**
+
+1. **validate**: Fast syntax check before deeper analysis
+2. **quality**: Establishes baseline scores across 5 dimensions
+3. **coverage**: Identifies security and edge case coverage gaps
+4. **gaps**: Uses mental models to find missing requirements
+5. **doctor**: Prioritizes all findings by impact
+6. **improve**: Provides specific, actionable suggestions
+
+**Machine-Readable Mode**:
+
+All commands support `--json=true` for programmatic processing. JSON output includes:
+- Structured data (scores, findings, gaps)
+- `next_actions` array with suggested follow-up commands
+- Consistent exit codes for CI/CD integration
+
+**Human-Readable Mode**:
+
+Omit `--json` flag for formatted text output with:
+- Color-coded sections
+- Next-step suggestions
+- Related command hints
+
+**Example: Full Analysis Script**
+
+```bash
+#!/bin/bash
+SPEC="api.cue"
+
+# Run analysis pipeline
+intent validate $SPEC || exit 3
+intent quality $SPEC --json=true > quality.json
+intent coverage $SPEC --json=true > coverage.json
+intent gaps $SPEC --json=true > gaps.json
+intent doctor $SPEC --json=true > doctor.json
+
+# Parse results (example with jq)
+jq '.data.overall_score' quality.json
+jq '.data.security_coverage' coverage.json
+jq '.data.gap_count' gaps.json
+jq '.data.recommendations[0]' doctor.json
+```
+
+### Spec Execution Workflow
+
+```bash
+# 1. Validate spec structure
+intent validate api.cue
+
+# 2. Check spec against target API
+intent check api.cue --target=https://api.example.com
+
+# 3. On failures, get improvement suggestions
+intent doctor api.cue
+
+# 4. After fixes, verify quality improved
+intent quality api.cue
+```
+
+**Environment Variables**:
+
+```bash
+# Set default target URL
+export INTENT_TARGET_URL=https://api.staging.example.com
+intent check api.cue  # Uses INTENT_TARGET_URL automatically
+
+# Allow localhost for development
+export INTENT_ALLOW_LOCALHOST=true
+intent check api.cue --target=http://localhost:8080
+```
+
 ## Installation
 
 ```bash
