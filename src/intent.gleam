@@ -2482,29 +2482,55 @@ fn beads_command() -> glint.Command(Nil) {
 /// Mark a bead with execution status (success/failed/blocked)
 fn bead_status_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let bead_id =
-      flag.get_string(input.flags, "bead-id")
-      |> result.unwrap("")
-
-    let status =
-      flag.get_string(input.flags, "status")
-      |> result.unwrap("")
-
-    let reason =
-      flag.get_string(input.flags, "reason")
-      |> result.unwrap("")
-
-    let session_id =
-      flag.get_string(input.flags, "session")
-      |> result.unwrap("")
-
-    case string.is_empty(bead_id) {
-      True -> {
+    // Check for unexpected arguments (common mistake: passing spec file)
+    case input.args {
+      [arg, ..] -> {
         io.println_error(
-          "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+          "Error: bead-status updates individual bead execution status, not specs",
+        )
+        io.println_error("")
+        io.println_error("Got unexpected argument: " <> arg)
+        io.println_error("")
+        io.println_error("Did you mean:")
+        io.println_error(
+          "  • intent beads <session-id> --json=true  (generate beads from session)",
+        )
+        io.println_error(
+          "  • bd list --status=open                  (view bead statuses)",
+        )
+        io.println_error("")
+        io.println_error(
+          "Or to mark a bead complete, use flags not arguments:",
+        )
+        io.println_error(
+          "  intent bead-status --bead-id <id> --status success",
         )
         halt(exit_error)
       }
+      [] -> {
+        let bead_id =
+          flag.get_string(input.flags, "bead-id")
+          |> result.unwrap("")
+
+        let status =
+          flag.get_string(input.flags, "status")
+          |> result.unwrap("")
+
+        let reason =
+          flag.get_string(input.flags, "reason")
+          |> result.unwrap("")
+
+        let session_id =
+          flag.get_string(input.flags, "session")
+          |> result.unwrap("")
+
+        case string.is_empty(bead_id) {
+          True -> {
+            io.println_error(
+              "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+            )
+            halt(exit_error)
+          }
       False -> {
         case status {
           "success" -> {
@@ -2596,6 +2622,8 @@ fn bead_status_command() -> glint.Command(Nil) {
             halt(exit_error)
           }
         }
+      }
+    }
       }
     }
   })
