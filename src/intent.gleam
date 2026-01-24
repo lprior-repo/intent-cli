@@ -3149,7 +3149,23 @@ fn kirk_quality_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e), mode)
+            case is_json {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "quality_check_failed",
+                    "quality",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> cli_ui.print_error(loader.format_error(e), mode)
+            }
             halt(exit_invalid)
           }
         }
@@ -3236,7 +3252,23 @@ fn kirk_invert_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e), mode)
+            case is_json {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "invert_check_failed",
+                    "invert",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> cli_ui.print_error(loader.format_error(e), mode)
+            }
             halt(exit_invalid)
           }
         }
@@ -3333,7 +3365,23 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e), mode)
+            case is_json {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "coverage_check_failed",
+                    "coverage",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> cli_ui.print_error(loader.format_error(e), mode)
+            }
             halt(exit_invalid)
           }
         }
@@ -3429,7 +3477,23 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e), mode)
+            case is_json {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "gaps_check_failed",
+                    "gaps",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> cli_ui.print_error(loader.format_error(e), mode)
+            }
             halt(exit_invalid)
           }
         }
@@ -3490,7 +3554,23 @@ fn kirk_effects_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            cli_ui.print_error(loader.format_error(e), mode)
+            case is_json {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "effects_check_failed",
+                    "effects",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> cli_ui.print_error(loader.format_error(e), mode)
+            }
             halt(exit_invalid)
           }
         }
