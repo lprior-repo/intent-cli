@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 18
+iteration: 19
 max_iterations: unlimited
 completion_promise: none
 started_at: "2026-01-24T04:00:10Z"
@@ -15,5 +15,14 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - 1 P1 bug fixed (EARS validation)
 - 4 commits, all tests green
 
-### ITERATION 18 - IN PROGRESS
-Working on remaining P0/P1 AI UX improvements
+### ITERATION 18 - COMPLETE ✅
+- Fixed `intent-cli-gp87`: JSON output consistency in all KIRK commands
+- All commands now output JSON when --json flag is true (quality, coverage, gaps, invert, effects)
+- Commit: a401f09
+- All 1689 tests passing
+
+### ITERATION 19 - IN PROGRESS
+Working on `intent-cli-hprm`: AI workflow guidance (P0)
+- Make CLI self-documenting for AI agents
+- Add next_actions to all commands
+- Provide workflow context and guidance
