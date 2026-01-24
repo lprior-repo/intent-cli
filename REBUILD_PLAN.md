@@ -354,67 +354,127 @@ After EARS parsing, 6 question categories resolve ALL remaining ambiguity:
     why_bad: string
 }
 
-// === DEEP AI IMPLEMENTATION HINTS ===
+// === DEEP AI IMPLEMENTATION HINTS (Fowler-Style Domain Modeling) ===
 #AIHints: {
-    // Architecture Principles
+    // Domain Model Structure
+    domain: {
+        // Bounded Context
+        context_name: string       // "UserManagement", "Ordering"
+        ubiquitous_language: {[string]: string}  // Term → Definition
+
+        // Value Objects (immutable, equality by value)
+        value_objects: [...{
+            name: string           // "Email", "UserId", "Money"
+            inner_type: string     // "String", "i64", "{currency: Currency, amount: Decimal}"
+            validations: [...string]
+            derives: [...string]   // ["Clone", "PartialEq", "Eq", "Hash"]
+        }]
+
+        // Entities (identity-based, mutable lifecycle)
+        entities: [...{
+            name: string
+            id_type: string        // Value object used as ID
+            fields: {[string]: string}
+            invariants: [...string]  // "email must be unique", "balance >= 0"
+        }]
+
+        // Aggregates (consistency boundaries)
+        aggregates: [...{
+            root: string           // Entity that owns the aggregate
+            members: [...string]   // Other entities/value objects
+            invariants: [...string]
+        }]
+
+        // Domain Events (capture what happened)
+        events: [...{
+            name: string           // "UserCreated", "OrderPlaced"
+            fields: {[string]: string}
+            triggered_by: string   // Which command/behavior
+        }]
+    }
+
+    // Module Organization (Fowler's layered architecture)
     architecture: {
-        style: "vertical_slice" | "clean" | "hexagonal"
+        style: "domain_driven"
 
-        // Vertical Slice: Each feature is self-contained
-        slices: [...{
-            name: string           // "create-user", "delete-item"
-            files: [...string]     // All files for this slice
-            public_api: string     // Single entry point
-        }]
+        layers: {
+            domain: {
+                path: "src/domain/"
+                contains: ["entities", "value_objects", "events", "repository_traits"]
+                dependencies: []   // Domain has NO dependencies
+            }
+            application: {
+                path: "src/application/"
+                contains: ["use_cases", "command_handlers", "query_handlers"]
+                dependencies: ["domain"]
+            }
+            infrastructure: {
+                path: "src/infrastructure/"
+                contains: ["repository_impls", "external_services", "persistence"]
+                dependencies: ["domain", "application"]
+            }
+        }
 
-        // File Size Constraints (AI-friendly)
+        // File constraints
         constraints: {
-            max_file_lines: int    // Default: 200 lines
-            max_function_lines: int // Default: 30 lines
-            max_parameters: int    // Default: 4
+            max_file_lines: int
+            max_function_lines: int
+            one_aggregate_per_module: bool
         }
     }
 
-    // Functional Programming Principles
-    functional: {
-        // Result types for all fallible operations
-        error_handling: "result_type" | "option_type" | "either"
+    // Type System Usage (Make Illegal States Unrepresentable)
+    types: {
+        // Parse, Don't Validate
+        parsing_strategy: "constructor_validation"  // Validation in ::new(), not runtime checks
 
-        // Pure functions at the core
-        patterns: {
-            pure_core: bool        // Business logic is pure
-            imperative_shell: bool // IO at the edges only
-            immutable_data: bool   // No mutation
-            pipeline_style: bool   // |> composition
-        }
-
-        // Type system usage
-        types: {
-            exhaustive_matching: bool  // All cases handled
-            newtype_wrappers: bool     // UserId not String
-            phantom_types: bool        // Compile-time state
-        }
-    }
-
-    // Data Models (structure, not SQL)
-    entities: {[string]: {
-        fields: {[string]: string} // field_name: "Type + constraints description"
-        validations: [...string]   // Business rules for this entity
-        relations: [...{
-            to: string
-            cardinality: "one" | "many"
+        // State Machines as Types
+        state_machines: [...{
+            name: string           // "OrderState"
+            states: [...string]    // ["Draft", "Submitted", "Paid", "Shipped"]
+            transitions: [...{from: string, to: string, via: string}]
         }]
-    }}
 
-    // Test Strategy
+        // Error Types (one per aggregate)
+        error_types: [...{
+            aggregate: string
+            variants: [...{name: string, fields: {[string]: string}}]
+        }]
+    }
+
+    // Functional Patterns
+    functional: {
+        // Result everywhere, no panics
+        error_handling: {
+            style: "result_type"
+            never_panic: bool
+            error_conversion: "impl From<X> for DomainError"
+        }
+
+        // Pure core, impure shell
+        purity: {
+            domain_logic: "pure"           // No IO in domain
+            use_cases: "orchestration"     // Coordinate pure + impure
+            infrastructure: "impure"       // All IO here
+        }
+
+        // Traits for abstraction
+        traits: {
+            repository: "trait UserRepository { fn find(&self, id: UserId) -> Result<Option<User>, RepoError> }"
+            domain_service: "Pure functions in impl blocks"
+        }
+    }
+
+    // Testing Strategy (Fowler's test pyramid)
     testing: {
         unit: {
-            coverage_target: int   // e.g., 80
-            patterns: [...string]  // "property-based", "example-based"
+            scope: "Value objects and domain logic"
+            patterns: ["property-based for value objects", "example-based for entities"]
+            mocking: "None - domain is pure"
         }
         integration: {
-            scope: string          // "vertical slice boundaries"
-            patterns: [...string]
+            scope: "Use cases with real repositories"
+            patterns: ["in-memory repo for fast tests", "testcontainers for slow/CI"]
         }
         edge_cases: [...{
             input: string
@@ -423,18 +483,19 @@ After EARS parsing, 6 question categories resolve ALL remaining ambiguity:
         }]
     }
 
-    // Explicit Anti-Patterns (What NOT to do)
+    // Anti-Patterns (What NOT to do)
     pitfalls: [...{
-        mistake: string            // "God object with 50 methods"
-        consequence: string        // "Impossible to test in isolation"
-        prevention: string         // "Split into vertical slices"
+        mistake: string
+        consequence: string
+        prevention: string
+        fowler_reference?: string  // Link to relevant Fowler article
     }]
 
-    // Code Patterns to Follow
+    // Code Patterns
     code_patterns: [...{
         name: string
         description: string
-        example: string            // Actual code snippet
+        example: string
         when_to_use: string
     }]
 }
@@ -473,165 +534,335 @@ After EARS parsing, 6 question categories resolve ALL remaining ambiguity:
 
 ---
 
-## Example: Deep ai_hints for User Management Feature
+## Example: Fowler-Style Domain Model for User Management
 
 ```cue
 ai_hints: {
-    architecture: {
-        style: "vertical_slice"
+    domain: {
+        context_name: "Identity"
+        ubiquitous_language: {
+            "User": "A registered identity in the system"
+            "Email": "Verified communication address, globally unique"
+            "Registration": "The act of creating a new User"
+            "Deactivation": "Soft-removal of a User, preserving audit trail"
+        }
 
-        slices: [
+        value_objects: [
             {
-                name: "create-user"
-                files: [
-                    "src/features/user/create/handler.gleam",    // ~50 lines
-                    "src/features/user/create/validator.gleam",  // ~30 lines
-                    "src/features/user/create/repository.gleam", // ~40 lines
-                    "src/features/user/create/types.gleam",      // ~20 lines
-                ]
-                public_api: "create_user(input: CreateUserInput) -> Result(User, CreateUserError)"
+                name: "UserId"
+                inner_type: "String"
+                validations: ["Must start with 'usr_'", "Must be exactly 20 chars"]
+                derives: ["Clone", "PartialEq", "Eq", "Hash", "Debug"]
             },
             {
-                name: "get-user"
-                files: [
-                    "src/features/user/get/handler.gleam",
-                    "src/features/user/get/repository.gleam",
-                ]
-                public_api: "get_user(id: UserId) -> Result(User, GetUserError)"
+                name: "Email"
+                inner_type: "String"
+                validations: ["Must contain '@'", "Must have valid domain", "Max 255 chars"]
+                derives: ["Clone", "PartialEq", "Eq", "Hash"]
+            },
+            {
+                name: "UserName"
+                inner_type: "String"
+                validations: ["1-100 chars after trim", "No control characters"]
+                derives: ["Clone", "PartialEq", "Eq"]
             }
         ]
 
-        constraints: {
-            max_file_lines: 200
-            max_function_lines: 30
-            max_parameters: 4
+        entities: [
+            {
+                name: "User"
+                id_type: "UserId"
+                fields: {
+                    email: "Email"
+                    name: "UserName"
+                    status: "UserStatus"
+                    created_at: "DateTime<Utc>"
+                    updated_at: "DateTime<Utc>"
+                }
+                invariants: [
+                    "email is immutable after creation",
+                    "status transitions: Active -> Deactivated (one-way)"
+                ]
+            }
+        ]
+
+        aggregates: [
+            {
+                root: "User"
+                members: []  // User is a simple aggregate
+                invariants: ["One user per email address"]
+            }
+        ]
+
+        events: [
+            {
+                name: "UserRegistered"
+                fields: { user_id: "UserId", email: "Email", registered_at: "DateTime<Utc>" }
+                triggered_by: "register_user"
+            },
+            {
+                name: "UserDeactivated"
+                fields: { user_id: "UserId", reason: "DeactivationReason", deactivated_at: "DateTime<Utc>" }
+                triggered_by: "deactivate_user"
+            }
+        ]
+    }
+
+    architecture: {
+        style: "domain_driven"
+
+        layers: {
+            domain: {
+                path: "src/domain/identity/"
+                contains: ["user.rs", "value_objects.rs", "events.rs", "repository.rs"]
+                dependencies: []
+            }
+            application: {
+                path: "src/application/identity/"
+                contains: ["register_user.rs", "deactivate_user.rs", "find_user.rs"]
+                dependencies: ["domain"]
+            }
+            infrastructure: {
+                path: "src/infrastructure/identity/"
+                contains: ["postgres_user_repository.rs"]
+                dependencies: ["domain", "application"]
+            }
         }
+
+        constraints: {
+            max_file_lines: 150
+            max_function_lines: 25
+            one_aggregate_per_module: true
+        }
+    }
+
+    types: {
+        parsing_strategy: "constructor_validation"
+
+        state_machines: [
+            {
+                name: "UserStatus"
+                states: ["Active", "Deactivated"]
+                transitions: [
+                    { from: "Active", to: "Deactivated", via: "deactivate()" }
+                ]
+            }
+        ]
+
+        error_types: [
+            {
+                aggregate: "User"
+                variants: [
+                    { name: "InvalidEmail", fields: { value: "String", reason: "String" } },
+                    { name: "InvalidName", fields: { value: "String", reason: "String" } },
+                    { name: "EmailAlreadyExists", fields: { email: "Email" } },
+                    { name: "UserNotFound", fields: { id: "UserId" } },
+                    { name: "AlreadyDeactivated", fields: { id: "UserId" } }
+                ]
+            }
+        ]
     }
 
     functional: {
-        error_handling: "result_type"
-
-        patterns: {
-            pure_core: true         // All business logic is pure
-            imperative_shell: true  // IO only at edges (main, handlers)
-            immutable_data: true    // No let mut, no reassignment
-            pipeline_style: true    // input |> validate |> transform |> persist
+        error_handling: {
+            style: "result_type"
+            never_panic: true
+            error_conversion: "impl From<RepoError> for UserError"
         }
 
-        types: {
-            exhaustive_matching: true  // Every Result/Option case handled
-            newtype_wrappers: true     // UserId(String), Email(String)
-            phantom_types: false       // Not needed for this scope
+        purity: {
+            domain_logic: "pure"
+            use_cases: "orchestration"
+            infrastructure: "impure"
         }
-    }
 
-    entities: {
-        User: {
-            fields: {
-                id: "UserId - prefixed random string, immutable after creation"
-                email: "Email - validated format, unique across system"
-                name: "String - 1-100 chars, trimmed"
-                created_at: "DateTime - set once at creation"
-            }
-            validations: [
-                "Email must be valid format",
-                "Name must be 1-100 characters",
-                "Email must be unique (check before insert)"
-            ]
-            relations: [
-                { to: "Session", cardinality: "many" }
-            ]
+        traits: {
+            repository: """
+                pub trait UserRepository {
+                    fn next_id(&self) -> UserId;
+                    fn find_by_id(&self, id: &UserId) -> Result<Option<User>, RepoError>;
+                    fn find_by_email(&self, email: &Email) -> Result<Option<User>, RepoError>;
+                    fn save(&self, user: &User) -> Result<(), RepoError>;
+                }
+            """
+            domain_service: "Free functions in domain module, no traits needed"
         }
     }
 
     testing: {
         unit: {
-            coverage_target: 90
-            patterns: ["property-based for validators", "example-based for transformers"]
+            scope: "Value objects and domain logic"
+            patterns: [
+                "property-based: Email::new arbitrary strings",
+                "example-based: User state transitions"
+            ]
+            mocking: "None - domain is pure"
         }
         integration: {
-            scope: "Each vertical slice tested end-to-end"
-            patterns: ["in-memory repository for speed", "real DB for CI"]
+            scope: "Use cases with real repositories"
+            patterns: [
+                "InMemoryUserRepository for fast unit-like tests",
+                "testcontainers postgres for CI"
+            ]
         }
         edge_cases: [
             {
-                input: "email with unicode: user@例子.中国"
-                expected: "accepted if unicode emails enabled, rejected otherwise"
-                rationale: "Unicode domain names are valid per RFC 6531"
+                input: "Email::new(\"user@例子.中国\")"
+                expected: "Ok(Email) if unicode enabled, Err(InvalidEmail) otherwise"
+                rationale: "RFC 6531 internationalized email"
             },
             {
-                input: "empty string email"
-                expected: "Error(ValidationError(EmptyEmail))"
-                rationale: "Email is required, empty is not valid format"
+                input: "Email::new(\"\")"
+                expected: "Err(InvalidEmail { reason: \"empty\" })"
+                rationale: "Empty string is not a valid email"
             },
             {
-                input: "name with only whitespace"
-                expected: "Error(ValidationError(BlankName))"
-                rationale: "Trimmed length must be >= 1"
+                input: "UserName::new(\"   \")"
+                expected: "Err(InvalidName { reason: \"blank after trim\" })"
+                rationale: "Whitespace-only is not a valid name"
+            },
+            {
+                input: "user.deactivate() when already Deactivated"
+                expected: "Err(AlreadyDeactivated)"
+                rationale: "State machine prevents invalid transition"
             }
         ]
     }
 
     pitfalls: [
         {
-            mistake: "God module with all user operations"
-            consequence: "500+ line file, impossible to test in isolation, merge conflicts"
-            prevention: "Split into vertical slices: create/, get/, update/, delete/"
+            mistake: "Primitive obsession - using String for Email, UserId"
+            consequence: "No compile-time safety, can mix up user_id with session_id"
+            prevention: "Value objects with validation in constructor"
+            fowler_reference: "https://martinfowler.com/bliki/ValueObject.html"
         },
         {
-            mistake: "Business logic mixed with IO"
-            consequence: "Can't unit test without mocking everything"
-            prevention: "Pure core: validate(input) -> Result, then persist at edge"
+            mistake: "Anemic domain model - all logic in services"
+            consequence: "Domain objects become data bags, logic scattered"
+            prevention: "Put behavior on entities: user.deactivate() not deactivate_user(user)"
+            fowler_reference: "https://martinfowler.com/bliki/AnemicDomainModel.html"
         },
         {
-            mistake: "Stringly-typed IDs and emails"
-            consequence: "Easy to mix up UserId with SessionId, no compile-time safety"
-            prevention: "Newtype wrappers: type UserId { UserId(String) }"
+            mistake: "Leaking infrastructure into domain"
+            consequence: "Can't test domain without database, tight coupling"
+            prevention: "Repository trait in domain, impl in infrastructure"
+            fowler_reference: "https://martinfowler.com/eaaCatalog/repository.html"
         },
         {
-            mistake: "Ignoring error cases, using unwrap/expect"
-            consequence: "Runtime panics, unclear error messages"
-            prevention: "Exhaustive pattern matching on all Result/Option"
+            mistake: "Using unwrap()/expect() in domain code"
+            consequence: "Panics in production, unclear error handling"
+            prevention: "Return Result<T, DomainError> everywhere, ? operator"
+        },
+        {
+            mistake: "Mutable state in domain objects"
+            consequence: "Race conditions, hard to reason about"
+            prevention: "Return new instance: fn with_name(self, name: UserName) -> Self"
         }
     ]
 
     code_patterns: [
         {
-            name: "Railway-Oriented Pipeline"
-            description: "Chain operations that can fail, short-circuit on first error"
-            when_to_use: "Any multi-step operation where each step can fail"
+            name: "Value Object with Parse-Don't-Validate"
+            description: "Validation happens once at construction, type guarantees validity"
+            when_to_use: "Any domain concept that should be validated"
             example: """
-                pub fn create_user(input: CreateUserInput, repo: Repository) -> Result(User, CreateUserError) {
-                    input
-                    |> validate_email
-                    |> result.try(validate_name)
-                    |> result.try(check_email_unique(_, repo))
-                    |> result.try(build_user)
-                    |> result.try(persist(_, repo))
+                #[derive(Clone, PartialEq, Eq, Hash)]
+                pub struct Email(String);
+
+                impl Email {
+                    pub fn new(value: impl Into<String>) -> Result<Self, InvalidEmail> {
+                        let value = value.into();
+                        if value.is_empty() {
+                            return Err(InvalidEmail::empty());
+                        }
+                        if !value.contains('@') {
+                            return Err(InvalidEmail::missing_at(&value));
+                        }
+                        Ok(Self(value))
+                    }
+
+                    pub fn as_str(&self) -> &str {
+                        &self.0
+                    }
                 }
             """
         },
         {
-            name: "Newtype Wrapper"
-            description: "Type-safe wrapper to prevent mixing up String IDs"
-            when_to_use: "Any identifier that could be confused with another"
+            name: "Entity with State Machine"
+            description: "Encode valid state transitions in the type system"
+            when_to_use: "Entities with lifecycle states"
             example: """
-                pub type UserId { UserId(String) }
-                pub type SessionId { SessionId(String) }
+                pub struct User {
+                    id: UserId,
+                    email: Email,
+                    name: UserName,
+                    status: UserStatus,
+                }
 
-                // Compile error: can't pass SessionId where UserId expected
-                pub fn get_user(id: UserId) -> Result(User, Error)
+                impl User {
+                    pub fn deactivate(self, reason: DeactivationReason) -> Result<(Self, UserDeactivated), UserError> {
+                        match self.status {
+                            UserStatus::Active => {
+                                let event = UserDeactivated::new(self.id.clone(), reason);
+                                let user = Self { status: UserStatus::Deactivated, ..self };
+                                Ok((user, event))
+                            }
+                            UserStatus::Deactivated => Err(UserError::AlreadyDeactivated { id: self.id })
+                        }
+                    }
+                }
             """
         },
         {
-            name: "Pure Validator"
-            description: "Validation as pure function returning Result"
-            when_to_use: "All input validation"
+            name: "Repository Trait"
+            description: "Abstract persistence, domain doesn't know about DB"
+            when_to_use: "Any aggregate that needs persistence"
             example: """
-                pub fn validate_email(input: String) -> Result(Email, ValidationError) {
-                    case string.contains(input, "@") {
-                        True -> Ok(Email(string.trim(input)))
-                        False -> Error(InvalidEmailFormat)
+                // In domain layer - no DB imports
+                pub trait UserRepository: Send + Sync {
+                    fn next_id(&self) -> UserId;
+                    fn find_by_id(&self, id: &UserId) -> Result<Option<User>, RepoError>;
+                    fn save(&self, user: &User) -> Result<(), RepoError>;
+                }
+
+                // In infrastructure layer
+                pub struct PostgresUserRepository { pool: PgPool }
+
+                impl UserRepository for PostgresUserRepository {
+                    fn find_by_id(&self, id: &UserId) -> Result<Option<User>, RepoError> {
+                        // SQL here
+                    }
+                }
+            """
+        },
+        {
+            name: "Use Case / Command Handler"
+            description: "Orchestrate domain logic and infrastructure"
+            when_to_use: "Application layer entry points"
+            example: """
+                pub struct RegisterUser<R: UserRepository> {
+                    repo: R,
+                }
+
+                impl<R: UserRepository> RegisterUser<R> {
+                    pub fn execute(&self, cmd: RegisterUserCommand) -> Result<UserId, UserError> {
+                        // 1. Parse input into value objects (validation)
+                        let email = Email::new(&cmd.email)?;
+                        let name = UserName::new(&cmd.name)?;
+
+                        // 2. Check business rules
+                        if self.repo.find_by_email(&email)?.is_some() {
+                            return Err(UserError::EmailAlreadyExists { email });
+                        }
+
+                        // 3. Create aggregate
+                        let id = self.repo.next_id();
+                        let user = User::new(id.clone(), email, name);
+
+                        // 4. Persist
+                        self.repo.save(&user)?;
+
+                        Ok(id)
                     }
                 }
             """
@@ -926,35 +1157,37 @@ export <session-id> [--output=plan.cue]
 
 ## What Makes This World-Class
 
-### 1. Deterministic Planning
+### 1. Deterministic Planning (Mental Lattices)
 - **EARS** eliminates natural language ambiguity
 - **KIRK contracts** define machine-checkable success/failure
 - **Interactive Questioning** resolves every edge case BEFORE implementation
+- **Inversion** + **Pre-mortem** + **Second-order** thinking catches failures early
 - **Beads** are self-contained - all context embedded
 
-### 2. AI-Friendly Architecture
-- **Small files** (<200 lines) - fits in AI context window
-- **Vertical slices** - each feature self-contained, easy to understand
-- **Pure functions** - predictable, testable, no hidden state
-- **Explicit types** - UserId not String, compile-time safety
+### 2. Fowler-Style Domain Modeling
+- **Ubiquitous Language** - code reads like the domain
+- **Value Objects** - Email, UserId, Money with validated constructors
+- **Entities** - identity-based with clear lifecycle
+- **Aggregates** - consistency boundaries, one per module
+- **Domain Events** - capture what happened for audit/replay
 
 ### 3. Functional Programming Rigor
-- **Result types** for all fallible operations (no exceptions)
-- **Exhaustive matching** - every case handled at compile time
-- **Pipeline style** - `input |> validate |> transform |> persist`
-- **Pure core / Imperative shell** - IO only at the edges
+- **Parse, Don't Validate** - validation in constructor, type guarantees validity
+- **Result types** - no exceptions, no panics
+- **Pure domain** - business logic has zero IO
+- **Make Illegal States Unrepresentable** - type system prevents bugs
 
-### 4. Mental Model Integration
-- **Inversion**: "What could fail?" → comprehensive failure modes
-- **Pre-mortem**: "Why did this fail?" → proactive risk mitigation
-- **Second-order**: "What happens after?" → cascade effects handled
-- **Empathy Engine**: "What confuses users?" → friction eliminated
+### 4. Clean Architecture (Dependency Inversion)
+- **Domain layer** - entities, value objects, repository traits (NO dependencies)
+- **Application layer** - use cases orchestrate domain + infrastructure
+- **Infrastructure layer** - implements repository traits, owns all IO
+- **Small files** (<150 lines) - AI-friendly, focused modules
 
 ### 5. Test-First Quality
-- **Property-based tests** for validators and transformers
-- **Edge cases enumerated** in spec before implementation
-- **Vertical slice integration tests** - each feature tested end-to-end
-- **Anti-patterns documented** with bad/good examples
+- **Property-based tests** for value objects
+- **Edge cases enumerated** in spec with input/expected/rationale
+- **In-memory repositories** for fast unit-like integration tests
+- **Anti-patterns documented** with Fowler references
 
 ### 6. AI-Native Design
 - **Token efficiency**: CIN format for 50% reduction
@@ -1051,31 +1284,40 @@ export <session-id> [--output=plan.cue]
 | Toposort | Kahn's algorithm for dependency ordering |
 | CIN | Compact Intent Notation - 50% token reduction format |
 
-### AI Hints (Architecture & Code Quality)
+### Domain-Driven Design (Fowler)
 | Term | Definition |
 |------|------------|
-| ai_hints.architecture | Vertical slice structure, file constraints, public APIs |
-| ai_hints.functional | FP principles - Result types, pure core, pipeline style |
-| ai_hints.entities | Data models with fields, validations, relations |
-| ai_hints.testing | Coverage targets, patterns, edge cases |
-| ai_hints.pitfalls | Architectural mistake + consequence + prevention |
-| ai_hints.code_patterns | Named patterns with examples and when to use |
+| Bounded Context | Linguistic boundary where terms have precise meaning |
+| Ubiquitous Language | Shared vocabulary between code and domain experts |
+| Value Object | Immutable, equality by value (Email, UserId, Money) |
+| Entity | Identity-based object with lifecycle (User, Order) |
+| Aggregate | Consistency boundary, accessed through root entity |
+| Domain Event | Record of something that happened (UserRegistered) |
+| Repository | Collection-like interface for aggregate persistence |
+| Anemic Domain Model | Anti-pattern: logic in services, entities are data bags |
 
 ### Functional Programming
 | Term | Definition |
 |------|------------|
-| Result Type | `Result(Ok, Error)` - explicit success/failure, no exceptions |
-| Pure Function | Same input always produces same output, no side effects |
-| Pure Core / Imperative Shell | Business logic pure, IO only at edges |
-| Pipeline Style | `input \|> step1 \|> step2 \|> step3` composition |
-| Exhaustive Matching | Every case in sum type must be handled |
-| Newtype Wrapper | `type UserId { UserId(String) }` - compile-time safety |
-| Railway-Oriented | Chain Result-returning functions, short-circuit on error |
+| Result Type | `Result<T, E>` - explicit success/failure, no exceptions |
+| Parse Don't Validate | Validation in constructor, type guarantees validity |
+| Pure Core / Impure Shell | Domain logic pure, IO in infrastructure |
+| Make Illegal States Unrepresentable | Type system prevents invalid data |
+| Exhaustive Matching | Every enum variant must be handled |
+| Newtype Wrapper | `struct Email(String)` - compile-time safety |
 
-### Architecture
+### Architecture Layers
 | Term | Definition |
 |------|------------|
-| Vertical Slice | Feature-organized code - all files for one feature together |
-| Small Files | <200 lines per file - AI-friendly, easy to understand |
-| Public API | Single entry point per slice - clean boundaries |
-| Feature Boundary | Clear separation between features, minimal coupling |
+| Domain Layer | Entities, value objects, events, repository traits - NO dependencies |
+| Application Layer | Use cases, command handlers - depends on domain only |
+| Infrastructure Layer | Repository impls, DB, external services - depends on all |
+| Dependency Inversion | Domain defines traits, infrastructure implements them |
+
+### Code Quality
+| Term | Definition |
+|------|------------|
+| Small Files | <150 lines per file - AI-friendly, focused |
+| One Aggregate Per Module | Clear boundaries, easy to find code |
+| Never Panic | Return Result, no unwrap()/expect() in domain |
+| Fowler Reference | Link to martinfowler.com article for deeper reading |
