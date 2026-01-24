@@ -116,3 +116,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Helps prevent common mistake of trying --output instead of > file.json
 - All 1689 tests passing
 - Commit: bb59f38
+
+### ITERATION 15 - COMPLETE ✅
+- Fixed `intent-cli-v1ee`: bead-status confusing error for unexpected arguments
+- Detects when users pass spec files as arguments instead of flags
+- Provides clear error explaining command is for updating status, not viewing
+- Suggests correct alternatives: 'bd list' and 'intent beads'
+- All 1689 tests passing
+- Commit: 53a8a8d
