@@ -589,10 +589,14 @@ fn lint_command() -> glint.Command(Nil) {
 }
 
 /// The `analyze` command - analyze spec quality
+/// The `analyze` command - Quality analysis (alias for quality, text output only)
 fn analyze_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let mode = output_mode.Interactive
+
     case input.args {
       [spec_path, ..] -> {
+        // analyze is an alias for quality with text output
         case loader.load_spec(spec_path) {
           Ok(spec) -> {
             let report = quality_analyzer.analyze_spec(spec)
@@ -600,14 +604,17 @@ fn analyze_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
+            cli_ui.print_error(loader.format_error(e), mode)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent analyze <spec.cue>")
+        cli_ui.print_error("spec file path required", mode)
+        io.println("Usage: intent analyze <spec.cue>")
+        io.println("")
+        io.println("Note: 'analyze' is an alias for 'quality' (text output)")
+        io.println("For JSON output, use: intent quality <spec.cue> --json")
         halt(exit_error)
       }
     }
