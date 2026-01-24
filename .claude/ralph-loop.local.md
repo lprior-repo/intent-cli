@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 5
+iteration: 6
 max_iterations: 25
 completion_promise: null
 started_at: "2026-01-24T01:14:36Z"
@@ -46,3 +46,38 @@ continue to work through tasks and whatever else is in beads please use gleam sk
 - Codebase quality is high, no urgent work
 - Remaining work requires focused implementation sessions (not Ralph Loop increments)
 - Consider iteration complete pending user direction
+
+## Iteration 6 Summary
+
+**Status**: Bug Fix - History Command
+**Beads**: 1 open (intent-cli-g3lc - HIGH complexity, deferred)
+**Tests**: 1686/1686 passing
+**Fixed**: intent-cli-qihr (P2 bug)
+
+**Actions Taken**:
+1. Tested history command - discovered it fails with Enoent error
+2. Created bead intent-cli-qihr for the bug
+3. Analyzed root cause: history.jsonl file doesn't exist (created only with --snapshot flag)
+4. Implemented graceful error handling for missing file
+5. Updated error message to explain --snapshot feature with example
+6. Ran full test suite - all 1686 tests passing
+7. Committed fix (f9eb474)
+8. Closed bead with reason
+
+**Bug Fixed**:
+- **Before**: `✗ Failed to read file '.interview/history.jsonl': Enoent`
+- **After**: `⚠️  No history snapshots exist yet` + helpful message with example
+
+**Code Changes**:
+- File: src/intent.gleam (lines 2586-2602)
+- Added Enoent detection in error handler
+- Provides educational message about --snapshot feature
+- Shows example: `intent interview myprofile --snapshot`
+
+**Impact**:
+- Improved UX - users understand why command doesn't work
+- Discovered functionality (snapshots) users may not know about
+- Eliminated confusing technical error message
+
+**Commits**:
+- f9eb474: fix: handle missing history.jsonl file gracefully
