@@ -1,6 +1,6 @@
 ---
 active: false
-iteration: 22
+iteration: 24
 max_iterations: 30
 completion_promise: "Natural completion point reached - all systematic improvements complete"
 started_at: "2026-01-24T05:36:16Z"
@@ -200,3 +200,14 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Explains how to export interview: "intent interview --resume <id> --export <file>"
 - All 1689 tests passing
 - Commit: ac22833
+
+### ITERATION 24 - COMPLETE ✅
+- Fixed `intent-cli-kqs0`: interview --dry-run mode persists sessions to storage
+- Added dry_run: Bool parameter to run_interview() function
+- Skip JSONL save when dry_run is True (matches CUE mode behavior)
+- Session ID uses "dry-run-" prefix for dry runs
+- Updated welcome message to show dry-run status
+- Updated completion message: "Dry-run complete (session not saved)"
+- All 6 call sites (api/cli/event/data/workflow/ui) pass dry_run parameter
+- All 1689 tests passing
+- Commit: c92c493
