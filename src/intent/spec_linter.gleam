@@ -15,6 +15,13 @@ pub type LintResult {
   LintWarnings(warnings: List(LintWarning))
 }
 
+/// Severity level for lint warnings
+pub type Severity {
+  SeverityError
+  SeverityWarning
+  SeverityInfo
+}
+
 /// A warning about the spec
 pub type LintWarning {
   AntiPatternDetected(behavior: String, pattern_name: String, details: String)
@@ -296,6 +303,58 @@ fn count_common_substrings(s1: String, s2: String) -> Int {
 fn float_to_string(f: Float, _precision: Int) -> String {
   // Simple implementation - just convert to string
   float.to_string(f)
+}
+
+/// Get severity for a warning
+pub fn warning_severity(warning: LintWarning) -> Severity {
+  case warning {
+    AntiPatternDetected(_, _, _) -> SeverityError
+    VagueRule(_, _, _) -> SeverityWarning
+    MissingExample(_) -> SeverityWarning
+    UnusedAntiPattern(_) -> SeverityInfo
+    NamingConvention(_, _) -> SeverityInfo
+    DuplicateBehavior(_, _, _) -> SeverityWarning
+  }
+}
+
+/// Convert severity to string
+pub fn severity_to_string(severity: Severity) -> String {
+  case severity {
+    SeverityError -> "error"
+    SeverityWarning -> "warning"
+    SeverityInfo -> "info"
+  }
+}
+
+/// Convert warning to JSON object
+pub fn warning_to_json(warning: LintWarning) -> Json {
+  let severity = warning_severity(warning)
+  let category = case warning {
+    AntiPatternDetected(_, _, _) -> "anti_pattern"
+    VagueRule(_, _, _) -> "vague_rule"
+    MissingExample(_) -> "missing_example"
+    UnusedAntiPattern(_) -> "unused_anti_pattern"
+    NamingConvention(_, _) -> "naming_convention"
+    DuplicateBehavior(_, _, _) -> "duplicate_behavior"
+  }
+
+  let message = format_warning(warning)
+
+  let location = case warning {
+    AntiPatternDetected(behavior, _, _) -> json.object([#("behavior", json.string(behavior))])
+    VagueRule(behavior, field, _) -> json.object([#("behavior", json.string(behavior)), #("field", json.string(field))])
+    MissingExample(behavior) -> json.object([#("behavior", json.string(behavior))])
+    UnusedAntiPattern(pattern) -> json.object([#("anti_pattern", json.string(pattern))])
+    NamingConvention(behavior, _) -> json.object([#("behavior", json.string(behavior))])
+    DuplicateBehavior(behavior1, behavior2, _) -> json.object([#("behavior1", json.string(behavior1)), #("behavior2", json.string(behavior2))])
+  }
+
+  json.object([
+    #("severity", json.string(severity_to_string(severity))),
+    #("category", json.string(category)),
+    #("message", json.string(message)),
+    #("location", location),
+  ])
 }
 
 /// Format lint warnings for display

@@ -724,6 +724,10 @@ fn export_command() -> glint.Command(Nil) {
 /// The `lint` command - check for specification anti-patterns
 fn lint_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let is_json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -731,49 +735,166 @@ fn lint_command() -> glint.Command(Nil) {
             let lint_result = spec_linter.lint_spec(spec)
             case lint_result {
               spec_linter.LintValid -> {
-                io.println("✓ Spec is well-formed - no linting issues found")
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent check "
-                  <> spec_path
-                  <> " --target=URL - Test against API",
-                )
-                io.println(
-                  "  • intent quality " <> spec_path <> " - Check overall quality",
-                )
+                case is_json {
+                  True -> {
+                    let next_actions = [
+                      json_output.next_action(
+                        "intent check " <> spec_path <> " --target=URL",
+                        "Test against API",
+                      ),
+                      json_output.next_action(
+                        "intent quality " <> spec_path,
+                        "Check overall quality",
+                      ),
+                    ]
+                    let response =
+                      json_output.success(
+                        "lint_result",
+                        "lint",
+                        json.object([
+                          #("valid", json.bool(True)),
+                          #("warnings", json.array([], fn(x) { x })),
+                        ]),
+                        Some(spec_path),
+                        next_actions,
+                      )
+                    json_output.output(response)
+                  }
+                  False -> {
+                    io.println("✓ Spec is well-formed - no linting issues found")
+                    io.println("")
+                    io.println("Next steps:")
+                    io.println(
+                      "  • intent check "
+                      <> spec_path
+                      <> " --target=URL - Test against API",
+                    )
+                    io.println(
+                      "  • intent quality " <> spec_path <> " - Check overall quality",
+                    )
+                  }
+                }
                 halt(exit_pass)
               }
               spec_linter.LintWarnings(warnings) -> {
-                io.println(spec_linter.format_warnings(warnings))
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent improve "
-                  <> spec_path
-                  <> " - Get actionable suggestions",
-                )
-                io.println(
-                  "  • intent doctor " <> spec_path <> " - Prioritized improvements",
-                )
+                case is_json {
+                  True -> {
+                    let warnings_by_severity = fn(severity) {
+                      warnings
+                      |> list.filter(fn(w) {
+                        spec_linter.warning_severity(w) == severity
+                      })
+                    }
+
+                    let errors = warnings_by_severity(spec_linter.SeverityError)
+                    let warns = warnings_by_severity(spec_linter.SeverityWarning)
+                    let infos = warnings_by_severity(spec_linter.SeverityInfo)
+
+                    let next_actions = [
+                      json_output.next_action(
+                        "intent improve " <> spec_path,
+                        "Get actionable suggestions",
+                      ),
+                      json_output.next_action(
+                        "intent doctor " <> spec_path,
+                        "Prioritized improvements",
+                      ),
+                    ]
+
+                    let data =
+                      json.object([
+                        #("valid", json.bool(False)),
+                        #("total_warnings", json.int(list.length(warnings))),
+                        #("errors", json.int(list.length(errors))),
+                        #("warnings", json.int(list.length(warns))),
+                        #("info", json.int(list.length(infos))),
+                        #(
+                          "findings",
+                          json.array(warnings, spec_linter.warning_to_json),
+                        ),
+                      ])
+
+                    let response =
+                      json_output.success(
+                        "lint_result",
+                        "lint",
+                        data,
+                        Some(spec_path),
+                        next_actions,
+                      )
+                    json_output.output(response)
+                  }
+                  False -> {
+                    io.println(spec_linter.format_warnings(warnings))
+                    io.println("")
+                    io.println("Next steps:")
+                    io.println(
+                      "  • intent improve "
+                      <> spec_path
+                      <> " - Get actionable suggestions",
+                    )
+                    io.println(
+                      "  • intent doctor " <> spec_path <> " - Prioritized improvements",
+                    )
+                  }
+                }
                 halt(exit_fail)
               }
             }
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
+            case is_json {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "lint_failed",
+                    "lint",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> {
+                io.println_error("Error: " <> loader.format_error(e))
+              }
+            }
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent lint <spec.cue>")
+        case is_json {
+          True -> {
+            let response =
+              json_output.failure(
+                "lint_failed",
+                "lint",
+                json.null(),
+                [json_output.error("usage_error", "spec file path required")],
+                None,
+                [],
+                exit_error,
+              )
+            json_output.output(response)
+          }
+          False -> {
+            io.println_error("Error: spec file path required")
+            io.println_error("Usage: intent lint <spec.cue> [--json]")
+          }
+        }
         halt(exit_error)
       }
     }
   })
   |> glint.description(help.format_for_glint(help.lint_help()))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `analyze` command - analyze spec quality
