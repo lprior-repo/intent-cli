@@ -1203,6 +1203,21 @@ fn doctor_command() -> glint.Command(Nil) {
 /// The `interview` command - guided specification discovery
 fn interview_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    // Check for unexpected arguments (common mistake: profile as arg instead of flag)
+    case input.args {
+      [arg, ..] -> {
+        io.println_error("Error: Unexpected argument '" <> arg <> "'")
+        io.println_error("")
+        io.println_error(
+          "Did you mean: intent interview --profile=" <> arg <> " ?",
+        )
+        io.println_error("")
+        io.println_error("Valid profiles: api, cli, event, data, workflow, ui")
+        halt(exit_error)
+      }
+      [] -> Nil
+    }
+
     let profile_str =
       flag.get_string(input.flags, "profile")
       |> result.unwrap("api")
