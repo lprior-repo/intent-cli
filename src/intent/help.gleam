@@ -616,7 +616,7 @@ pub fn export_help() -> CommandHelp {
     category: Core,
   )
   |> with_long_desc(
-    "Exports the CUE specification to JSON format. Useful for integration with other tools or for debugging spec structure.",
+    "Exports the CUE specification to JSON format. Useful for integration with other tools or for debugging spec structure.\n\nNote: Output is written to stdout. There is no --output flag. Use shell redirection (>) or pipe (|) to save or process the JSON.",
   )
   |> with_usage("intent export <spec.cue>")
   |> with_arg("spec.cue", "Path to the CUE specification file")
