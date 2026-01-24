@@ -51,6 +51,26 @@ const exit_invalid = 3
 
 const exit_error = 4
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Load spec with appropriate loader based on JSON mode.
+/// Uses quiet loader (no spinner) for JSON mode to avoid ANSI escape codes.
+fn load_spec_for_mode(
+  path: String,
+  json_mode: Bool,
+) -> Result(types.Spec, loader.LoadError) {
+  case json_mode {
+    True -> loader.load_spec_quiet(path)
+    False -> loader.load_spec(path)
+  }
+}
+
+// ============================================================================
+// Flag Normalization
+// ============================================================================
+
 /// Normalize flag syntax to support both --flag=value and --flag value
 /// Glint only supports --flag=value, so we pre-process args to convert
 /// --flag value into --flag=value before passing to glint
@@ -2928,7 +2948,7 @@ fn kirk_quality_command() -> glint.Command(Nil) {
 
     case input.args {
       [spec_path, ..] -> {
-        case loader.load_spec(spec_path) {
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let report = quality_analyzer.analyze_spec(spec)
             case is_json {
