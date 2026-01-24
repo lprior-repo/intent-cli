@@ -76,3 +76,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - AI tools can now use single parser for all command outputs
 - All 1689 tests passing
 - Commit: 6531515
+
+### ITERATION 10 - COMPLETE ✅
+- Fixed `intent-cli-fy3l`: Corrected beads command exit code for nonexistent session
+- Changed from exit 4 (usage error) to exit 3 (invalid input)
+- Session not found is invalid input, not command misuse
+- CI/CD scripts can now distinguish between usage errors and data errors
+- All 1689 tests passing
+- Commit: f6d1474
