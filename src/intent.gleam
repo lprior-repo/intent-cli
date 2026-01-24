@@ -2588,10 +2588,7 @@ fn history_command() -> glint.Command(Nil) {
             // Handle missing history file gracefully
             case string.contains(err, "Enoent") {
               True -> {
-                cli_ui.print_warning(
-                  "No history snapshots exist yet",
-                  mode,
-                )
+                cli_ui.print_warning("No history snapshots exist yet", mode)
                 io.println("")
                 io.println(
                   "Session history is created when you use the --snapshot flag",
