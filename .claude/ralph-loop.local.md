@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 8
+iteration: 9
 max_iterations: 30
 completion_promise: null
 started_at: "2026-01-24T05:36:16Z"
@@ -68,3 +68,11 @@ I need you to use gleam skill and work through all in progress or open beads tha
 - Enables AI tools to filter by severity and programmatically process linting results
 - All 1689 tests passing
 - Commit: 6dedfb4
+
+### ITERATION 9 - COMPLETE ✅
+- Fixed `intent-cli-g9ys`: Made show --json use standard wrapper format
+- Wraps spec JSON in json_output format with metadata, next_actions, exit codes
+- Achieves consistency across all --json commands
+- AI tools can now use single parser for all command outputs
+- All 1689 tests passing
+- Commit: 6531515
