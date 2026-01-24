@@ -131,7 +131,7 @@ pub fn main() {
   let raw_args = argv.load().arguments
   let normalized_args = normalize_flag_syntax(raw_args)
 
-  let _app =
+  let app =
     glint.new()
     |> glint.with_name("intent")
     |> glint.with_pretty_help(glint.default_pretty_help())
@@ -164,7 +164,19 @@ pub fn main() {
     |> glint.add(at: ["plan"], do: plan_command())
     |> glint.add(at: ["plan-approve"], do: plan_approve_command())
     |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
-    |> glint.run(normalized_args)
+
+  // Execute and handle flag parsing errors
+  // Glint's .run() exits with 0 even on flag errors, so we use .execute()
+  // to detect errors and set proper exit codes
+  case glint.execute(app, normalized_args) {
+    Ok(_) -> Nil
+    Error(err_msg) -> {
+      // Print error message (mimicking glint.run behavior)
+      io.println(err_msg)
+      // Exit with error code for CI/CD pipelines
+      halt(exit_error)
+    }
+  }
 }
 
 /// The `check` command - run spec against a target
