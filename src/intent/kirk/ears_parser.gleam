@@ -897,12 +897,30 @@ pub fn to_cue(result: EarsParseResult, spec_name: String) -> String {
     <> "    },\n"
     <> "  ]\n\n"
 
-  let footer =
+  let ai_hints_section =
     "  rules: []\n"
-    <> "  anti_patterns: []\n"
+    <> "  anti_patterns: []\n\n"
+    <> "  ai_hints: {\n"
+    <> "    implementation: {\n"
+    <> "      suggested_stack: [\"Any modern backend framework\"]\n"
+    <> "    }\n\n"
+    <> "    entities: {}\n\n"
+    <> "    security: {\n"
+    <> "      password_hashing: \"bcrypt with salt rounds >= 12\"\n"
+    <> "      jwt_algorithm:    \"RS256 or ES256 (asymmetric preferred)\"\n"
+    <> "      jwt_expiry:       \"15 minutes for access, 7 days for refresh\"\n"
+    <> "      rate_limiting:    \"100 requests per minute per IP\"\n"
+    <> "    }\n\n"
+    <> "    pitfalls: [\n"
+    <> "      \"Review generated spec - EARS captures intent, not complete API design\",\n"
+    <> "      \"Add validation rules for request/response schemas\",\n"
+    <> "      \"Define entity relationships and data constraints\",\n"
+    <> "      \"Specify error handling and edge cases\",\n"
+    <> "    ]\n"
+    <> "  }\n"
     <> "}\n"
 
-  header <> features_section <> footer
+  header <> features_section <> ai_hints_section
 }
 
 fn behavior_to_cue(b: IntentBehavior) -> String {
