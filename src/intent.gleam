@@ -405,7 +405,15 @@ fn validate_command() -> glint.Command(Nil) {
         // Use load_spec_quiet to validate both CUE syntax AND spec structure
         case loader.load_spec_quiet(spec_path) {
           Ok(_) -> {
-            cli_ui.print_success("Valid spec: " <> spec_path, mode)
+            cli_ui.print_success("✓ Valid spec: " <> spec_path, mode)
+            io.println("")
+            io.println("Next steps:")
+            io.println("  • intent lint " <> spec_path <> " - Check for quality issues")
+            io.println(
+              "  • intent check "
+              <> spec_path
+              <> " --target=URL - Test against API",
+            )
             halt(exit_pass)
           }
           Error(e) -> {
