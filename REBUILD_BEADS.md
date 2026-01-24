@@ -1,114 +1,77 @@
 # Intent CLI 4.0: Implementation Beads
 
-## Wave 0: Foundation (Port Existing Core)
+**Intent CLI is a planning tool. No HTTP. No API testing. Pure thinking framework.**
 
-### WAVE0-01: Port Core Types
+---
+
+## Wave 0: Foundation
+
+### WAVE0-01: Core Types
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
-- **Task:** Port types.gleam with new vision/shape/ready blocks
-- **Tests to port:** parser_test.gleam type assertions
+- **Task:** Create core/types.gleam with Plan, Vision, Shape, Spec, Ready types
 - **Acceptance:**
-  - [ ] All existing Spec fields preserved
-  - [ ] New Vision block added
-  - [ ] New Shape block added
-  - [ ] New Ready block added
+  - [ ] Plan type with vision/shape/spec/ready blocks
+  - [ ] Scenario and ScenarioStep types
+  - [ ] Feature and FeatureSpec types
+  - [ ] Behavior with given/when/then
+  - [ ] ReadyCheck type
   - [ ] Compiles without errors
 
-### WAVE0-02: Port Checker Rules
+### WAVE0-02: JSONL Storage Pattern
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
-- **Task:** Port checker/rules.gleam (602 lines, 40+ rule types)
-- **Tests to port:** rule_test.gleam (200+ tests)
+- **Task:** Create core/storage.gleam with session persistence
+- **Pattern:** Port from interview_storage.gleam
 - **Acceptance:**
-  - [ ] All 40+ RuleExpr variants work
-  - [ ] Regex caching functional
-  - [ ] All rule_test.gleam tests pass
+  - [ ] Session roundtrip works
+  - [ ] JSONL append works
+  - [ ] History/snapshots work
+  - [ ] Tests written
 
-### WAVE0-03: Port Interpolation
+### WAVE0-03: Output Formatting
 - **Priority:** 1 (Critical)
-- **Effort:** 20min
-- **Task:** Port interpolate.gleam (335 lines)
-- **Tests to port:** interpolate_test.gleam (100+ tests)
+- **Effort:** 30min
+- **Task:** Create output/output.gleam, json_output.gleam
+- **Pattern:** Port unified JSON schema with next_actions
 - **Acceptance:**
-  - [ ] Variable substitution works
-  - [ ] Depth limiting functional
-  - [ ] Circular reference detection works
-  - [ ] All interpolate_test.gleam tests pass
+  - [ ] JSON output format correct
+  - [ ] next_actions field populated
+  - [ ] Human-readable format works
+  - [ ] OutputMode abstraction works
 
-### WAVE0-04: Port Array Indexing
+### WAVE0-04: FFI Utilities
 - **Priority:** 1 (Critical)
 - **Effort:** 15min
-- **Task:** Port array_indexing.gleam (288 lines)
-- **Tests to port:** array_indexing_test.gleam (72 tests)
+- **Task:** Create minimal intent_ffi.erl
+- **Keep only:**
+  - UUID generation
+  - Timestamp generation
+- **Delete:**
+  - HTTP execution
+  - Regex caching (not needed)
 - **Acceptance:**
-  - [ ] JSON path navigation works
-  - [ ] Positive/negative indices work
-  - [ ] Wildcard support works
-  - [ ] All array_indexing_test.gleam tests pass
+  - [ ] UUID works
+  - [ ] Timestamps work
 
-### WAVE0-05: Port Security Module
+### WAVE0-05: Dependency Resolver
+- **Priority:** 1 (Critical)
+- **Effort:** 30min
+- **Task:** Port core/resolver.gleam (topological sort)
+- **Acceptance:**
+  - [ ] Kahn's algorithm works
+  - [ ] Cycle detection works
+  - [ ] Wave grouping works
+  - [ ] Tests pass
+
+### WAVE0-06: CUE Loader
 - **Priority:** 1 (Critical)
 - **Effort:** 20min
-- **Task:** Port security.gleam (367 lines)
-- **Tests to port:** security_test.gleam
+- **Task:** Port core/loader.gleam for Plan CUE files
 - **Acceptance:**
-  - [ ] SSRF protection functional
-  - [ ] Path traversal detection works
-  - [ ] URL validation works
-  - [ ] All security tests pass
-
-### WAVE0-06: Port FFI Layer
-- **Priority:** 1 (Critical)
-- **Effort:** 15min
-- **Task:** Port intent_ffi.erl, intent_http_ffi.erl, intent_checker.erl
-- **Acceptance:**
-  - [ ] HTTP execution works
-  - [ ] Regex caching works
-  - [ ] UUID generation works
-  - [ ] Timestamp generation works
-
-### WAVE0-07: Port Checker Core
-- **Priority:** 1 (Critical)
-- **Effort:** 30min
-- **Task:** Port checker.gleam, checker/json.gleam, checker/headers.gleam
-- **Tests to port:** Related checker tests
-- **Acceptance:**
-  - [ ] Response validation works
-  - [ ] Field navigation works
-  - [ ] Header checking works
-  - [ ] All checker tests pass
-
-### WAVE0-08: Port HTTP Client
-- **Priority:** 1 (Critical)
-- **Effort:** 30min
-- **Task:** Port http_client.gleam (560 lines)
-- **Acceptance:**
-  - [ ] HTTP execution with timeout
-  - [ ] SSRF protection integrated
-  - [ ] Error classification works
-  - [ ] Request interpolation works
-
-### WAVE0-09: Port Runner
-- **Priority:** 1 (Critical)
-- **Effort:** 30min
-- **Task:** Port runner.gleam (627 lines)
-- **Tests to port:** runner_test.gleam, runner_executor_test.gleam
-- **Acceptance:**
-  - [ ] Spec execution works
-  - [ ] Behavior dependency resolution works
-  - [ ] Context capture works
-  - [ ] All runner tests pass
-
-### WAVE0-10: Port Output System
-- **Priority:** 1 (Critical)
-- **Effort:** 30min
-- **Task:** Port output.gleam, json_output.gleam, output_mode.gleam, cli_ui.gleam
-- **Tests to port:** output_test.gleam (100+ tests)
-- **Acceptance:**
-  - [ ] JSON output schema preserved
-  - [ ] next_actions field works
-  - [ ] Interactive mode works
-  - [ ] All output tests pass
+  - [ ] CUE validation works
+  - [ ] CUE export works
+  - [ ] Plan parsing works
 
 ---
 
@@ -116,42 +79,42 @@
 
 ### WAVE1-01: Vision Types
 - **Priority:** 1 (Critical)
-- **Effort:** 20min
+- **Effort:** 15min
 - **Task:** Create phase1_vision/vision_types.gleam
+- **Types:**
+  - VisionSession
+  - VisionDoc
+  - VisionAnswer
 - **Acceptance:**
-  - [ ] VisionSession type defined
-  - [ ] VisionDoc type defined
-  - [ ] Scenario type defined
-  - [ ] ScenarioStep type defined
+  - [ ] All types defined
+  - [ ] Links to core types
 
 ### WAVE1-02: Vision Storage
 - **Priority:** 1 (Critical)
-- **Effort:** 30min
+- **Effort:** 20min
 - **Task:** Create phase1_vision/vision_storage.gleam
-- **Pattern:** Follow interview_storage.gleam JSONL pattern
 - **Acceptance:**
-  - [ ] JSONL persistence works
-  - [ ] Session roundtrip works
-  - [ ] History/snapshots work
-  - [ ] Tests written and passing
+  - [ ] JSONL persistence
+  - [ ] Session roundtrip
+  - [ ] History tracking
 
 ### WAVE1-03: Vision Questions
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
 - **Task:** Create phase1_vision/vision_questions.gleam
 - **Questions:**
-  - Q1: Press release (what & why)
-  - Q2: Persona (who specifically)
-  - Q3: Non-personas (who NOT)
-  - Q4: Replaces (current solution)
-  - Q5: VORP (why switch)
-  - Q6: North star (ideal journey)
-  - Q7: More scenarios
-  - Q8: Out of scope
+  1. Press release (what & why)
+  2. Persona (who specifically)
+  3. Non-personas (who NOT)
+  4. Replaces (current solution)
+  5. VORP (why switch)
+  6. North star (ideal journey)
+  7. More scenarios (2-3 additional)
+  8. Out of scope (boundaries)
 - **Acceptance:**
   - [ ] All 8 questions defined
   - [ ] Extraction logic for each
-  - [ ] Field mapping correct
+  - [ ] Field mapping to VisionDoc
 
 ### WAVE1-04: Vision Critique Protocol
 - **Priority:** 1 (Critical)
@@ -159,10 +122,11 @@
 - **Task:** Create phase1_vision/vision_critique.gleam
 - **Persona:** Skeptical PM
 - **Critique areas:**
-  - Press release (compelling? differentiated?)
-  - Persona (specific? validated?)
-  - North star (complete? end-to-end?)
-  - VORP (10x better? validated?)
+  - Press release: Compelling? Differentiated?
+  - Persona: Specific? Validated?
+  - North star: Complete? End-to-end?
+  - VORP: 10x better? Validated?
+  - Scope: Intentional boundaries?
 - **Acceptance:**
   - [ ] Critique generation works
   - [ ] Blocking questions identified
@@ -174,11 +138,11 @@
 - **Effort:** 45min
 - **Task:** Add vision commands to main.gleam
 - **Commands:**
-  - vision start
-  - vision parse
+  - vision start [--profile]
+  - vision parse <file.md>
   - vision check
   - vision critique
-  - vision respond
+  - vision respond '<text>'
   - vision agree
   - vision export
 - **Acceptance:**
@@ -203,53 +167,71 @@
 
 ### WAVE2-01: Shape Types
 - **Priority:** 1 (Critical)
-- **Effort:** 20min
+- **Effort:** 15min
 - **Task:** Create phase2_shape/shape_types.gleam
+- **Types:**
+  - ShapeSession
+  - FeatureShape
+  - MVPSlice
+  - ValidationMoment
 - **Acceptance:**
-  - [ ] ShapeSession type defined
-  - [ ] FeatureShape type defined
-  - [ ] MVPSlice type defined
-  - [ ] ValidationMoment type defined
+  - [ ] All types defined
+  - [ ] Links to vision session
 
 ### WAVE2-02: Shape Storage
 - **Priority:** 1 (Critical)
 - **Effort:** 20min
 - **Task:** Create phase2_shape/shape_storage.gleam
-- **Pattern:** Follow vision_storage.gleam
 - **Acceptance:**
-  - [ ] JSONL persistence works
+  - [ ] JSONL persistence
   - [ ] Links to vision session
-  - [ ] Tests written
+  - [ ] History tracking
 
-### WAVE2-03: MVP Analyzer
+### WAVE2-03: Shape Questions
+- **Priority:** 1 (Critical)
+- **Effort:** 30min
+- **Task:** Create phase2_shape/shape_questions.gleam
+- **Questions:**
+  1. What features are needed? (from north star)
+  2. Which are critical for north star?
+  3. What's the absolute minimum to see it work?
+  4. What can we fake/hardcode?
+  5. What can wait until after validation?
+  6. What's the validation moment?
+- **Acceptance:**
+  - [ ] All 6 questions defined
+  - [ ] Feature extraction works
+  - [ ] MVP slice identified
+
+### WAVE2-04: MVP Analyzer
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
 - **Task:** Create phase2_shape/mvp_analyzer.gleam
 - **Logic:**
-  - Identify critical path features
-  - Detect what can be faked/hardcoded
+  - Identify critical path from north star
+  - Suggest shortcuts (fake, hardcode, defer)
   - Calculate minimal scope
 - **Acceptance:**
-  - [ ] Critical path detection works
-  - [ ] Shortcut suggestions work
-  - [ ] MVP slice generated correctly
+  - [ ] Critical path detection
+  - [ ] Shortcut suggestions
+  - [ ] MVP slice generation
 
-### WAVE2-04: Shape Critique Protocol
+### WAVE2-05: Shape Critique Protocol
 - **Priority:** 1 (Critical)
 - **Effort:** 45min
 - **Task:** Create phase2_shape/shape_critique.gleam
 - **Persona:** Pragmatic Tech Lead
 - **Critique areas:**
-  - MVP slice (actually minimum?)
-  - Critical path (really critical?)
-  - Validation moment (proves concept?)
-  - Post-MVP (acceptable to defer?)
+  - MVP slice: Actually minimum?
+  - Critical path: Really critical?
+  - Validation moment: Proves concept?
+  - Post-MVP: Acceptable to defer?
 - **Acceptance:**
   - [ ] Critique generation works
   - [ ] Scope reduction suggestions
   - [ ] Alignment check works
 
-### WAVE2-05: Shape Commands
+### WAVE2-06: Shape Commands
 - **Priority:** 1 (Critical)
 - **Effort:** 45min
 - **Task:** Add shape commands to main.gleam
@@ -257,7 +239,7 @@
   - shape start --vision=<id>
   - shape check
   - shape critique
-  - shape respond
+  - shape respond '<text>'
   - shape agree
   - shape beads
 - **Acceptance:**
@@ -266,7 +248,7 @@
   - [ ] MVP beads generated
   - [ ] next_actions guide to Phase 3
 
-### WAVE2-06: Shape Tests
+### WAVE2-07: Shape Tests
 - **Priority:** 2 (Important)
 - **Effort:** 30min
 - **Task:** Create test/phase2_shape_test.gleam
@@ -277,98 +259,145 @@
 
 ---
 
-## Wave 3: Phase 3 - Spec (Enhance KIRK)
+## Wave 3: Phase 3 - Spec (KIRK)
 
-### WAVE3-01: Enhanced Interview
-- **Priority:** 1 (Critical)
-- **Effort:** 45min
-- **Task:** Enhance interview.gleam to link vision/shape
-- **Changes:**
-  - Accept --shape=<id> flag
-  - Pre-populate from vision/shape data
-  - Validate against vision context
-- **Acceptance:**
-  - [ ] Shape linking works
-  - [ ] Vision data accessible
-  - [ ] Pre-population works
-
-### WAVE3-02: Enhanced Quality Analyzer
+### WAVE3-01: Port KIRK Quality Analyzer
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
-- **Task:** Add ready_score dimension to quality_analyzer.gleam
-- **New dimension:**
-  - ready_score: 0-100 based on READY checks
+- **Task:** Port kirk/quality_analyzer.gleam
+- **Adapt for Plan schema (not API spec)
 - **Acceptance:**
-  - [ ] 5th dimension added
-  - [ ] Scoring logic correct
-  - [ ] Tests updated
+  - [ ] 5-dimension scoring works
+  - [ ] Works with new Plan type
+  - [ ] Tests pass
 
-### WAVE3-03: Enhanced Gap Detector
+### WAVE3-02: Port KIRK Coverage Analyzer
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
-- **Task:** Add product gaps to gap_detector.gleam
-- **New gap types:**
+- **Task:** Port kirk/coverage_analyzer.gleam
+- **Adapt:** Check feature coverage, not OWASP
+- **Acceptance:**
+  - [ ] Feature coverage works
+  - [ ] Edge case detection works
+  - [ ] Tests pass
+
+### WAVE3-03: Port KIRK Gap Detector
+- **Priority:** 1 (Critical)
+- **Effort:** 30min
+- **Task:** Port kirk/gap_detector.gleam
+- **Add product gaps:**
   - discovery_gap
   - understanding_gap
   - empathy_gap
   - vorp_gap
 - **Acceptance:**
-  - [ ] 4 new gap types added
-  - [ ] Detection logic works
-  - [ ] Tests updated
+  - [ ] Gap detection works
+  - [ ] Product gaps included
+  - [ ] Tests pass
 
-### WAVE3-04: Spec Critique Protocol
+### WAVE3-04: Port KIRK Inversion Checker
+- **Priority:** 1 (Critical)
+- **Effort:** 30min
+- **Task:** Port kirk/inversion_checker.gleam
+- **Focus:** Failure modes in behaviors, not HTTP errors
+- **Acceptance:**
+  - [ ] Failure mode analysis works
+  - [ ] Anti-pattern detection works
+  - [ ] Tests pass
+
+### WAVE3-05: Port KIRK Effects Analyzer
+- **Priority:** 1 (Critical)
+- **Effort:** 30min
+- **Task:** Port kirk/effects_analyzer.gleam
+- **Focus:** Feature dependencies, side effects
+- **Acceptance:**
+  - [ ] Dependency analysis works
+  - [ ] Orphan detection works
+  - [ ] Tests pass
+
+### WAVE3-06: Port EARS Parser
+- **Priority:** 1 (Critical)
+- **Effort:** 30min
+- **Task:** Port kirk/ears_parser.gleam
+- **Acceptance:**
+  - [ ] 5 EARS patterns parse
+  - [ ] Behavior extraction works
+  - [ ] Tests pass
+
+### WAVE3-07: Spec Interview
+- **Priority:** 1 (Critical)
+- **Effort:** 45min
+- **Task:** Create phase3_spec/interview.gleam
+- **5 rounds:**
+  1. EARS (requirements patterns)
+  2. Contracts (given/when/then)
+  3. Inversion (failure modes)
+  4. Effects (dependencies)
+  5. Pre-mortem (pitfalls)
+- **Acceptance:**
+  - [ ] 5-round flow works
+  - [ ] Links to shape session
+  - [ ] RCS calculation works
+
+### WAVE3-08: Spec Critique Protocol
 - **Priority:** 1 (Critical)
 - **Effort:** 45min
 - **Task:** Create phase3_spec/spec_critique.gleam
 - **Persona:** Adversarial QA Engineer
 - **Critique areas:**
   - EARS completeness
-  - Contract coverage
-  - Inversion coverage
-  - Effects coverage
-  - Pre-mortem pitfalls
+  - Behavior coverage
+  - Failure mode coverage
+  - Dependency clarity
+  - Pitfall documentation
 - **Acceptance:**
   - [ ] Per-round critique works
   - [ ] RCS validation
   - [ ] Alignment check works
 
-### WAVE3-05: Spec Commands Enhancement
+### WAVE3-09: Spec Commands
 - **Priority:** 1 (Critical)
-- **Effort:** 30min
-- **Task:** Add spec critique commands
+- **Effort:** 45min
+- **Task:** Add spec commands to main.gleam
 - **Commands:**
+  - spec start --shape=<id>
+  - quality <plan>
+  - coverage <plan>
+  - gaps <plan>
+  - invert <plan>
+  - effects <plan>
+  - ears <file>
   - spec critique
-  - spec respond
+  - spec respond '<text>'
   - spec agree
 - **Acceptance:**
-  - [ ] Commands work
-  - [ ] Links to existing KIRK commands
+  - [ ] All commands work
+  - [ ] Links to shape session
   - [ ] Gate to Phase 4 works
 
-### WAVE3-06: Spec Tests
+### WAVE3-10: Spec Tests
 - **Priority:** 2 (Important)
 - **Effort:** 30min
-- **Task:** Update/add tests for enhanced KIRK
+- **Task:** Create test/phase3_spec_test.gleam
 - **Acceptance:**
-  - [ ] ready_score tests
-  - [ ] Product gap tests
+  - [ ] KIRK analyzer tests
+  - [ ] Interview flow tests
   - [ ] Critique tests
 
 ---
 
-## Wave 4: Phase 4 - Ready (Ship Decision)
+## Wave 4: Phase 4 - Ready (Ship)
 
 ### WAVE4-01: READY Checker
 - **Priority:** 1 (Critical)
 - **Effort:** 45min
 - **Task:** Create phase4_ready/ready.gleam
 - **Checks:**
-  - R: Replacement value (VORP analysis)
-  - E: Empathy validated (friction simulation)
-  - A: Actionable errors (fix suggestions)
-  - D: Discoverable (feature access)
-  - Y: Yet complete (north star achievable)
+  - R: Replacement value (VORP still valid?)
+  - E: Empathy validated (friction simulated?)
+  - A: Actionable errors (error paths defined?)
+  - D: Discoverable (features findable?)
+  - Y: Yet complete (north star achievable?)
 - **Acceptance:**
   - [ ] All 5 checks implemented
   - [ ] Score calculation works
@@ -380,8 +409,8 @@
 - **Task:** Create phase4_ready/vision_alignment.gleam
 - **Logic:**
   - Compare spec to original vision
-  - Detect drift
-  - Flag deviations
+  - Detect drift from persona/north_star
+  - Flag scope creep or reduction
 - **Acceptance:**
   - [ ] Alignment detection works
   - [ ] Drift reporting works
@@ -393,6 +422,7 @@
 - **Task:** Create phase4_ready/empathy_simulator.gleam
 - **Logic:**
   - Simulate persona through north star
+  - Walk through scenarios
   - Generate friction log
   - Score friction points
 - **Acceptance:**
@@ -405,11 +435,11 @@
 - **Effort:** 30min
 - **Task:** Create phase4_ready/vorp_analyzer.gleam
 - **Logic:**
-  - Compare to replaces
-  - Calculate improvement delta
-  - 4 Brutal Truths audit
+  - Validate replaces is still true
+  - Check VORP claim against spec
+  - Apply 4 Brutal Truths audit
 - **Acceptance:**
-  - [ ] VORP calculation works
+  - [ ] VORP validation works
   - [ ] 4 Truths audit works
   - [ ] Recommendations generated
 
@@ -422,6 +452,7 @@
   - Vision alignment (drift?)
   - READY checks (all pass?)
   - Friction resolved?
+  - 4 Brutal Truths satisfied?
   - Ship recommendation
 - **Acceptance:**
   - [ ] Final critique works
@@ -433,14 +464,14 @@
 - **Effort:** 45min
 - **Task:** Add ready commands to main.gleam
 - **Commands:**
-  - ready
+  - ready <plan>
   - ready critique
-  - ready respond
+  - ready respond '<text>'
   - ready agree
 - **Acceptance:**
   - [ ] All 4 commands work
   - [ ] READY score output
-  - [ ] Beads generated with ready: tags
+  - [ ] Vision alignment shown
 
 ### WAVE4-07: Ready Tests
 - **Priority:** 2 (Important)
@@ -459,68 +490,92 @@
 ### WAVE5-01: Unified CLI Entry
 - **Priority:** 1 (Critical)
 - **Effort:** 45min
-- **Task:** Refactor main.gleam for 4-phase flow
+- **Task:** Create main.gleam with all phase commands
 - **Acceptance:**
   - [ ] All phase commands registered
-  - [ ] Help text updated
-  - [ ] Phase state tracked
+  - [ ] Help text complete
+  - [ ] Version info correct
 
 ### WAVE5-02: Phase State Machine
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
-- **Task:** Create phase_state.gleam
+- **Task:** Create core/phase_state.gleam
 - **Logic:**
   - Track current phase
   - Enforce gate progression
   - Block out-of-order commands
+  - Override flag for power users
 - **Acceptance:**
   - [ ] State tracking works
   - [ ] Gate enforcement works
-  - [ ] Override flag for power users
+  - [ ] Override flag works
 
-### WAVE5-03: Enhanced Bead Generation
+### WAVE5-03: Bead Generator
+- **Priority:** 1 (Critical)
+- **Effort:** 45min
+- **Task:** Create beads/bead_generator.gleam
+- **Generate beads from:**
+  - MVP slice (Phase 2)
+  - Spec features (Phase 3)
+  - READY blockers (Phase 4)
+- **Tag beads with:**
+  - phase: 1|2|3|4
+  - ready: R|E|A|D|Y (if from READY blockers)
+- **Acceptance:**
+  - [ ] Bead generation works
+  - [ ] Tags applied correctly
+  - [ ] Traceability maintained
+
+### WAVE5-04: Wave Calculator
 - **Priority:** 1 (Critical)
 - **Effort:** 30min
-- **Task:** Update bead_templates.gleam
-- **Changes:**
-  - Add ready: tags (R, E, A, D, Y)
-  - Link to blocking READY issues
-  - Include vision/shape context
+- **Task:** Port beads/plan_mode.gleam
 - **Acceptance:**
-  - [ ] Tags added correctly
-  - [ ] Traceability works
-  - [ ] Context included
+  - [ ] Topological sort works
+  - [ ] Wave grouping works
+  - [ ] Effort calculation works
 
-### WAVE5-04: Documentation Update
+### WAVE5-05: Prompt Generator
+- **Priority:** 2 (Important)
+- **Effort:** 30min
+- **Task:** Create beads/prompt_generator.gleam
+- **Generate AI implementation prompts from beads
+- **Acceptance:**
+  - [ ] Context generation works
+  - [ ] Guardrails included
+  - [ ] Plan context included
+
+### WAVE5-06: Documentation
 - **Priority:** 2 (Important)
 - **Effort:** 30min
 - **Task:** Update CLAUDE.md with new commands
 - **Acceptance:**
-  - [ ] All new commands documented
+  - [ ] All commands documented
   - [ ] 4-phase flow explained
-  - [ ] Glossary updated
+  - [ ] Glossary complete
 
-### WAVE5-05: Integration Tests
+### WAVE5-07: Integration Tests
 - **Priority:** 1 (Critical)
 - **Effort:** 45min
 - **Task:** Create test/integration_test.gleam
 - **Tests:**
   - Full 4-phase flow
   - Gate progression
-  - Vision to READY journey
+  - Vision → Shape → Spec → Ready journey
 - **Acceptance:**
   - [ ] End-to-end test works
   - [ ] All phases exercised
   - [ ] Gate logic validated
 
-### WAVE5-06: Example Specs Update
+### WAVE5-08: Example Plans
 - **Priority:** 2 (Important)
 - **Effort:** 30min
-- **Task:** Update examples/ with 4-phase specs
+- **Task:** Create examples/ with complete plans
 - **Acceptance:**
   - [ ] At least 2 complete examples
   - [ ] Vision block populated
   - [ ] Shape block populated
+  - [ ] Spec block populated
   - [ ] Ready block populated
 
 ---
@@ -529,24 +584,26 @@
 
 | Wave | Beads | Total Effort |
 |------|-------|--------------|
-| Wave 0: Foundation | 10 | ~4h 30min |
-| Wave 1: Vision | 6 | ~3h 20min |
-| Wave 2: Shape | 6 | ~3h 10min |
-| Wave 3: Spec | 6 | ~3h 30min |
+| Wave 0: Foundation | 6 | ~2h 35min |
+| Wave 1: Vision | 6 | ~3h 5min |
+| Wave 2: Shape | 7 | ~3h 35min |
+| Wave 3: Spec | 10 | ~5h 45min |
 | Wave 4: Ready | 7 | ~4h 30min |
-| Wave 5: Integration | 6 | ~3h 30min |
-| **TOTAL** | **41** | **~22h 30min** |
+| Wave 5: Integration | 8 | ~4h 45min |
+| **TOTAL** | **44** | **~24h 15min** |
 
 ---
 
 ## Dependencies
 
 ```
-WAVE0 (all) → WAVE1, WAVE2, WAVE3, WAVE4, WAVE5
-WAVE1 → WAVE2 (vision required for shape)
-WAVE2 → WAVE3 (shape required for spec linking)
-WAVE3 → WAVE4 (spec required for READY)
-WAVE1, WAVE2, WAVE3, WAVE4 → WAVE5 (all phases for integration)
+Wave 0 → All other waves
+
+Wave 1 (Vision) → Wave 2 (Shape)
+Wave 2 (Shape) → Wave 3 (Spec)
+Wave 3 (Spec) → Wave 4 (Ready)
+
+Waves 1-4 → Wave 5 (Integration)
 ```
 
 ---
@@ -554,15 +611,28 @@ WAVE1, WAVE2, WAVE3, WAVE4 → WAVE5 (all phases for integration)
 ## Critical Path
 
 ```
-WAVE0-01 → WAVE0-02 → WAVE0-07 → WAVE0-08 → WAVE0-09
+WAVE0-01 (types) → WAVE0-02 (storage) → WAVE0-03 (output)
                                               ↓
 WAVE1-01 → WAVE1-02 → WAVE1-03 → WAVE1-04 → WAVE1-05
                                               ↓
-WAVE2-01 → WAVE2-02 → WAVE2-03 → WAVE2-04 → WAVE2-05
-                                              ↓
-WAVE3-01 → WAVE3-02 → WAVE3-03 → WAVE3-04 → WAVE3-05
+WAVE2-01 → WAVE2-02 → WAVE2-03 → WAVE2-04 → WAVE2-05 → WAVE2-06
+                                                          ↓
+WAVE3-01..06 (KIRK) → WAVE3-07 → WAVE3-08 → WAVE3-09
                                               ↓
 WAVE4-01 → WAVE4-02 → WAVE4-03 → WAVE4-04 → WAVE4-05 → WAVE4-06
                                                           ↓
-                                                       WAVE5-01 → WAVE5-02 → WAVE5-05
+WAVE5-01 → WAVE5-02 → WAVE5-03 → WAVE5-07
 ```
+
+---
+
+## What We're NOT Building
+
+- No HTTP client
+- No API testing
+- No SSRF protection
+- No response validation
+- No checker/rules engine
+- No contract verification
+
+**This is a pure planning tool.**
