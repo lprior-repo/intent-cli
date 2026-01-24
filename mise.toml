@@ -1,5 +1,7 @@
 [tools]
-beads = "0.49.0"
+# beads (bd) is installed via: curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+# Current version: 0.49.0 (installed to ~/.local/bin/bd)
+# mise doesn't have a beads plugin yet - manual installation required
 cue = "latest"
 erlang = "latest"
 gleam = "latest"
