@@ -164,9 +164,6 @@ pub fn main() {
     |> glint.add(at: ["plan"], do: plan_command())
     |> glint.add(at: ["plan-approve"], do: plan_approve_command())
     |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
-    // Context scanning
-    // TODO: Re-enable when context_scan_command is implemented
-    // |> glint.add(at: ["context-scan"], do: context_scan_command())
     |> glint.run(normalized_args)
 }
 
