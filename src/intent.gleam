@@ -659,7 +659,7 @@ fn doctor_command() -> glint.Command(Nil) {
 
     case input.args {
       [spec_path, ..] -> {
-        case loader.load_spec(spec_path) {
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let report = doctor.run_doctor(spec)
             case is_json {
@@ -3026,7 +3026,7 @@ fn kirk_invert_command() -> glint.Command(Nil) {
 
     case input.args {
       [spec_path, ..] -> {
-        case loader.load_spec(spec_path) {
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let report = inversion_checker.analyze_inversions(spec)
             case is_json {
@@ -3125,7 +3125,7 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
 
     case input.args {
       [spec_path, ..] -> {
-        case loader.load_spec(spec_path) {
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let report = coverage_analyzer.analyze_coverage(spec)
             case is_json {
@@ -3210,7 +3210,7 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
 
     case input.args {
       [spec_path, ..] -> {
-        case loader.load_spec(spec_path) {
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let report = gap_detector.detect_gaps(spec)
             case is_json {
@@ -3316,7 +3316,7 @@ fn kirk_effects_command() -> glint.Command(Nil) {
 
     case input.args {
       [spec_path, ..] -> {
-        case loader.load_spec(spec_path) {
+        case load_spec_for_mode(spec_path, is_json) {
           Ok(spec) -> {
             let report = effects_analyzer.analyze_effects(spec)
 
