@@ -9,9 +9,7 @@
 /// These types are used to structure the planning process from vision to
 /// ready-to-build specifications, ensuring alignment and completeness.
 import gleam/option.{type Option}
-import intent/vision_types.{
-  type Scenario, type Stakeholder, type VisionSection, Scenario, VisionSection,
-}
+import intent/vision_types.{type VisionSection}
 
 // =============================================================================
 // PHASE 1: VISION (DDD)
