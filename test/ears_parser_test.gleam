@@ -449,3 +449,155 @@ pub fn to_plan_beads_handles_empty_result_test() {
   |> list.is_empty
   |> should.be_true()
 }
+
+// ============================================================================
+// Plan Schema Integration Tests (KIRKHealth + SpecSection)
+// ============================================================================
+
+pub fn to_kirk_health_calculates_coverage_test() {
+  // Good coverage: has all 5 EARS patterns
+  let input =
+    "THE SYSTEM SHALL validate inputs
+WHEN user clicks THE SYSTEM SHALL save data
+WHILE loading THE SYSTEM SHALL show spinner
+WHERE admin THE SYSTEM SHALL show admin panel
+IF error THEN THE SYSTEM SHALL NOT crash"
+  let result = ears_parser.parse(input)
+  let health = ears_parser.to_kirk_health(result)
+
+  // Full pattern coverage = 100%
+  health.coverage_score
+  |> should.equal(100.0)
+}
+
+pub fn to_kirk_health_calculates_partial_coverage_test() {
+  // Only ubiquitous pattern = 20% coverage (1/5 patterns)
+  let input = "THE SYSTEM SHALL validate inputs"
+  let result = ears_parser.parse(input)
+  let health = ears_parser.to_kirk_health(result)
+
+  // Only 1 of 5 patterns covered
+  health.coverage_score
+  |> should.equal(20.0)
+}
+
+pub fn to_kirk_health_calculates_quality_from_error_ratio_test() {
+  // No errors = high quality
+  let input = "THE SYSTEM SHALL validate inputs"
+  let result = ears_parser.parse(input)
+  let health = ears_parser.to_kirk_health(result)
+
+  // No errors means high quality score
+  health.quality_score
+  |> should.equal(100.0)
+}
+
+pub fn to_kirk_health_detects_gaps_test() {
+  // Missing unwanted pattern = gap in negative testing
+  let input = "THE SYSTEM SHALL validate inputs"
+  let result = ears_parser.parse(input)
+  let health = ears_parser.to_kirk_health(result)
+
+  // Should detect missing pattern as gap
+  health.gaps
+  |> list.any(fn(g) { string.contains(g, "Unwanted") })
+  |> should.be_true()
+}
+
+pub fn to_kirk_health_detects_inversions_from_warnings_test() {
+  // Warnings about missing negative cases = inversions
+  let input = "THE SYSTEM SHALL validate inputs"
+  let result = ears_parser.parse(input)
+  let health = ears_parser.to_kirk_health(result)
+
+  // Inversions should come from warnings
+  health.inversions
+  |> list.is_empty
+  |> should.be_false()
+}
+
+pub fn to_spec_section_creates_round1_spec_test() {
+  let input = "THE SYSTEM SHALL validate inputs\nWHEN user clicks THE SYSTEM SHALL save"
+  let result = ears_parser.parse(input)
+  let spec_section = ears_parser.to_spec_section(result, "TestAPI")
+
+  // Name should match
+  spec_section.name
+  |> should.equal("TestAPI")
+
+  // Description should reference EARS
+  spec_section.description
+  |> should_contain("EARS")
+
+  // Round 1 complete
+  spec_section.rounds_complete
+  |> should.equal(1)
+}
+
+pub fn calculate_pattern_coverage_all_patterns_test() {
+  // Test the pattern coverage calculation directly
+  let patterns = [Ubiquitous, EventDriven, StateDriven, Optional, Unwanted]
+  let coverage = ears_parser.calculate_pattern_coverage(patterns)
+
+  coverage
+  |> should.equal(100.0)
+}
+
+pub fn calculate_pattern_coverage_partial_test() {
+  // Only 2 patterns = 40% (2/5)
+  let patterns = [Ubiquitous, EventDriven]
+  let coverage = ears_parser.calculate_pattern_coverage(patterns)
+
+  coverage
+  |> should.equal(40.0)
+}
+
+pub fn calculate_pattern_coverage_with_complex_test() {
+  // Complex counts as covering both state and event = higher contribution
+  let patterns = [Ubiquitous, Complex]
+  let coverage = ears_parser.calculate_pattern_coverage(patterns)
+
+  // Complex covers state+event, so: ubiquitous(1) + complex(2) = 3/5 = 60%
+  coverage
+  |> should.equal(60.0)
+}
+
+pub fn detect_pattern_gaps_test() {
+  // Missing patterns should be identified
+  let patterns = [Ubiquitous, EventDriven]
+  let gaps = ears_parser.detect_pattern_gaps(patterns)
+
+  // Should detect missing State-Driven, Optional, and Unwanted
+  gaps
+  |> list.length
+  |> should.equal(3)
+
+  gaps
+  |> list.any(fn(g) { string.contains(g, "State-Driven") })
+  |> should.be_true()
+}
+
+pub fn to_kirk_health_handles_errors_test() {
+  // Parse errors should affect quality score
+  let input = "invalid line without shall\nTHE SYSTEM SHALL validate"
+  let result = ears_parser.parse(input)
+  let health = ears_parser.to_kirk_health(result)
+
+  // 1 valid, 1 error = 50% quality
+  health.quality_score
+  |> should.equal(50.0)
+}
+
+pub fn to_kirk_health_empty_input_test() {
+  let input = "# Only comments"
+  let result = ears_parser.parse(input)
+  let health = ears_parser.to_kirk_health(result)
+
+  // No requirements = 0 coverage
+  health.coverage_score
+  |> should.equal(0.0)
+
+  // No errors (just empty) = 100% quality
+  health.quality_score
+  |> should.equal(100.0)
+}
