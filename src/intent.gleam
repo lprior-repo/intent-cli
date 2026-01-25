@@ -123,51 +123,9 @@ fn do_normalize(args: List(String)) -> List(String) {
   }
 }
 
-// ============================================================================
-// Workflow Diagram
-// ============================================================================
-
-/// Print the Intent workflow diagram showing command relationships
-fn print_workflow_diagram() -> Nil {
-  io.println("")
-  io.println("📋 Intent CLI - Contract-Driven API Testing")
-  io.println("")
-  io.println("TYPICAL WORKFLOW:")
-  io.println("")
-  io.println("  1. CREATE & VALIDATE")
-  io.println("     validate spec.cue → lint spec.cue")
-  io.println("     │")
-  io.println("  2. TEST & ANALYZE  ")
-  io.println("     check spec.cue --target=URL")
-  io.println("     │")
-  io.println("  3. QUALITY ANALYSIS")
-  io.println("     quality spec.cue → gaps spec.cue → invert spec.cue")
-  io.println("     │")
-  io.println("  4. IMPROVE")
-  io.println("     effects spec.cue → doctor spec.cue → improve spec.cue")
-  io.println("")
-  io.println("DISCOVERY WORKFLOW:")
-  io.println("")
-  io.println("  interview api → beads <session-id> → plan <session-id>")
-  io.println("")
-  io.println("REQUIREMENTS PARSING:")
-  io.println("")
-  io.println("  ears requirements.md --output=cue --out=spec.cue")
-  io.println("")
-  io.println("For detailed help on any command, run:")
-  io.println("  intent <command> --help")
-  io.println("")
-}
-
 pub fn main() {
   let raw_args = argv.load().arguments
   let normalized_args = normalize_flag_syntax(raw_args)
-
-  // Show workflow diagram when running without command or with --help
-  case normalized_args {
-    [] | ["--help"] | ["-h"] -> print_workflow_diagram()
-    _ -> Nil
-  }
 
   let app =
     glint.new()
@@ -2968,12 +2926,6 @@ fn sessions_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("List all interview sessions")
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output as JSON"),
-  )
   |> glint.flag(
     "profile",
     flag.string()
