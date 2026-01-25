@@ -1,0 +1,10 @@
+{
+  "bead_id": "intent-cli-avoz",
+  "complexity": "MEDIUM",
+  "route": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "current_phase": 15,
+  "phases_completed": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "started_at": "2026-01-25T00:00:00Z",
+  "last_updated": "2026-01-25T16:36:00Z",
+  "notes": "Completed E2E test suite with 33 tests covering all major commands. Tests use shellout.command to run CLI, extract JSON output, and verify exit codes. Note: Build has pre-existing issues in spec_critique_test.gleam and vision_alignment.gleam that are not related to this bead."
+}

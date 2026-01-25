@@ -1,0 +1,11 @@
+{
+  "id": "intent-cli-avoz",
+  "title": "Create end-to-end test suite",
+  "description": "Create comprehensive E2E test suite covering all 24 commands with subprocess execution. Test exit codes, output formats, error cases. Complements existing 1689 unit tests. Enables actual exit code verification (exit_code_test.gleam notes this gap).",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "task",
+  "created_at": "2026-01-23T21:23:18.694768571-06:00",
+  "created_by": "lewis",
+  "updated_at": "2026-01-23T21:23:18.694768571-06:00"
+}
