@@ -374,6 +374,103 @@ questions: {
 	}
 
 	// =========================================================================
+	// VISION PROFILE - Product vision and scope definition
+	// =========================================================================
+	vision: #ProfileQuestions & {
+		round_1: [
+			{
+				id:          "r1-vision-1"
+				round:       1
+				perspective: "business"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "What problem are we solving?"
+				context:     "Start with the core problem statement. This becomes your press release - the 'why' that drives everything."
+				example:     "Developers waste 40% of sprint time manually testing APIs. We're building a contract-driven testing tool that catches breaking changes before deployment."
+				extract_into: ["press_release"]
+			},
+			{
+				id:          "r1-vision-2"
+				round:       1
+				perspective: "user"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "Who specifically needs this?"
+				context:     "Define your primary persona with specific details - role, constraints, motivations."
+				example:     "Mid-senior backend engineers at 10-100 person startups who own API contracts and are tired of Postman collections breaking in CI."
+				extract_into: ["persona"]
+			},
+			{
+				id:          "r1-vision-3"
+				round:       1
+				perspective: "user"
+				category:    "constraint"
+				priority:    "important"
+				question:    "Who is this NOT for?"
+				context:     "Anti-personas help clarify scope. Who might want this but shouldn't use it?"
+				example:     "Frontend developers who just want to mock APIs. Enterprise teams needing SOAP/XML support. QA teams looking for UI testing."
+				extract_into: ["non_personas"]
+			},
+			{
+				id:          "r1-vision-4"
+				round:       1
+				perspective: "business"
+				category:    "constraint"
+				priority:    "important"
+				question:    "What do they currently use?"
+				context:     "Understanding the current solution reveals pain points and switching costs."
+				example:     "Postman collections + manual verification, or writing brittle integration tests in Jest/PyTest."
+				extract_into: ["replaces"]
+			},
+			{
+				id:          "r1-vision-5"
+				round:       1
+				perspective: "business"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "What would make them switch? (VORP - Value Over Replacement)"
+				context:     "Your solution must be 10x better, not 10% better. What's the compelling reason to switch?"
+				example:     "Deterministic contract enforcement in CI. Zero false positives. Human-readable CUE specs that serve as living documentation."
+				extract_into: ["vorp"]
+			},
+			{
+				id:          "r1-vision-6"
+				round:       1
+				perspective: "user"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "What is their ideal journey? (North star)"
+				context:     "Describe the perfect end-to-end experience from the user's perspective."
+				example:     "Write API contract in CUE → Run 'intent check' in CI → Get instant feedback on breaking changes → Ship with confidence."
+				extract_into: ["north_star"]
+			},
+			{
+				id:          "r1-vision-7"
+				round:       1
+				perspective: "user"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "What scenarios demonstrate this? (2-3 concrete scenarios)"
+				context:     "Concrete scenarios validate your understanding. Include character + motivation + outcome."
+				example:     "Scenario 1: Sarah (backend engineer) updates /login endpoint. Intent catches breaking change in PR check. Scenario 2: Dev team onboards new engineer who learns API contracts by reading CUE specs."
+				extract_into: ["scenarios"]
+			},
+			{
+				id:          "r1-vision-8"
+				round:       1
+				perspective: "business"
+				category:    "constraint"
+				priority:    "important"
+				question:    "What is explicitly out of scope?"
+				context:     "Clear boundaries prevent scope creep. What won't you build, at least not in v1?"
+				example:     "GraphQL support, UI testing, performance/load testing, mocking servers, code generation."
+				extract_into: ["out_of_scope"]
+			},
+		]
+		round_2: []
+	}
+
+	// =========================================================================
 	// COMMON ROUNDS - Shared across all profiles
 	// =========================================================================
 	common: {
