@@ -14,15 +14,18 @@ package intent
 	context:       string
 	example:       string
 	expected_type: string | *"text"
-	extract_into:  [...string] | *[]
-	depends_on:    [...string] | *[]
-	blocks:        [...string] | *[]
+	extract_into: [...string] | *[]
+	depends_on: [...string] | *[]
+	blocks: [...string] | *[]
 }
 
 // Profile-specific question structure
 #ProfileQuestions: {
 	round_1: [...#Question]
 	round_2: [...#Question]
+	round_3: [...#Question]
+	round_4: [...#Question]
+	round_5: [...#Question]
 }
 
 // The exported questions database
@@ -123,6 +126,12 @@ questions: {
 				extract_into: ["status_codes"]
 			},
 		]
+		// Round 3: Inversion - What could go wrong?
+		round_3: common.round_3
+		// Round 4: Effects - Second-order impacts
+		round_4: common.round_4
+		// Round 5: Pre-mortem - Operational readiness
+		round_5: common.round_5
 	}
 
 	// =========================================================================
@@ -188,6 +197,12 @@ questions: {
 				extract_into: ["error_handling"]
 			},
 		]
+		// Round 3: Inversion - What could go wrong?
+		round_3: common.round_3
+		// Round 4: Effects - Second-order impacts
+		round_4: common.round_4
+		// Round 5: Pre-mortem - Operational readiness
+		round_5: common.round_5
 	}
 
 	// =========================================================================
@@ -242,6 +257,12 @@ questions: {
 				extract_into: ["delivery_guarantees"]
 			},
 		]
+		// Round 3: Inversion - What could go wrong?
+		round_3: common.round_3
+		// Round 4: Effects - Second-order impacts
+		round_4: common.round_4
+		// Round 5: Pre-mortem - Operational readiness
+		round_5: common.round_5
 	}
 
 	// =========================================================================
@@ -285,6 +306,12 @@ questions: {
 				extract_into: ["deletion_policy"]
 			},
 		]
+		// Round 3: Inversion - What could go wrong?
+		round_3: common.round_3
+		// Round 4: Effects - Second-order impacts
+		round_4: common.round_4
+		// Round 5: Pre-mortem - Operational readiness
+		round_5: common.round_5
 	}
 
 	// =========================================================================
@@ -328,6 +355,12 @@ questions: {
 				extract_into: ["error_recovery"]
 			},
 		]
+		// Round 3: Inversion - What could go wrong?
+		round_3: common.round_3
+		// Round 4: Effects - Second-order impacts
+		round_4: common.round_4
+		// Round 5: Pre-mortem - Operational readiness
+		round_5: common.round_5
 	}
 
 	// =========================================================================
@@ -371,6 +404,12 @@ questions: {
 				extract_into: ["error_messages"]
 			},
 		]
+		// Round 3: Inversion - What could go wrong?
+		round_3: common.round_3
+		// Round 4: Effects - Second-order impacts
+		round_4: common.round_4
+		// Round 5: Pre-mortem - Operational readiness
+		round_5: common.round_5
 	}
 
 	// =========================================================================
