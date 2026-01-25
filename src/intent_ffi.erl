@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, int_to_float/1, get_env/1]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, int_to_float/1, get_env/1, write_stderr/1]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -56,3 +56,8 @@ get_env(Name) when is_binary(Name) ->
         false -> {error, nil};
         Value -> {ok, list_to_binary(Value)}
     end.
+
+%% Write text to stderr
+write_stderr(Text) when is_binary(Text) ->
+    io:format(standard_error, "~s~n", [Text]),
+    nil.
