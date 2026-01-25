@@ -33,6 +33,7 @@ pub type QuestionsDatabase {
     workflow: ProfileQuestions,
     ui: ProfileQuestions,
     vision: ProfileQuestions,
+    shape: ProfileQuestions,
     common: CommonQuestions,
   )
 }
@@ -59,6 +60,7 @@ pub type CustomQuestions {
     workflow: Option(CustomProfileQuestions),
     ui: Option(CustomProfileQuestions),
     vision: Option(CustomProfileQuestions),
+    shape: Option(CustomProfileQuestions),
     common: Option(CustomCommonQuestions),
   )
 }
@@ -145,7 +147,7 @@ fn parse_custom_database(
   data: Dynamic,
 ) -> Result(CustomQuestions, QuestionLoadError) {
   let decoder =
-    dynamic.decode8(
+    dynamic.decode9(
       CustomQuestions,
       dynamic.optional_field("api", parse_custom_profile_questions),
       dynamic.optional_field("cli", parse_custom_profile_questions),
@@ -154,6 +156,7 @@ fn parse_custom_database(
       dynamic.optional_field("workflow", parse_custom_profile_questions),
       dynamic.optional_field("ui", parse_custom_profile_questions),
       dynamic.optional_field("vision", parse_custom_profile_questions),
+      dynamic.optional_field("shape", parse_custom_profile_questions),
       dynamic.optional_field("common", parse_custom_common_questions),
     )
 
@@ -201,6 +204,7 @@ fn merge_custom_questions(
     workflow: merge_profile(db.workflow, custom.workflow),
     ui: merge_profile(db.ui, custom.ui),
     vision: merge_profile(db.vision, custom.vision),
+    shape: merge_profile(db.shape, custom.shape),
     common: merge_common(db.common, custom.common),
   )
 }
@@ -274,7 +278,7 @@ fn parse_questions_json(
 
 fn parse_database(data: Dynamic) -> Result(QuestionsDatabase, QuestionLoadError) {
   let decoder =
-    dynamic.decode8(
+    dynamic.decode9(
       QuestionsDatabase,
       dynamic.field("api", parse_profile_questions),
       dynamic.field("cli", parse_profile_questions),
@@ -283,6 +287,7 @@ fn parse_database(data: Dynamic) -> Result(QuestionsDatabase, QuestionLoadError)
       dynamic.field("workflow", parse_profile_questions),
       dynamic.field("ui", parse_profile_questions),
       dynamic.field("vision", parse_profile_questions),
+      dynamic.field("shape", parse_profile_questions),
       dynamic.field("common", parse_common_questions),
     )
 
@@ -451,6 +456,8 @@ pub fn get_questions(
     "ui", 2 -> db.ui.round_2
     "vision", 1 -> db.vision.round_1
     "vision", 2 -> db.vision.round_2
+    "shape", 1 -> db.shape.round_1
+    "shape", 2 -> db.shape.round_2
     _, 3 -> db.common.round_3
     _, 4 -> db.common.round_4
     _, 5 -> db.common.round_5

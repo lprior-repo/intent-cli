@@ -471,6 +471,81 @@ questions: {
 	}
 
 	// =========================================================================
+	// SHAPE PROFILE - MVP and feature scoping
+	// =========================================================================
+	shape: #ProfileQuestions & {
+		round_1: [
+			{
+				id:          "r1-shape-1"
+				round:       1
+				perspective: "business"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "What features are needed to achieve the north star?"
+				context:     "Based on the ideal user journey from Vision, what capabilities must exist?"
+				example:     "User authentication, data persistence, real-time updates, notification system"
+				extract_into: ["features"]
+			},
+			{
+				id:          "r1-shape-2"
+				round:       1
+				perspective: "business"
+				category:    "constraint"
+				priority:    "critical"
+				question:    "Which features are critical to achieve the north star?"
+				context:     "Not all features are equally important. Which are absolutely essential?"
+				example:     "User auth is critical, real-time updates are critical, but notifications can wait"
+				extract_into: ["critical_path"]
+			},
+			{
+				id:          "r1-shape-3"
+				round:       1
+				perspective: "developer"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "What's the absolute minimum to validate the concept?"
+				context:     "Describe the smallest version that demonstrates value. The MVP slice."
+				example:     "Single-user auth with basic CRUD operations and manual refresh - proves the core workflow"
+				extract_into: ["mvp_slice"]
+			},
+			{
+				id:          "r1-shape-4"
+				round:       1
+				perspective: "developer"
+				category:    "constraint"
+				priority:    "important"
+				question:    "What can we fake, hardcode, or defer to later?"
+				context:     "Shortcuts accelerate learning. What complexity can we avoid initially?"
+				example:     "Hardcode single tenant, fake email delivery with console logs, skip password reset"
+				extract_into: ["shortcuts"]
+			},
+			{
+				id:          "r1-shape-5"
+				round:       1
+				perspective: "business"
+				category:    "constraint"
+				priority:    "important"
+				question:    "What can wait until after validation?"
+				context:     "Features that are nice-to-have but not essential for proving the concept."
+				example:     "Multi-tenancy, SSO integration, advanced analytics, mobile app, API rate limiting"
+				extract_into: ["post_mvp"]
+			},
+			{
+				id:          "r1-shape-6"
+				round:       1
+				perspective: "user"
+				category:    "happy_path"
+				priority:    "critical"
+				question:    "What's the validation moment? The 'aha' that proves it works?"
+				context:     "Define the specific moment when you'll know the MVP succeeded or failed."
+				example:     "User completes their first task 50% faster than with the old tool and says 'this is better'"
+				extract_into: ["validation_moment"]
+			},
+		]
+		round_2: []
+	}
+
+	// =========================================================================
 	// COMMON ROUNDS - Shared across all profiles
 	// =========================================================================
 	common: {
