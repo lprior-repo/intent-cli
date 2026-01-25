@@ -299,3 +299,104 @@ pub fn severity_to_string_critical_test() {
   let result = gap_detector.severity_to_string(gap_detector.Critical)
   result |> string.lowercase |> string.contains("critical") |> should.be_true
 }
+
+// =============================================================================
+// gaps_to_kirk_health_format tests
+// =============================================================================
+
+pub fn gaps_to_kirk_health_format_empty_report_test() {
+  // Contract: Empty report returns empty lists
+  let report =
+    gap_detector.GapReport(
+      inversion_gaps: [],
+      second_order_gaps: [],
+      checklist_gaps: [],
+      coverage_gaps: [],
+      security_gaps: [],
+      total_gaps: 0,
+      severity_breakdown: gap_detector.SeverityBreakdown(
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+      ),
+    )
+
+  let #(all_gaps, inversions) = gap_detector.gaps_to_kirk_health_format(report)
+
+  all_gaps |> should.equal([])
+  inversions |> should.equal([])
+}
+
+pub fn gaps_to_kirk_health_format_with_gaps_test() {
+  // Contract: Report with gaps formats them as strings
+  let spec =
+    test_helpers.make_test_spec_from_behaviors([
+      test_helpers.make_test_behavior("test-behavior", []),
+    ])
+  let report = gap_detector.detect_gaps(spec)
+
+  let #(all_gaps, _inversions) = gap_detector.gaps_to_kirk_health_format(report)
+
+  // Should have gaps formatted as strings
+  list.is_empty(all_gaps) |> should.be_false
+}
+
+pub fn gaps_to_kirk_health_format_includes_severity_test() {
+  // Contract: Formatted gaps include severity indicator
+  let spec = test_helpers.make_test_spec_from_behaviors([])
+  let report = gap_detector.detect_gaps(spec)
+
+  let #(all_gaps, _inversions) = gap_detector.gaps_to_kirk_health_format(report)
+
+  case all_gaps {
+    [] -> should.fail()
+    [first, ..] -> {
+      // Should contain severity keywords in brackets
+      let has_severity =
+        string.contains(first, "[CRITICAL]")
+        || string.contains(first, "[HIGH]")
+        || string.contains(first, "[MEDIUM]")
+        || string.contains(first, "[LOW]")
+      has_severity |> should.be_true
+    }
+  }
+}
+
+pub fn gaps_to_kirk_health_format_inversions_only_test() {
+  // Contract: Inversions list contains only inversion gaps
+  let behaviors = [
+    test_helpers.make_test_behavior_with_status("success", 200, []),
+  ]
+  let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
+  let report = gap_detector.detect_gaps(spec)
+
+  let #(_all_gaps, inversions) = gap_detector.gaps_to_kirk_health_format(report)
+
+  // Should have inversions if low error coverage
+  case inversions {
+    [] -> should.be_false(True)
+    [first, ..] -> {
+      // Should mention error coverage (from inversion gap description)
+      let lower = string.lowercase(first)
+      string.contains(lower, "error") |> should.be_true
+    }
+  }
+}
+
+pub fn gaps_to_kirk_health_format_tuple_structure_test() {
+  // Contract: Returns tuple of two lists
+  let spec = test_helpers.make_test_spec_from_behaviors([])
+  let report = gap_detector.detect_gaps(spec)
+
+  let result = gap_detector.gaps_to_kirk_health_format(report)
+
+  // Should be a tuple that we can pattern match
+  case result {
+    #(all_gaps, inversions) -> {
+      list.is_empty(all_gaps) |> should.be_false
+      // inversions is a list (may be empty or not)
+      { list.length(inversions) >= 0 } |> should.be_true
+    }
+  }
+}

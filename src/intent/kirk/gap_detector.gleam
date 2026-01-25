@@ -521,3 +521,42 @@ pub fn severity_to_string(s: GapSeverity) -> String {
     Critical -> "critical"
   }
 }
+
+// =============================================================================
+// PLAN SCHEMA INTEGRATION
+// =============================================================================
+
+/// Convert GapReport to KIRKHealth-compatible format
+/// Returns tuple of (all_gaps, inversion_gaps_only) as formatted strings
+/// Format: "[SEVERITY] description - suggestion"
+pub fn gaps_to_kirk_health_format(
+  report: GapReport,
+) -> #(List(String), List(String)) {
+  // Collect all gaps into a single list
+  let all_gaps =
+    list.concat([
+      report.inversion_gaps,
+      report.second_order_gaps,
+      report.checklist_gaps,
+      report.coverage_gaps,
+      report.security_gaps,
+    ])
+    |> list.map(format_gap_for_kirk)
+
+  // Extract only inversion gaps
+  let inversion_gaps = report.inversion_gaps |> list.map(format_gap_for_kirk)
+
+  #(all_gaps, inversion_gaps)
+}
+
+/// Format a single gap for KIRKHealth
+fn format_gap_for_kirk(gap: Gap) -> String {
+  let severity_prefix = case gap.severity {
+    Critical -> "[CRITICAL]"
+    High -> "[HIGH]"
+    Medium -> "[MEDIUM]"
+    Low -> "[LOW]"
+  }
+
+  severity_prefix <> " " <> gap.description <> " - " <> gap.suggestion
+}
