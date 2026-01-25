@@ -39,6 +39,7 @@ import intent/planning_types.{
 import intent/prompt_generator
 import intent/quality_analyzer
 import intent/question_types.{type Question}
+import intent/ready_commands
 import intent/spec_builder
 import intent/spec_linter
 import intent/types
