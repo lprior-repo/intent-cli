@@ -1144,18 +1144,476 @@ export <session-id> [--output=plan.cue]
 13. **READY score** includes all 5 dimensions (R, E, A, D, Y)
 
 ### Output Quality
-14. **Beads contain full context** - each bead includes:
-    - All relevant questioning answers
-    - Database schema excerpts
-    - Security configuration
-    - Anti-patterns to avoid
-    - Test cases to implement
-    - Edge cases confirmed
+14. **Beads contain full context** - each bead is a "Block of Context" so precise a primitive AI can fix it in one shot without hallucinations
 15. **Mechanical implementation** - AI can implement from bead without asking clarifying questions
 
 ---
 
-## What Makes This World-Class
+## Bead Template (MANDATORY for Every Bead)
+
+Every bead MUST follow this template. This is Jira in CLI form - complete work breakdown with dependencies, priorities, and full implementation context.
+
+### Bead Schema
+
+```cue
+#Bead: {
+    // === METADATA (Jira-style) ===
+    id: string                      // "BEAD-001", auto-generated
+    epic_id?: string                // Parent epic for grouping
+    title: string                   // Short, action-oriented
+    status: "open" | "in_progress" | "blocked" | "closed"
+    priority: 1 | 2 | 3 | 4 | 5     // 5 = critical, 1 = nice-to-have
+    issue_type: "feature" | "bug" | "task" | "spike"
+    estimated_minutes: 5..30        // Atomic work unit
+    labels: [...string]
+
+    // === DEPENDENCIES (Critical for ordering) ===
+    depends_on: [...string]         // Bead IDs that must complete first
+    blocks: [...string]             // Bead IDs waiting on this one
+    related_to: [...string]         // Non-blocking relationships
+
+    // === CONTEXT BLOCK ===
+    context: {
+        file_path: string           // "src/domain/user/value_objects.rs"
+        function_or_type?: string   // "Email::new" or "struct User"
+        smell: string               // "The code assumes X but Y happens..."
+        why_now: string             // Why this bead matters in the sequence
+    }
+
+    // === SPECIFICATION BLOCK (The "One-Shot" Instructions) ===
+    spec: #BeadSpec
+
+    // === AI REVIEW ===
+    ai_review: {
+        completeness_check: string  // Self-review: "Does this cover everything?"
+        context_references: [...{   // Where to look in codebase
+            file: string
+            lines?: string          // "45-67"
+            why: string
+        }]
+        ambiguity_flags: [...string] // Any remaining questions?
+    }
+}
+
+#BeadSpec: {
+    // 1. EARS (Easy Approach to Requirements Syntax)
+    ears: [...{
+        pattern: "ubiquitous" | "event_driven" | "state_driven" | "optional" | "unwanted"
+        trigger?: string            // WHEN clause
+        state?: string              // WHILE clause
+        condition?: string          // WHERE/IF clause
+        behavior: string            // SHALL/SHALL NOT clause
+    }]
+
+    // 2. Design by Contract
+    contract: {
+        preconditions: [...string]  // What must be true BEFORE
+        postconditions: [...string] // What must be true AFTER
+        invariants: [...string]     // What must ALWAYS be true
+    }
+
+    // 3. Test-Driven Design (Kent Beck style)
+    tests: {
+        happy_path: [...{
+            name: string
+            given: string
+            when: string
+            then: string
+            code_sketch: string     // Actual test code
+        }]
+        unhappy_path: [...{
+            name: string
+            given: string
+            when: string
+            then: string
+            code_sketch: string
+        }]
+        property_based?: [...{
+            name: string
+            property: string        // "forall x: valid_email(x) => Email::new(x).is_ok()"
+            generator: string       // How to generate test data
+        }]
+    }
+
+    // 4. Design by Type
+    types: {
+        interfaces: [...{
+            name: string
+            definition: string      // Actual code
+        }]
+        value_objects: [...{
+            name: string
+            inner_type: string
+            validations: [...string]
+            derives: [...string]
+        }]
+        error_types: [...{
+            name: string
+            variants: [...string]
+        }]
+    }
+
+    // 5. Schema & Edge Cases
+    schema: {
+        input_type: string          // JSON Schema or Rust type
+        output_type: string
+        edge_cases: [...{
+            input: string
+            expected_output: string
+            rationale: string
+        }]
+    }
+
+    // 6. Invariants & Variants
+    boundaries: {
+        will_do: [...{
+            behavior: string
+            code_example: string
+        }]
+        will_not_do: [...{
+            behavior: string
+            reason: string
+        }]
+    }
+}
+```
+
+### Example Bead: Implement Email Value Object
+
+```cue
+{
+    id: "BEAD-003"
+    epic_id: "EPIC-001-USER-DOMAIN"
+    title: "Implement Email value object with Parse-Don't-Validate"
+    status: "open"
+    priority: 4
+    issue_type: "feature"
+    estimated_minutes: 20
+    labels: ["domain", "value-object", "validation"]
+
+    depends_on: []
+    blocks: ["BEAD-004", "BEAD-005"]  // User entity and RegisterUser use case
+    related_to: ["BEAD-002"]          // UserId value object
+
+    context: {
+        file_path: "src/domain/identity/value_objects.rs"
+        function_or_type: "struct Email"
+        smell: "Raw String used for email throughout codebase - no validation, can mix up with other strings, no compile-time safety"
+        why_now: "Foundation for User aggregate - all user operations need validated Email"
+    }
+
+    spec: {
+        ears: [
+            {
+                pattern: "ubiquitous"
+                behavior: "The system SHALL reject email addresses without @ symbol"
+            },
+            {
+                pattern: "ubiquitous"
+                behavior: "The system SHALL reject email addresses longer than 255 characters"
+            },
+            {
+                pattern: "event_driven"
+                trigger: "Email::new() is called with valid input"
+                behavior: "The system SHALL return Ok(Email) with normalized lowercase"
+            },
+            {
+                pattern: "unwanted"
+                condition: "input is empty string"
+                behavior: "The system SHALL NOT create Email, SHALL return Err(EmptyEmail)"
+            }
+        ]
+
+        contract: {
+            preconditions: [
+                "Input is a String or &str",
+                "No preconditions on content (validation is the job)"
+            ]
+            postconditions: [
+                "If Ok: email contains exactly one @",
+                "If Ok: email is lowercase (normalized)",
+                "If Ok: email.len() <= 255",
+                "If Err: no Email instance created",
+                "Email is immutable after creation"
+            ]
+            invariants: [
+                "Email always contains valid format (enforced by private field)",
+                "Email can only be created through ::new() constructor",
+                "Two emails with same string are equal (PartialEq)"
+            ]
+        }
+
+        tests: {
+            happy_path: [
+                {
+                    name: "creates_email_from_valid_input"
+                    given: "A valid email string 'user@example.com'"
+                    when: "Email::new is called"
+                    then: "Returns Ok(Email) with normalized value"
+                    code_sketch: """
+                        #[test]
+                        fn creates_email_from_valid_input() {
+                            let result = Email::new("User@Example.COM");
+                            assert!(result.is_ok());
+                            assert_eq!(result.unwrap().as_str(), "user@example.com");
+                        }
+                    """
+                },
+                {
+                    name: "emails_with_same_value_are_equal"
+                    given: "Two Email instances with same normalized value"
+                    when: "Compared with =="
+                    then: "Returns true"
+                    code_sketch: """
+                        #[test]
+                        fn emails_with_same_value_are_equal() {
+                            let e1 = Email::new("test@example.com").unwrap();
+                            let e2 = Email::new("TEST@EXAMPLE.COM").unwrap();
+                            assert_eq!(e1, e2);
+                        }
+                    """
+                }
+            ]
+            unhappy_path: [
+                {
+                    name: "rejects_empty_string"
+                    given: "Empty string input"
+                    when: "Email::new is called"
+                    then: "Returns Err(InvalidEmail::Empty)"
+                    code_sketch: """
+                        #[test]
+                        fn rejects_empty_string() {
+                            let result = Email::new("");
+                            assert!(matches!(result, Err(InvalidEmail::Empty)));
+                        }
+                    """
+                },
+                {
+                    name: "rejects_missing_at_symbol"
+                    given: "String without @ symbol"
+                    when: "Email::new is called"
+                    then: "Returns Err(InvalidEmail::MissingAt)"
+                    code_sketch: """
+                        #[test]
+                        fn rejects_missing_at_symbol() {
+                            let result = Email::new("userexample.com");
+                            assert!(matches!(result, Err(InvalidEmail::MissingAt { .. })));
+                        }
+                    """
+                },
+                {
+                    name: "rejects_too_long"
+                    given: "String longer than 255 chars"
+                    when: "Email::new is called"
+                    then: "Returns Err(InvalidEmail::TooLong)"
+                    code_sketch: """
+                        #[test]
+                        fn rejects_too_long() {
+                            let long_email = format!("{}@example.com", "a".repeat(250));
+                            let result = Email::new(&long_email);
+                            assert!(matches!(result, Err(InvalidEmail::TooLong { .. })));
+                        }
+                    """
+                }
+            ]
+            property_based: [
+                {
+                    name: "valid_emails_always_contain_at"
+                    property: "forall e: Email::new(e).is_ok() => e.contains('@')"
+                    generator: "Arbitrary strings, filtered"
+                },
+                {
+                    name: "created_emails_are_normalized"
+                    property: "forall e: Email::new(e).is_ok() => Email::new(e).unwrap().as_str() == e.to_lowercase()"
+                    generator: "Valid email strings with mixed case"
+                }
+            ]
+        }
+
+        types: {
+            interfaces: []
+            value_objects: [
+                {
+                    name: "Email"
+                    inner_type: "String"
+                    validations: ["contains @", "len <= 255", "not empty"]
+                    derives: ["Clone", "PartialEq", "Eq", "Hash", "Debug"]
+                }
+            ]
+            error_types: [
+                {
+                    name: "InvalidEmail"
+                    variants: [
+                        "Empty",
+                        "MissingAt { value: String }",
+                        "TooLong { len: usize, max: usize }",
+                        "InvalidFormat { value: String, reason: String }"
+                    ]
+                }
+            ]
+        }
+
+        schema: {
+            input_type: "impl Into<String>"
+            output_type: "Result<Email, InvalidEmail>"
+            edge_cases: [
+                {
+                    input: "\"\""
+                    expected_output: "Err(InvalidEmail::Empty)"
+                    rationale: "Empty string is not a valid email"
+                },
+                {
+                    input: "\"   \""
+                    expected_output: "Err(InvalidEmail::Empty)"
+                    rationale: "Whitespace-only should be treated as empty"
+                },
+                {
+                    input: "\"user@例子.中国\""
+                    expected_output: "Ok(Email) if unicode support enabled"
+                    rationale: "RFC 6531 internationalized email addresses"
+                },
+                {
+                    input: "\"user@localhost\""
+                    expected_output: "Ok(Email)"
+                    rationale: "localhost is valid for development"
+                },
+                {
+                    input: "\"user@@example.com\""
+                    expected_output: "Err(InvalidEmail::InvalidFormat)"
+                    rationale: "Multiple @ symbols invalid"
+                }
+            ]
+        }
+
+        boundaries: {
+            will_do: [
+                {
+                    behavior: "Validate @ presence"
+                    code_example: "if !value.contains('@') { return Err(InvalidEmail::MissingAt { value }) }"
+                },
+                {
+                    behavior: "Normalize to lowercase"
+                    code_example: "let normalized = value.trim().to_lowercase();"
+                },
+                {
+                    behavior: "Enforce max length"
+                    code_example: "if normalized.len() > 255 { return Err(InvalidEmail::TooLong { len: normalized.len(), max: 255 }) }"
+                }
+            ]
+            will_not_do: [
+                {
+                    behavior: "DNS lookup to verify domain exists"
+                    reason: "IO operation - belongs in infrastructure layer"
+                },
+                {
+                    behavior: "Send verification email"
+                    reason: "Side effect - belongs in use case layer"
+                },
+                {
+                    behavior: "Full RFC 5322 regex validation"
+                    reason: "Overly strict, rejects valid emails users expect to work"
+                },
+                {
+                    behavior: "Store in database"
+                    reason: "Persistence is repository concern"
+                }
+            ]
+        }
+    }
+
+    ai_review: {
+        completeness_check: "This bead covers: type definition, error type, constructor validation, equality, Display impl. Missing: Serialize/Deserialize derives if needed for API layer - add if User API requires JSON."
+        context_references: [
+            {
+                file: "src/domain/identity/mod.rs"
+                why: "Module exports - add pub use value_objects::Email"
+            },
+            {
+                file: "src/domain/identity/user.rs"
+                lines: "15-20"
+                why: "User entity will use Email type for email field"
+            },
+            {
+                file: "BEAD-002"
+                why: "Similar pattern to UserId - follow same structure"
+            }
+        ]
+        ambiguity_flags: [
+            "Unicode support: decide yes/no before implementation",
+            "Serde derives: check if needed for this layer"
+        ]
+    }
+}
+```
+
+### Bead Workflow (Jira-style)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  EPIC: EPIC-001-USER-DOMAIN                                             │
+│  "Implement User aggregate with value objects and repository"            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Wave 1 (Foundation - no dependencies):                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                              │
+│  │ BEAD-001 │  │ BEAD-002 │  │ BEAD-003 │                              │
+│  │ Error    │  │ UserId   │  │ Email    │                              │
+│  │ Types    │  │ Value Obj│  │ Value Obj│                              │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘                              │
+│       │             │             │                                      │
+│       └─────────────┼─────────────┘                                      │
+│                     ▼                                                    │
+│  Wave 2 (Depends on Wave 1):                                            │
+│  ┌──────────────────────────────┐                                       │
+│  │         BEAD-004             │                                       │
+│  │     User Entity              │                                       │
+│  │  depends_on: [001,002,003]   │                                       │
+│  └──────────────┬───────────────┘                                       │
+│                 │                                                        │
+│                 ▼                                                        │
+│  Wave 3 (Depends on Wave 2):                                            │
+│  ┌──────────────────────────────┐  ┌──────────────────────────────┐    │
+│  │         BEAD-005             │  │         BEAD-006             │    │
+│  │   UserRepository Trait       │  │    Domain Events             │    │
+│  │  depends_on: [004]           │  │  depends_on: [004]           │    │
+│  └──────────────┬───────────────┘  └──────────────┬───────────────┘    │
+│                 │                                  │                     │
+│                 └──────────────┬──────────────────┘                     │
+│                                ▼                                        │
+│  Wave 4 (Depends on Wave 3):                                            │
+│  ┌──────────────────────────────┐                                       │
+│  │         BEAD-007             │                                       │
+│  │   RegisterUser Use Case      │                                       │
+│  │  depends_on: [004,005,006]   │                                       │
+│  └──────────────────────────────┘                                       │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Bead CLI Commands
+
+```bash
+# View ready beads (no blockers)
+bd ready --json
+
+# Claim a bead (move to in_progress)
+bd update BEAD-003 --status in_progress --json
+
+# Close a bead with reason
+bd close BEAD-003 --reason "All tests passing, code reviewed" --json
+
+# View dependencies
+bv --robot-graph --graph-format=json
+
+# Get AI triage (which bead to work on next)
+bv --robot-next
+
+# View parallel tracks (beads that can be worked simultaneously)
+bv --robot-plan
+
+# Get critical path
+bv --robot-insights
+```
 
 ### 1. Deterministic Planning (Mental Lattices)
 - **EARS** eliminates natural language ambiguity
