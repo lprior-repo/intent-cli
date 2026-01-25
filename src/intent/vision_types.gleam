@@ -1,6 +1,8 @@
 /// Core types for Vision documents
-/// These types represent the structure of vision and architecture documents
-/// following the Product-Minded Engineering framework from VISION_3_HEADLESS.md
+/// These types represent Phase 1: VISION (DDD) from INTENT_4_PLAN.md
+/// The 4-phase planning system: Vision → Shape → Spec → Ready
+import gleam/option.{type Option}
+
 /// A scenario consisting of character, motivation, and simulation
 /// Used to validate technical decisions against concrete use cases
 pub type Scenario {
@@ -15,6 +17,7 @@ pub type Scenario {
 
 /// A stakeholder with role, needs, and pain points
 /// Represents users or actors in the system
+/// DEPRECATED: Use VisionSection fields (persona, non_personas) instead
 pub type Stakeholder {
   Stakeholder(
     name: String,
@@ -24,14 +27,17 @@ pub type Stakeholder {
   )
 }
 
-/// A vision section containing title, description, scenarios, stakeholders, and principles
-/// Represents a major section of a vision document
+/// Vision section from INTENT_4_PLAN.md Phase 1: VISION (DDD)
+/// Defines what we're building and why, following DDD principles
 pub type VisionSection {
   VisionSection(
-    title: String,
-    description: String,
+    press_release: String,
+    persona: String,
+    non_personas: List(String),
+    north_star: String,
     scenarios: List(Scenario),
-    stakeholders: List(Stakeholder),
-    principles: List(String),
+    replaces: Option(String),
+    vorp: String,
+    out_of_scope: List(String),
   )
 }

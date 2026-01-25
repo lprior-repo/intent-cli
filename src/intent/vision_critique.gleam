@@ -4,37 +4,16 @@
 /// the "Skeptical PM" critique protocol from INTENT_4_PLAN.md
 import gleam/int
 import gleam/list
-import gleam/option.{type Option}
+import gleam/option
 import gleam/string
+import intent/vision_types.{type Scenario, type VisionSection}
 
 // =============================================================================
 // Types - Vision Phase Specific
 // =============================================================================
 
-/// Scenario for vision validation - matches INTENT_4_PLAN.md structure
-pub type Scenario {
-  Scenario(
-    character: String,
-    persona: String,
-    motivation: String,
-    simulation: String,
-    outcome: String,
-  )
-}
-
-/// Vision section from INTENT_4_PLAN.md Phase 1: VISION (DDD)
-pub type VisionSection {
-  VisionSection(
-    press_release: String,
-    persona: String,
-    non_personas: List(String),
-    north_star: String,
-    scenarios: List(Scenario),
-    replaces: Option(String),
-    vorp: String,
-    out_of_scope: List(String),
-  )
-}
+// Scenario and VisionSection are imported from vision_types to maintain
+// a single source of truth for these core planning types
 
 /// The three critique questions from Skeptical PM
 pub type CritiqueQuestion {
@@ -259,7 +238,7 @@ pub fn validate_persona(vision: VisionSection) -> List(CritiqueIssue) {
   // Check for empty scenario fields
   let empty_scenarios =
     vision.scenarios
-    |> list.filter(fn(scenario: Scenario) {
+    |> list.filter(fn(scenario) {
       string.trim(scenario.character) == ""
       || string.trim(scenario.motivation) == ""
       || string.trim(scenario.outcome) == ""

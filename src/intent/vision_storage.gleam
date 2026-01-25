@@ -11,6 +11,7 @@ import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json
 import gleam/list
+import gleam/option
 import gleam/result
 import gleam/string
 import intent/vision_types.{type Scenario, type Stakeholder, type VisionSection}
@@ -120,14 +121,28 @@ pub fn stakeholder_to_json(stakeholder: Stakeholder) -> json.Json {
   ])
 }
 
+/// Convert Option to JSON (None becomes null)
+fn option_to_json(
+  opt: option.Option(a),
+  converter: fn(a) -> json.Json,
+) -> json.Json {
+  case opt {
+    option.Some(value) -> converter(value)
+    option.None -> json.null()
+  }
+}
+
 /// Convert VisionSection to JSON
 pub fn vision_section_to_json(section: VisionSection) -> json.Json {
   json.object([
-    #("title", json.string(section.title)),
-    #("description", json.string(section.description)),
+    #("press_release", json.string(section.press_release)),
+    #("persona", json.string(section.persona)),
+    #("non_personas", json.array(section.non_personas, json.string)),
+    #("north_star", json.string(section.north_star)),
     #("scenarios", json.array(section.scenarios, scenario_to_json)),
-    #("stakeholders", json.array(section.stakeholders, stakeholder_to_json)),
-    #("principles", json.array(section.principles, json.string)),
+    #("replaces", option_to_json(section.replaces, json.string)),
+    #("vorp", json.string(section.vorp)),
+    #("out_of_scope", json.array(section.out_of_scope, json.string)),
   ])
 }
 
@@ -199,29 +214,40 @@ fn stakeholder_decoder(
 fn vision_section_decoder(
   json_value: dynamic.Dynamic,
 ) -> Result(VisionSection, dynamic.DecodeErrors) {
-  use title <- result.try(dynamic.field("title", dynamic.string)(json_value))
-  use description <- result.try(dynamic.field("description", dynamic.string)(
+  use press_release <- result.try(dynamic.field("press_release", dynamic.string)(
+    json_value,
+  ))
+  use persona <- result.try(dynamic.field("persona", dynamic.string)(json_value))
+  use non_personas <- result.try(dynamic.field(
+    "non_personas",
+    dynamic.list(dynamic.string),
+  )(json_value))
+  use north_star <- result.try(dynamic.field("north_star", dynamic.string)(
     json_value,
   ))
   use scenarios <- result.try(dynamic.field(
     "scenarios",
     dynamic.list(scenario_decoder),
   )(json_value))
-  use stakeholders <- result.try(dynamic.field(
-    "stakeholders",
-    dynamic.list(stakeholder_decoder),
+  use replaces <- result.try(dynamic.field(
+    "replaces",
+    dynamic.optional(dynamic.string),
   )(json_value))
-  use principles <- result.try(dynamic.field(
-    "principles",
+  use vorp <- result.try(dynamic.field("vorp", dynamic.string)(json_value))
+  use out_of_scope <- result.try(dynamic.field(
+    "out_of_scope",
     dynamic.list(dynamic.string),
   )(json_value))
 
   Ok(vision_types.VisionSection(
-    title: title,
-    description: description,
+    press_release: press_release,
+    persona: persona,
+    non_personas: non_personas,
+    north_star: north_star,
     scenarios: scenarios,
-    stakeholders: stakeholders,
-    principles: principles,
+    replaces: replaces,
+    vorp: vorp,
+    out_of_scope: out_of_scope,
   ))
 }
 
