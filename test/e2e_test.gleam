@@ -10,11 +10,20 @@ import gleeunit/should
 import shellout
 
 const exit_pass = 0
+
 const exit_error = 4
+
 const examples_dir = "examples"
 
 fn run_intent(args: List(String)) -> #(Int, String, String) {
-  case shellout.command(run: "gleam", with: ["run", "--", ..args], in: ".", opt: []) {
+  case
+    shellout.command(
+      run: "gleam",
+      with: ["run", "--", ..args],
+      in: ".",
+      opt: [],
+    )
+  {
     Ok(stdout) -> #(0, stdout, "")
     Error(#(code, output)) -> #(code, "", output)
   }
@@ -31,7 +40,10 @@ fn get_stdout(args: List(String)) -> String {
 }
 
 fn extract_json(output: String) -> String {
-  output |> string.split("\n") |> list.filter(fn(line) { string.starts_with(line, "{") }) |> string.join("\n")
+  output
+  |> string.split("\n")
+  |> list.filter(fn(line) { string.starts_with(line, "{") })
+  |> string.join("\n")
 }
 
 fn parse_json_output(output: String) -> Result(dynamic.Dynamic, Nil) {
@@ -42,8 +54,10 @@ fn is_valid_json_response(output: String) -> Bool {
   let json_output = extract_json(output)
   case parse_json_output(json_output) {
     Ok(data) -> {
-      let has_success = data |> dynamic.field("success", dynamic.bool) |> result.is_ok()
-      let has_action = data |> dynamic.field("action", dynamic.string) |> result.is_ok()
+      let has_success =
+        data |> dynamic.field("success", dynamic.bool) |> result.is_ok()
+      let has_action =
+        data |> dynamic.field("action", dynamic.string) |> result.is_ok()
       has_success && has_action
     }
     Error(_) -> False
@@ -51,7 +65,8 @@ fn is_valid_json_response(output: String) -> Bool {
 }
 
 pub fn e2e_validate_valid_spec_test() {
-  get_exit_code(["validate", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["validate", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_validate_no_args_test() {
@@ -59,39 +74,50 @@ pub fn e2e_validate_no_args_test() {
 }
 
 pub fn e2e_validate_json_output_test() {
-  get_stdout(["validate", examples_dir <> "/user-api.cue"]) |> is_valid_json_response() |> should.be_true()
+  get_stdout(["validate", examples_dir <> "/user-api.cue"])
+  |> is_valid_json_response()
+  |> should.be_true()
 }
 
 pub fn e2e_lint_valid_spec_test() {
-  get_exit_code(["lint", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["lint", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_quality_valid_spec_test() {
-  get_exit_code(["quality", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["quality", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_quality_json_output_test() {
-  get_stdout(["quality", examples_dir <> "/user-api.cue", "--json=true"]) |> is_valid_json_response() |> should.be_true()
+  get_stdout(["quality", examples_dir <> "/user-api.cue", "--json=true"])
+  |> is_valid_json_response()
+  |> should.be_true()
 }
 
 pub fn e2e_coverage_valid_spec_test() {
-  get_exit_code(["coverage", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["coverage", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_gaps_valid_spec_test() {
-  get_exit_code(["gaps", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["gaps", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_invert_valid_spec_test() {
-  get_exit_code(["invert", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["invert", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_effects_valid_spec_test() {
-  get_exit_code(["effects", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["effects", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_show_valid_spec_test() {
-  get_exit_code(["show", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["show", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_show_missing_file_test() {
@@ -99,15 +125,18 @@ pub fn e2e_show_missing_file_test() {
 }
 
 pub fn e2e_doctor_valid_spec_test() {
-  get_exit_code(["doctor", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["doctor", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_analyze_valid_spec_test() {
-  get_exit_code(["analyze", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["analyze", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_improve_valid_spec_test() {
-  get_exit_code(["improve", examples_dir <> "/user-api.cue"]) |> should.equal(exit_pass)
+  get_exit_code(["improve", examples_dir <> "/user-api.cue"])
+  |> should.equal(exit_pass)
 }
 
 pub fn e2e_help_test() {
@@ -123,4 +152,79 @@ pub fn e2e_all_kirk_commands_success_test() {
   let spec = examples_dir <> "/user-api.cue"
   let results = list.map(commands, fn(cmd) { get_exit_code([cmd, spec]) })
   list.all(results, fn(code) { code == exit_pass }) |> should.be_true()
+}
+
+// AI Pipeline Integration Tests - TDD15 bead: intent-cli-rr3
+
+pub fn e2e_ai_json_structure_test() {
+  let cmds = ["quality", "coverage", "gaps", "invert", "effects"]
+  let spec = examples_dir <> "/user-api.cue"
+  list.all(cmds, fn(cmd) {
+    get_stdout([cmd, spec, "--json=true"]) |> is_valid_json_response()
+  })
+  |> should.be_true()
+}
+
+pub fn e2e_ai_quality_scores_test() {
+  let output =
+    get_stdout(["quality", examples_dir <> "/user-api.cue", "--json=true"])
+  let json_str = extract_json(output)
+  case parse_json_output(json_str) {
+    Ok(data) -> {
+      let data_obj =
+        data
+        |> dynamic.field("data", dynamic.dynamic)
+        |> result.unwrap(dynamic.from(0))
+      let has_scores =
+        result.is_ok(dynamic.field(data_obj, "coverage_score", dynamic.int))
+      has_scores |> should.be_true()
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn e2e_ai_gaps_structure_test() {
+  let output =
+    get_stdout(["gaps", examples_dir <> "/user-api.cue", "--json=true"])
+  let json_str = extract_json(output)
+  case parse_json_output(json_str) {
+    Ok(data) -> {
+      let data_obj =
+        data
+        |> dynamic.field("data", dynamic.dynamic)
+        |> result.unwrap(dynamic.from(0))
+      let has_gaps =
+        result.is_ok(dynamic.field(
+          data_obj,
+          "inversion_gaps",
+          dynamic.list(dynamic.dynamic),
+        ))
+      has_gaps |> should.be_true()
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn e2e_ai_workflow_test() {
+  let spec = examples_dir <> "/user-api.cue"
+  get_exit_code(["quality", spec, "--json=true"]) |> should.equal(exit_pass)
+  get_exit_code(["gaps", spec, "--json=true"]) |> should.equal(exit_pass)
+  get_exit_code(["invert", spec, "--json=true"]) |> should.equal(exit_pass)
+}
+
+pub fn e2e_ai_multiple_specs_test() {
+  let specs = [
+    examples_dir <> "/user-api.cue",
+    examples_dir <> "/regex-rules.cue",
+  ]
+  let commands = ["quality", "coverage"]
+  list.all(specs, fn(spec) {
+    list.all(commands, fn(cmd) { get_exit_code([cmd, spec]) == exit_pass })
+  })
+  |> should.be_true()
+}
+
+pub fn e2e_ai_error_handling_test() {
+  get_exit_code(["quality", "nonexistent.cue"]) |> should.equal(exit_error)
+  get_exit_code(["coverage", "nonexistent.cue"]) |> should.equal(exit_error)
 }
