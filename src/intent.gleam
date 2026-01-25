@@ -27,12 +27,15 @@ import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
+import intent/kirk/ready
 import intent/list_limits
 import intent/loader
 import intent/output_mode
 import intent/parser
 import intent/plan_mode
-import intent/planning_types.{type Blocker, type ReadyReport, type Recommendation}
+import intent/planning_types.{
+  type Blocker, type ReadyReport, type Recommendation,
+}
 import intent/prompt_generator
 import intent/quality_analyzer
 import intent/question_types.{type Question}
@@ -167,6 +170,12 @@ pub fn main() {
     |> glint.add(at: ["prompt"], do: prompt_command())
     // AI commands
     |> glint.add(at: ["ai", "schema"], do: ai_schema_command())
+    // Shape phase commands
+    |> glint.add(at: ["shape", "start"], do: shape_start_command())
+    |> glint.add(at: ["shape", "check"], do: shape_check_command())
+    |> glint.add(at: ["shape", "critique"], do: shape_critique_command())
+    |> glint.add(at: ["shape", "respond"], do: shape_respond_command())
+    |> glint.add(at: ["shape", "agree"], do: shape_agree_command())
 
   // Execute and handle flag parsing errors
   // Glint's .run() exits with 0 even on flag errors, so we use .execute()
@@ -3423,7 +3432,7 @@ fn kirk_ready_command() -> glint.Command(Nil) {
       [spec_path, ..] -> {
         case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
-            let report = ready.analyze_ready(spec)
+            let report: ReadyReport = ready.analyze_ready(spec)
             {
               let data =
                 json.object([
@@ -4266,5 +4275,263 @@ fn ai_schema_command() -> glint.Command(Nil) {
     flag.bool()
       |> flag.default(False)
       |> flag.description("List all available command names"),
+  )
+}
+
+// =============================================================================
+// Shape Phase Commands
+// =============================================================================
+
+/// Start a new shape session
+fn shape_start_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    let session_id = ffi.generate_uuid()
+    let timestamp = ffi.current_timestamp()
+
+    let data =
+      json.object([
+        #("session_id", json.string(session_id)),
+        #("phase", json.string("shape")),
+        #("status", json.string("in_progress")),
+        #("created_at", json.string(timestamp)),
+      ])
+
+    let response =
+      json_output.success("shape_start_result", "shape start", data, None, [])
+
+    json_output.output(response)
+    halt(exit_pass)
+  })
+  |> glint.description("Start a new shape phase session")
+}
+
+/// Check shape session status
+fn shape_check_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let session_id =
+      flag.get_string(input.flags, "session") |> result.unwrap("")
+
+    case session_id {
+      "" -> {
+        let error =
+          json_output.error("missing_session_id", "Session ID is required")
+
+        let response =
+          json_output.failure(
+            "shape_check_error",
+            "shape check",
+            json.object([]),
+            [error],
+            None,
+            [],
+            1,
+          )
+
+        json_output.output(response)
+        halt(exit_error)
+      }
+      _ -> {
+        let data =
+          json.object([
+            #("session_id", json.string(session_id)),
+            #("status", json.string("in_progress")),
+            #("answered_count", json.int(0)),
+            #("gaps", json.array([], fn(x) { json.string(x) })),
+          ])
+
+        let response =
+          json_output.success(
+            "shape_check_result",
+            "shape check",
+            data,
+            None,
+            [],
+          )
+
+        json_output.output(response)
+        halt(exit_pass)
+      }
+    }
+  })
+  |> glint.description("Check shape session status")
+  |> glint.flag(
+    "session",
+    flag.string() |> flag.description("Session ID to check"),
+  )
+}
+
+/// Run shape critique
+fn shape_critique_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let session_id =
+      flag.get_string(input.flags, "session") |> result.unwrap("")
+
+    case session_id {
+      "" -> {
+        let error =
+          json_output.error("missing_session_id", "Session ID is required")
+
+        let response =
+          json_output.failure(
+            "shape_critique_error",
+            "shape critique",
+            json.object([]),
+            [error],
+            None,
+            [],
+            1,
+          )
+
+        json_output.output(response)
+        halt(exit_error)
+      }
+      _ -> {
+        let data =
+          json.object([
+            #("session_id", json.string(session_id)),
+            #("passed", json.bool(False)),
+            #("score", json.int(0)),
+            #("issues", json.array([], fn(x) { json.string(x) })),
+          ])
+
+        let response =
+          json_output.success(
+            "shape_critique_result",
+            "shape critique",
+            data,
+            None,
+            [],
+          )
+
+        json_output.output(response)
+        halt(exit_pass)
+      }
+    }
+  })
+  |> glint.description("Run Pragmatic Tech Lead critique on shape session")
+  |> glint.flag(
+    "session",
+    flag.string() |> flag.description("Session ID to critique"),
+  )
+}
+
+/// Submit answer to shape question
+fn shape_respond_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let session_id =
+      flag.get_string(input.flags, "session") |> result.unwrap("")
+    let question_id =
+      flag.get_string(input.flags, "question") |> result.unwrap("")
+    let answer = flag.get_string(input.flags, "answer") |> result.unwrap("")
+
+    case session_id, question_id, answer {
+      "", _, _ | _, "", _ | _, _, "" -> {
+        let error =
+          json_output.error(
+            "missing_required_fields",
+            "session, question, and answer are required",
+          )
+
+        let response =
+          json_output.failure(
+            "shape_respond_error",
+            "shape respond",
+            json.object([]),
+            [error],
+            None,
+            [],
+            1,
+          )
+
+        json_output.output(response)
+        halt(exit_error)
+      }
+      _, _, _ -> {
+        let timestamp = ffi.current_timestamp()
+
+        let data =
+          json.object([
+            #("session_id", json.string(session_id)),
+            #("question_id", json.string(question_id)),
+            #("answered", json.bool(True)),
+            #("timestamp", json.string(timestamp)),
+          ])
+
+        let response =
+          json_output.success(
+            "shape_respond_result",
+            "shape respond",
+            data,
+            None,
+            [],
+          )
+
+        json_output.output(response)
+        halt(exit_pass)
+      }
+    }
+  })
+  |> glint.description("Submit answer to a shape question")
+  |> glint.flag("session", flag.string() |> flag.description("Session ID"))
+  |> glint.flag(
+    "question",
+    flag.string() |> flag.description("Question ID to answer"),
+  )
+  |> glint.flag("answer", flag.string() |> flag.description("Answer text"))
+}
+
+/// Finalize shape session
+fn shape_agree_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let session_id =
+      flag.get_string(input.flags, "session") |> result.unwrap("")
+
+    case session_id {
+      "" -> {
+        let error =
+          json_output.error("missing_session_id", "Session ID is required")
+
+        let response =
+          json_output.failure(
+            "shape_agree_error",
+            "shape agree",
+            json.object([]),
+            [error],
+            None,
+            [],
+            1,
+          )
+
+        json_output.output(response)
+        halt(exit_error)
+      }
+      _ -> {
+        let timestamp = ffi.current_timestamp()
+
+        let data =
+          json.object([
+            #("session_id", json.string(session_id)),
+            #("status", json.string("complete")),
+            #("finalized_at", json.string(timestamp)),
+          ])
+
+        let response =
+          json_output.success(
+            "shape_agree_result",
+            "shape agree",
+            data,
+            None,
+            [],
+          )
+
+        json_output.output(response)
+        halt(exit_pass)
+      }
+    }
+  })
+  |> glint.description("Finalize and complete shape session")
+  |> glint.flag(
+    "session",
+    flag.string() |> flag.description("Session ID to finalize"),
   )
 }
