@@ -222,98 +222,66 @@ pub fn main() {
 /// The `validate` command - validate CUE spec syntax AND structure
 fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
         // Use load_spec_quiet to validate both CUE syntax AND spec structure
         case loader.load_spec_quiet(spec_path) {
           Ok(_) -> {
-            case is_json {
-              True -> {
-                let next_actions = [
-                  json_output.next_action(
-                    "intent lint " <> spec_path,
-                    "Check for quality issues",
-                  ),
-                  json_output.next_action(
-                    "intent check " <> spec_path <> " --target=URL",
-                    "Test against API",
-                  ),
-                ]
-                let response =
-                  json_output.success(
-                    "validate_result",
-                    "validate",
-                    json.object([#("valid", json.bool(True))]),
-                    Some(spec_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println("Valid spec: " <> spec_path)
-              }
-            }
+            let next_actions = [
+              json_output.next_action(
+                "intent lint " <> spec_path,
+                "Check for quality issues",
+              ),
+              json_output.next_action(
+                "intent check " <> spec_path <> " --target=URL",
+                "Test against API",
+              ),
+            ]
+            let response =
+              json_output.success(
+                "validate_result",
+                "validate",
+                json.object([#("valid", json.bool(True))]),
+                Some(spec_path),
+                next_actions,
+              )
+            json_output.output(response)
             halt(exit_pass)
           }
           Error(e) -> {
-            case is_json {
-              True -> {
-                let error_msg = loader.format_error(e)
-                let response =
-                  json_output.failure(
-                    "validate_failed",
-                    "validate",
-                    json.null(),
-                    [json_output.error("validation_error", error_msg)],
-                    Some(spec_path),
-                    [],
-                    exit_invalid,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println_error("Invalid spec: " <> loader.format_error(e))
-              }
-            }
-            halt(exit_invalid)
-          }
-        }
-      }
-      [] -> {
-        case is_json {
-          True -> {
+            let error_msg = loader.format_error(e)
             let response =
               json_output.failure(
                 "validate_failed",
                 "validate",
                 json.null(),
-                [json_output.error("usage_error", "spec file path required")],
-                None,
+                [json_output.error("validation_error", error_msg)],
+                Some(spec_path),
                 [],
-                exit_error,
+                exit_invalid,
               )
             json_output.output(response)
-          }
-          False -> {
-            io.println_error("spec file path required")
-            io.println_error("Usage: intent validate <spec.cue> [--json]")
+            halt(exit_invalid)
           }
         }
+      }
+      [] -> {
+        let response =
+          json_output.failure(
+            "validate_failed",
+            "validate",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
   })
   |> glint.description("Validate a CUE spec file (syntax and structure)")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -773,7 +741,9 @@ fn analyze_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Analyze spec quality and provide improvement suggestions")
+  |> glint.description(
+    "Analyze spec quality and provide improvement suggestions",
+  )
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -867,7 +837,9 @@ fn improve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Suggest improvements based on quality analysis and linting")
+  |> glint.description(
+    "Suggest improvements based on quality analysis and linting",
+  )
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -919,7 +891,9 @@ fn doctor_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Analyze spec health and generate prioritized improvement report")
+  |> glint.description(
+    "Analyze spec health and generate prioritized improvement report",
+  )
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -980,6 +954,36 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "dry-run")
       |> result.unwrap(False)
 
+    let batch_mode =
+      flag.get_bool(input.flags, "batch")
+      |> result.unwrap(False)
+
+    let input_file =
+      flag.get_string(input.flags, "input")
+      |> result.unwrap("")
+
+    // Batch mode: process all answers from JSON file
+    case batch_mode {
+      True -> {
+        // Validate input file is provided
+        case string.is_empty(input_file) {
+          True -> {
+            io.println_error("Error: --input flag required with --batch mode")
+            halt(exit_error)
+          }
+          False -> {
+            // TODO: implement run_interview_batch
+            io.println_error("Batch mode not yet implemented")
+            halt(exit_error)
+          }
+        }
+      }
+      False -> {
+        // Continue to CUE mode or interactive mode handling
+        Nil
+      }
+    }
+
     // CUE mode: output CUE directives for AI agents
     case cue_mode {
       True -> {
@@ -1023,16 +1027,26 @@ fn interview_command() -> glint.Command(Nil) {
         // Interactive mode removed - AI-only mode requires --cue flag
         io.println_error("Error: Interactive mode is not available.")
         io.println_error("")
-        io.println_error("Intent CLI is AI-only. Use --cue flag for machine-readable output:")
+        io.println_error(
+          "Intent CLI is AI-only. Use --cue flag for machine-readable output:",
+        )
         io.println_error("")
-        io.println_error("  Start session:  intent interview --cue --profile=api")
-        io.println_error("  Answer:         intent interview --cue --session=<id> --answer='...'")
-        io.println_error("  Resume:         intent interview --cue --resume=<id>")
+        io.println_error(
+          "  Start session:  intent interview --cue --profile=api",
+        )
+        io.println_error(
+          "  Answer:         intent interview --cue --session=<id> --answer='...'",
+        )
+        io.println_error(
+          "  Resume:         intent interview --cue --resume=<id>",
+        )
         halt(exit_error)
       }
     }
   })
-  |> glint.description("Guided specification discovery through structured interview")
+  |> glint.description(
+    "Guided specification discovery through structured interview",
+  )
   |> glint.flag(
     "profile",
     flag.string()
@@ -1101,6 +1115,22 @@ fn interview_command() -> glint.Command(Nil) {
         "Preview interview questions without persisting to session storage",
       ),
   )
+  |> glint.flag(
+    "batch",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Batch mode: process all answers from JSON file non-interactively",
+      ),
+  )
+  |> glint.flag(
+    "input",
+    flag.string()
+      |> flag.default("")
+      |> flag.description(
+        "Path to JSON file with answers for batch mode (required with --batch)",
+      ),
+  )
 }
 
 fn profile_to_string(profile: interview.Profile) -> String {
@@ -1144,6 +1174,183 @@ fn parse_profile(profile_str: String) -> Result(interview.Profile, String) {
         <> profile_str
         <> "'. Valid profiles: api, cli, event, data, workflow, ui",
       )
+  }
+}
+
+// =============================================================================
+// BATCH MODE INTERVIEW FUNCTIONS
+// =============================================================================
+
+/// Batch input from JSON file
+pub type BatchInput {
+  BatchInput(profile: String, answers: List(BatchAnswer))
+}
+
+/// Single answer in batch input
+pub type BatchAnswer {
+  BatchAnswer(question_id: String, response: String)
+}
+
+/// Parse batch input JSON from string
+fn parse_batch_input_from_string(content: String) -> Result(BatchInput, String) {
+  case json.decode(content, dynamic.dynamic) {
+    Error(_) -> Error("Invalid JSON syntax")
+    Ok(data) -> {
+      // Decode profile
+      let profile_decoder = dynamic.field("profile", dynamic.string)
+      let profile_result = profile_decoder(data)
+
+      // Decode answers array
+      let answer_decoder =
+        dynamic.decode2(
+          BatchAnswer,
+          dynamic.field("question_id", dynamic.string),
+          dynamic.field("response", dynamic.string),
+        )
+      let answers_decoder = dynamic.field("answers", dynamic.list(answer_decoder))
+      let answers_result = answers_decoder(data)
+
+      case profile_result, answers_result {
+        Ok(profile), Ok(answers) -> {
+          // Validate profile value
+          case parse_profile(profile) {
+            Error(_) ->
+              Error(
+                "Invalid profile value: '"
+                <> profile
+                <> "'. Must be one of: api, cli, event, data, workflow, ui",
+              )
+            Ok(_) -> {
+              // Validate answers not empty
+              case list.is_empty(answers) {
+                True -> Error("Answers array cannot be empty")
+                False -> Ok(BatchInput(profile: profile, answers: answers))
+              }
+            }
+          }
+        }
+        Error(_), _ -> Error("Missing required field: profile")
+        _, Error(_) -> Error("Missing required field: answers")
+      }
+    }
+  }
+}
+
+/// Parse batch input from file
+fn parse_batch_input(file_path: String) -> Result(BatchInput, String) {
+  case simplifile.read(file_path) {
+    Error(_) -> Error("File not found: " <> file_path)
+    Ok(content) -> parse_batch_input_from_string(content)
+  }
+}
+
+/// Run interview in batch mode
+fn run_interview_batch(input_file: String, export_path: String) -> Nil {
+  // Parse input file
+  let batch_result = parse_batch_input(input_file)
+  case batch_result {
+    Error(msg) -> {
+      // Determine exit code based on error type
+      case
+        string.contains(msg, "File not found")
+        || string.contains(msg, "Invalid JSON")
+      {
+        True -> {
+          // Exit 3 for invalid JSON or file not found
+          io.println_error("Error: " <> msg)
+          halt(exit_invalid)
+        }
+        False -> {
+          // Exit 4 for missing required fields
+          io.println_error("Error: " <> msg)
+          halt(exit_error)
+        }
+      }
+    }
+    Ok(batch_input) -> {
+      // Parse profile
+      let profile_result = parse_profile(batch_input.profile)
+      case profile_result {
+        Error(msg) -> {
+          io.println_error("Error: " <> msg)
+          halt(exit_error)
+        }
+        Ok(profile) -> {
+          // Create session
+          let session_id = "interview-" <> generate_uuid()
+          let timestamp = current_timestamp()
+          let session = interview.create_session(session_id, profile, timestamp)
+
+          // Process answers
+          let updated_session =
+            list.fold(batch_input.answers, session, fn(sess, batch_answer) {
+              // Create Answer object
+              let answer =
+                interview.Answer(
+                  question_id: batch_answer.question_id,
+                  question_text: "",
+                  perspective: question_types.Developer,
+                  round: 1,
+                  response: batch_answer.response,
+                  extracted: dict.new(),
+                  confidence: 1.0,
+                  notes: "",
+                  timestamp: timestamp,
+                )
+              interview.add_answer(sess, answer)
+            })
+
+          // Save session
+          let save_result =
+            interview_storage.append_session_to_jsonl(
+              updated_session,
+              ".interview/sessions.jsonl",
+            )
+
+          case save_result {
+            Error(err) -> {
+              io.println_error("Error saving session: " <> err)
+              halt(exit_error)
+            }
+            Ok(_) -> {
+              // Generate spec
+              let spec_content =
+                spec_builder.build_spec_from_session(updated_session)
+
+              // Write spec to export file if provided
+              let spec_path = case string.is_empty(export_path) {
+                True -> ""
+                False -> {
+                  case simplifile.write(export_path, spec_content) {
+                    Ok(_) -> export_path
+                    Error(_) -> {
+                      io.println_error("Warning: Failed to write spec to file")
+                      ""
+                    }
+                  }
+                }
+              }
+
+              // Output JSON result
+              let output =
+                json.object([
+                  #("success", json.bool(True)),
+                  #("session_id", json.string(session_id)),
+                  #("profile", json.string(batch_input.profile)),
+                  #(
+                    "answers_processed",
+                    json.int(list.length(batch_input.answers)),
+                  ),
+                  #("spec_generated", json.bool(True)),
+                  #("spec_path", json.string(spec_path)),
+                ])
+              io.println(json.to_string(output))
+              halt(exit_pass)
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -2182,10 +2389,14 @@ fn plan_approve_command() -> glint.Command(Nil) {
                 // Interactive mode removed - AI-only mode requires --yes flag
                 io.println_error("Error: Interactive approval not available.")
                 io.println_error("")
-                io.println_error("Intent CLI is AI-only. Use --yes flag to approve:")
+                io.println_error(
+                  "Intent CLI is AI-only. Use --yes flag to approve:",
+                )
                 io.println_error("")
                 io.println_error("  intent plan-approve <session_id> --yes")
-                io.println_error("  intent plan-approve <session_id> --yes --notes='...'")
+                io.println_error(
+                  "  intent plan-approve <session_id> --yes --notes='...'",
+                )
                 halt(exit_error)
               }
             }
@@ -3498,7 +3709,9 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Inversion analysis - what failure cases are missing?")
+  |> glint.description(
+    "KIRK: Inversion analysis - what failure cases are missing?",
+  )
   |> glint.flag(
     "json",
     flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
@@ -3840,7 +4053,9 @@ fn kirk_effects_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze second-order effects (consequence tracing)")
+  |> glint.description(
+    "KIRK: Analyze second-order effects (consequence tracing)",
+  )
   |> glint.flag(
     "json",
     flag.bool()
@@ -4012,8 +4227,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
                       _ -> Nil
                     }
                   }
-                  Error(_) ->
-                    io.println_error("Failed to write to: " <> path)
+                  Error(_) -> io.println_error("Failed to write to: " <> path)
                 }
               }
             }
