@@ -1,0 +1,33 @@
+{
+  "task": "MVP Analyzer - critical path detection",
+  "findings": {
+    "existing_infrastructure": {
+      "plan_mode": "Has dependency graph analysis (detect_dependency_graph, bead_waves)",
+      "planning_types": "ShapeSection has critical_path: List(String) field",
+      "depth_calculation": "calculate_depths() computes dependency depth for each bead"
+    },
+    "key_insights": {
+      "critical_path_definition": "Beads with longest dependency chain to completion",
+      "existing_algorithm": "Depth calculation already computes this - just need to identify max depth path",
+      "integration_point": "Add find_critical_path() function to plan_mode.gleam"
+    },
+    "implementation_approach": {
+      "step1": "Add find_critical_path(beads) -> List(String) function",
+      "step2": "Identify beads on longest dependency path (max depth chain)",
+      "step3": "Return ordered list of bead IDs from root to leaf",
+      "step4": "Add to ExecutionPlan type and output formats"
+    },
+    "test_strategy": {
+      "simple": "Single bead -> [bead-id]",
+      "linear": "A->B->C -> [A,B,C]",
+      "diamond": "C->(A,B)->D -> [C,A,D] or [C,B,D] (longest path)",
+      "parallel": "Multiple independent paths -> return longest"
+    }
+  },
+  "files_to_modify": [
+    "src/intent/plan_mode.gleam"
+  ],
+  "files_to_test": [
+    "test/plan_mode_test.gleam"
+  ]
+}

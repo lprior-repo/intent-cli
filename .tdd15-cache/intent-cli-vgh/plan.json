@@ -1,0 +1,71 @@
+{
+  "bead_id": "intent-cli-vgh",
+  "title": "WAVE2-04: MVP Analyzer (critical path detection)",
+  "approach": "Add critical path detection to plan_mode by identifying longest dependency chain",
+  "success_criteria": [
+    "find_critical_path(beads) returns ordered list of bead IDs on longest path",
+    "ExecutionPlan includes critical_path field",
+    "Human and JSON output formats display critical path",
+    "Tests cover linear, diamond, and parallel dependency patterns",
+    "All existing plan_mode tests still pass"
+  ],
+  "implementation_steps": [
+    {
+      "phase": "RED",
+      "tasks": [
+        "Add test: find_critical_path_single_bead_test",
+        "Add test: find_critical_path_linear_chain_test",
+        "Add test: find_critical_path_diamond_test (two paths, return longest)",
+        "Add test: find_critical_path_parallel_independent_test",
+        "Add test: find_critical_path_complex_test",
+        "Run tests - expect failures"
+      ]
+    },
+    {
+      "phase": "GREEN",
+      "tasks": [
+        "Add critical_path: List(String) to ExecutionPlan type",
+        "Add find_critical_path(beads) function using existing depth calculation",
+        "Algorithm: Find all leaf nodes (max depth), backtrack to roots",
+        "Update compute_plan_from_content to call find_critical_path",
+        "Update format_plan_human to display critical path",
+        "Update format_plan_json to include critical_path field",
+        "Run tests - expect all pass"
+      ]
+    },
+    {
+      "phase": "REFACTOR",
+      "tasks": [
+        "Extract helper: find_leaf_nodes(beads, depths) -> List(String)",
+        "Extract helper: backtrack_path(bead_id, beads, by_id) -> List(String)",
+        "Simplify find_critical_path logic",
+        "Add inline documentation",
+        "Run gleam format",
+        "Run tests - expect all pass"
+      ]
+    }
+  ],
+  "edge_cases": [
+    "Empty bead list -> empty critical path",
+    "Multiple paths of equal length -> return any one",
+    "No dependencies (all parallel) -> return any single bead",
+    "Cyclic dependencies -> error (already handled by existing validation)"
+  ],
+  "dependencies": {
+    "existing_functions": [
+      "calculate_depths",
+      "validate_dependencies",
+      "dict operations"
+    ],
+    "new_functions": [
+      "find_critical_path",
+      "find_leaf_nodes",
+      "backtrack_path"
+    ]
+  },
+  "verification": {
+    "unit_tests": "5 new tests for find_critical_path",
+    "integration": "Existing plan tests include critical_path",
+    "manual": "Run intent plan <session> and verify critical path output"
+  }
+}

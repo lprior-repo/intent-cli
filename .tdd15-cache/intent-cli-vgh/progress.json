@@ -1,0 +1,15 @@
+{
+  "bead_id": "intent-cli-vgh",
+  "title": "WAVE2-04: MVP Analyzer (critical path detection)",
+  "complexity": "MEDIUM",
+  "route": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "current_phase": 4,
+  "phases_completed": [0, 1, 2],
+  "started_at": "2026-01-25T16:00:00Z",
+  "language": "gleam",
+  "notes": {
+    "phase_0": "Initialize - cache directory created, bead claimed",
+    "phase_1": "Contract - MVP Analyzer identifies critical path features from ShapeSection",
+    "phase_2": "Design - analyze ShapeSection to find features on critical_path, score MVP clarity"
+  }
+}
