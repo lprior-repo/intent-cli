@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-iyb",
+    "title": "WAVE5-07: Integration Tests (full 4-phase flow)",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:53:53.868299415-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T08:53:53.868299415-06:00"
+  }
+]
