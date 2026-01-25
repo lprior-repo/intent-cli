@@ -1,0 +1,635 @@
+//// Comprehensive tests for intent/shape_storage.gleam
+//// Tests JSONL persistence for Shape documents following DI pattern
+////
+//// Design by Contract:
+//// - Preconditions: Valid shape documents with all required fields
+//// - Postconditions: JSONL format is correct, atomic writes succeed
+//// - Invariants: Pure functions have no side effects, DI functions accept readers/writers
+
+import gleam/list
+import gleam/result
+import gleam/string
+import gleeunit
+import gleeunit/should
+import intent/planning_types
+import intent/shape_storage
+
+pub fn main() {
+  gleeunit.main()
+}
+
+// ============================================================================
+// ShapeDocument Construction Tests
+// ============================================================================
+
+pub fn shape_document_creation_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [
+        planning_types.FeatureShape(
+          name: "Test Feature",
+          description: "A test feature",
+        ),
+      ],
+      critical_path: ["Step 1", "Step 2"],
+      mvp_slice: planning_types.MVPSlice(
+        description: "MVP description",
+        features: ["Feature 1"],
+        shortcuts: ["Shortcut 1"],
+      ),
+      post_mvp: ["Future work"],
+      validation_moment: "When user can see results",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "shape-001",
+      title: "Test Shape",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  doc.id
+  |> should.equal("shape-001")
+
+  doc.title
+  |> should.equal("Test Shape")
+
+  doc.shape.features
+  |> list.length()
+  |> should.equal(1)
+}
+
+// ============================================================================
+// JSON Serialization Tests (Pure Functions)
+// ============================================================================
+
+pub fn feature_shape_to_json_test() {
+  let feature =
+    planning_types.FeatureShape(
+      name: "Auth System",
+      description: "User authentication",
+    )
+
+  let json = shape_storage.feature_shape_to_json(feature)
+  let json_string = shape_storage.json_to_string(json)
+
+  json_string
+  |> string.contains("Auth System")
+  |> should.be_true()
+
+  json_string
+  |> string.contains("User authentication")
+  |> should.be_true()
+}
+
+pub fn mvp_slice_to_json_test() {
+  let slice =
+    planning_types.MVPSlice(
+      description: "Minimal viable product",
+      features: ["Login", "Logout"],
+      shortcuts: ["Hardcode admin user", "Skip email verification"],
+    )
+
+  let json = shape_storage.mvp_slice_to_json(slice)
+  let json_string = shape_storage.json_to_string(json)
+
+  json_string
+  |> string.contains("Minimal viable product")
+  |> should.be_true()
+
+  json_string
+  |> string.contains("Login")
+  |> should.be_true()
+
+  json_string
+  |> string.contains("Hardcode admin user")
+  |> should.be_true()
+}
+
+pub fn shape_section_to_json_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [
+        planning_types.FeatureShape(
+          name: "Feature 1",
+          description: "First feature",
+        ),
+      ],
+      critical_path: ["Design", "Implement", "Test"],
+      mvp_slice: planning_types.MVPSlice(
+        description: "MVP",
+        features: ["Feature 1"],
+        shortcuts: ["Mock API"],
+      ),
+      post_mvp: ["Feature 2", "Feature 3"],
+      validation_moment: "User completes first task",
+    )
+
+  let json = shape_storage.shape_section_to_json(shape)
+  let json_string = shape_storage.json_to_string(json)
+
+  json_string
+  |> string.contains("Feature 1")
+  |> should.be_true()
+
+  json_string
+  |> string.contains("Design")
+  |> should.be_true()
+
+  json_string
+  |> string.contains("User completes first task")
+  |> should.be_true()
+}
+
+pub fn shape_document_to_json_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: ["Step 1"],
+      mvp_slice: planning_types.MVPSlice(
+        description: "MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "Validation",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "doc-test",
+      title: "Test Document",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let json = shape_storage.shape_document_to_json(doc)
+  let json_string = shape_storage.json_to_string(json)
+
+  json_string
+  |> string.contains("doc-test")
+  |> should.be_true()
+
+  json_string
+  |> string.contains("Test Document")
+  |> should.be_true()
+}
+
+// ============================================================================
+// JSONL Serialization Tests (Pure Functions)
+// ============================================================================
+
+pub fn shape_document_to_jsonl_line_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "Val",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "doc-jsonl",
+      title: "JSONL Test",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let line = shape_storage.shape_document_to_jsonl_line(doc)
+
+  // JSONL should be a single line with no newlines
+  line
+  |> string.contains("\n")
+  |> should.be_false()
+
+  // Should contain document ID
+  line
+  |> string.contains("doc-jsonl")
+  |> should.be_true()
+}
+
+pub fn parse_shape_documents_content_empty_test() {
+  let content = ""
+  let documents = shape_storage.parse_shape_documents_content(content)
+
+  documents
+  |> should.equal([])
+}
+
+pub fn parse_shape_documents_content_single_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "Parse MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "Parse validation",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "parse-001",
+      title: "Parse Doc",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let line = shape_storage.shape_document_to_jsonl_line(doc)
+  let parsed = shape_storage.parse_shape_documents_content(line)
+
+  parsed
+  |> list.length()
+  |> should.equal(1)
+
+  let first = case parsed {
+    [first, ..] -> first
+    [] -> panic as "Expected one document"
+  }
+
+  first.id
+  |> should.equal("parse-001")
+}
+
+pub fn parse_shape_documents_content_multiple_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "Multi MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "Multi validation",
+    )
+
+  let doc1 =
+    shape_storage.ShapeDocument(
+      id: "multi-001",
+      title: "Doc 1",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let doc2 =
+    shape_storage.ShapeDocument(
+      id: "multi-002",
+      title: "Doc 2",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let line1 = shape_storage.shape_document_to_jsonl_line(doc1)
+  let line2 = shape_storage.shape_document_to_jsonl_line(doc2)
+  let content = line1 <> "\n" <> line2
+
+  let parsed = shape_storage.parse_shape_documents_content(content)
+
+  parsed
+  |> list.length()
+  |> should.equal(2)
+}
+
+// ============================================================================
+// Update Content Tests (Pure Functions)
+// ============================================================================
+
+pub fn update_documents_content_new_document_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "New MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "New validation",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "new-001",
+      title: "New Doc",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let existing_content = ""
+  let new_content = shape_storage.update_documents_content(existing_content, doc)
+
+  new_content
+  |> string.contains("new-001")
+  |> should.be_true()
+}
+
+pub fn update_documents_content_replace_existing_test() {
+  let shape1 =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "V1 MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "V1 validation",
+    )
+
+  let doc_v1 =
+    shape_storage.ShapeDocument(
+      id: "replace-001",
+      title: "Original",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape1,
+    )
+
+  let shape2 =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "V2 MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "V2 validation",
+    )
+
+  let doc_v2 =
+    shape_storage.ShapeDocument(
+      id: "replace-001",
+      title: "Updated",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T01:00:00Z",
+      shape: shape2,
+    )
+
+  let content_v1 = shape_storage.shape_document_to_jsonl_line(doc_v1)
+  let content_v2 = shape_storage.update_documents_content(content_v1, doc_v2)
+
+  // Parse to verify only one document exists
+  let parsed = shape_storage.parse_shape_documents_content(content_v2)
+
+  parsed
+  |> list.length()
+  |> should.equal(1)
+
+  let updated = case parsed {
+    [doc, ..] -> doc
+    [] -> panic as "Expected one document"
+  }
+
+  updated.title
+  |> should.equal("Updated")
+}
+
+// ============================================================================
+// Find Document Tests (Pure Functions)
+// ============================================================================
+
+pub fn find_document_by_id_found_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "Find MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "Find validation",
+    )
+
+  let doc1 =
+    shape_storage.ShapeDocument(
+      id: "find-001",
+      title: "Doc 1",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let doc2 =
+    shape_storage.ShapeDocument(
+      id: "find-002",
+      title: "Doc 2",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let documents = [doc1, doc2]
+  let result = shape_storage.find_document_by_id(documents, "find-002")
+
+  result
+  |> should.be_ok()
+
+  case result {
+    Ok(found) ->
+      found.title
+      |> should.equal("Doc 2")
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn find_document_by_id_not_found_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "NotFound MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "NotFound validation",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "notfound-001",
+      title: "Doc",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let documents = [doc]
+  let result = shape_storage.find_document_by_id(documents, "missing-id")
+
+  result
+  |> should.be_error()
+}
+
+// ============================================================================
+// DI I/O Tests (Mock Readers/Writers)
+// ============================================================================
+
+pub fn append_document_with_io_test() {
+  // Mock reader that returns empty content initially
+  let reader = fn(_path: String) -> Result(String, String) { Ok("") }
+
+  // Mock writer that validates the content
+  let writer = fn(_path: String, content: String) -> Result(Nil, String) {
+    // Verify content is valid JSONL
+    case string.contains(content, "io-test-001") {
+      True -> Ok(Nil)
+      False -> Error("Content validation failed")
+    }
+  }
+
+  // Mock directory creator
+  let dir_creator = fn(_path: String) -> Result(Nil, String) { Ok(Nil) }
+
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "IO MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "IO validation",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "io-test-001",
+      title: "IO Doc",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let result =
+    shape_storage.append_document_with_io(
+      doc,
+      ".test/shapes.jsonl",
+      reader,
+      writer,
+      dir_creator,
+    )
+
+  result
+  |> should.be_ok()
+}
+
+pub fn list_documents_with_io_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "List MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "List validation",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "list-001",
+      title: "List Doc",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let content = shape_storage.shape_document_to_jsonl_line(doc)
+
+  // Mock reader that returns prepared content
+  let reader = fn(_path: String) -> Result(String, String) { Ok(content) }
+
+  let result = shape_storage.list_documents_with_io(".test/shapes.jsonl", reader)
+
+  result
+  |> should.be_ok()
+
+  case result {
+    Ok(documents) -> {
+      documents
+      |> list.length()
+      |> should.equal(1)
+
+      case documents {
+        [first, ..] ->
+          first.id
+          |> should.equal("list-001")
+        [] -> panic as "Expected one document"
+      }
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn get_document_with_io_test() {
+  let shape =
+    planning_types.ShapeSection(
+      features: [],
+      critical_path: [],
+      mvp_slice: planning_types.MVPSlice(
+        description: "Get MVP",
+        features: [],
+        shortcuts: [],
+      ),
+      post_mvp: [],
+      validation_moment: "Get validation",
+    )
+
+  let doc =
+    shape_storage.ShapeDocument(
+      id: "get-001",
+      title: "Get Doc",
+      created_at: "2026-01-25T00:00:00Z",
+      updated_at: "2026-01-25T00:00:00Z",
+      shape: shape,
+    )
+
+  let content = shape_storage.shape_document_to_jsonl_line(doc)
+
+  // Mock reader
+  let reader = fn(_path: String) -> Result(String, String) { Ok(content) }
+
+  let result =
+    shape_storage.get_document_with_io(".test/shapes.jsonl", "get-001", reader)
+
+  result
+  |> should.be_ok()
+
+  case result {
+    Ok(found) ->
+      found.title
+      |> should.equal("Get Doc")
+    Error(_) -> panic as "Expected Ok"
+  }
+}
