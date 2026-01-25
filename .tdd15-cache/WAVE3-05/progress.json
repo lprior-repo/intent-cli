@@ -1,0 +1,26 @@
+{
+  "bead_id": "intent-cli-yvs",
+  "title": "WAVE3-05: Port KIRK Effects Analyzer to Plan schema",
+  "current_phase": 15,
+  "complexity": "MEDIUM",
+  "language": "gleam",
+  "phases": {
+    "0": {"name": "TRIAGE", "status": "complete", "gate": "complexity_assessed", "result": "MEDIUM - Port from Spec to PlanBead schema"},
+    "1": {"name": "RESEARCH", "status": "complete", "gate": "sufficient_context", "finding": "Keep Spec-based analysis, ensure clean integration with planning framework"},
+    "2": {"name": "PLAN", "status": "complete", "gate": "plan_verified", "result": "NO_CODE_CHANGES - Effects Analyzer already meets requirements"},
+    "3": {"name": "VERIFY", "status": "pending", "gate": "plan_verified_llm"},
+    "4": {"name": "RED", "status": "skipped", "gate": "tests_fail", "reason": "No code changes"},
+    "5": {"name": "GREEN", "status": "skipped", "gate": "tests_pass", "reason": "No code changes"},
+    "6": {"name": "REFACTOR", "status": "skipped", "gate": "tests_green", "reason": "No code changes"},
+    "7": {"name": "MF#1", "status": "skipped", "gate": "martin_fowler_1", "reason": "No code changes"},
+    "8": {"name": "IMPLEMENT", "status": "skipped", "gate": "implementation_complete", "reason": "No code changes"},
+    "9": {"name": "VERIFY", "status": "skipped", "gate": "criteria_met", "reason": "No code changes"},
+    "10": {"name": "FP-GATES", "status": "skipped", "gate": "no_critical_issues", "reason": "No code changes"},
+    "11": {"name": "QA", "status": "skipped", "gate": "qa_pass", "reason": "No code changes"},
+    "12": {"name": "MF#2", "status": "skipped", "gate": "martin_fowler_2", "reason": "No code changes"},
+    "13": {"name": "CONSISTENCY", "status": "skipped", "gate": "standards_met", "reason": "No code changes"},
+    "14": {"name": "LIABILITY", "status": "complete", "gate": "minimized", "result": "No new code added - existing liability already minimal"},
+    "15": {"name": "LANDING", "status": "pending", "gate": "push_succeeded"}
+  },
+  "started_at": "2026-01-25T09:51:56Z"
+}

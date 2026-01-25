@@ -1,0 +1,60 @@
+{
+  "task": "Port KIRK Effects Analyzer to Plan schema",
+  "current_state": {
+    "file": "src/intent/kirk/effects_analyzer.gleam",
+    "test_file": "test/effects_analyzer_test.gleam",
+    "lines_of_code": 863,
+    "test_lines": 283,
+    "input_type": "Spec",
+    "extraction": "get_all_behaviors(spec) -> List(Behavior)",
+    "analysis_targets": [
+      "Behavior.request.method (Post, Get, Put, Delete, etc.)",
+      "Behavior.request.path",
+      "Behavior.name",
+      "Behavior.intent",
+      "Behavior.requires (dependencies)"
+    ]
+  },
+  "plan_schema": {
+    "type": "PlanBead",
+    "location": "src/intent/plan_mode.gleam",
+    "fields": [
+      "id: String",
+      "title: String",
+      "requires: List(String)",
+      "effort: Effort",
+      "status: BeadStatus"
+    ],
+    "semantic_gap": "PlanBead lacks HTTP method, path, request/response details that Effects Analyzer needs"
+  },
+  "interpretation": {
+    "confusion": "Bead title says 'Port to Plan schema' but PlanBead lacks semantic data for effects analysis",
+    "hypothesis_1": "Task is incorrectly named - should be 'Adapt Effects Analyzer for plan_mode integration'",
+    "hypothesis_2": "Effects Analyzer should analyze PlanBead titles/descriptions to infer work patterns",
+    "hypothesis_3": "There's a missing 'Plan' type that contains Spec data (referenced in INTENT_4_PLAN.md)",
+    "likely_answer": "KIRK analyzers stay Spec-based but get integrated into Phase 3 (SPEC) of 4-phase framework"
+  },
+  "context_from_intent_4_plan": {
+    "phase_3": "SPEC (KIRK) - Round 4 uses Effects Analyzer for second-order consequences",
+    "wave_3_tasks": [
+      "WAVE3-01: Port KIRK Quality Analyzer",
+      "WAVE3-02: Port KIRK Coverage Analyzer",
+      "WAVE3-03: Port KIRK Gap Detector",
+      "WAVE3-04: Port KIRK Inversion Checker",
+      "WAVE3-05: Port KIRK Effects Analyzer (this task)",
+      "WAVE3-06: Port EARS Parser"
+    ],
+    "wave_3_dependency": "All depend on WAVE0-01 (Foundation types)"
+  },
+  "decision": {
+    "approach": "BLOCK on user clarification",
+    "reason": "Ambiguous task description - need to understand what 'Port to Plan schema' actually means",
+    "questions": [
+      "Should Effects Analyzer analyze PlanBead titles/descriptions instead of Spec/Behaviors?",
+      "Is there a new Plan type (containing Spec) we should target?",
+      "Should we keep Spec-based analysis but integrate with plan_mode differently?",
+      "Are WAVE3 'ports' actually about integration into 4-phase framework, not schema changes?"
+    ]
+  },
+  "blocker": "Task description ambiguity prevents implementation"
+}

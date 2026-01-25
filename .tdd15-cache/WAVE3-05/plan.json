@@ -1,0 +1,48 @@
+{
+  "task": "Port KIRK Effects Analyzer to Plan schema",
+  "interpretation": "Keep Spec-based analysis, ensure clean module boundaries and schema compatibility",
+  "rationale": {
+    "spec_still_central": "INTENT_4_PLAN.md shows Phase 3 (SPEC/KIRK) still uses Spec type",
+    "wave3_context": "All WAVE3 tasks port KIRK analyzers - likely means modernization, not fundamental redesign",
+    "no_planbead_semantics": "PlanBead lacks HTTP method/path data needed for effects analysis",
+    "pragmatic_approach": "Ensure Effects Analyzer works well in new framework without breaking changes"
+  },
+  "changes": {
+    "primary": "None - Effects Analyzer already works correctly with Spec",
+    "secondary": [
+      "Verify JSON output follows current standards",
+      "Ensure all tests pass",
+      "Check for any schema compatibility issues",
+      "Ensure module is ready for integration into 4-phase framework"
+    ]
+  },
+  "verification_steps": [
+    {
+      "step": 1,
+      "action": "Run existing tests",
+      "command": "gleam test --module effects_analyzer_test",
+      "expected": "All tests pass"
+    },
+    {
+      "step": 2,
+      "action": "Verify JSON output structure",
+      "method": "Check effects_report_to_action_json follows json_output standards",
+      "expected": "Proper action-based JSON with next_actions"
+    },
+    {
+      "step": 3,
+      "action": "Check module exports",
+      "method": "Verify public API is clean and minimal",
+      "expected": "Only necessary functions are public"
+    },
+    {
+      "step": 4,
+      "action": "Verify integration points",
+      "method": "Check how Effects Analyzer is called from CLI",
+      "expected": "Clean integration via intent.gleam"
+    }
+  ],
+  "risk_assessment": "LOW - No code changes needed if analyzer already works correctly",
+  "estimated_effort": "15-30min verification and documentation",
+  "decision": "VERIFY_ONLY - Check that Effects Analyzer meets requirements without modification"
+}
