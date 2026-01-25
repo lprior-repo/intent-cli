@@ -12,6 +12,7 @@
 /// - spec_path: Optional path to spec file
 import gleam/json.{type Json}
 import gleam/option.{type Option, None, Some}
+import intent/ffi
 
 /// Unified JSON response structure for all commands
 pub type JsonResponse {
@@ -267,13 +268,16 @@ pub fn output(response: JsonResponse) -> Nil {
 }
 
 /// Get current timestamp in ISO 8601 format
-/// Uses FFI to get actual timestamp
-@external(erlang, "intent_ffi", "current_timestamp")
-fn current_timestamp() -> String
+/// Uses FFI via the centralized ffi module
+fn current_timestamp() -> String {
+  ffi.current_timestamp()
+}
 
 /// Generate a UUID v4 for correlation tracking
-@external(erlang, "intent_ffi", "generate_uuid")
-fn generate_uuid() -> String
+/// Uses FFI via the centralized ffi module
+fn generate_uuid() -> String {
+  ffi.generate_uuid()
+}
 
 /// Create metadata with the given exit code
 fn create_metadata(exit_code: Int) -> JsonMetadata {

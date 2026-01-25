@@ -15,6 +15,7 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import intent/ffi
 import simplifile
 
 /// Represents the result of bead execution
@@ -820,5 +821,6 @@ fn describe_decode_error(err: dynamic.DecodeError) -> String {
 // PRIVATE: Timestamp
 // =============================================================================
 
-@external(erlang, "intent_ffi", "current_timestamp")
-fn current_iso8601_timestamp() -> String
+fn current_iso8601_timestamp() -> String {
+  ffi.current_iso8601_timestamp()
+}

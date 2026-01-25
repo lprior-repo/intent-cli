@@ -23,6 +23,7 @@ import gleam/int
 import gleam/io
 import gleam/json.{type Json}
 import gleam/option.{type Option, None, Some}
+import intent/ffi
 import intent/json_output
 
 /// Status of the test run
@@ -412,5 +413,6 @@ fn string_length(s: String) -> Int {
 }
 
 /// Get current timestamp in ISO 8601 format
-@external(erlang, "intent_ffi", "current_timestamp")
-fn current_timestamp() -> String
+fn current_timestamp() -> String {
+  ffi.current_timestamp()
+}
