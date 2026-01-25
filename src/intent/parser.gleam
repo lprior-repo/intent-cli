@@ -4,6 +4,12 @@ import gleam/dynamic.{type DecodeError, type Dynamic}
 import gleam/json.{type Json}
 import gleam/list
 import gleam/result
+import intent/planning_types.{
+  type DimensionScore, type FeatureShape, type KIRKHealth, type MVPSlice,
+  type Plan, type ReadyReport, type ShapeSection, type SpecSection, Critical,
+  DimensionScore, FeatureShape, High, KIRKHealth, Low, MVPSlice, Medium, Plan,
+  ReadyReport, ShapeSection, SpecSection,
+}
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
   type EntityHint, type Feature, type ImplementationHints, type Method,
@@ -11,6 +17,9 @@ import intent/types.{
   type Spec, type When, AIHints, AntiPattern, Behavior, Check, Config, Delete,
   EntityHint, Feature, Get, Head, ImplementationHints, Options, Patch, Post, Put,
   Request, Response, Rule, RuleCheck, SecurityHints, Spec, When,
+}
+import intent/vision_types.{
+  type Scenario, type VisionSection, Scenario, VisionSection,
 }
 
 /// Parse a spec from a JSON value
@@ -351,4 +360,311 @@ fn parse_security_hints(
     data,
   ))
   Ok(SecurityHints(password_hashing, jwt_algorithm, jwt_expiry, rate_limiting))
+}
+
+// ============================================================================
+// Plan Parser Functions
+// ============================================================================
+
+/// Parse a Plan from a JSON value
+/// Vision and Shape are required, Spec and Ready are optional
+pub fn parse_plan(data: Dynamic) -> Result(Plan, List(DecodeError)) {
+  use id <- result.try(dynamic.field("id", dynamic.string)(data))
+  use created_at <- result.try(dynamic.field("created_at", dynamic.string)(data))
+  use updated_at <- result.try(dynamic.field("updated_at", dynamic.string)(data))
+  use vision <- result.try(dynamic.field("vision", parse_vision_section)(data))
+  use shape <- result.try(dynamic.field("shape", parse_shape_section)(data))
+  use spec <- result.try(dynamic.optional_field("spec", parse_spec_section)(
+    data,
+  ))
+  use ready <- result.try(dynamic.optional_field("ready", parse_ready_report)(
+    data,
+  ))
+
+  Ok(Plan(
+    id: id,
+    created_at: created_at,
+    updated_at: updated_at,
+    vision: vision,
+    shape: shape,
+    spec: spec,
+    ready: ready,
+  ))
+}
+
+fn parse_vision_section(
+  data: Dynamic,
+) -> Result(VisionSection, List(DecodeError)) {
+  use press_release <- result.try(dynamic.field("press_release", dynamic.string)(
+    data,
+  ))
+  use persona <- result.try(dynamic.field("persona", dynamic.string)(data))
+  use non_personas <- result.try(dynamic.field(
+    "non_personas",
+    dynamic.list(dynamic.string),
+  )(data))
+  use north_star <- result.try(dynamic.field("north_star", dynamic.string)(data))
+  use scenarios <- result.try(dynamic.field(
+    "scenarios",
+    dynamic.list(parse_scenario),
+  )(data))
+  use replaces <- result.try(dynamic.optional_field("replaces", dynamic.string)(
+    data,
+  ))
+  use vorp <- result.try(dynamic.field("vorp", dynamic.string)(data))
+  use out_of_scope <- result.try(dynamic.field(
+    "out_of_scope",
+    dynamic.list(dynamic.string),
+  )(data))
+
+  Ok(VisionSection(
+    press_release: press_release,
+    persona: persona,
+    non_personas: non_personas,
+    north_star: north_star,
+    scenarios: scenarios,
+    replaces: replaces,
+    vorp: vorp,
+    out_of_scope: out_of_scope,
+  ))
+}
+
+fn parse_scenario(data: Dynamic) -> Result(Scenario, List(DecodeError)) {
+  use character <- result.try(dynamic.field("character", dynamic.string)(data))
+  use persona <- result.try(dynamic.field("persona", dynamic.string)(data))
+  use motivation <- result.try(dynamic.field("motivation", dynamic.string)(data))
+  use simulation <- result.try(dynamic.field("simulation", dynamic.string)(data))
+  use outcome <- result.try(dynamic.field("outcome", dynamic.string)(data))
+
+  Ok(Scenario(
+    character: character,
+    persona: persona,
+    motivation: motivation,
+    simulation: simulation,
+    outcome: outcome,
+  ))
+}
+
+fn parse_shape_section(data: Dynamic) -> Result(ShapeSection, List(DecodeError)) {
+  use features <- result.try(dynamic.field(
+    "features",
+    dynamic.list(parse_feature_shape),
+  )(data))
+  use critical_path <- result.try(dynamic.field(
+    "critical_path",
+    dynamic.list(dynamic.string),
+  )(data))
+  use mvp_slice <- result.try(dynamic.field("mvp_slice", parse_mvp_slice)(data))
+  use post_mvp <- result.try(dynamic.field(
+    "post_mvp",
+    dynamic.list(dynamic.string),
+  )(data))
+  use validation_moment <- result.try(dynamic.field(
+    "validation_moment",
+    dynamic.string,
+  )(data))
+
+  Ok(ShapeSection(
+    features: features,
+    critical_path: critical_path,
+    mvp_slice: mvp_slice,
+    post_mvp: post_mvp,
+    validation_moment: validation_moment,
+  ))
+}
+
+fn parse_feature_shape(data: Dynamic) -> Result(FeatureShape, List(DecodeError)) {
+  use name <- result.try(dynamic.field("name", dynamic.string)(data))
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    data,
+  ))
+
+  Ok(FeatureShape(name: name, description: description))
+}
+
+fn parse_mvp_slice(data: Dynamic) -> Result(MVPSlice, List(DecodeError)) {
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    data,
+  ))
+  use features <- result.try(dynamic.field(
+    "features",
+    dynamic.list(dynamic.string),
+  )(data))
+  use shortcuts <- result.try(dynamic.field(
+    "shortcuts",
+    dynamic.list(dynamic.string),
+  )(data))
+
+  Ok(MVPSlice(
+    description: description,
+    features: features,
+    shortcuts: shortcuts,
+  ))
+}
+
+fn parse_spec_section(data: Dynamic) -> Result(SpecSection, List(DecodeError)) {
+  use name <- result.try(dynamic.field("name", dynamic.string)(data))
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    data,
+  ))
+  use rounds_complete <- result.try(dynamic.field(
+    "rounds_complete",
+    dynamic.int,
+  )(data))
+  use kirk_health <- result.try(dynamic.field("kirk_health", parse_kirk_health)(
+    data,
+  ))
+
+  Ok(SpecSection(
+    name: name,
+    description: description,
+    rounds_complete: rounds_complete,
+    kirk_health: kirk_health,
+  ))
+}
+
+fn parse_kirk_health(data: Dynamic) -> Result(KIRKHealth, List(DecodeError)) {
+  use coverage_score <- result.try(dynamic.field(
+    "coverage_score",
+    dynamic.float,
+  )(data))
+  use quality_score <- result.try(dynamic.field("quality_score", dynamic.float)(
+    data,
+  ))
+  use gaps <- result.try(dynamic.field("gaps", dynamic.list(dynamic.string))(
+    data,
+  ))
+  use inversions <- result.try(dynamic.field(
+    "inversions",
+    dynamic.list(dynamic.string),
+  )(data))
+  use effects <- result.try(dynamic.field(
+    "effects",
+    dynamic.list(dynamic.string),
+  )(data))
+
+  Ok(KIRKHealth(
+    coverage_score: coverage_score,
+    quality_score: quality_score,
+    gaps: gaps,
+    inversions: inversions,
+    effects: effects,
+  ))
+}
+
+fn parse_ready_report(data: Dynamic) -> Result(ReadyReport, List(DecodeError)) {
+  use replacement <- result.try(dynamic.field(
+    "replacement",
+    parse_dimension_score,
+  )(data))
+  use empathy <- result.try(dynamic.field("empathy", parse_dimension_score)(
+    data,
+  ))
+  use actionable <- result.try(dynamic.field(
+    "actionable",
+    parse_dimension_score,
+  )(data))
+  use discoverable <- result.try(dynamic.field(
+    "discoverable",
+    parse_dimension_score,
+  )(data))
+  use yet_complete <- result.try(dynamic.field(
+    "yet_complete",
+    parse_dimension_score,
+  )(data))
+  use overall_readiness <- result.try(dynamic.field(
+    "overall_readiness",
+    dynamic.int,
+  )(data))
+  use blockers <- result.try(dynamic.field(
+    "blockers",
+    dynamic.list(parse_blocker),
+  )(data))
+  use recommendations <- result.try(dynamic.field(
+    "recommendations",
+    dynamic.list(parse_recommendation),
+  )(data))
+
+  Ok(ReadyReport(
+    replacement: replacement,
+    empathy: empathy,
+    actionable: actionable,
+    discoverable: discoverable,
+    yet_complete: yet_complete,
+    overall_readiness: overall_readiness,
+    blockers: blockers,
+    recommendations: recommendations,
+  ))
+}
+
+fn parse_dimension_score(
+  data: Dynamic,
+) -> Result(DimensionScore, List(DecodeError)) {
+  use score <- result.try(dynamic.field("score", dynamic.int)(data))
+  use reasoning <- result.try(dynamic.field("reasoning", dynamic.string)(data))
+  use issues <- result.try(dynamic.field("issues", dynamic.list(dynamic.string))(
+    data,
+  ))
+
+  Ok(DimensionScore(score: score, reasoning: reasoning, issues: issues))
+}
+
+fn parse_blocker(
+  data: Dynamic,
+) -> Result(planning_types.Blocker, List(DecodeError)) {
+  use severity <- result.try(dynamic.field("severity", parse_blocker_severity)(
+    data,
+  ))
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    data,
+  ))
+  use affected_areas <- result.try(dynamic.field(
+    "affected_areas",
+    dynamic.list(dynamic.string),
+  )(data))
+
+  Ok(planning_types.Blocker(
+    severity: severity,
+    description: description,
+    affected_areas: affected_areas,
+  ))
+}
+
+fn parse_blocker_severity(
+  data: Dynamic,
+) -> Result(planning_types.BlockerSeverity, List(DecodeError)) {
+  data
+  |> dynamic.string
+  |> result.then(fn(s) {
+    case s {
+      "critical" -> Ok(Critical)
+      "high" -> Ok(High)
+      "medium" -> Ok(Medium)
+      "low" -> Ok(Low)
+      _ ->
+        Error([
+          dynamic.DecodeError(
+            expected: "blocker severity (critical|high|medium|low)",
+            found: s,
+            path: [],
+          ),
+        ])
+    }
+  })
+}
+
+fn parse_recommendation(
+  data: Dynamic,
+) -> Result(planning_types.Recommendation, List(DecodeError)) {
+  use priority <- result.try(dynamic.field("priority", dynamic.int)(data))
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    data,
+  ))
+  use rationale <- result.try(dynamic.field("rationale", dynamic.string)(data))
+
+  Ok(planning_types.Recommendation(
+    priority: priority,
+    description: description,
+    rationale: rationale,
+  ))
 }
