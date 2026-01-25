@@ -3,7 +3,6 @@ import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{Some}
 import gleam/string
-import intent/cli_ui
 import intent/improver.{type ImprovementSuggestion}
 import intent/json_output
 import intent/output_mode
@@ -188,34 +187,34 @@ fn check_schema_files() -> HealthCheck {
   }
 }
 
-pub fn print_report(report: DoctorReport, mode: output_mode.OutputMode) -> Nil {
-  cli_ui.print_header("Doctor Health Report", mode)
+pub fn print_report(report: DoctorReport, _mode: output_mode.OutputMode) -> Nil {
+  io.println("Doctor Health Report")
+  io.println("")
 
   // 1. Quality
-  cli_ui.print_info("1. Quality Analysis", mode)
+  io.println("1. Quality Analysis")
   io.println(quality_analyzer.format_report(report.quality))
   io.println("")
 
   // 2. Linting
-  cli_ui.print_info("2. Anti-Pattern Check", mode)
+  io.println("2. Anti-Pattern Check")
   case report.lint {
-    spec_linter.LintValid ->
-      cli_ui.print_success("No anti-patterns found", mode)
+    spec_linter.LintValid -> io.println("No anti-patterns found")
     spec_linter.LintWarnings(warnings) ->
       io.println(spec_linter.format_warnings(warnings))
   }
   io.println("")
 
   // 3. Improvements
-  cli_ui.print_info("3. Prescriptions", mode)
+  io.println("3. Prescriptions")
   io.println(improver.format_improvements(report.suggestions))
 }
 
 pub fn print_health_report(
   report: HealthReport,
-  mode: output_mode.OutputMode,
+  _mode: output_mode.OutputMode,
 ) -> Nil {
-  cli_ui.print_header("Intent Health Report", mode)
+  io.println("Intent Health Report")
   io.println("")
 
   list.each(report.checks, fn(check) {

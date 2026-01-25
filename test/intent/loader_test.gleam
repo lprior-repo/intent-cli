@@ -7,11 +7,10 @@
 //// export_cue_with_executor) require valid file paths due to security validation.
 //// Integration tests for those would need to use real CUE files from examples/.
 
-import gleam/option.{None, Some}
 import gleeunit/should
 import intent/loader.{
   CueExportFailed, CueValidationFailed, FileNotFound, JsonDecodeFailed,
-  SecurityError, SpecParseFailed, SpinnerHandle,
+  SecurityError, SpecParseFailed,
 }
 
 // ============================================================================
@@ -306,21 +305,6 @@ pub fn parse_json_to_spec_empty_string_test() {
     Error(JsonDecodeFailed(_)) -> should.be_true(True)
     _ -> should.fail()
   }
-}
-
-// ============================================================================
-// SpinnerHandle Type Tests (Dependency Injection Pattern)
-// ============================================================================
-
-pub fn spinner_handle_creation_test() {
-  // SpinnerHandle should be constructable with callback functions
-  let _handle =
-    Some(SpinnerHandle(set_text: fn(_text) { Nil }, stop: fn() { Nil }))
-}
-
-pub fn spinner_handle_none_test() {
-  // None should be a valid option for no spinner
-  let _handle: option.Option(loader.SpinnerHandle) = None
 }
 
 // ============================================================================

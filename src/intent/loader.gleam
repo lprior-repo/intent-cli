@@ -17,21 +17,18 @@
 /// PUBLIC API (Convenience functions using default implementations):
 /// - validate_cue: Validates using shellout
 /// - export_spec_json: Exports using shellout
-/// - load_spec: Loads with spinner UI
-/// - load_spec_quiet: Loads without UI
+/// - load_spec: Loads using shellout
+/// - load_spec_quiet: Loads using shellout (alias for load_spec)
 ///
 /// Refactored to address beads: intent-cli-3lom, intent-cli-27i7, intent-cli-qc44
 import gleam/dynamic
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
 import gleam/string
-import gleam_community/ansi
 import intent/parser
 import intent/security
 import intent/types.{type Spec}
 import shellout
-import spinner
 
 // ============================================================================
 // Error Types (Railway-Oriented Programming)
@@ -75,10 +72,6 @@ fn default_executor(
   shellout.command(run: cmd, with: args, in: dir, opt: [])
 }
 
-/// Spinner handle for UI dependency injection
-pub type SpinnerHandle {
-  SpinnerHandle(set_text: fn(String) -> Nil, stop: fn() -> Nil)
-}
 
 // ============================================================================
 // FUNCTIONAL CORE - Pure Business Logic (No I/O)
@@ -174,71 +167,35 @@ pub fn default_cue_exporter(path: String) -> Result(String, LoadError) {
   export_cue_with_executor(path, default_executor)
 }
 
-/// Load spec with injected command executor and optional spinner (Imperative Shell)
+/// Load spec with injected command executor (Imperative Shell)
 /// This orchestrates the entire loading process with dependency-injected I/O
 pub fn load_spec_with_executor(
   path: String,
   executor: CommandExecutor,
-  spinner_handle: Option(SpinnerHandle),
 ) -> Result(Spec, LoadError) {
   case security.validate_file_path(path) {
     Ok(validated_path) -> {
-      // Update spinner if present
-      case spinner_handle {
-        Some(sp) -> sp.set_text("Validating CUE spec...")
-        None -> Nil
-      }
-
       // Execute validation via injected executor
       let validation_result = executor("cue", ["vet", validated_path], ".")
 
       // Parse validation result using pure function
       case parse_cue_validation_result(validated_path, validation_result) {
         Ok(_) -> {
-          // Update spinner for export phase
-          case spinner_handle {
-            Some(sp) -> sp.set_text("Exporting CUE to JSON...")
-            None -> Nil
-          }
-
           // Execute export via injected executor
           let export_result =
             executor("cue", ["export", validated_path, "-e", "spec"], ".")
 
           // Parse export result and convert to Spec using pure functions
-          let result = case
-            parse_cue_export_result(validated_path, export_result)
-          {
+          case parse_cue_export_result(validated_path, export_result) {
             Ok(json_str) -> parse_json_to_spec(json_str)
             Error(e) -> Error(e)
           }
-
-          // Stop spinner
-          case spinner_handle {
-            Some(sp) -> sp.stop()
-            None -> Nil
-          }
-
-          result
         }
-        Error(e) -> {
-          // Stop spinner on validation error
-          case spinner_handle {
-            Some(sp) -> sp.stop()
-            None -> Nil
-          }
-          Error(e)
-        }
+        Error(e) -> Error(e)
       }
     }
-    Error(security_error) -> {
-      // Stop spinner on security error
-      case spinner_handle {
-        Some(sp) -> sp.stop()
-        None -> Nil
-      }
+    Error(security_error) ->
       Error(SecurityError(security.format_security_error(security_error)))
-    }
   }
 }
 
@@ -264,30 +221,16 @@ pub fn export_spec_json(
   exporter(path)
 }
 
-/// Load a spec from a CUE file (with spinner UI)
-/// Uses default shellout executor and creates spinner
+/// Load a spec from a CUE file
+/// Uses default shellout executor
 pub fn load_spec(path: String) -> Result(Spec, LoadError) {
-  // Create spinner handle
-  let sp =
-    spinner.new("Validating CUE spec...")
-    |> spinner.with_colour(ansi.yellow)
-    |> spinner.start
-
-  let spinner_handle =
-    Some(
-      SpinnerHandle(
-        set_text: fn(text) { spinner.set_text(sp, text) },
-        stop: fn() { spinner.stop(sp) },
-      ),
-    )
-
-  load_spec_with_executor(path, default_executor, spinner_handle)
+  load_spec_with_executor(path, default_executor)
 }
 
-/// Load a spec from a CUE file without spinner UI
+/// Load a spec from a CUE file (quiet mode alias)
 /// Use this for testing and automation where no UI output is desired
 pub fn load_spec_quiet(path: String) -> Result(Spec, LoadError) {
-  load_spec_with_executor(path, default_executor, None)
+  load_spec_with_executor(path, default_executor)
 }
 
 // ============================================================================

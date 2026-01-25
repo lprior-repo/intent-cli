@@ -6,9 +6,6 @@ import gleam/json
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/checker.{type ResponseCheckResult}
-import intent/http_client.{type ExecutionResult}
-import intent/interpolate.{type Context}
 import intent/interview.{type Answer, type InterviewSession, type Profile}
 import intent/types.{
   type Behavior, type Spec, AIHints, Behavior, Config, Feature, Get,
@@ -239,15 +236,4 @@ fn make_behavior(name: String) -> Behavior {
     response: Response(200, json.null(), dict.new(), dict.new()),
     captures: dict.new(),
   )
-}
-
-/// Batch check behaviors against results - pure map operation
-pub fn check_many(
-  behaviors: List(Behavior),
-  results: List(ExecutionResult),
-  ctx: Context,
-) -> List(ResponseCheckResult) {
-  list.map2(behaviors, results, fn(b, r) {
-    checker.check_response(b.response, r, ctx)
-  })
 }
