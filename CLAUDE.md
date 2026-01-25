@@ -15,12 +15,11 @@ Contract-driven API testing in Gleam. CUE specs → HTTP tests → verification.
 ```
 CRITICAL: Never bare `bv` - launches blocking TUI.
 
-## Commands (26 total)
+## Commands (32 total)
 
-**Core Spec Operations** (5):
+**Core Spec Operations** (4):
 ```jsonl
 {"cmd":"validate","args":"<spec>","desc":"CUE syntax check"}
-{"cmd":"check","args":"<spec> [--target=URL] [--json=true]","desc":"run spec against API"}
 {"cmd":"analyze","args":"<spec>","desc":"quality scoring (alias for quality)"}
 {"cmd":"lint","args":"<spec>","desc":"anti-pattern detection"}
 {"cmd":"improve","args":"<spec>","desc":"improvement suggestions"}
@@ -57,16 +56,31 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 ```
 Note: Get session IDs with `intent sessions [--profile=api|cli]`
 
-**Parsing** (2):
+**Parsing** (1):
 ```jsonl
 {"cmd":"parse","args":"<requirements.md>","desc":"quick EARS validation"}
-{"cmd":"ears","args":"<file> [--output=cue|json]","desc":"detailed EARS analysis"}
 ```
+Note: `ears` command is in KIRK Analysis section above
 
-**Utilities** (2):
+**Utilities** (3):
 ```jsonl
 {"cmd":"doctor","args":"<spec> [--json=true]","desc":"prioritized improvements"}
 {"cmd":"show","args":"<spec>","desc":"display spec details"}
+{"cmd":"help","args":"","desc":"display CLI help information"}
+```
+
+**AI Commands** (1):
+```jsonl
+{"cmd":"ai schema","args":"[--json=true]","desc":"generate action JSON schema documentation"}
+```
+
+**Shape Phase Commands** (5):
+```jsonl
+{"cmd":"shape start","args":"<spec> [--json=true]","desc":"initialize Shape phase session"}
+{"cmd":"shape check","args":"<session-id> [--json=true]","desc":"validate Shape phase completeness"}
+{"cmd":"shape critique","args":"<session-id> [--json=true]","desc":"generate critique questions for spec"}
+{"cmd":"shape respond","args":"<session-id> --answers <file> [--json=true]","desc":"process critique responses"}
+{"cmd":"shape agree","args":"<session-id> [--json=true]","desc":"finalize Shape phase agreement"}
 ```
 
 ## Key Files
@@ -80,7 +94,8 @@ Note: Get session IDs with `intent sessions [--profile=api|cli]`
 ## Dev
 ```bash
 gleam build && gleam test
-gleam run -- check examples/user-api.cue --target http://localhost:8080
+gleam run -- validate examples/user-api.cue
+gleam run -- quality examples/user-api.cue --json
 ```
 
 ## Spec Shape (ALL FIELDS REQUIRED)
@@ -216,6 +231,13 @@ Supported by: quality, coverage (more commands planned)
 {"mod":"interview","purpose":"5-round stateful engine"}
 {"mod":"interview_storage","purpose":"JSONL + SQLite hybrid"}
 {"mod":"spec_builder","purpose":"interview→CUE"}
+{"mod":"ai_schema","purpose":"action JSON schema generation"}
+{"mod":"ai_errors","purpose":"AI-friendly error handling"}
+{"mod":"vision_types","purpose":"Shape phase types"}
+{"mod":"vision_storage","purpose":"Shape session persistence"}
+{"mod":"vision_critique","purpose":"critique question generation"}
+{"mod":"vision_session","purpose":"Shape phase state management"}
+{"mod":"vision_commands","purpose":"Shape command implementations"}
 ```
 
 ## Style
