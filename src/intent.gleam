@@ -287,172 +287,77 @@ fn validate_command() -> glint.Command(Nil) {
 /// The `show` command - pretty print a parsed spec
 fn show_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
     case input.args {
       [spec_path, ..] -> {
-        case is_json {
-          True ->
-            case
-              loader.export_spec_json(spec_path, loader.default_cue_exporter)
-            {
-              Ok(json_str) -> {
-                // Parse the spec JSON string to embed as data
-                case json.decode(json_str, dynamic.dynamic) {
-                  Ok(spec_json) -> {
-                    let next_actions = [
-                      json_output.next_action(
-                        "intent check " <> spec_path <> " --target=URL",
-                        "Test spec against API",
-                      ),
-                      json_output.next_action(
-                        "intent quality " <> spec_path <> " --json",
-                        "Analyze spec quality",
-                      ),
-                    ]
-                    let response =
-                      json_output.success(
-                        "show_result",
-                        "show",
-                        parser.dynamic_to_json(spec_json),
-                        Some(spec_path),
-                        next_actions,
-                      )
-                    json_output.output(response)
-                    halt(exit_pass)
-                  }
-                  Error(_) -> {
-                    // Fallback: shouldn't happen since export_spec_json produces valid JSON
-                    io.println_error(
-                      "Error: failed to parse exported spec JSON",
-                    )
-                    halt(exit_error)
-                  }
-                }
-              }
-              Error(e) -> {
-                let error_msg = loader.format_error(e)
+        case loader.export_spec_json(spec_path, loader.default_cue_exporter) {
+          Ok(json_str) -> {
+            // Parse the spec JSON string to embed as data
+            case json.decode(json_str, dynamic.dynamic) {
+              Ok(spec_json) -> {
+                let next_actions = [
+                  json_output.next_action(
+                    "intent check " <> spec_path <> " --target=URL",
+                    "Test spec against API",
+                  ),
+                  json_output.next_action(
+                    "intent quality " <> spec_path <> " --json",
+                    "Analyze spec quality",
+                  ),
+                ]
                 let response =
-                  json_output.failure(
-                    "show_failed",
+                  json_output.success(
+                    "show_result",
                     "show",
-                    json.null(),
-                    [json_output.error("load_error", error_msg)],
+                    parser.dynamic_to_json(spec_json),
                     Some(spec_path),
-                    [],
-                    exit_error,
+                    next_actions,
                   )
                 json_output.output(response)
-                halt(exit_error)
-              }
-            }
-          False -> {
-            case loader.load_spec(spec_path) {
-              Ok(spec) -> {
-                print_spec_summary(spec)
                 halt(exit_pass)
               }
-              Error(e) -> {
-                io.println_error("Error: " <> loader.format_error(e))
+              Error(_) -> {
+                // Fallback: shouldn't happen since export_spec_json produces valid JSON
+                io.println_error("Error: failed to parse exported spec JSON")
                 halt(exit_error)
               }
             }
           }
-        }
-      }
-      [] -> {
-        case is_json {
-          True -> {
+          Error(e) -> {
+            let error_msg = loader.format_error(e)
             let response =
               json_output.failure(
                 "show_failed",
                 "show",
                 json.null(),
-                [json_output.error("usage_error", "spec file path required")],
-                None,
+                [json_output.error("load_error", error_msg)],
+                Some(spec_path),
                 [],
                 exit_error,
               )
             json_output.output(response)
+            halt(exit_error)
           }
-          False -> {
-            io.println_error("Error: spec file path required")
-            io.println_error("Usage: intent show <spec.cue> [--json]")
-          }
+        }
+      }
+      [] -> {
+        {
+          let response =
+            json_output.failure(
+              "show_failed",
+              "show",
+              json.null(),
+              [json_output.error("usage_error", "spec file path required")],
+              None,
+              [],
+              exit_error,
+            )
+          json_output.output(response)
         }
         halt(exit_error)
       }
     }
   })
   |> glint.description("Pretty print a parsed spec")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
-}
-
-fn print_spec_summary(spec: types.Spec) -> Nil {
-  io.println("Spec: " <> spec.name)
-  io.println("Version: " <> spec.version)
-  io.println("")
-  io.println("Description:")
-  io.println(spec.description)
-  io.println("")
-
-  case spec.audience {
-    "" -> Nil
-    audience -> {
-      io.println("Audience: " <> audience)
-      io.println("")
-    }
-  }
-
-  case spec.success_criteria {
-    [] -> Nil
-    criteria -> {
-      io.println("Success Criteria:")
-      list.each(criteria, fn(c) { io.println("  - " <> c) })
-      io.println("")
-    }
-  }
-
-  io.println("Features:")
-  list.each(spec.features, fn(feature) {
-    io.println("  " <> feature.name)
-    io.println("    " <> feature.description)
-    io.println(
-      "    Behaviors: " <> string.inspect(list.length(feature.behaviors)),
-    )
-    list.each(feature.behaviors, fn(b) {
-      io.println("      - " <> b.name <> ": " <> b.intent)
-    })
-  })
-
-  case spec.rules {
-    [] -> Nil
-    rules -> {
-      io.println("")
-      io.println("Global Rules:")
-      list.each(rules, fn(rule) {
-        io.println("  - " <> rule.name <> ": " <> rule.description)
-      })
-    }
-  }
-
-  case spec.anti_patterns {
-    [] -> Nil
-    patterns -> {
-      io.println("")
-      io.println("Anti-Patterns:")
-      list.each(patterns, fn(p) {
-        io.println("  - " <> p.name <> ": " <> p.description)
-      })
-    }
-  }
-
-  Nil
 }
 
 /// The `export` command - export spec to JSON
@@ -484,10 +389,6 @@ fn export_command() -> glint.Command(Nil) {
 /// The `lint` command - check for specification anti-patterns
 fn lint_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
     case input.args {
       [spec_path, ..] -> {
         case loader.load_spec(spec_path) {
@@ -495,236 +396,171 @@ fn lint_command() -> glint.Command(Nil) {
             let lint_result = spec_linter.lint_spec(spec)
             case lint_result {
               spec_linter.LintValid -> {
-                case is_json {
-                  True -> {
-                    let next_actions = [
-                      json_output.next_action(
-                        "intent check " <> spec_path <> " --target=URL",
-                        "Test against API",
-                      ),
-                      json_output.next_action(
-                        "intent quality " <> spec_path,
-                        "Check overall quality",
-                      ),
-                    ]
-                    let response =
-                      json_output.success(
-                        "lint_result",
-                        "lint",
-                        json.object([
-                          #("valid", json.bool(True)),
-                          #("warnings", json.array([], fn(x) { x })),
-                        ]),
-                        Some(spec_path),
-                        next_actions,
-                      )
-                    json_output.output(response)
-                  }
-                  False -> {
-                    io.println(
-                      "✓ Spec is well-formed - no linting issues found",
+                {
+                  let next_actions = [
+                    json_output.next_action(
+                      "intent check " <> spec_path <> " --target=URL",
+                      "Test against API",
+                    ),
+                    json_output.next_action(
+                      "intent quality " <> spec_path,
+                      "Check overall quality",
+                    ),
+                  ]
+                  let response =
+                    json_output.success(
+                      "lint_result",
+                      "lint",
+                      json.object([
+                        #("valid", json.bool(True)),
+                        #("warnings", json.array([], fn(x) { x })),
+                      ]),
+                      Some(spec_path),
+                      next_actions,
                     )
-                    io.println("")
-                    io.println("Next steps:")
-                    io.println(
-                      "  • intent check "
-                      <> spec_path
-                      <> " --target=URL - Test against API",
-                    )
-                    io.println(
-                      "  • intent quality "
-                      <> spec_path
-                      <> " - Check overall quality",
-                    )
-                  }
+                  json_output.output(response)
                 }
                 halt(exit_pass)
               }
               spec_linter.LintWarnings(warnings) -> {
-                case is_json {
-                  True -> {
-                    let warnings_by_severity = fn(severity) {
-                      warnings
-                      |> list.filter(fn(w) {
-                        spec_linter.warning_severity(w) == severity
-                      })
-                    }
-
-                    let errors = warnings_by_severity(spec_linter.SeverityError)
-                    let warns =
-                      warnings_by_severity(spec_linter.SeverityWarning)
-                    let infos = warnings_by_severity(spec_linter.SeverityInfo)
-
-                    let next_actions = [
-                      json_output.next_action(
-                        "intent improve " <> spec_path,
-                        "Get actionable suggestions",
-                      ),
-                      json_output.next_action(
-                        "intent doctor " <> spec_path,
-                        "Prioritized improvements",
-                      ),
-                    ]
-
-                    let data =
-                      json.object([
-                        #("valid", json.bool(False)),
-                        #("total_warnings", json.int(list.length(warnings))),
-                        #("errors", json.int(list.length(errors))),
-                        #("warnings", json.int(list.length(warns))),
-                        #("info", json.int(list.length(infos))),
-                        #(
-                          "findings",
-                          json.array(warnings, spec_linter.warning_to_json),
-                        ),
-                      ])
-
-                    let response =
-                      json_output.success(
-                        "lint_result",
-                        "lint",
-                        data,
-                        Some(spec_path),
-                        next_actions,
-                      )
-                    json_output.output(response)
+                {
+                  let warnings_by_severity = fn(severity) {
+                    warnings
+                    |> list.filter(fn(w) {
+                      spec_linter.warning_severity(w) == severity
+                    })
                   }
-                  False -> {
-                    io.println(spec_linter.format_warnings(warnings))
-                    io.println("")
-                    io.println("Next steps:")
-                    io.println(
-                      "  • intent improve "
-                      <> spec_path
-                      <> " - Get actionable suggestions",
+
+                  let errors = warnings_by_severity(spec_linter.SeverityError)
+                  let warns = warnings_by_severity(spec_linter.SeverityWarning)
+                  let infos = warnings_by_severity(spec_linter.SeverityInfo)
+
+                  let next_actions = [
+                    json_output.next_action(
+                      "intent improve " <> spec_path,
+                      "Get actionable suggestions",
+                    ),
+                    json_output.next_action(
+                      "intent doctor " <> spec_path,
+                      "Prioritized improvements",
+                    ),
+                  ]
+
+                  let data =
+                    json.object([
+                      #("valid", json.bool(False)),
+                      #("total_warnings", json.int(list.length(warnings))),
+                      #("errors", json.int(list.length(errors))),
+                      #("warnings", json.int(list.length(warns))),
+                      #("info", json.int(list.length(infos))),
+                      #(
+                        "findings",
+                        json.array(warnings, spec_linter.warning_to_json),
+                      ),
+                    ])
+
+                  let response =
+                    json_output.success(
+                      "lint_result",
+                      "lint",
+                      data,
+                      Some(spec_path),
+                      next_actions,
                     )
-                    io.println(
-                      "  • intent doctor "
-                      <> spec_path
-                      <> " - Prioritized improvements",
-                    )
-                  }
+                  json_output.output(response)
                 }
                 halt(exit_fail)
               }
             }
           }
           Error(e) -> {
-            case is_json {
-              True -> {
-                let error_msg = loader.format_error(e)
-                let response =
-                  json_output.failure(
-                    "lint_failed",
-                    "lint",
-                    json.null(),
-                    [json_output.error("load_error", error_msg)],
-                    Some(spec_path),
-                    [],
-                    exit_invalid,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println_error("Error: " <> loader.format_error(e))
-              }
+            {
+              let error_msg = loader.format_error(e)
+              let response =
+                json_output.failure(
+                  "lint_failed",
+                  "lint",
+                  json.null(),
+                  [json_output.error("load_error", error_msg)],
+                  Some(spec_path),
+                  [],
+                  exit_invalid,
+                )
+              json_output.output(response)
             }
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        case is_json {
-          True -> {
-            let response =
-              json_output.failure(
-                "lint_failed",
-                "lint",
-                json.null(),
-                [json_output.error("usage_error", "spec file path required")],
-                None,
-                [],
-                exit_error,
-              )
-            json_output.output(response)
-          }
-          False -> {
-            io.println_error("Error: spec file path required")
-            io.println_error("Usage: intent lint <spec.cue> [--json]")
-          }
+        {
+          let response =
+            json_output.failure(
+              "lint_failed",
+              "lint",
+              json.null(),
+              [json_output.error("usage_error", "spec file path required")],
+              None,
+              [],
+              exit_error,
+            )
+          json_output.output(response)
         }
         halt(exit_error)
       }
     }
   })
   |> glint.description("Check spec for anti-patterns and quality issues")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
 }
 
 /// The `analyze` command - analyze spec quality
 /// The `analyze` command - Quality analysis (alias for quality, text output only)
 fn analyze_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
         // analyze is an alias for quality - now supports both text and JSON output
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let report = quality_analyzer.analyze_spec(spec)
-            case is_json {
-              True -> {
-                let data =
-                  json.object([
-                    #("coverage_score", json.int(report.coverage_score)),
-                    #("clarity_score", json.int(report.clarity_score)),
-                    #("testability_score", json.int(report.testability_score)),
-                    #("ai_readiness_score", json.int(report.ai_readiness_score)),
-                    #("overall_score", json.int(report.overall_score)),
-                    #(
-                      "issues",
-                      json.array(report.issues, fn(i) {
-                        json.string(quality_analyzer.format_issue(i))
-                      }),
-                    ),
-                    #(
-                      "suggestions",
-                      json.array(report.suggestions, fn(s) { json.string(s) }),
-                    ),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent gaps " <> spec_path <> " --json",
-                    "Find coverage gaps",
+            {
+              let data =
+                json.object([
+                  #("coverage_score", json.int(report.coverage_score)),
+                  #("clarity_score", json.int(report.clarity_score)),
+                  #("testability_score", json.int(report.testability_score)),
+                  #("ai_readiness_score", json.int(report.ai_readiness_score)),
+                  #("overall_score", json.int(report.overall_score)),
+                  #(
+                    "issues",
+                    json.array(report.issues, fn(i) {
+                      json.string(quality_analyzer.format_issue(i))
+                    }),
                   ),
-                  json_output.next_action(
-                    "intent invert " <> spec_path <> " --json",
-                    "Analyze failure modes",
+                  #(
+                    "suggestions",
+                    json.array(report.suggestions, fn(s) { json.string(s) }),
                   ),
-                ]
-                let response =
-                  json_output.success(
-                    "analyze_result",
-                    "analyze",
-                    data,
-                    Some(spec_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println(quality_analyzer.format_report(report))
-                io.println("")
-                io.println("Note: 'analyze' is an alias for 'quality' command")
-              }
+                ])
+              let next_actions = [
+                json_output.next_action(
+                  "intent gaps " <> spec_path <> " --json",
+                  "Find coverage gaps",
+                ),
+                json_output.next_action(
+                  "intent invert " <> spec_path <> " --json",
+                  "Analyze failure modes",
+                ),
+              ]
+              let response =
+                json_output.success(
+                  "analyze_result",
+                  "analyze",
+                  data,
+                  Some(spec_path),
+                  next_actions,
+                )
+              json_output.output(response)
             }
             halt(exit_pass)
           }
@@ -744,24 +580,14 @@ fn analyze_command() -> glint.Command(Nil) {
   |> glint.description(
     "Analyze spec quality and provide improvement suggestions",
   )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
 }
 
 /// The `improve` command - suggest improvements
 fn improve_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let quality_report = quality_analyzer.analyze_spec(spec)
             let lint_result = spec_linter.lint_spec(spec)
@@ -773,54 +599,37 @@ fn improve_command() -> glint.Command(Nil) {
               )
             let suggestions = improver.suggest_improvements(context)
 
-            case is_json {
-              True -> {
-                let data =
-                  json.object([
-                    #(
-                      "suggestions",
-                      json.array(suggestions, fn(s) {
-                        json.object([
-                          #("title", json.string(s.title)),
-                          #("description", json.string(s.description)),
-                          #("reasoning", json.string(s.reasoning)),
-                          #("impact_score", json.int(s.impact_score)),
-                        ])
-                      }),
-                    ),
-                    #("suggestion_count", json.int(list.length(suggestions))),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent doctor " <> spec_path <> " --json",
-                    "Get prioritized recommendations",
+            {
+              let data =
+                json.object([
+                  #(
+                    "suggestions",
+                    json.array(suggestions, fn(s) {
+                      json.object([
+                        #("title", json.string(s.title)),
+                        #("description", json.string(s.description)),
+                        #("reasoning", json.string(s.reasoning)),
+                        #("impact_score", json.int(s.impact_score)),
+                      ])
+                    }),
                   ),
-                ]
-                let response =
-                  json_output.success(
-                    "improve_result",
-                    "improve",
-                    data,
-                    Some(spec_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println(improver.format_improvements(suggestions))
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent doctor "
-                  <> spec_path
-                  <> " - Get prioritized recommendations",
+                  #("suggestion_count", json.int(list.length(suggestions))),
+                ])
+              let next_actions = [
+                json_output.next_action(
+                  "intent doctor " <> spec_path <> " --json",
+                  "Get prioritized recommendations",
+                ),
+              ]
+              let response =
+                json_output.success(
+                  "improve_result",
+                  "improve",
+                  data,
+                  Some(spec_path),
+                  next_actions,
                 )
-                io.println(
-                  "  • intent check "
-                  <> spec_path
-                  <> " --target=URL - Test improvements",
-                )
-              }
+              json_output.output(response)
             }
             halt(exit_pass)
           }
@@ -840,42 +649,17 @@ fn improve_command() -> glint.Command(Nil) {
   |> glint.description(
     "Suggest improvements based on quality analysis and linting",
   )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
 }
 
 /// The `doctor` command - health report with prioritized improvements
 fn doctor_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
     case input.args {
       [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let report = doctor.run_doctor(spec)
-            case is_json {
-              True -> doctor.json_output(report, spec_path)
-              False -> {
-                doctor.print_report(report, output_mode.Interactive)
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent improve "
-                  <> spec_path
-                  <> " - Get detailed improvement suggestions",
-                )
-                io.println(
-                  "  • intent check "
-                  <> spec_path
-                  <> " --target=URL - Test current state",
-                )
-              }
-            }
+            doctor.json_output(report, spec_path)
             halt(exit_pass)
           }
           Error(e) -> {
@@ -893,10 +677,6 @@ fn doctor_command() -> glint.Command(Nil) {
   })
   |> glint.description(
     "Analyze spec health and generate prioritized improvement report",
-  )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
   )
 }
 
@@ -925,22 +705,6 @@ fn interview_command() -> glint.Command(Nil) {
     let resume_id =
       flag.get_string(input.flags, "resume")
       |> result.unwrap("")
-
-    let export_to =
-      flag.get_string(input.flags, "export")
-      |> result.unwrap("")
-
-    let answers_file =
-      flag.get_string(input.flags, "answers")
-      |> result.unwrap("")
-
-    let strict_mode =
-      flag.get_bool(input.flags, "strict")
-      |> result.unwrap(False)
-
-    let cue_mode =
-      flag.get_bool(input.flags, "cue")
-      |> result.unwrap(False)
 
     let session_flag =
       flag.get_string(input.flags, "session")
@@ -979,66 +743,42 @@ fn interview_command() -> glint.Command(Nil) {
         }
       }
       False -> {
-        // Continue to CUE mode or interactive mode handling
+        // Continue to CUE mode handling (AI-only mode)
         Nil
       }
     }
 
-    // CUE mode: output CUE directives for AI agents
-    case cue_mode {
-      True -> {
-        // Check if this is answering a question or starting/resuming
-        let has_resume = !string.is_empty(resume_id)
-        let has_session = !string.is_empty(session_flag)
-        let has_answer = !string.is_empty(answer_text)
+    // CUE mode: output CUE directives for AI agents (AI-only, always enabled)
+    let has_resume = !string.is_empty(resume_id)
+    let has_session = !string.is_empty(session_flag)
+    let has_answer = !string.is_empty(answer_text)
 
-        case has_resume, has_session, has_answer {
-          // Resume session in CUE mode (--resume takes precedence)
-          True, _, _ -> run_interview_cue_resume(resume_id, dry_run)
-          // Submitting an answer to an existing session
-          False, True, True ->
-            run_interview_cue_answer(session_flag, answer_text, dry_run)
-          // Start new session in CUE mode
-          False, False, False -> {
-            let profile = parse_profile(profile_str)
-            case profile {
-              Ok(p) -> run_interview_cue_start(p, dry_run)
-              Error(msg) -> {
-                output_cue_error(msg)
-                halt(exit_error)
-              }
-            }
-          }
-          // Invalid: answer without session
-          False, False, True -> {
-            output_cue_error("--answer requires --session flag")
-            halt(exit_error)
-          }
-          // Invalid: session without answer
-          False, True, False -> {
-            output_cue_error(
-              "--session requires --answer flag (use --resume to resume a session)",
-            )
+    case has_resume, has_session, has_answer {
+      // Resume session in CUE mode (--resume takes precedence)
+      True, _, _ -> run_interview_cue_resume(resume_id, dry_run)
+      // Submitting an answer to an existing session
+      False, True, True ->
+        run_interview_cue_answer(session_flag, answer_text, dry_run)
+      // Start new session in CUE mode
+      False, False, False -> {
+        let profile = parse_profile(profile_str)
+        case profile {
+          Ok(p) -> run_interview_cue_start(p, dry_run)
+          Error(msg) -> {
+            output_cue_error(msg)
             halt(exit_error)
           }
         }
       }
-      False -> {
-        // Interactive mode removed - AI-only mode requires --cue flag
-        io.println_error("Error: Interactive mode is not available.")
-        io.println_error("")
-        io.println_error(
-          "Intent CLI is AI-only. Use --cue flag for machine-readable output:",
-        )
-        io.println_error("")
-        io.println_error(
-          "  Start session:  intent interview --cue --profile=api",
-        )
-        io.println_error(
-          "  Answer:         intent interview --cue --session=<id> --answer='...'",
-        )
-        io.println_error(
-          "  Resume:         intent interview --cue --resume=<id>",
+      // Invalid: answer without session
+      False, False, True -> {
+        output_cue_error("--answer requires --session flag")
+        halt(exit_error)
+      }
+      // Invalid: session without answer
+      False, True, False -> {
+        output_cue_error(
+          "--session requires --answer flag (use --resume to resume a session)",
         )
         halt(exit_error)
       }
@@ -1060,36 +800,6 @@ fn interview_command() -> glint.Command(Nil) {
     flag.string()
       |> flag.default("")
       |> flag.description("Resume existing interview session using its ID"),
-  )
-  |> glint.flag(
-    "answers",
-    flag.string()
-      |> flag.default("")
-      |> flag.description(
-        "Path to file with pre-filled answers for non-interactive batch mode",
-      ),
-  )
-  |> glint.flag(
-    "strict",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description(
-        "Strict validation: fail if required answers are missing (requires --answers file)",
-      ),
-  )
-  |> glint.flag(
-    "export",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Output file path to save completed specification"),
-  )
-  |> glint.flag(
-    "cue",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description(
-        "Machine-readable mode: output CUE directives for integration with AI agents",
-      ),
   )
   |> glint.flag(
     "session",
@@ -1192,7 +902,9 @@ pub type BatchAnswer {
 }
 
 /// Parse batch input JSON from string
-fn parse_batch_input_from_string(content: String) -> Result(BatchInput, String) {
+pub fn parse_batch_input_from_string(
+  content: String,
+) -> Result(BatchInput, String) {
   case json.decode(content, dynamic.dynamic) {
     Error(_) -> Error("Invalid JSON syntax")
     Ok(data) -> {
@@ -1207,7 +919,8 @@ fn parse_batch_input_from_string(content: String) -> Result(BatchInput, String) 
           dynamic.field("question_id", dynamic.string),
           dynamic.field("response", dynamic.string),
         )
-      let answers_decoder = dynamic.field("answers", dynamic.list(answer_decoder))
+      let answers_decoder =
+        dynamic.field("answers", dynamic.list(answer_decoder))
       let answers_result = answers_decoder(data)
 
       case profile_result, answers_result {
@@ -1937,10 +1650,6 @@ fn format_cue_string_list(items: List(String)) -> String {
 /// The `beads` command - generate work items from interview session
 fn beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
     let max_items =
       flag.get_int(input.flags, "max-items")
       |> result.unwrap(list_limits.default_max_items)
@@ -1993,51 +1702,19 @@ fn beads_command() -> glint.Command(Nil) {
               simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
             {
               Ok(Nil) -> {
-                case is_json {
-                  True -> {
-                    // Output JSON for AI agents (limited)
-                    let json_output =
-                      bead_templates.beads_to_action_json(beads, session_id)
-                    io.println(json.to_string(json_output))
-                  }
-                  False -> {
-                    // Human-readable output
-                    io.println("")
-                    io.println(
-                      "═══════════════════════════════════════════════════════════════════",
-                    )
-                    io.println("                    BEAD GENERATION")
-                    io.println(
-                      "═══════════════════════════════════════════════════════════════════",
-                    )
-                    io.println("")
-                    io.println(
-                      "Generated "
-                      <> string.inspect(total_count)
-                      <> " work items from session: "
-                      <> session_id,
-                    )
-                    case was_limited {
-                      True ->
-                        io.println(
-                          "(showing first "
-                          <> string.inspect(bead_count)
-                          <> " of "
-                          <> string.inspect(total_count)
-                          <> ")",
-                        )
-                      False -> Nil
-                    }
-                    io.println("")
-                    io.println("✓ Beads exported to: .beads/issues.jsonl")
-                    io.println("")
-
-                    // Show stats
-                    let stats = bead_templates.bead_stats(all_beads)
-                    io.println("Summary:")
-                    io.println("  Total beads: " <> string.inspect(stats.total))
-                  }
+                {
+                  // Output JSON for AI agents (limited)
+                  let json_output =
+                    bead_templates.beads_to_action_json(beads, session_id)
+                  io.println(json.to_string(json_output))
                 }
+                io.println(
+                  "(showing first "
+                  <> string.inspect(bead_count)
+                  <> " of "
+                  <> string.inspect(total_count)
+                  <> ")",
+                )
 
                 halt(exit_pass)
               }
@@ -2661,10 +2338,6 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
 /// Generate fix beads from check command failures
 fn feedback_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
     let results_path =
       flag.get_string(input.flags, "results")
       |> result.map_error(fn(_) { "Missing required --results flag" })
@@ -2712,128 +2385,69 @@ fn feedback_command() -> glint.Command(Nil) {
               Ok(beads) -> {
                 case list.is_empty(beads) {
                   True -> {
-                    case is_json {
-                      True -> {
-                        let data =
-                          json.object([
-                            #("beads", json.array([], fn(_) { json.null() })),
-                            #("count", json.int(0)),
-                            #(
-                              "message",
-                              json.string("No failures - all behaviors passed"),
-                            ),
-                          ])
-                        let response =
-                          json_output.success(
-                            "feedback_result",
-                            "feedback",
-                            data,
-                            option.None,
-                            [],
-                          )
-                        json_output.output(response)
-                      }
-                      False -> {
-                        io.println("")
-                        io.println(
-                          "✓ No failures found - all behaviors passed!",
+                    {
+                      let data =
+                        json.object([
+                          #("beads", json.array([], fn(_) { json.null() })),
+                          #("count", json.int(0)),
+                          #(
+                            "message",
+                            json.string("No failures - all behaviors passed"),
+                          ),
+                        ])
+                      let response =
+                        json_output.success(
+                          "feedback_result",
+                          "feedback",
+                          data,
+                          option.None,
+                          [],
                         )
-                        io.println("")
-                        io.println(
-                          "No fix beads needed. All check behaviors are working correctly.",
-                        )
-                      }
+                      json_output.output(response)
                     }
                     halt(exit_pass)
                   }
                   False -> {
                     let bead_count = list.length(beads)
-                    case is_json {
-                      True -> {
-                        let beads_json =
-                          json.array(beads, fn(bead) {
-                            json.object([
-                              #("title", json.string(bead.title)),
-                              #("description", json.string(bead.description)),
-                              #("priority", json.int(bead.priority)),
-                              #("issue_type", json.string(bead.issue_type)),
-                              #("labels", json.array(bead.labels, json.string)),
-                              #("ai_hints", json.string(bead.ai_hints)),
-                              #(
-                                "acceptance_criteria",
-                                json.array(
-                                  bead.acceptance_criteria,
-                                  json.string,
-                                ),
-                              ),
-                            ])
-                          })
-
-                        let data =
+                    {
+                      let beads_json =
+                        json.array(beads, fn(bead) {
                           json.object([
-                            #("beads", beads_json),
-                            #("count", json.int(bead_count)),
+                            #("title", json.string(bead.title)),
+                            #("description", json.string(bead.description)),
+                            #("priority", json.int(bead.priority)),
+                            #("issue_type", json.string(bead.issue_type)),
+                            #("labels", json.array(bead.labels, json.string)),
+                            #("ai_hints", json.string(bead.ai_hints)),
                             #(
-                              "message",
-                              json.string(
-                                "Generated "
-                                <> string.inspect(bead_count)
-                                <> " fix beads",
-                              ),
+                              "acceptance_criteria",
+                              json.array(bead.acceptance_criteria, json.string),
                             ),
                           ])
-                        let response =
-                          json_output.success(
-                            "feedback_result",
-                            "feedback",
-                            data,
-                            option.None,
-                            [],
-                          )
-                        json_output.output(response)
-                      }
-                      False -> {
-                        io.println("")
-                        io.println(
-                          "═══════════════════════════════════════════════════════════════════",
-                        )
-                        io.println(
-                          "                FIX BEADS FROM CHECK FAILURES",
-                        )
-                        io.println(
-                          "═══════════════════════════════════════════════════════════════════",
-                        )
-                        io.println("")
-                        io.println(
-                          "Generated "
-                          <> string.inspect(bead_count)
-                          <> " fix beads:",
-                        )
-                        io.println("")
-
-                        list.index_map(beads, fn(bead, idx) {
-                          io.println(
-                            string.inspect(idx + 1) <> ". " <> bead.title,
-                          )
-                          io.println(
-                            "   Priority: P" <> string.inspect(bead.priority),
-                          )
-                          io.println("   Type: " <> bead.issue_type)
-                          io.println("   Description:")
-                          // Print description with proper indentation
-                          string.split(bead.description, "\n")
-                          |> list.each(fn(line) { io.println("     " <> line) })
-                          io.println("")
                         })
 
-                        io.println("")
-                        io.println("Next steps:")
-                        io.println(
-                          "  1. Create these beads in your issue tracker (bd create)",
+                      let data =
+                        json.object([
+                          #("beads", beads_json),
+                          #("count", json.int(bead_count)),
+                          #(
+                            "message",
+                            json.string(
+                              "Generated "
+                              <> string.inspect(bead_count)
+                              <> " fix beads",
+                            ),
+                          ),
+                        ])
+                      let response =
+                        json_output.success(
+                          "feedback_result",
+                          "feedback",
+                          data,
+                          option.None,
+                          [],
                         )
-                        io.println("  2. Fix the underlying issues")
-                        io.println("  3. Re-run check command to verify fixes")
-                      }
+                      json_output.output(response)
                     }
                     halt(exit_pass)
                   }
@@ -2862,10 +2476,6 @@ fn feedback_command() -> glint.Command(Nil) {
 /// Generate AI-ready implementation prompts from session beads
 fn prompt_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
     let max_items =
       flag.get_int(input.flags, "max-items")
       |> result.unwrap(list_limits.default_max_items)
@@ -2913,80 +2523,36 @@ fn prompt_command() -> glint.Command(Nil) {
                     prompt_generator.generate_gleam_prompt(bead, "intent-cli")
                   })
 
-                case is_json {
-                  True -> {
-                    // JSON output for AI consumption
-                    let prompts_json =
-                      json.array(prompts, prompt_generator.prompt_to_json)
+                {
+                  // JSON output for AI consumption
+                  let prompts_json =
+                    json.array(prompts, prompt_generator.prompt_to_json)
 
-                    let data =
-                      json.object([
-                        #("prompts", prompts_json),
-                        #("count", json.int(bead_count)),
-                        #("total_beads", json.int(total_count)),
-                        #("session_id", json.string(session_id)),
-                      ])
+                  let data =
+                    json.object([
+                      #("prompts", prompts_json),
+                      #("count", json.int(bead_count)),
+                      #("total_beads", json.int(total_count)),
+                      #("session_id", json.string(session_id)),
+                    ])
 
-                    let response =
-                      json_output.success(
-                        "prompt_result",
-                        "prompt",
-                        data,
-                        option.None,
-                        [],
-                      )
-                    json_output.output(response)
-                  }
-                  False -> {
-                    // Human-readable text output
-                    io.println("")
-                    io.println(
-                      "═══════════════════════════════════════════════════════════════════",
+                  let response =
+                    json_output.success(
+                      "prompt_result",
+                      "prompt",
+                      data,
+                      option.None,
+                      [],
                     )
-                    io.println("           IMPLEMENTATION PROMPTS FROM SESSION")
-                    io.println(
-                      "═══════════════════════════════════════════════════════════════════",
-                    )
-                    io.println("")
-                    io.println(
-                      "Generated "
-                      <> string.inspect(bead_count)
-                      <> " implementation prompts from session: "
-                      <> session_id,
-                    )
-                    case total_count > bead_count {
-                      True ->
-                        io.println(
-                          "(showing first "
-                          <> string.inspect(bead_count)
-                          <> " of "
-                          <> string.inspect(total_count)
-                          <> " beads)",
-                        )
-                      False -> Nil
-                    }
-                    io.println("")
-                    io.println(
-                      "═══════════════════════════════════════════════════════════════════",
-                    )
-                    io.println("")
-
-                    // Output each prompt
-                    list.each(prompts, fn(prompt) {
-                      io.println(prompt_generator.prompt_to_text(prompt))
-                      io.println("")
-                    })
-
-                    io.println("")
-                    io.println("Next steps:")
-                    io.println("  1. Review generated prompts")
-                    io.println("  2. Use prompts to guide AI implementation")
-                    io.println(
-                      "  3. Run 'intent check' to verify implementation",
-                    )
-                    io.println("")
-                  }
+                  json_output.output(response)
                 }
+                io.println(
+                  "(showing first "
+                  <> string.inspect(bead_count)
+                  <> " of "
+                  <> string.inspect(total_count)
+                  <> " beads)",
+                )
                 halt(exit_pass)
               }
             }
@@ -3301,12 +2867,6 @@ fn sessions_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let jsonl_path = ".interview/sessions.jsonl"
 
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     let profile_filter =
       flag.get_string(input.flags, "profile")
       |> result.unwrap("")
@@ -3363,88 +2923,45 @@ fn sessions_command() -> glint.Command(Nil) {
         let shown_count = list.length(limited)
         let was_limited = total_count > shown_count
 
-        case is_json {
-          True -> {
-            let data =
-              json.object([
-                #(
-                  "sessions",
-                  json.array(limited, interview_storage.session_to_json),
-                ),
-                #("total", json.int(total_count)),
-                #("shown", json.int(shown_count)),
-                #("truncated", json.bool(was_limited)),
-              ])
-            let next_actions = [
-              json_output.next_action(
-                "intent interview --resume <id>",
-                "Resume an incomplete session",
-              ),
-              json_output.next_action(
-                "intent beads <session_id>",
-                "Generate work items from session",
-              ),
-            ]
-            let response =
-              json_output.success(
-                "sessions_result",
+        {
+          let data =
+            json.object([
+              #(
                 "sessions",
-                data,
-                None,
-                next_actions,
-              )
-            json_output.output(response)
-          }
-          False -> {
-            io.println("Interview Sessions")
-            io.println("")
-
-            case was_limited {
-              True ->
-                io.println(
-                  "(showing "
-                  <> string.inspect(shown_count)
-                  <> " of "
-                  <> string.inspect(total_count)
-                  <> " sessions)",
-                )
-              False -> Nil
-            }
-
-            list.each(limited, fn(session) {
-              let status_icon = case session.stage {
-                interview.Complete -> "✓"
-                interview.Paused -> "⏸"
-                _ -> "●"
-              }
-
-              io.println(status_icon <> " " <> session.id)
-              io.println(
-                "  Profile: " <> profile_to_display_string(session.profile),
-              )
-              io.println("  Stage: " <> stage_to_display_string(session.stage))
-              io.println(
-                "  Rounds: " <> string.inspect(session.rounds_completed) <> "/5",
-              )
-              io.println(
-                "  Answers: " <> string.inspect(list.length(session.answers)),
-              )
-              io.println("  Created: " <> session.created_at)
-              io.println("  Updated: " <> session.updated_at)
-              io.println("")
-            })
-
-            io.println(
-              "Total: "
-              <> string.inspect(total_count)
-              <> " session(s)"
-              <> case was_limited {
-                True -> " (limited to " <> string.inspect(shown_count) <> ")"
-                False -> ""
-              },
+                json.array(limited, interview_storage.session_to_json),
+              ),
+              #("total", json.int(total_count)),
+              #("shown", json.int(shown_count)),
+              #("truncated", json.bool(was_limited)),
+            ])
+          let next_actions = [
+            json_output.next_action(
+              "intent interview --resume <id>",
+              "Resume an incomplete session",
+            ),
+            json_output.next_action(
+              "intent beads <session_id>",
+              "Generate work items from session",
+            ),
+          ]
+          let response =
+            json_output.success(
+              "sessions_result",
+              "sessions",
+              data,
+              None,
+              next_actions,
             )
-          }
+          json_output.output(response)
         }
+        io.println(
+          "(showing "
+          <> string.inspect(shown_count)
+          <> " of "
+          <> string.inspect(total_count)
+          <> " sessions)",
+        )
+        " (limited to " <> string.inspect(shown_count) <> ")"
 
         halt(exit_pass)
       }
@@ -3496,90 +3013,66 @@ fn stage_to_display_string(stage: interview.InterviewStage) -> String {
 /// The `quality` command - Quality analysis (alias for analyze)
 fn kirk_quality_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let report = quality_analyzer.analyze_spec(spec)
-            case is_json {
-              True -> {
-                let data =
-                  json.object([
-                    #("coverage_score", json.int(report.coverage_score)),
-                    #("clarity_score", json.int(report.clarity_score)),
-                    #("testability_score", json.int(report.testability_score)),
-                    #("ai_readiness_score", json.int(report.ai_readiness_score)),
-                    #("overall_score", json.int(report.overall_score)),
-                    #(
-                      "issues",
-                      json.array(report.issues, fn(i) {
-                        json.string(quality_analyzer.format_issue(i))
-                      }),
-                    ),
-                    #(
-                      "suggestions",
-                      json.array(report.suggestions, fn(s) { json.string(s) }),
-                    ),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent gaps " <> spec_path <> " --json",
-                    "Find coverage gaps",
+            {
+              let data =
+                json.object([
+                  #("coverage_score", json.int(report.coverage_score)),
+                  #("clarity_score", json.int(report.clarity_score)),
+                  #("testability_score", json.int(report.testability_score)),
+                  #("ai_readiness_score", json.int(report.ai_readiness_score)),
+                  #("overall_score", json.int(report.overall_score)),
+                  #(
+                    "issues",
+                    json.array(report.issues, fn(i) {
+                      json.string(quality_analyzer.format_issue(i))
+                    }),
                   ),
-                  json_output.next_action(
-                    "intent invert " <> spec_path <> " --json",
-                    "Analyze failure modes",
+                  #(
+                    "suggestions",
+                    json.array(report.suggestions, fn(s) { json.string(s) }),
                   ),
-                ]
-                let response =
-                  json_output.success(
-                    "quality_result",
-                    "quality",
-                    data,
-                    Some(spec_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println(quality_analyzer.format_report(report))
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent gaps " <> spec_path <> " - Find coverage gaps",
+                ])
+              let next_actions = [
+                json_output.next_action(
+                  "intent gaps " <> spec_path <> " --json",
+                  "Find coverage gaps",
+                ),
+                json_output.next_action(
+                  "intent invert " <> spec_path <> " --json",
+                  "Analyze failure modes",
+                ),
+              ]
+              let response =
+                json_output.success(
+                  "quality_result",
+                  "quality",
+                  data,
+                  Some(spec_path),
+                  next_actions,
                 )
-                io.println(
-                  "  • intent invert "
-                  <> spec_path
-                  <> " - Analyze failure modes",
-                )
-              }
+              json_output.output(response)
             }
             halt(exit_pass)
           }
           Error(e) -> {
-            case is_json {
-              True -> {
-                let error_msg = loader.format_error(e)
-                let response =
-                  json_output.failure(
-                    "quality_check_failed",
-                    "quality",
-                    json.null(),
-                    [json_output.error("load_error", error_msg)],
-                    Some(spec_path),
-                    [],
-                    exit_invalid,
-                  )
-                json_output.output(response)
-              }
-              False -> io.println_error(loader.format_error(e))
+            {
+              let error_msg = loader.format_error(e)
+              let response =
+                json_output.failure(
+                  "quality_check_failed",
+                  "quality",
+                  json.null(),
+                  [json_output.error("load_error", error_msg)],
+                  Some(spec_path),
+                  [],
+                  exit_invalid,
+                )
+              json_output.output(response)
             }
             halt(exit_invalid)
           }
@@ -3593,110 +3086,80 @@ fn kirk_quality_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
 }
 
 /// The `invert` command - KIRK inversion analysis
 fn kirk_invert_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let report = inversion_checker.analyze_inversions(spec)
-            case is_json {
-              True -> {
-                let data =
-                  json.object([
-                    #("score", json.float(report.score)),
-                    #(
-                      "security_gaps",
-                      json.array(report.security_gaps, gap_to_json),
-                    ),
-                    #(
-                      "usability_gaps",
-                      json.array(report.usability_gaps, gap_to_json),
-                    ),
-                    #(
-                      "integration_gaps",
-                      json.array(report.integration_gaps, gap_to_json),
-                    ),
-                    #(
-                      "suggested_behaviors",
-                      json.array(report.suggested_behaviors, fn(s) {
-                        json.object([
-                          #("name", json.string(s.name)),
-                          #("intent", json.string(s.intent)),
-                          #("expected_status", json.int(s.expected_status)),
-                          #("category", json.string(s.category)),
-                        ])
-                      }),
-                    ),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent coverage " <> spec_path <> " --json",
-                    "Check OWASP coverage",
+            {
+              let data =
+                json.object([
+                  #("score", json.float(report.score)),
+                  #(
+                    "security_gaps",
+                    json.array(report.security_gaps, gap_to_json),
                   ),
-                  json_output.next_action(
-                    "intent effects " <> spec_path <> " --json",
-                    "Analyze second-order effects",
+                  #(
+                    "usability_gaps",
+                    json.array(report.usability_gaps, gap_to_json),
                   ),
-                ]
-                let response =
-                  json_output.success(
-                    "invert_result",
-                    "invert",
-                    data,
-                    Some(spec_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println(inversion_checker.format_report(report))
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent coverage "
-                  <> spec_path
-                  <> " - Check OWASP coverage",
+                  #(
+                    "integration_gaps",
+                    json.array(report.integration_gaps, gap_to_json),
+                  ),
+                  #(
+                    "suggested_behaviors",
+                    json.array(report.suggested_behaviors, fn(s) {
+                      json.object([
+                        #("name", json.string(s.name)),
+                        #("intent", json.string(s.intent)),
+                        #("expected_status", json.int(s.expected_status)),
+                        #("category", json.string(s.category)),
+                      ])
+                    }),
+                  ),
+                ])
+              let next_actions = [
+                json_output.next_action(
+                  "intent coverage " <> spec_path <> " --json",
+                  "Check OWASP coverage",
+                ),
+                json_output.next_action(
+                  "intent effects " <> spec_path <> " --json",
+                  "Analyze second-order effects",
+                ),
+              ]
+              let response =
+                json_output.success(
+                  "invert_result",
+                  "invert",
+                  data,
+                  Some(spec_path),
+                  next_actions,
                 )
-                io.println(
-                  "  • intent effects "
-                  <> spec_path
-                  <> " - Analyze second-order effects",
-                )
-              }
+              json_output.output(response)
             }
             halt(exit_pass)
           }
           Error(e) -> {
-            case is_json {
-              True -> {
-                let error_msg = loader.format_error(e)
-                let response =
-                  json_output.failure(
-                    "invert_check_failed",
-                    "invert",
-                    json.null(),
-                    [json_output.error("load_error", error_msg)],
-                    Some(spec_path),
-                    [],
-                    exit_invalid,
-                  )
-                json_output.output(response)
-              }
-              False -> io.println_error(loader.format_error(e))
+            {
+              let error_msg = loader.format_error(e)
+              let response =
+                json_output.failure(
+                  "invert_check_failed",
+                  "invert",
+                  json.null(),
+                  [json_output.error("load_error", error_msg)],
+                  Some(spec_path),
+                  [],
+                  exit_invalid,
+                )
+              json_output.output(response)
             }
             halt(exit_invalid)
           }
@@ -3711,10 +3174,6 @@ fn kirk_invert_command() -> glint.Command(Nil) {
   })
   |> glint.description(
     "KIRK: Inversion analysis - what failure cases are missing?",
-  )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
   )
 }
 
@@ -3733,99 +3192,73 @@ fn gap_to_json(gap: inversion_checker.InversionGap) -> json.Json {
 /// The `coverage` command - KIRK coverage analysis
 fn kirk_coverage_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let report = coverage_analyzer.analyze_coverage(spec)
-            case is_json {
-              True -> {
-                let data =
-                  json.object([
-                    #("overall_score", json.float(report.overall_score)),
-                    #(
-                      "methods",
-                      json.object(
-                        report.methods
-                        |> dict.to_list()
-                        |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
-                      ),
+            {
+              let data =
+                json.object([
+                  #("overall_score", json.float(report.overall_score)),
+                  #(
+                    "methods",
+                    json.object(
+                      report.methods
+                      |> dict.to_list()
+                      |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
                     ),
-                    #(
-                      "status_codes",
-                      json.object(
-                        report.status_codes
-                        |> dict.to_list()
-                        |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
-                      ),
-                    ),
-                    #("owasp_score", json.float(report.owasp.score)),
-                    #(
-                      "owasp_missing",
-                      json.array(report.owasp.missing, json.string),
-                    ),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent gaps " <> spec_path <> " --json",
-                    "Detect mental model gaps",
                   ),
-                  json_output.next_action(
-                    "intent quality " <> spec_path <> " --json",
-                    "Check overall quality",
+                  #(
+                    "status_codes",
+                    json.object(
+                      report.status_codes
+                      |> dict.to_list()
+                      |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
+                    ),
                   ),
-                ]
-                let response =
-                  json_output.success(
-                    "coverage_result",
-                    "coverage",
-                    data,
-                    Some(spec_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println(coverage_analyzer.format_report(report))
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent gaps "
-                  <> spec_path
-                  <> " - Detect mental model gaps",
+                  #("owasp_score", json.float(report.owasp.score)),
+                  #(
+                    "owasp_missing",
+                    json.array(report.owasp.missing, json.string),
+                  ),
+                ])
+              let next_actions = [
+                json_output.next_action(
+                  "intent gaps " <> spec_path <> " --json",
+                  "Detect mental model gaps",
+                ),
+                json_output.next_action(
+                  "intent quality " <> spec_path <> " --json",
+                  "Check overall quality",
+                ),
+              ]
+              let response =
+                json_output.success(
+                  "coverage_result",
+                  "coverage",
+                  data,
+                  Some(spec_path),
+                  next_actions,
                 )
-                io.println(
-                  "  • intent quality "
-                  <> spec_path
-                  <> " - Check overall quality",
-                )
-              }
+              json_output.output(response)
             }
             halt(exit_pass)
           }
           Error(e) -> {
-            case is_json {
-              True -> {
-                let error_msg = loader.format_error(e)
-                let response =
-                  json_output.failure(
-                    "coverage_check_failed",
-                    "coverage",
-                    json.null(),
-                    [json_output.error("load_error", error_msg)],
-                    Some(spec_path),
-                    [],
-                    exit_invalid,
-                  )
-                json_output.output(response)
-              }
-              False -> io.println_error(loader.format_error(e))
+            {
+              let error_msg = loader.format_error(e)
+              let response =
+                json_output.failure(
+                  "coverage_check_failed",
+                  "coverage",
+                  json.null(),
+                  [json_output.error("load_error", error_msg)],
+                  Some(spec_path),
+                  [],
+                  exit_invalid,
+                )
+              json_output.output(response)
             }
             halt(exit_invalid)
           }
@@ -3839,119 +3272,89 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
 }
 
 /// The `gaps` command - KIRK gap detection
 fn kirk_gaps_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let report = gap_detector.detect_gaps(spec)
-            case is_json {
-              True -> {
-                let data =
-                  json.object([
-                    #("total_gaps", json.int(report.total_gaps)),
-                    #(
-                      "severity_breakdown",
-                      json.object([
-                        #(
-                          "critical",
-                          json.int(report.severity_breakdown.critical),
-                        ),
-                        #("high", json.int(report.severity_breakdown.high)),
-                        #("medium", json.int(report.severity_breakdown.medium)),
-                        #("low", json.int(report.severity_breakdown.low)),
-                      ]),
-                    ),
-                    #(
-                      "inversion_gaps",
-                      json.array(report.inversion_gaps, detected_gap_to_json),
-                    ),
-                    #(
-                      "second_order_gaps",
-                      json.array(report.second_order_gaps, detected_gap_to_json),
-                    ),
-                    #(
-                      "checklist_gaps",
-                      json.array(report.checklist_gaps, detected_gap_to_json),
-                    ),
-                    #(
-                      "coverage_gaps",
-                      json.array(report.coverage_gaps, detected_gap_to_json),
-                    ),
-                    #(
-                      "security_gaps",
-                      json.array(report.security_gaps, detected_gap_to_json),
-                    ),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent doctor " <> spec_path,
-                    "Get prioritized recommendations",
+            {
+              let data =
+                json.object([
+                  #("total_gaps", json.int(report.total_gaps)),
+                  #(
+                    "severity_breakdown",
+                    json.object([
+                      #(
+                        "critical",
+                        json.int(report.severity_breakdown.critical),
+                      ),
+                      #("high", json.int(report.severity_breakdown.high)),
+                      #("medium", json.int(report.severity_breakdown.medium)),
+                      #("low", json.int(report.severity_breakdown.low)),
+                    ]),
                   ),
-                  json_output.next_action(
-                    "intent improve " <> spec_path,
-                    "Get improvement suggestions",
+                  #(
+                    "inversion_gaps",
+                    json.array(report.inversion_gaps, detected_gap_to_json),
                   ),
-                ]
-                let response =
-                  json_output.success(
-                    "gaps_result",
-                    "gaps",
-                    data,
-                    Some(spec_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-              }
-              False -> {
-                io.println(gap_detector.format_report(report))
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent doctor "
-                  <> spec_path
-                  <> " - Get prioritized fixes",
+                  #(
+                    "second_order_gaps",
+                    json.array(report.second_order_gaps, detected_gap_to_json),
+                  ),
+                  #(
+                    "checklist_gaps",
+                    json.array(report.checklist_gaps, detected_gap_to_json),
+                  ),
+                  #(
+                    "coverage_gaps",
+                    json.array(report.coverage_gaps, detected_gap_to_json),
+                  ),
+                  #(
+                    "security_gaps",
+                    json.array(report.security_gaps, detected_gap_to_json),
+                  ),
+                ])
+              let next_actions = [
+                json_output.next_action(
+                  "intent doctor " <> spec_path,
+                  "Get prioritized recommendations",
+                ),
+                json_output.next_action(
+                  "intent improve " <> spec_path,
+                  "Get improvement suggestions",
+                ),
+              ]
+              let response =
+                json_output.success(
+                  "gaps_result",
+                  "gaps",
+                  data,
+                  Some(spec_path),
+                  next_actions,
                 )
-                io.println(
-                  "  • intent improve "
-                  <> spec_path
-                  <> " - Get actionable suggestions",
-                )
-              }
+              json_output.output(response)
             }
             halt(exit_pass)
           }
           Error(e) -> {
-            case is_json {
-              True -> {
-                let error_msg = loader.format_error(e)
-                let response =
-                  json_output.failure(
-                    "gaps_check_failed",
-                    "gaps",
-                    json.null(),
-                    [json_output.error("load_error", error_msg)],
-                    Some(spec_path),
-                    [],
-                    exit_invalid,
-                  )
-                json_output.output(response)
-              }
-              False -> io.println_error(loader.format_error(e))
+            {
+              let error_msg = loader.format_error(e)
+              let response =
+                json_output.failure(
+                  "gaps_check_failed",
+                  "gaps",
+                  json.null(),
+                  [json_output.error("load_error", error_msg)],
+                  Some(spec_path),
+                  [],
+                  exit_invalid,
+                )
+              json_output.output(response)
             }
             halt(exit_invalid)
           }
@@ -3965,10 +3368,6 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Detect gaps using mental models")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
-  )
 }
 
 fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
@@ -3984,63 +3383,37 @@ fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
 /// The `effects` command - KIRK second-order effects analysis
 fn kirk_effects_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     case input.args {
       [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, is_json) {
+        case load_spec_for_mode(spec_path, True) {
           Ok(spec) -> {
             let report = effects_analyzer.analyze_effects(spec)
 
-            case is_json {
-              True -> {
-                let json_output =
-                  effects_analyzer.effects_report_to_action_json(
-                    report,
-                    spec.name,
-                  )
-                io.println(json.to_string(json_output))
-              }
-              False -> {
-                io.println(effects_analyzer.format_report(report))
-                io.println("")
-                io.println("Next steps:")
-                io.println(
-                  "  • intent doctor "
-                  <> spec_path
-                  <> " - Get prioritized fixes",
+            {
+              let json_output =
+                effects_analyzer.effects_report_to_action_json(
+                  report,
+                  spec.name,
                 )
-                io.println(
-                  "  • intent check "
-                  <> spec_path
-                  <> " --target=URL - Test against API",
-                )
-              }
+              io.println(json.to_string(json_output))
             }
 
             halt(exit_pass)
           }
           Error(e) -> {
-            case is_json {
-              True -> {
-                let error_msg = loader.format_error(e)
-                let response =
-                  json_output.failure(
-                    "effects_check_failed",
-                    "effects",
-                    json.null(),
-                    [json_output.error("load_error", error_msg)],
-                    Some(spec_path),
-                    [],
-                    exit_invalid,
-                  )
-                json_output.output(response)
-              }
-              False -> io.println_error(loader.format_error(e))
+            {
+              let error_msg = loader.format_error(e)
+              let response =
+                json_output.failure(
+                  "effects_check_failed",
+                  "effects",
+                  json.null(),
+                  [json_output.error("load_error", error_msg)],
+                  Some(spec_path),
+                  [],
+                  exit_invalid,
+                )
+              json_output.output(response)
             }
             halt(exit_invalid)
           }
@@ -4294,12 +3667,6 @@ fn kirk_ears_command() -> glint.Command(Nil) {
 /// The `parse` command - parse EARS requirements to spec
 fn parse_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let is_json =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
-    let mode = output_mode.from_json_flag(is_json)
-
     let output_file =
       flag.get_string(input.flags, "o")
       |> result.unwrap("")
@@ -4326,167 +3693,39 @@ fn parse_command() -> glint.Command(Nil) {
                 }
               })
 
-            case is_json {
-              True -> {
-                let behaviors = ears_parser.to_behaviors(result)
-                let data =
-                  json.object([
-                    #(
-                      "requirements",
-                      json.array(result.requirements, fn(r) {
-                        json.object([
-                          #("id", json.string(r.id)),
-                          #(
-                            "pattern",
-                            json.string(ears_parser.pattern_to_string(r.pattern)),
-                          ),
-                          #("system_shall", json.string(r.system_shall)),
-                          #("raw_text", json.string(r.raw_text)),
-                        ])
-                      }),
-                    ),
-                    #(
-                      "behaviors",
-                      json.array(behaviors, fn(b) {
-                        json.object([
-                          #("name", json.string(b.name)),
-                          #("intent", json.string(b.intent)),
-                          #("method", json.string(b.method)),
-                          #("path", json.string(b.path)),
-                          #("status", json.int(b.status)),
-                        ])
-                      }),
-                    ),
-                    #(
-                      "errors",
-                      json.array(result.errors, fn(e) {
-                        let #(message, suggestion) =
-                          ears_parser.error_message(e)
-                        let line = case e {
-                          ears_parser.PatternNotMatched(line:, ..) -> line
-                          ears_parser.PatternMatchFailed(line:, ..) -> line
-                          ears_parser.RegexCompileFailed(line:, ..) -> line
-                          ears_parser.ComponentExtractionFailed(line:, ..) ->
-                            line
-                        }
-                        json.object([
-                          #("line", json.int(line)),
-                          #("message", json.string(message)),
-                          #("suggestion", json.string(suggestion)),
-                        ])
-                      }),
-                    ),
-                    #("warnings", json.array(result.warnings, json.string)),
-                    #("count", json.int(req_count)),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent parse " <> requirements_path <> " -o spec.cue",
-                    "Generate CUE spec file",
+            {
+              let behaviors = ears_parser.to_behaviors(result)
+              let data =
+                json.object([
+                  #(
+                    "requirements",
+                    json.array(result.requirements, fn(r) {
+                      json.object([
+                        #("id", json.string(r.id)),
+                        #(
+                          "pattern",
+                          json.string(ears_parser.pattern_to_string(r.pattern)),
+                        ),
+                        #("system_shall", json.string(r.system_shall)),
+                        #("raw_text", json.string(r.raw_text)),
+                      ])
+                    }),
                   ),
-                  json_output.next_action(
-                    "intent validate spec.cue",
-                    "Validate generated spec",
+                  #(
+                    "behaviors",
+                    json.array(behaviors, fn(b) {
+                      json.object([
+                        #("name", json.string(b.name)),
+                        #("intent", json.string(b.intent)),
+                        #("method", json.string(b.method)),
+                        #("path", json.string(b.path)),
+                        #("status", json.int(b.status)),
+                      ])
+                    }),
                   ),
-                ]
-                let response =
-                  json_output.success(
-                    "parse_result",
-                    "parse",
-                    data,
-                    None,
-                    next_actions,
-                  )
-                json_output.output(response)
-
-                // Write to output file if specified (JSON mode)
-                case output_file {
-                  "" -> Nil
-                  path -> {
-                    let spec_name = case string.split(path, "/") {
-                      [] -> "GeneratedSpec"
-                      parts ->
-                        case list.last(parts) {
-                          Ok(filename) ->
-                            case string.split(filename, ".") {
-                              [name, ..] -> name
-                              [] -> "GeneratedSpec"
-                            }
-                          Error(_) -> "GeneratedSpec"
-                        }
-                    }
-                    let cue_output = ears_parser.to_cue(result, spec_name)
-                    case simplifile.write(path, cue_output) {
-                      Ok(_) -> Nil
-                      Error(_) -> Nil
-                    }
-                  }
-                }
-              }
-              False -> {
-                // Print parsing progress
-                io.println("Parsing EARS requirements...")
-
-                case ubiq > 0 {
-                  True ->
-                    io.println(
-                      "✓ Parsed "
-                      <> string.inspect(ubiq)
-                      <> " ubiquitous requirements",
-                    )
-                  False -> Nil
-                }
-                case event > 0 {
-                  True ->
-                    io.println(
-                      "✓ Parsed "
-                      <> string.inspect(event)
-                      <> " event-driven requirements",
-                    )
-                  False -> Nil
-                }
-                case state > 0 {
-                  True ->
-                    io.println(
-                      "✓ Parsed "
-                      <> string.inspect(state)
-                      <> " state-driven requirements",
-                    )
-                  False -> Nil
-                }
-                case opt > 0 {
-                  True ->
-                    io.println(
-                      "✓ Parsed "
-                      <> string.inspect(opt)
-                      <> " optional requirements",
-                    )
-                  False -> Nil
-                }
-                case unwant > 0 {
-                  True ->
-                    io.println(
-                      "✓ Parsed "
-                      <> string.inspect(unwant)
-                      <> " unwanted requirements",
-                    )
-                  False -> Nil
-                }
-                case complex > 0 {
-                  True ->
-                    io.println(
-                      "✓ Parsed "
-                      <> string.inspect(complex)
-                      <> " complex requirements",
-                    )
-                  False -> Nil
-                }
-
-                // Print errors
-                case err_count > 0 {
-                  True -> {
-                    io.println("")
-                    list.each(result.errors, fn(e) {
+                  #(
+                    "errors",
+                    json.array(result.errors, fn(e) {
                       let #(message, suggestion) = ears_parser.error_message(e)
                       let line = case e {
                         ears_parser.PatternNotMatched(line:, ..) -> line
@@ -4494,59 +3733,104 @@ fn parse_command() -> glint.Command(Nil) {
                         ears_parser.RegexCompileFailed(line:, ..) -> line
                         ears_parser.ComponentExtractionFailed(line:, ..) -> line
                       }
-                      io.println("Error parsing requirements:")
-                      io.println(
-                        "Line " <> string.inspect(line) <> ": " <> message,
-                      )
-                      io.println("  ❌ Does not match any EARS pattern")
-                      io.println("  💡 Suggestion: " <> suggestion)
-                    })
-                    io.println("")
-                    io.println(
-                      "Parsed: " <> string.inspect(req_count) <> " requirements",
-                    )
-                    io.println(
-                      "Failed: " <> string.inspect(err_count) <> " requirements",
-                    )
-                  }
-                  False -> Nil
-                }
-
-                // Write to output file if specified
-                case output_file {
-                  "" -> Nil
-                  path -> {
-                    // Infer spec name from filename
-                    let spec_name = case string.split(path, "/") {
-                      [] -> "GeneratedSpec"
-                      parts ->
-                        case list.last(parts) {
-                          Ok(filename) ->
-                            case string.split(filename, ".") {
-                              [name, ..] -> name
-                              [] -> "GeneratedSpec"
-                            }
-                          Error(_) -> "GeneratedSpec"
-                        }
-                    }
-                    let cue_output = ears_parser.to_cue(result, spec_name)
-                    case simplifile.write(path, cue_output) {
-                      Ok(_) -> io.println("Written to: " <> path)
-                      Error(e) ->
-                        io.println_error(
-                          "Failed to write: " <> string.inspect(e),
-                        )
-                    }
-                  }
-                }
-
-                // Add hint about ears command for detailed analysis
-                io.println("")
-                io.println(
-                  "Hint: For detailed EARS analysis with pattern breakdown, use: intent ears "
-                  <> requirements_path,
+                      json.object([
+                        #("line", json.int(line)),
+                        #("message", json.string(message)),
+                        #("suggestion", json.string(suggestion)),
+                      ])
+                    }),
+                  ),
+                  #("warnings", json.array(result.warnings, json.string)),
+                  #("count", json.int(req_count)),
+                ])
+              let next_actions = [
+                json_output.next_action(
+                  "intent parse " <> requirements_path <> " -o spec.cue",
+                  "Generate CUE spec file",
+                ),
+                json_output.next_action(
+                  "intent validate spec.cue",
+                  "Validate generated spec",
+                ),
+              ]
+              let response =
+                json_output.success(
+                  "parse_result",
+                  "parse",
+                  data,
+                  None,
+                  next_actions,
                 )
+              json_output.output(response)
+
+              // Write to output file if specified (JSON mode)
+              case output_file {
+                "" -> Nil
+                path -> {
+                  let spec_name = case string.split(path, "/") {
+                    [] -> "GeneratedSpec"
+                    parts ->
+                      case list.last(parts) {
+                        Ok(filename) ->
+                          case string.split(filename, ".") {
+                            [name, ..] -> name
+                            [] -> "GeneratedSpec"
+                          }
+                        Error(_) -> "GeneratedSpec"
+                      }
+                  }
+                  let cue_output = ears_parser.to_cue(result, spec_name)
+                  case simplifile.write(path, cue_output) {
+                    Ok(_) -> Nil
+                    Error(_) -> Nil
+                  }
+                }
               }
+            }
+            io.println(
+              "✓ Parsed " <> string.inspect(ubiq) <> " ubiquitous requirements",
+            )
+            io.println(
+              "✓ Parsed "
+              <> string.inspect(event)
+              <> " event-driven requirements",
+            )
+            io.println(
+              "✓ Parsed "
+              <> string.inspect(state)
+              <> " state-driven requirements",
+            )
+            io.println(
+              "✓ Parsed " <> string.inspect(opt) <> " optional requirements",
+            )
+            io.println(
+              "✓ Parsed " <> string.inspect(unwant) <> " unwanted requirements",
+            )
+            io.println(
+              "✓ Parsed " <> string.inspect(complex) <> " complex requirements",
+            )
+            {
+              io.println("")
+              list.each(result.errors, fn(e) {
+                let #(message, suggestion) = ears_parser.error_message(e)
+                let line = case e {
+                  ears_parser.PatternNotMatched(line:, ..) -> line
+                  ears_parser.PatternMatchFailed(line:, ..) -> line
+                  ears_parser.RegexCompileFailed(line:, ..) -> line
+                  ears_parser.ComponentExtractionFailed(line:, ..) -> line
+                }
+                io.println("Error parsing requirements:")
+                io.println("Line " <> string.inspect(line) <> ": " <> message)
+                io.println("  ❌ Does not match any EARS pattern")
+                io.println("  💡 Suggestion: " <> suggestion)
+              })
+              io.println("")
+              io.println(
+                "Parsed: " <> string.inspect(req_count) <> " requirements",
+              )
+              io.println(
+                "Failed: " <> string.inspect(err_count) <> " requirements",
+              )
             }
 
             case err_count > 0 {
@@ -4602,10 +3886,6 @@ fn parse_command() -> glint.Command(Nil) {
     flag.string()
       |> flag.default("")
       |> flag.description("Output spec file path"),
-  )
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
   )
 }
 
