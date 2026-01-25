@@ -1,0 +1,13 @@
+{
+  "bead_id": "intent-cli-d1d",
+  "title": "WAVE4-03: Empathy Simulator (Cognitive Limitation Protocol)",
+  "complexity": "MEDIUM",
+  "route": ["0", "1", "2", "4", "5", "6", "7", "9", "11", "15"],
+  "current_phase": 15,
+  "phases_completed": ["0", "1", "2", "4", "5", "6", "7"],
+  "started_at": "2026-01-25T16:11:00Z",
+  "completed_at": "2026-01-25T16:45:00Z",
+  "language": "gleam",
+  "mf_score": 91.25,
+  "test_count": 21
+}

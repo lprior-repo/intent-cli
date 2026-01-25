@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-d1d",
+    "title": "WAVE4-03: Empathy Simulator (Cognitive Limitation Protocol)",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:53:48.608219825-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T08:53:48.608219825-06:00"
+  }
+]
