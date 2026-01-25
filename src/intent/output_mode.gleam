@@ -13,6 +13,9 @@ pub type OutputMode {
 
   /// Minimal output for piping/scripting
   Quiet
+
+  /// Explicit AI/robot consumption mode with action metadata
+  Robot
 }
 
 /// Check if interactive UI should be shown
@@ -24,9 +27,19 @@ pub fn is_interactive(mode: OutputMode) -> Bool {
 }
 
 /// Check if JSON output mode is active
+/// Robot mode is JSON-compatible for backward compatibility
 pub fn is_json(mode: OutputMode) -> Bool {
   case mode {
     Json -> True
+    Robot -> True
+    _ -> False
+  }
+}
+
+/// Check if robot mode is active
+pub fn is_robot(mode: OutputMode) -> Bool {
+  case mode {
+    Robot -> True
     _ -> False
   }
 }
@@ -63,11 +76,33 @@ pub fn from_quiet_flag(is_quiet: Bool) -> OutputMode {
   }
 }
 
+/// Convert from --robot flag to OutputMode
+pub fn from_robot_flag(is_robot: Bool) -> OutputMode {
+  case is_robot {
+    True -> Robot
+    False -> Interactive
+  }
+}
+
 /// Get the appropriate mode from both flags (JSON takes precedence)
 pub fn from_flags(is_json: Bool, is_quiet: Bool) -> OutputMode {
   case is_json, is_quiet {
     True, _ -> Json
     False, True -> Quiet
     False, False -> Interactive
+  }
+}
+
+/// Get the appropriate mode from all flags (Robot takes precedence)
+pub fn from_flags_with_robot(
+  is_robot is_robot: Bool,
+  is_json is_json: Bool,
+  is_quiet is_quiet: Bool,
+) -> OutputMode {
+  case is_robot, is_json, is_quiet {
+    True, _, _ -> Robot
+    False, True, _ -> Json
+    False, False, True -> Quiet
+    False, False, False -> Interactive
   }
 }
