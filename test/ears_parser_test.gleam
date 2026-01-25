@@ -6,6 +6,9 @@ import gleeunit/should
 import intent/kirk/ears_parser.{
   Complex, EventDriven, Optional, StateDriven, Ubiquitous, Unwanted,
 }
+import intent/plan_mode.{
+  Effort10min, Effort15min, Effort20min, Effort30min, Pending,
+}
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -360,4 +363,89 @@ fn should_contain(haystack: String, needle: String) {
       should.equal(haystack, "Expected to contain: " <> needle)
     }
   }
+}
+
+// ============================================================================
+// Plan Beads Conversion Tests
+// ============================================================================
+
+pub fn to_plan_beads_converts_requirements_test() {
+  let input =
+    "THE SYSTEM SHALL validate inputs\nWHEN user submits THE SYSTEM SHALL process data"
+  let result = ears_parser.parse(input)
+  let beads = ears_parser.to_plan_beads(result)
+
+  // Should have 2 beads
+  beads
+  |> list.length
+  |> should.equal(2)
+
+  // First bead should have correct structure
+  case beads {
+    [bead1, bead2] -> {
+      // Check IDs
+      bead1.id |> should.equal("req-1")
+      bead2.id |> should.equal("req-2")
+
+      // Check titles (from system_shall)
+      bead1.title |> should.equal("validate inputs")
+      bead2.title |> should.equal("process data")
+
+      // Check status is Pending
+      bead1.status |> should.equal(Pending)
+      bead2.status |> should.equal(Pending)
+
+      // Check requires is empty (no dependencies)
+      bead1.requires |> should.equal([])
+      bead2.requires |> should.equal([])
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn to_plan_beads_infers_effort_by_pattern_test() {
+  let input =
+    "THE SYSTEM SHALL do basic task\nWHILE state WHEN trigger THE SYSTEM SHALL do complex task\nIF bad THEN THE SYSTEM SHALL NOT fail"
+  let result = ears_parser.parse(input)
+  let beads = ears_parser.to_plan_beads(result)
+
+  case beads {
+    [ubiquitous, complex, unwanted] -> {
+      // Ubiquitous gets baseline effort
+      ubiquitous.effort |> should.equal(Effort15min)
+
+      // Complex pattern gets higher effort
+      complex.effort |> should.equal(Effort30min)
+
+      // Unwanted (negative test) gets lower effort
+      unwanted.effort |> should.equal(Effort10min)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn to_plan_beads_handles_state_driven_test() {
+  let input = "WHILE user is authenticated THE SYSTEM SHALL allow access"
+  let result = ears_parser.parse(input)
+  let beads = ears_parser.to_plan_beads(result)
+
+  case beads {
+    [bead] -> {
+      // State-driven patterns require state management, higher effort
+      bead.effort |> should.equal(Effort20min)
+      bead.title |> should.equal("allow access")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn to_plan_beads_handles_empty_result_test() {
+  let input = "# Just a comment\n\n"
+  let result = ears_parser.parse(input)
+  let beads = ears_parser.to_plan_beads(result)
+
+  // Empty input should produce no beads
+  beads
+  |> list.is_empty
+  |> should.be_true()
 }

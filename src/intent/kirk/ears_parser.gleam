@@ -7,6 +7,10 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regex
 import gleam/string
+import intent/plan_mode.{
+  type Effort, type PlanBead, Effort10min, Effort15min, Effort20min, Effort30min,
+  Pending, PlanBead,
+}
 
 // =============================================================================
 // TYPES
@@ -481,6 +485,37 @@ fn generate_warnings(requirements: List(EarsRequirement)) -> List(String) {
 pub fn to_behaviors(result: EarsParseResult) -> List(IntentBehavior) {
   result.requirements
   |> list.map(requirement_to_behavior)
+}
+
+// =============================================================================
+// CONVERSION TO PLAN BEADS
+// =============================================================================
+
+/// Convert EARS requirements to PlanBeads for plan generation
+pub fn to_plan_beads(result: EarsParseResult) -> List(PlanBead) {
+  result.requirements
+  |> list.map(requirement_to_plan_bead)
+}
+
+fn requirement_to_plan_bead(req: EarsRequirement) -> PlanBead {
+  PlanBead(
+    id: req.id,
+    title: req.system_shall,
+    requires: [],
+    effort: infer_effort(req),
+    status: Pending,
+  )
+}
+
+fn infer_effort(req: EarsRequirement) -> Effort {
+  case req.pattern {
+    Ubiquitous -> Effort15min
+    EventDriven -> Effort15min
+    StateDriven -> Effort20min
+    Optional -> Effort15min
+    Unwanted -> Effort10min
+    Complex -> Effort30min
+  }
 }
 
 fn requirement_to_behavior(req: EarsRequirement) -> IntentBehavior {
