@@ -32,7 +32,7 @@ import intent/loader
 import intent/output_mode
 import intent/parser
 import intent/plan_mode
-import intent/planning_types
+import intent/planning_types.{type Blocker, type ReadyReport, type Recommendation}
 import intent/prompt_generator
 import intent/quality_analyzer
 import intent/question_types.{type Question}
