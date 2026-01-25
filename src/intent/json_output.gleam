@@ -45,7 +45,13 @@ pub type NextAction {
 
 /// Metadata included in all JSON responses
 pub type JsonMetadata {
-  JsonMetadata(timestamp: String, version: String, exit_code: Int)
+  JsonMetadata(
+    timestamp: String,
+    version: String,
+    exit_code: Int,
+    correlation_id: String,
+    duration_ms: Int,
+  )
 }
 
 /// Create a successful JSON response
@@ -63,11 +69,7 @@ pub fn success(
     data: data,
     errors: [],
     next_actions: next_actions,
-    metadata: JsonMetadata(
-      timestamp: current_timestamp(),
-      version: "0.1.0",
-      exit_code: 0,
-    ),
+    metadata: create_metadata(0),
     spec_path: spec_path,
   )
 }
@@ -89,11 +91,7 @@ pub fn failure(
     data: data,
     errors: errors,
     next_actions: next_actions,
-    metadata: JsonMetadata(
-      timestamp: current_timestamp(),
-      version: "0.1.0",
-      exit_code: exit_code,
-    ),
+    metadata: create_metadata(exit_code),
     spec_path: spec_path,
   )
 }
@@ -113,11 +111,7 @@ pub fn create_response(
     data: data,
     errors: [],
     next_actions: [],
-    metadata: JsonMetadata(
-      timestamp: current_timestamp(),
-      version: "0.1.0",
-      exit_code: exit_code,
-    ),
+    metadata: create_metadata(exit_code),
     spec_path: spec_path,
   )
 }
@@ -140,11 +134,7 @@ pub fn create_full_response(
     data: data,
     errors: errors,
     next_actions: next_actions,
-    metadata: JsonMetadata(
-      timestamp: current_timestamp(),
-      version: "0.1.0",
-      exit_code: exit_code,
-    ),
+    metadata: create_metadata(exit_code),
     spec_path: spec_path,
   )
 }
@@ -247,6 +237,8 @@ fn metadata_to_json(metadata: JsonMetadata) -> Json {
     #("timestamp", json.string(metadata.timestamp)),
     #("version", json.string(metadata.version)),
     #("exit_code", json.int(metadata.exit_code)),
+    #("correlation_id", json.string(metadata.correlation_id)),
+    #("duration_ms", json.int(metadata.duration_ms)),
   ])
 }
 
@@ -278,6 +270,21 @@ pub fn output(response: JsonResponse) -> Nil {
 /// Uses FFI to get actual timestamp
 @external(erlang, "intent_ffi", "current_timestamp")
 fn current_timestamp() -> String
+
+/// Generate a UUID v4 for correlation tracking
+@external(erlang, "intent_ffi", "generate_uuid")
+fn generate_uuid() -> String
+
+/// Create metadata with the given exit code
+fn create_metadata(exit_code: Int) -> JsonMetadata {
+  JsonMetadata(
+    timestamp: current_timestamp(),
+    version: "0.1.0",
+    exit_code: exit_code,
+    correlation_id: generate_uuid(),
+    duration_ms: 0,
+  )
+}
 
 // Required imports
 import gleam/io
