@@ -5,10 +5,7 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
-import gleam/string
-import intent/spec_critique.{type CritiqueResult, critique_spec}
-import intent/types.{type Spec, Spec}
+import intent/types.{type Spec}
 
 /// Spec session status
 pub type SpecStatus {
@@ -235,7 +232,7 @@ pub fn set_status_ready_for_critique(
 /// Set session status to complete
 pub fn set_status_complete(
   session: SpecSession,
-  rcs_score: Float,
+  _rcs_score: Float,
   timestamp: String,
 ) -> SpecSession {
   SpecSession(..session, status: Complete, updated_at: timestamp)

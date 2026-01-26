@@ -9,7 +9,6 @@
 //// and validate the contract from the outside in.
 
 import gleam/dynamic
-import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
@@ -87,23 +86,6 @@ fn validate_ai_ergonomics(output: String) -> Validation {
     Error(_) -> {
       // Non-JSON output is acceptable for some commands
       Validation(True, "Non-JSON output (acceptable for some commands)")
-    }
-  }
-}
-
-/// Validate exit code is in expected range
-fn validate_exit_code(exit_code: Int, expected_codes: List(Int)) -> Validation {
-  case list.contains(expected_codes, exit_code) {
-    True ->
-      Validation(True, "Exit code " <> int.to_string(exit_code) <> " is valid")
-    False -> {
-      Validation(
-        False,
-        "Exit code "
-          <> int.to_string(exit_code)
-          <> " not in expected: "
-          <> string.join(list.map(expected_codes, int.to_string), ", "),
-      )
     }
   }
 }

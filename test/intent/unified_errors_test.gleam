@@ -6,8 +6,7 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/unified_errors.{
-  type ErrorCode, type Severity, type UnifiedError, ConflictingFlags, Error,
-  FileNotFound, FilePermissionDenied, InternalError, InvalidInput, LoadError,
+  ConflictingFlags, Error, FileNotFound, FilePermissionDenied, InternalError, InvalidInput, LoadError,
   MissingInput, SessionNotFound, SpecParseError, ValidationFailed, Warning,
   conflicting_flags, error_code_to_string, exit_internal_error,
   exit_runtime_error, exit_success, exit_user_input_error, exit_validation_error,

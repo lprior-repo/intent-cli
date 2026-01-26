@@ -5,7 +5,6 @@ import gleam/json
 import gleam/option.{Some}
 import gleeunit
 import gleeunit/should
-import intent/planning_types.{DimensionScore}
 import intent/types.{
   type Spec, AIHints, Config, Feature, ImplementationHints, SecurityHints, Spec,
 }

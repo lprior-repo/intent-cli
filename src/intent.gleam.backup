@@ -2066,45 +2066,18 @@ fn plan_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        // No session_id provided - return JSON usage info with exit code 0
-        // This makes the command more testable and AI-friendly
-        let error =
-          json_output.error(
-            "missing_arguments",
-            "Session ID is required for plan command",
-          )
-
-        let response =
-          json_output.failure(
-            "plan_usage",
-            "plan",
-            json.object([
-              #(
-                "usage",
-                json.string("intent plan <session_id> [--format human|json]"),
-              ),
-              #(
-                "description",
-                json.string("Display execution plan from session beads"),
-              ),
-            ]),
-            [error],
-            None,
-            [
-              json_output.next_action(
-                "intent sessions",
-                "List available interview sessions",
-              ),
-              json_output.next_action(
-                "intent beads <session_id>",
-                "Generate beads from a session first",
-              ),
-            ],
-            exit_pass,
-          )
-
-        json_output.output(response)
-        halt(exit_pass)
+        io.println_error(
+          "Usage: intent plan <session_id> [--format human|json]",
+        )
+        io.println_error("")
+        io.println_error("Display execution plan from session beads.")
+        io.println_error("")
+        io.println_error("Examples:")
+        io.println_error(
+          "  intent plan abc123              # Human-readable output",
+        )
+        io.println_error("  intent plan abc123 --format json  # JSON output")
+        halt(exit_error)
       }
     }
   })
@@ -2481,43 +2454,19 @@ fn feedback_command() -> glint.Command(Nil) {
       |> result.map_error(fn(_) { "Missing required --results flag" })
 
     case results_path {
-      Error(_err) -> {
-        // Return JSON usage info with exit code 0 for testability
-        let error =
-          json_output.error(
-            "missing_arguments",
-            "The --results flag is required for feedback command",
-          )
-
-        let response =
-          json_output.failure(
-            "feedback_usage",
-            "feedback",
-            json.object([
-              #(
-                "usage",
-                json.string(
-                  "intent feedback --results <check-output.json> [--json]",
-                ),
-              ),
-              #(
-                "description",
-                json.string("Generate fix beads from check command failures"),
-              ),
-            ]),
-            [error],
-            None,
-            [
-              json_output.next_action(
-                "intent check <spec> --target=<url> --json > results.json",
-                "Generate check results first",
-              ),
-            ],
-            exit_pass,
-          )
-
-        json_output.output(response)
-        halt(exit_pass)
+      Error(err) -> {
+        io.println_error("Error: " <> err)
+        io.println_error("")
+        io.println_error(
+          "Usage: intent feedback --results <check-output.json> [--json]",
+        )
+        io.println_error("")
+        io.println_error("Example:")
+        io.println_error(
+          "  intent check api.cue --target=http://localhost:8080 --json > results.json",
+        )
+        io.println_error("  intent feedback --results results.json")
+        halt(exit_error)
       }
       Ok(path) -> {
         // Read the check results JSON file
@@ -2708,6 +2657,13 @@ fn prompt_command() -> glint.Command(Nil) {
                     )
                   json_output.output(response)
                 }
+                io.println(
+                  "(showing first "
+                  <> string.inspect(bead_count)
+                  <> " of "
+                  <> string.inspect(total_count)
+                  <> " beads)",
+                )
                 halt(exit_pass)
               }
             }
@@ -2890,73 +2846,12 @@ fn history_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        // No session ID - return JSON with all history entries
-        case interview_storage.list_all_history(history_path) {
-          Error(_) -> {
-            // File does not exist yet - return empty JSON
-            let data =
-              json.object([
-                #("snapshots", json.array([], fn(_) { json.null() })),
-                #("total", json.int(0)),
-                #("shown", json.int(0)),
-                #("truncated", json.bool(False)),
-              ])
-            let response =
-              json_output.success("history_result", "history", data, None, [
-                json_output.next_action(
-                  "intent interview --profile api",
-                  "Start a new interview to create history",
-                ),
-              ])
-            json_output.output(response)
-            halt(exit_pass)
-          }
-          Ok(all_snapshots) -> {
-            let total_count = list.length(all_snapshots)
-            let snapshots = list_limits.apply_limit(all_snapshots, max_items)
-            let shown_count = list.length(snapshots)
-            let was_limited = total_count > shown_count
-
-            let data =
-              json.object([
-                #(
-                  "snapshots",
-                  json.array(snapshots, interview_storage.snapshot_to_json),
-                ),
-                #("total", json.int(total_count)),
-                #("shown", json.int(shown_count)),
-                #("truncated", json.bool(was_limited)),
-              ])
-            let next_actions = case list.is_empty(all_snapshots) {
-              True -> [
-                json_output.next_action(
-                  "intent interview --profile api",
-                  "Start a new interview to create history",
-                ),
-              ]
-              False -> [
-                json_output.next_action(
-                  "intent history <session-id>",
-                  "View history for a specific session",
-                ),
-                json_output.next_action(
-                  "intent sessions",
-                  "List all interview sessions",
-                ),
-              ]
-            }
-            let response =
-              json_output.success(
-                "history_result",
-                "history",
-                data,
-                None,
-                next_actions,
-              )
-            json_output.output(response)
-            halt(exit_pass)
-          }
-        }
+        io.println_error("Session ID required")
+        io.println("")
+        io.println("Usage: intent history <session-id> [--max-items N]")
+        io.println("")
+        io.println("Example: intent history interview-abc123")
+        halt(exit_error)
       }
     }
   })
@@ -3080,45 +2975,20 @@ fn diff_command() -> glint.Command(Nil) {
         }
       }
       _ -> {
-        // When arguments are missing, output JSON usage info with exit code 0
-        // This makes the command more testable and AI-friendly
-        let error =
-          json_output.error(
-            "missing_arguments",
-            "Two spec paths are required for diff",
-          )
-
-        let response =
-          json_output.failure(
-            "diff_usage",
-            "diff",
-            json.object([
-              #(
-                "usage",
-                json.string("intent diff <spec1.cue> <spec2.cue> [--json]"),
-              ),
-              #(
-                "description",
-                json.string("Compare two spec versions and show differences"),
-              ),
-            ]),
-            [error],
-            None,
-            [
-              json_output.next_action(
-                "intent diff spec1.cue spec2.cue --json",
-                "Compare two specs with JSON output",
-              ),
-              json_output.next_action(
-                "intent diff spec1.cue spec2.cue",
-                "Compare two specs with human-readable output",
-              ),
-            ],
-            exit_pass,
-          )
-
-        json_output.output(response)
-        halt(exit_pass)
+        io.println_error("Two spec paths required")
+        io.println("")
+        io.println("Usage: intent diff <spec1.cue> <spec2.cue> [--json]")
+        io.println("")
+        io.println("Compare two spec versions and show differences:")
+        io.println("  - Added/removed/changed features")
+        io.println("  - Added/removed/changed behaviors")
+        io.println("  - Modified response checks")
+        io.println("  - Config changes")
+        io.println("")
+        io.println("Examples:")
+        io.println("  intent diff api-v1.cue api-v2.cue")
+        io.println("  intent diff api-v1.cue api-v2.cue --json")
+        halt(exit_error)
       }
     }
   })
@@ -3898,66 +3768,28 @@ fn kirk_ears_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        // Return JSON usage info with exit code 0 for testability
-        let error =
-          json_output.error(
-            "missing_arguments",
-            "Requirements file path is required for ears command",
-          )
-
-        let response =
-          json_output.failure(
-            "ears_usage",
-            "ears",
-            json.object([
-              #(
-                "usage",
-                json.string(
-                  "intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
-                ),
-              ),
-              #(
-                "description",
-                json.string(
-                  "EARS requirements parser - converts natural language to CUE behaviors",
-                ),
-              ),
-              #(
-                "patterns",
-                json.object([
-                  #("ubiquitous", json.string("THE SYSTEM SHALL [behavior]")),
-                  #(
-                    "event_driven",
-                    json.string("WHEN [trigger] THE SYSTEM SHALL [behavior]"),
-                  ),
-                  #(
-                    "state_driven",
-                    json.string("WHILE [state] THE SYSTEM SHALL [behavior]"),
-                  ),
-                  #(
-                    "optional",
-                    json.string("WHERE [condition] THE SYSTEM SHALL [behavior]"),
-                  ),
-                  #(
-                    "unwanted",
-                    json.string("IF [condition] THEN THE SYSTEM SHALL NOT"),
-                  ),
-                ]),
-              ),
-            ]),
-            [error],
-            None,
-            [
-              json_output.next_action(
-                "intent parse <requirements.md>",
-                "Quick EARS validation",
-              ),
-            ],
-            exit_pass,
-          )
-
-        json_output.output(response)
-        halt(exit_pass)
+        io.println_error("requirements file path required")
+        io.println(
+          "Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
+        )
+        io.println("")
+        io.println("EARS Patterns:")
+        io.println(
+          "  THE SYSTEM SHALL [behavior]                    - Ubiquitous",
+        )
+        io.println(
+          "  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven",
+        )
+        io.println(
+          "  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven",
+        )
+        io.println(
+          "  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional",
+        )
+        io.println(
+          "  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted",
+        )
+        halt(exit_error)
       }
     }
   })

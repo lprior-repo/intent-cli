@@ -11,12 +11,10 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleeunit
 import gleeunit/should
-import intent/planning_types.{FeatureShape, MVPSlice, ShapeSection}
 import intent/shape_session.{
-  type ShapeAnswer, type ShapeConflict, type ShapeGap, type ShapeSession,
-  type ShapeStatus, Complete, InProgress, ReadyForCritique, ShapeAnswer,
-  ShapeConflict, ShapeGap, ShapeSession, build_shape_section, create_session,
-  find_answer, get_answered_count, record_answer,
+  Complete, InProgress, ReadyForCritique, ShapeAnswer, ShapeConflict, ShapeGap,
+  build_shape_section, create_session, find_answer, get_answered_count,
+  record_answer,
 }
 
 pub fn main() {

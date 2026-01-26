@@ -20,7 +20,7 @@ import intent/ffi
 import intent/json_output
 import intent/vision_critique.{type CritiqueResult, critique_vision}
 import intent/vision_types.{
-  type Scenario, type VisionSection, Scenario, VisionSection,
+  type VisionSection, Scenario, VisionSection,
 }
 
 // Exit codes (duplicated to avoid circular dependency)
@@ -280,7 +280,7 @@ pub fn vision_start_command() -> glint.Command(Nil) {
     }
 
     case spec_path, is_valid_profile(profile) {
-      Some(path), _ -> {
+      Some(_path), _ -> {
         let error =
           json_output.error(
             "spec_validation_not_implemented",
@@ -465,7 +465,7 @@ pub fn vision_critique_command() -> glint.Command(Nil) {
         halt(exit_error)
       }
       _, _ -> {
-        let timestamp = ffi.current_timestamp()
+        let _timestamp = ffi.current_timestamp()
 
         let critique_result =
           sample_complete_vision()

@@ -51,11 +51,6 @@ fn mock_reader(content: String) -> jsonl_storage.FileReader {
   fn(_path: String) -> Result(String, String) { Ok(content) }
 }
 
-/// Mock file reader that returns error
-fn mock_reader_error() -> jsonl_storage.FileReader {
-  fn(_path: String) -> Result(String, String) { Error("Mock read error") }
-}
-
 /// Mock file writer that returns success
 fn mock_writer() -> jsonl_storage.FileWriter {
   fn(_path: String, _content: String) -> Result(Nil, String) { Ok(Nil) }

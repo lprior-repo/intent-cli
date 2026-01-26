@@ -6,10 +6,7 @@ import gleam/list
 import gleam/option.{type Option}
 import gleam/result
 import gleam/string
-import intent/planning_types.{
-  type FeatureShape, type MVPSlice, type ShapeSection, FeatureShape, MVPSlice,
-  ShapeSection,
-}
+import intent/planning_types.{type FeatureShape, FeatureShape, MVPSlice, type ShapeSection, ShapeSection}
 
 /// Shape session status
 pub type ShapeStatus {

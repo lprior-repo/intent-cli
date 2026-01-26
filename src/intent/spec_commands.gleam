@@ -6,10 +6,9 @@
 /// - spec critique: Run Adversarial QA critique
 /// - spec respond: Submit response to critique issue
 /// - spec agree: Finalize spec session
-import gleam/int
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/result
 import glint
 import glint/flag
@@ -17,8 +16,6 @@ import intent/ffi
 import intent/json_output
 import intent/loader
 import intent/spec_critique
-import intent/spec_session.{type SpecSession, type SpecStatus}
-import intent/types.{type Spec}
 
 // Exit codes (duplicated to avoid circular dependency)
 const exit_pass = 0

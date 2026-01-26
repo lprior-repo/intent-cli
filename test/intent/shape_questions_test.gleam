@@ -1,7 +1,6 @@
 import gleam/string
 import gleeunit/should
 import intent/question_loader
-import intent/question_types.{type Question}
 
 pub fn shape_questions_round_1_test() {
   let assert Ok(db) = question_loader.load_default_questions()
@@ -81,17 +80,6 @@ fn list_contains(list: List(a), item: a) -> Bool {
 
 fn string_starts_with(string: String, prefix: String) -> Bool {
   string.starts_with(string, prefix)
-}
-
-fn list_reverse(list: List(a)) -> List(a) {
-  do_reverse(list, [])
-}
-
-fn do_reverse(list: List(a), acc: List(a)) -> List(a) {
-  case list {
-    [] -> acc
-    [head, ..rest] -> do_reverse(rest, [head, ..acc])
-  }
 }
 
 fn list_flat_map(list: List(a), f: fn(a) -> List(b)) -> List(b) {

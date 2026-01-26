@@ -621,7 +621,9 @@ pub fn list_session_history(
 }
 
 /// List all history snapshots from all sessions using simplifile
-pub fn list_all_history(history_path: String) -> Result(List(SessionSnapshot), String) {
+pub fn list_all_history(
+  history_path: String,
+) -> Result(List(SessionSnapshot), String) {
   list_all_history_with_io(history_path, simplifile_reader())
 }
 

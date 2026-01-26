@@ -4,14 +4,10 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/vision_critique.{
-  type CritiqueIssue, type CritiqueResult, Critical, CritiqueIssue,
-  CritiqueResult, PersonaValidation, ProblemReality, VorpStrength, Warning,
-  critique_vision, validate_persona, validate_problem_reality,
-  validate_vorp_strength,
+  Critical, CritiqueIssue, ProblemReality, Warning, critique_vision,
+  validate_persona, validate_problem_reality, validate_vorp_strength,
 }
-import intent/vision_types.{
-  type Scenario, type VisionSection, Scenario, VisionSection,
-}
+import intent/vision_types.{Scenario, VisionSection, type VisionSection}
 
 pub fn main() {
   gleeunit.main()

@@ -7,7 +7,6 @@
 //// - Invariants: Pure functions have no side effects, DI functions accept readers/writers
 
 import gleam/list
-import gleam/result
 import gleam/string
 import gleeunit
 import gleeunit/should

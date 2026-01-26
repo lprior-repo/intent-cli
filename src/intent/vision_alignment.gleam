@@ -204,7 +204,7 @@ pub fn check_scope_integrity(
     |> string.join(" ")
 
   // Check if we have no features at all - that's a major reduction
-  let has_features = list.length(spec.features) > 0
+  let has_features = spec.features != []
 
   let uncovered_scenarios =
     vision.scenarios

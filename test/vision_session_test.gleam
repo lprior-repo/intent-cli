@@ -11,10 +11,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleeunit
 import gleeunit/should
-import intent/vision_session.{
-  type VisionAnswer, type VisionSession, type VisionStatus, Complete, InProgress,
-  ReadyForCritique, VisionAnswer, VisionSession,
-}
+import intent/vision_session.{InProgress}
 
 pub fn main() {
   gleeunit.main()

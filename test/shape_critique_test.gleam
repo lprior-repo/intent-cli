@@ -1,13 +1,7 @@
-import gleam/list
 import gleeunit
 import gleeunit/should
-import intent/planning_types.{
-  type FeatureShape, type MVPSlice, type ShapeSection, FeatureShape, MVPSlice,
-  ShapeSection,
-}
+import intent/planning_types.{FeatureShape, MVPSlice, ShapeSection, type ShapeSection}
 import intent/shape_critique.{
-  type CritiqueIssue, type CritiqueResult, AchievabilityCheck, ConceptValidation,
-  Critical, CritiqueIssue, CritiqueResult, MVPMinimalism, Warning,
   critique_shape, validate_achievability, validate_concept_validation,
   validate_mvp_minimalism,
 }

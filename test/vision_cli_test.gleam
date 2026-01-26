@@ -8,7 +8,6 @@
 //// Phase: RED - These tests will fail until vision CLI commands are implemented
 
 import gleam/dynamic
-import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
@@ -80,22 +79,6 @@ fn validate_ai_ergonomics(output: String) -> Validation {
     }
     Error(_) -> {
       Validation(True, "Non-JSON output (acceptable for some commands)")
-    }
-  }
-}
-
-fn validate_exit_code(exit_code: Int, expected_codes: List(Int)) -> Validation {
-  case list.contains(expected_codes, exit_code) {
-    True ->
-      Validation(True, "Exit code " <> int.to_string(exit_code) <> " is valid")
-    False -> {
-      Validation(
-        False,
-        "Exit code "
-          <> int.to_string(exit_code)
-          <> " not in expected: "
-          <> string.join(list.map(expected_codes, int.to_string), ", "),
-      )
     }
   }
 }
@@ -271,7 +254,8 @@ pub fn vision_start_malformed_input_test() {
 }
 
 pub fn vision_check_invalid_session_test() {
-  let result = execute_cli("gleam run -- vision check --session=nonexistent-session")
+  let result =
+    execute_cli("gleam run -- vision check --session=nonexistent-session")
 
   result.exit_code |> should.equal(4)
 
@@ -279,7 +263,8 @@ pub fn vision_check_invalid_session_test() {
 }
 
 pub fn vision_critique_missing_spec_test() {
-  let result = execute_cli("gleam run -- vision critique --session=test-session")
+  let result =
+    execute_cli("gleam run -- vision critique --session=test-session")
 
   result.exit_code |> should.equal(4)
 
@@ -291,11 +276,13 @@ pub fn vision_critique_missing_spec_test() {
 // ============================================================================
 
 pub fn vision_to_shape_phase_transition_test() {
-  let start_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
+  let start_result =
+    execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   start_result.exit_code |> should.equal(0)
 
-  let check_result = execute_cli("gleam run -- vision check --session=test-session")
+  let check_result =
+    execute_cli("gleam run -- vision check --session=test-session")
 
   check_result.exit_code |> should.equal(0)
 }
@@ -317,7 +304,8 @@ pub fn vision_session_retrieval_test() {
 }
 
 pub fn cross_phase_data_sharing_test() {
-  let vision_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
+  let vision_result =
+    execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   vision_result.exit_code |> should.equal(0)
 
@@ -331,11 +319,13 @@ pub fn cross_phase_data_sharing_test() {
 // ============================================================================
 
 pub fn full_vision_workflow_test() {
-  let start_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
+  let start_result =
+    execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   start_result.exit_code |> should.equal(0)
 
-  let check_result = execute_cli("gleam run -- vision check --session=test-session")
+  let check_result =
+    execute_cli("gleam run -- vision check --session=test-session")
 
   check_result.exit_code |> should.equal(0)
 
@@ -351,7 +341,8 @@ pub fn full_vision_workflow_test() {
 
   respond_result.exit_code |> should.equal(0)
 
-  let agree_result = execute_cli("gleam run -- vision agree --session=test-session")
+  let agree_result =
+    execute_cli("gleam run -- vision agree --session=test-session")
 
   agree_result.exit_code |> should.equal(0)
 }
@@ -361,13 +352,15 @@ pub fn vision_session_management_test() {
 
   result.exit_code |> should.equal(0)
 
-  let check_result = execute_cli("gleam run -- vision check --session=test-session")
+  let check_result =
+    execute_cli("gleam run -- vision check --session=test-session")
 
   check_result.exit_code |> should.equal(0)
 }
 
 pub fn phase_transition_test() {
-  let vision_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
+  let vision_result =
+    execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   vision_result.exit_code |> should.equal(0)
 
@@ -376,7 +369,8 @@ pub fn phase_transition_test() {
 
   critique_result.exit_code |> should.equal(0)
 
-  let agree_result = execute_cli("gleam run -- vision agree --session=test-session")
+  let agree_result =
+    execute_cli("gleam run -- vision agree --session=test-session")
 
   agree_result.exit_code |> should.equal(0)
 }

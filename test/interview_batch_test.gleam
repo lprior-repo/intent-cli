@@ -4,8 +4,6 @@ import gleam/list
 import gleeunit
 import gleeunit/should
 import intent.{type BatchInput, parse_batch_input_from_string}
-import intent/interview.{Api}
-import simplifile
 
 pub fn main() {
   gleeunit.main()

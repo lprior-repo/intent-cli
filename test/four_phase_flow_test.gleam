@@ -14,13 +14,12 @@ import gleam/option.{None, Some}
 import gleeunit
 import gleeunit/should
 import intent/phase_state.{
-  type GateCheck, Complete, GateCheck, InProgress, NotStarted, Ready, Shape,
-  Spec, Vision,
+  Complete, InProgress, NotStarted, Ready, Shape, Spec, Vision, type GateCheck,
 }
 import intent/planning_types.{
-  type KIRKHealth, type MVPSlice, type Plan, type ReadyReport, type ShapeSection,
-  type SpecSection, Blocker, DimensionScore, FeatureShape, KIRKHealth, MVPSlice,
-  Plan, ReadyReport, ShapeSection, SpecSection,
+  Blocker, DimensionScore, FeatureShape, KIRKHealth, MVPSlice, Plan, ReadyReport,
+  ShapeSection, SpecSection, type Plan, type ReadyReport, type ShapeSection,
+  type SpecSection,
 }
 import intent/ready_critique
 import intent/shape_critique

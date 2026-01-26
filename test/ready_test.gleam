@@ -10,21 +10,16 @@ import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/kirk/ready
 import intent/phase_state
 import intent/planning_types.{
-  type Blocker, type DimensionScore, type ReadyReport, Blocker, Critical,
-  DimensionScore, High, Low, Medium, ReadyReport,
+  Blocker, Critical, DimensionScore, ReadyReport, type ReadyReport,
 }
 import intent/ready_critique
-import intent/ready_session.{
-  type ReadySession, type ReadyStatus, Approved, Complete, InProgress,
-  ReadyForCritique, ReadySession,
-}
+import intent/ready_session.{Approved, Complete, InProgress, ReadyForCritique}
 import intent/types.{type Spec}
 import test_helpers
 
@@ -635,7 +630,7 @@ pub fn empty_spec_ready_analysis_test() {
   |> should.equal(5)
 
   // Empty spec should generate blockers
-  case list.length(report.blockers) > 0 {
+  case report.blockers != [] {
     True -> Nil
     False -> should.fail()
   }
