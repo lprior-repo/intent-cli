@@ -177,6 +177,12 @@ pub fn main() {
     |> glint.add(at: ["shape", "critique"], do: shape_critique_command())
     |> glint.add(at: ["shape", "respond"], do: shape_respond_command())
     |> glint.add(at: ["shape", "agree"], do: shape_agree_command())
+    // Ready phase commands
+    |> glint.add(at: ["ready", "start"], do: ready_commands.ready_start_command())
+    |> glint.add(at: ["ready", "check"], do: ready_commands.ready_check_command())
+    |> glint.add(at: ["ready", "critique"], do: ready_commands.ready_critique_command())
+    |> glint.add(at: ["ready", "respond"], do: ready_commands.ready_respond_command())
+    |> glint.add(at: ["ready", "agree"], do: ready_commands.ready_agree_command())
 
   // Execute and handle flag parsing errors
   // Glint's .run() exits with 0 even on flag errors, so we use .execute()
