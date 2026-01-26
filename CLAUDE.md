@@ -23,16 +23,16 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 {"cmd":"analyze","args":"<spec>","desc":"quality scoring (alias for quality)"}
 {"cmd":"lint","args":"<spec>","desc":"anti-pattern detection"}
 {"cmd":"improve","args":"<spec>","desc":"improvement suggestions"}
-{"cmd":"diff","args":"<spec1> <spec2> [--json]","desc":"compare two spec versions"}
+{"cmd":"diff","args":"<spec1> <spec2>","desc":"compare two spec versions"}
 ```
 
 **KIRK Analysis** (6):
 ```jsonl
-{"cmd":"quality","args":"<spec> [--json=true]","desc":"quality scoring (5 dimensions)"}
-{"cmd":"coverage","args":"<spec> [--json=true]","desc":"OWASP + edge case coverage"}
-{"cmd":"gaps","args":"<spec> [--json=true]","desc":"mental model gap detection"}
-{"cmd":"invert","args":"<spec> [--json=true]","desc":"failure mode analysis"}
-{"cmd":"effects","args":"<spec> [--json=true]","desc":"second-order effects"}
+{"cmd":"quality","args":"<spec>","desc":"quality scoring (5 dimensions)"}
+{"cmd":"coverage","args":"<spec>","desc":"OWASP + edge case coverage"}
+{"cmd":"gaps","args":"<spec>","desc":"mental model gap detection"}
+{"cmd":"invert","args":"<spec>","desc":"failure mode analysis"}
+{"cmd":"effects","args":"<spec>","desc":"second-order effects"}
 {"cmd":"ears","args":"<file> [--output=cue|json]","desc":"parse EARS requirements"}
 ```
 
@@ -46,13 +46,13 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 
 **Beads/Planning** (7):
 ```jsonl
-{"cmd":"beads","args":"<session-id> [--json=true] [--max-items=N]","desc":"generate work items from interview session"}
+{"cmd":"beads","args":"<session-id> [--max-items=N]","desc":"generate work items from interview session"}
 {"cmd":"beads-regenerate","args":"<spec>","desc":"regenerate beads from spec"}
 {"cmd":"bead-status","args":"--bead-id <id> --status success|failed|blocked [--reason 'text']","desc":"update individual bead execution status"}
-{"cmd":"plan","args":"<session-id> [--json=true] [--rounds=1..5]","desc":"health + waves + beads"}
+{"cmd":"plan","args":"<session-id> [--rounds=1..5]","desc":"health + waves + beads"}
 {"cmd":"plan-approve","args":"<session-id> [--yes] [--notes 'text']","desc":"approve execution plan"}
-{"cmd":"prompt","args":"<session-id> [--json=true] [--max-items=N]","desc":"generate AI implementation prompts from session beads"}
-{"cmd":"feedback","args":"--results <check-output.json> [--json=true]","desc":"generate fix beads from check command failures"}
+{"cmd":"prompt","args":"<session-id> [--max-items=N]","desc":"generate AI implementation prompts from session beads"}
+{"cmd":"feedback","args":"--results <check-output.json>","desc":"generate fix beads from check command failures"}
 ```
 Note: Get session IDs with `intent sessions [--profile=api|cli]`
 
@@ -64,23 +64,23 @@ Note: `ears` command is in KIRK Analysis section above
 
 **Utilities** (3):
 ```jsonl
-{"cmd":"doctor","args":"<spec> [--json=true]","desc":"prioritized improvements"}
+{"cmd":"doctor","args":"<spec>","desc":"prioritized improvements"}
 {"cmd":"show","args":"<spec>","desc":"display spec details"}
 {"cmd":"help","args":"","desc":"display CLI help information"}
 ```
 
 **AI Commands** (1):
 ```jsonl
-{"cmd":"ai schema","args":"[--json=true]","desc":"generate action JSON schema documentation"}
+{"cmd":"ai schema","args":"","desc":"generate action JSON schema documentation"}
 ```
 
 **Shape Phase Commands** (5):
 ```jsonl
-{"cmd":"shape start","args":"<spec> [--json=true]","desc":"initialize Shape phase session"}
-{"cmd":"shape check","args":"<session-id> [--json=true]","desc":"validate Shape phase completeness"}
-{"cmd":"shape critique","args":"<session-id> [--json=true]","desc":"generate critique questions for spec"}
-{"cmd":"shape respond","args":"<session-id> --answers <file> [--json=true]","desc":"process critique responses"}
-{"cmd":"shape agree","args":"<session-id> [--json=true]","desc":"finalize Shape phase agreement"}
+{"cmd":"shape start","args":"<spec>","desc":"initialize Shape phase session"}
+{"cmd":"shape check","args":"<session-id>","desc":"validate Shape phase completeness"}
+{"cmd":"shape critique","args":"<session-id>","desc":"generate critique questions for spec"}
+{"cmd":"shape respond","args":"<session-id> --answers <file>","desc":"process critique responses"}
+{"cmd":"shape agree","args":"<session-id>","desc":"finalize Shape phase agreement"}
 ```
 
 ## Key Files
@@ -95,7 +95,7 @@ Note: `ears` command is in KIRK Analysis section above
 ```bash
 gleam build && gleam test
 gleam run -- validate examples/user-api.cue
-gleam run -- quality examples/user-api.cue --json
+gleam run -- quality examples/user-api.cue
 ```
 
 ## Spec Shape (ALL FIELDS REQUIRED)
@@ -173,17 +173,17 @@ Intent owns Plan phase. All work decomposition flows from CUE specs.
 ## AI-Native Features
 
 ### JSON Output (Implemented)
+All commands output JSON by default (except `help` which outputs plain text).
 ```jsonl
-{"flag":"--json=true","desc":"Machine-readable JSON output for all KIRK and analysis commands"}
-{"commands":"quality, coverage, gaps, invert, effects, doctor, check, validate","status":"implemented"}
-{"usage":"intent quality api.cue --json=true | jq '.data.overall_score'"}
+{"commands":"quality, coverage, gaps, invert, effects, doctor, check, validate, lint, sessions","status":"implemented"}
+{"usage":"intent quality api.cue | jq '.data.overall_score'"}
 ```
 
 ### Implemented AI-Native Features
 ```jsonl
 {"cmd":"prompt","desc":"AI context generation from beads","status":"implemented"}
 {"cmd":"feedback","desc":"Generate fix beads from check failures","status":"implemented"}
-{"flag":"--json","desc":"Machine-readable JSON output for all analysis commands","status":"implemented"}
+{"output":"JSON native output for all analysis commands","status":"implemented"}
 ```
 
 ### Planned Features (Not Yet Implemented)
@@ -195,7 +195,7 @@ Intent owns Plan phase. All work decomposition flows from CUE specs.
 ```
 
 ### Action JSON Schema
-Commands with --json=true return this structure:
+Commands return this structure:
 ```json
 {"success":true,"action":"<cmd>_result","command":"<cmd>","data":{...},"errors":[],"next_actions":[...],"metadata":{"timestamp":"...","version":"...","exit_code":0},"spec_path":"..."}
 ```
@@ -204,8 +204,8 @@ Commands with --json=true return this structure:
 AI workflow guidance - commands suggest logical next steps:
 ```json
 "next_actions": [
-  {"command": "intent gaps spec.cue --json", "reason": "Find coverage gaps"},
-  {"command": "intent invert spec.cue --json", "reason": "Analyze failure modes"}
+  {"command": "intent gaps spec.cue", "reason": "Find coverage gaps"},
+  {"command": "intent invert spec.cue", "reason": "Analyze failure modes"}
 ]
 ```
 Supported by: quality, coverage (more commands planned)
