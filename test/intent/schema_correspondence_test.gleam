@@ -95,11 +95,12 @@ data: {
 
 pub fn simple_cue_validation_rejects_missing_field_test() {
   // Test that CUE validation rejects missing required fields
+  // Note: Schema intentionally has NO defaults to require both fields
   let schema = "package test
 
 data: {
-  name: *\"\" | string
-  age: *0 | int
+  name: string
+  age: int
 }
 "
 
@@ -162,11 +163,12 @@ data: {
 
 pub fn quality_input_rejects_missing_required_field_test() {
   // Test that quality input without spec_path is rejected
+  // Note: Schema intentionally has NO defaults to require spec_path
   let schema = "package test
 
 data: {
-  spec_path: *\"\" | string
-  json?: *false | bool
+  spec_path: string
+  json?: bool
 }
 "
 
