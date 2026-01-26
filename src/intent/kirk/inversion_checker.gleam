@@ -5,9 +5,7 @@
 import gleam/int
 import gleam/list
 import gleam/string
-import intent/planning_types.{type Plan, type ShapeSection}
 import intent/types.{type Behavior, type Method, type Spec, Get, Post}
-import intent/vision_types.{type VisionSection}
 
 // =============================================================================
 // TYPES

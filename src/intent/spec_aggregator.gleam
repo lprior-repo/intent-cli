@@ -5,15 +5,12 @@
 /// - Duplicate behaviors
 /// - Conflicting approaches
 /// - Cross-spec recommendations
-import gleam/dict.{type Dict}
+import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
-import gleam/result
-import gleam/set.{type Set}
 import gleam/string
-import intent/types.{type Behavior, type Feature, type Rule, type Spec}
+import intent/types.{type Spec}
 
 // =============================================================================
 // Types
@@ -449,10 +446,11 @@ fn generate_recommendations(
   }
 
   // Recommendation: Resolve conflicts
-  let conflict_recommendation = case list.length(conflicts) > 0 {
+  let conflicts_count = list.length(conflicts)
+  let conflict_recommendation = case conflicts_count > 0 {
     True -> [
       "Resolve "
-      <> int.to_string(list.length(conflicts))
+      <> int.to_string(conflicts_count)
       <> " conflicts between specs to ensure consistent behavior",
     ]
     False -> []

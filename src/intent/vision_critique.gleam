@@ -6,7 +6,7 @@ import gleam/int
 import gleam/list
 import gleam/option
 import gleam/string
-import intent/vision_types.{type Scenario, type VisionSection}
+import intent/vision_types.{type VisionSection}
 
 // =============================================================================
 // Types - Vision Phase Specific

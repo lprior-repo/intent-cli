@@ -168,7 +168,7 @@ fn calculate_consistency(spec: Spec, behaviors: List(types.Behavior)) -> Float {
 
 /// Calculate testability score (0-100)
 /// Measures how well-structured for testing
-fn calculate_testability(spec: Spec, behaviors: List(types.Behavior)) -> Float {
+fn calculate_testability(_spec: Spec, behaviors: List(types.Behavior)) -> Float {
   let base = 60.0
 
   // Behaviors with checks
@@ -212,7 +212,7 @@ fn calculate_testability(spec: Spec, behaviors: List(types.Behavior)) -> Float {
 
 /// Calculate clarity score (0-100)
 /// Measures documentation quality
-fn calculate_clarity(spec: Spec, behaviors: List(types.Behavior)) -> Float {
+fn calculate_clarity(_spec: Spec, behaviors: List(types.Behavior)) -> Float {
   let base = 70.0
 
   // Behaviors with meaningful intent (> 10 chars)

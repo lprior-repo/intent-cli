@@ -8,7 +8,7 @@
 /// - ready agree: Finalize ready session and approve for launch
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/result
 import glint
 import glint/flag

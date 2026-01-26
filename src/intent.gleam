@@ -47,6 +47,7 @@ import intent/spec_aggregator
 import intent/spec_builder
 import intent/spec_linter
 import intent/types
+import intent/vision_commands
 import intent/watch_output
 import intent/workflow_detector
 import simplifile
@@ -178,6 +179,27 @@ pub fn main() {
     // AI commands
     |> glint.add(at: ["ai", "schema"], do: ai_schema_command())
     |> glint.add(at: ["ai", "aggregate"], do: ai_aggregate_command())
+    // Vision phase commands
+    |> glint.add(
+      at: ["vision", "start"],
+      do: vision_commands.vision_start_command(),
+    )
+    |> glint.add(
+      at: ["vision", "check"],
+      do: vision_commands.vision_check_command(),
+    )
+    |> glint.add(
+      at: ["vision", "critique"],
+      do: vision_commands.vision_critique_command(),
+    )
+    |> glint.add(
+      at: ["vision", "respond"],
+      do: vision_commands.vision_respond_command(),
+    )
+    |> glint.add(
+      at: ["vision", "agree"],
+      do: vision_commands.vision_agree_command(),
+    )
     // Shape phase commands
     |> glint.add(at: ["shape", "start"], do: shape_start_command())
     |> glint.add(at: ["shape", "check"], do: shape_check_command())

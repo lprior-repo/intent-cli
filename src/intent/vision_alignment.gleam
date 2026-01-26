@@ -170,7 +170,7 @@ pub fn check_scope_integrity(
   vision: VisionSection,
   spec: Spec,
 ) -> DimensionScore {
-  let scenario_keywords = extract_scenario_keywords(vision.scenarios)
+  let _scenario_keywords = extract_scenario_keywords(vision.scenarios)
   let out_of_scope_lower =
     vision.out_of_scope
     |> list.map(string.lowercase)
@@ -186,7 +186,8 @@ pub fn check_scope_integrity(
     |> list.filter(fn(feature) {
       let feature_name_lower = string.lowercase(feature.name)
       let feature_desc_lower = string.lowercase(feature.description)
-      let feature_keywords = extract_keywords(feature_name_lower <> " " <> feature_desc_lower)
+      let feature_keywords =
+        extract_keywords(feature_name_lower <> " " <> feature_desc_lower)
 
       // Check if feature contains out-of-scope keywords
       let is_out_of_scope =
@@ -224,16 +225,18 @@ pub fn check_scope_integrity(
   let base_penalty = { creep_count + reduction_count } * 15
   let empty_penalty = case has_features {
     True -> 0
-    False -> 50  // Major penalty for no features when scenarios exist
+    False -> 50
+    // Major penalty for no features when scenarios exist
   }
   let total_penalty = base_penalty + empty_penalty
   let score = int.max(0, 100 - total_penalty)
 
   let issues = case creep_count, reduction_count {
-    0, 0 -> case has_features {
-      True -> []
-      False -> ["No features defined - missing scenario coverage"]
-    }
+    0, 0 ->
+      case has_features {
+        True -> []
+        False -> ["No features defined - missing scenario coverage"]
+      }
     c, 0 -> [
       int.to_string(c)
       <> " feature(s) may be out of scope or not justified by scenarios",
@@ -248,10 +251,11 @@ pub fn check_scope_integrity(
   }
 
   let reasoning = case creep_count, reduction_count {
-    0, 0 -> case has_features {
-      True -> "Perfect scope alignment - all scenarios covered, no creep"
-      False -> "No features defined - significant scope reduction"
-    }
+    0, 0 ->
+      case has_features {
+        True -> "Perfect scope alignment - all scenarios covered, no creep"
+        False -> "No features defined - significant scope reduction"
+      }
     _, 0 -> "Potential scope creep detected"
     0, _ -> "Some scenarios not covered by features"
     _, _ -> "Both scope creep and reduction detected"
@@ -341,7 +345,8 @@ fn calculate_similarity(s1: String, s2: String) -> Int {
       let raw_score = { common * 100 } / min_length
 
       // Calculate percentage overlap
-      let overlap_pct = { common * 100 } / int.max(list.length(words1), list.length(words2))
+      let overlap_pct =
+        { common * 100 } / int.max(list.length(words1), list.length(words2))
 
       // Boost score if we have good keyword overlap
       // If more than 50% overlap, we're in good territory
@@ -383,9 +388,7 @@ fn extract_keywords(text: String) -> List(String) {
   // Split on both spaces and hyphens to catch compound words
   let words =
     string.split(text, " ")
-    |> list.flat_map(fn(word) {
-      string.split(word, "-")
-    })
+    |> list.flat_map(fn(word) { string.split(word, "-") })
 
   words
   |> list.map(fn(word) {
