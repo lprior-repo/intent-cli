@@ -1,0 +1,182 @@
+{
+  "phase": "PLAN",
+  "issue_id": "intent-cli-ahh",
+  "title": "Add comprehensive testing to parse command",
+  "plan_date": "2026-01-25T23:21:00-06:00",
+  "approach": "TDD15 MEDIUM complexity - skip phases 3, 8, 10, 12, 13, 14",
+  "implementation_plan": {
+    "test_file": "test/parse_cli_test.gleam",
+    "test_approach": "CLI boundary testing (dogfooding exercise)",
+    "philosophy": "Functional core / imperative shell - test from outside in"
+  },
+  "test_categories": {
+    "ears_pattern_tests": [
+      {
+        "name": "test_parse_ears_ubiquitous",
+        "pattern": "THE SYSTEM SHALL [behavior]",
+        "input": "THE SYSTEM SHALL validate user input",
+        "expected": "exit 0, valid JSON, 1 requirement parsed"
+      },
+      {
+        "name": "test_parse_ears_event_driven",
+        "pattern": "WHEN [trigger] THE SYSTEM SHALL [behavior]",
+        "input": "WHEN user submits form THE SYSTEM SHALL validate email",
+        "expected": "exit 0, valid JSON, event-driven pattern detected"
+      },
+      {
+        "name": "test_parse_ears_state_driven",
+        "pattern": "WHILE [state] THE SYSTEM SHALL [behavior]",
+        "input": "WHILE in transaction THE SYSTEM SHALL lock records",
+        "expected": "exit 0, valid JSON, state-driven pattern detected"
+      },
+      {
+        "name": "test_parse_ears_optional",
+        "pattern": "WHERE [condition] THE SYSTEM SHALL [behavior]",
+        "input": "WHERE user is admin THE SYSTEM SHALL allow delete",
+        "expected": "exit 0, valid JSON, optional pattern detected"
+      },
+      {
+        "name": "test_parse_ears_unwanted",
+        "pattern": "IF [condition] THEN THE SYSTEM SHALL NOT [behavior]",
+        "input": "IF token is expired THEN THE SYSTEM SHALL NOT authorize",
+        "expected": "exit 0, valid JSON, unwanted pattern detected"
+      },
+      {
+        "name": "test_parse_ears_complex",
+        "pattern": "WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]",
+        "input": "WHILE in transaction WHEN error occurs THE SYSTEM SHALL rollback",
+        "expected": "exit 0, valid JSON, complex pattern detected"
+      }
+    ],
+    "edge_case_tests": [
+      {
+        "name": "test_parse_empty_file",
+        "description": "Empty requirements file",
+        "expected": "exit 0, 0 requirements parsed"
+      },
+      {
+        "name": "test_parse_unicode_characters",
+        "description": "Unicode/special characters",
+        "expected": "exit 0, unicode handled correctly"
+      },
+      {
+        "name": "test_parse_long_requirements",
+        "description": "Very long requirements (>1000 chars)",
+        "expected": "exit 0, long text handled"
+      },
+      {
+        "name": "test_parse_duplicate_names",
+        "description": "Multiple requirements with same extracted behavior",
+        "expected": "exit 0, duplicates handled"
+      },
+      {
+        "name": "test_parse_mixed_patterns",
+        "description": "Multiple EARS patterns in single file",
+        "expected": "exit 0, all patterns parsed correctly"
+      }
+    ],
+    "error_path_tests": [
+      {
+        "name": "test_parse_missing_file",
+        "description": "Non-existent requirements file",
+        "expected": "exit 4, error message"
+      },
+      {
+        "name": "test_parse_no_arguments",
+        "description": "No file path argument",
+        "expected": "exit 4, usage message"
+      },
+      {
+        "name": "test_parse_invalid_ears",
+        "description": "Invalid EARS syntax",
+        "expected": "exit 1, errors in JSON response"
+      },
+      {
+        "name": "test_parse_invalid_output_flag",
+        "description": "Invalid --o flag path",
+        "expected": "exit 0 or 1, appropriate handling"
+      }
+    ],
+    "integration_tests": [
+      {
+        "name": "test_parse_to_cue_file",
+        "description": "Parse with --o flag writes CUE file",
+        "expected": "exit 0, CUE file created, valid CUE syntax"
+      },
+      {
+        "name": "test_parse_json_structure",
+        "description": "Validate AI CLI Ergonomics JSON structure",
+        "expected": "exit 0, all required fields present"
+      },
+      {
+        "name": "test_parse_with_warnings",
+        "description": "Parse generates warnings",
+        "expected": "exit 0 or 1, warnings in JSON"
+      }
+    ],
+    "end_to_end_tests": [
+      {
+        "name": "test_parse_then_validate",
+        "description": "Parse → validate workflow",
+        "expected": "exit 0 on both commands"
+      },
+      {
+        "name": "test_parse_then_lint",
+        "description": "Parse → lint workflow",
+        "expected": "exit 0 on both commands"
+      }
+    ]
+  },
+  "test_infrastructure": {
+    "setup": [
+      "Create temp directory for test files",
+      "Write test requirements files",
+      "Setup test spec files",
+      "Cleanup after each test"
+    ],
+    "execution": [
+      "Use gleam run -- to execute actual CLI",
+      "Capture exit code via Erlang/OTP",
+      "Capture stdout/stderr",
+      "Parse JSON output for validation"
+    ],
+    "assertions": [
+      "Exit code validation",
+      "JSON structure validation",
+      "CUE file validation",
+      "Content validation",
+      "Error message validation"
+    ]
+  },
+  "test_file_structure": {
+    "imports": [
+      "gleam/erlang/os",
+      "gleam/dynamic",
+      "gleam/json",
+      "gleam/list",
+      "gleam/string",
+      "gleeunit/should",
+      "simplifile"
+    ],
+    "types": [
+      "ParseTestResult",
+      "TestHelpers"
+    ],
+    "functions": [
+      "setup_temp_dir()",
+      "write_test_requirements(content) -> path",
+      "run_parse_command(args) -> ParseTestResult",
+      "assert_valid_json_output(output)",
+      "assert_exit_code(expected, actual)",
+      "assert_ears_pattern(pattern, result)"
+    ]
+  },
+  "commit_message": "TEST(parse/cli): Red phase - comprehensive CLI boundary tests",
+  "success_criteria": [
+    "All tests written and failing (RED phase)",
+    "Test file created: test/parse_cli_test.gleam",
+    "Tests cover EARS patterns, edge cases, errors, integration, E2E",
+    "Tests use actual CLI execution (not stubs)",
+    "Tests validate exit codes, JSON structure, file output"
+  ]
+}

@@ -30,15 +30,12 @@ import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
-import intent/kirk/ready
 import intent/list_limits
 import intent/loader
 import intent/output_mode
 import intent/parser
 import intent/plan_mode
-import intent/planning_types.{
-  type Blocker, type ReadyReport, type Recommendation,
-}
+
 import intent/prompt_generator
 import intent/quality_analyzer
 import intent/question_types.{type Question}
@@ -3135,7 +3132,6 @@ fn sessions_command() -> glint.Command(Nil) {
           <> string.inspect(total_count)
           <> " sessions)",
         )
-        " (limited to " <> string.inspect(shown_count) <> ")"
 
         halt(exit_pass)
       }
@@ -4398,7 +4394,7 @@ fn ai_aggregate_command() -> glint.Command(Nil) {
           })
 
         // If any specs failed to load, report errors
-        case list.length(errors) > 0 {
+        case errors != [] {
           True -> {
             let error_messages =
               errors

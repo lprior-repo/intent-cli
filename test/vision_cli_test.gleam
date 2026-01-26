@@ -16,6 +16,7 @@ import gleam/result
 import gleam/string
 import gleeunit
 import gleeunit/should
+import intent/ffi
 
 // ============================================================================
 // Test Result Types (Contract)
@@ -104,15 +105,20 @@ fn validate_exit_code(exit_code: Int, expected_codes: List(Int)) -> Validation {
 // ============================================================================
 
 fn execute_cli(command: String) -> TestOutcome {
-  let #(_, exit_code, output) = os_execute(command)
+  let #(_, exit_code, output) = os_execute(command <> " 2>/dev/null")
+
+  let clean_output =
+    string.split(output, "\n")
+    |> list.filter(fn(line) { !string.starts_with(line, "warning:") })
+    |> string.join("\n")
 
   let is_valid_json =
-    json.decode(output, dynamic.dynamic)
+    json.decode(clean_output, dynamic.dynamic)
     |> result.is_ok()
 
   let success_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("success", dynamic.bool)(parsed)
@@ -127,7 +133,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_errors_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("errors", dynamic.dynamic)(parsed)
@@ -141,7 +147,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_metadata_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("metadata", dynamic.dynamic)(parsed)
@@ -155,7 +161,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_next_actions_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("next_actions", dynamic.dynamic)(parsed)
@@ -169,7 +175,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_data_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("data", dynamic.dynamic)(parsed)
@@ -184,7 +190,7 @@ fn execute_cli(command: String) -> TestOutcome {
   TestOutcome(
     command: command,
     exit_code: exit_code,
-    output: output,
+    output: clean_output,
     is_valid_json: is_valid_json,
     success_field: success_field,
     has_errors_field: has_errors_field,
@@ -195,7 +201,8 @@ fn execute_cli(command: String) -> TestOutcome {
 }
 
 fn os_execute(command: String) -> #(String, Int, String) {
-  #("placeholder", 0, command <> " executed")
+  let #(output, exit_code) = ffi.execute_command(command)
+  #("", exit_code, output)
 }
 
 // ============================================================================
@@ -211,7 +218,7 @@ pub fn main() {
 // ============================================================================
 
 pub fn vision_start_with_ears_scenarios_test() {
-  let result = execute_cli("intent vision start spec.cue --profile=api")
+  let result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   result.exit_code |> should.equal(0)
 

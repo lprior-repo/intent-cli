@@ -16,6 +16,7 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import gleeunit/should
+import intent/ffi
 
 // ============================================================================
 // Test Result Types (Contract)
@@ -115,15 +116,21 @@ fn validate_exit_code(exit_code: Int, expected_codes: List(Int)) -> Validation {
 /// This is the "imperative shell" boundary - we execute the actual CLI
 fn execute_cli(command: String) -> TestOutcome {
   // Use os:execute to run actual CLI command
-  let #(_, exit_code, output) = os_execute(command)
+  let #(_, exit_code, output) = os_execute(command <> " 2>/dev/null")
+
+  // Filter out Gleam warnings from output before parsing JSON
+  let clean_output =
+    string.split(output, "\n")
+    |> list.filter(fn(line) { !string.starts_with(line, "warning:") })
+    |> string.join("\n")
 
   let is_valid_json =
-    json.decode(output, dynamic.dynamic)
+    json.decode(clean_output, dynamic.dynamic)
     |> result.is_ok()
 
   let success_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("success", dynamic.bool)(parsed)
@@ -138,7 +145,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_errors_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("errors", dynamic.dynamic)(parsed)
@@ -152,7 +159,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_metadata_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("metadata", dynamic.dynamic)(parsed)
@@ -166,7 +173,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_next_actions_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("next_actions", dynamic.dynamic)(parsed)
@@ -180,7 +187,7 @@ fn execute_cli(command: String) -> TestOutcome {
 
   let has_data_field = case is_valid_json {
     True -> {
-      let json_result = json.decode(output, dynamic.dynamic)
+      let json_result = json.decode(clean_output, dynamic.dynamic)
       case json_result {
         Ok(parsed) -> {
           dynamic.field("data", dynamic.dynamic)(parsed)
@@ -195,7 +202,7 @@ fn execute_cli(command: String) -> TestOutcome {
   TestOutcome(
     command: command,
     exit_code: exit_code,
-    output: output,
+    output: clean_output,
     is_valid_json: is_valid_json,
     success_field: success_field,
     has_errors_field: has_errors_field,
@@ -205,15 +212,10 @@ fn execute_cli(command: String) -> TestOutcome {
   )
 }
 
-/// Stub for OS execute - in real implementation this would use Erlang/OTP
+/// Stub for OS execute - uses FFI during tests
 fn os_execute(command: String) -> #(String, Int, String) {
-  // This is a placeholder - real implementation would:
-  // 1. Use Erlang's :os.cmd/3 or similar
-  // 2. Parse the actual command
-  // 3. Execute and capture stdout/stderr
-  // 4. Return proper tuple
-  // For now, return placeholder
-  #("placeholder", 0, command <> " executed")
+  let #(output, exit_code) = ffi.execute_command(command)
+  #("", exit_code, output)
 }
 
 // ============================================================================
@@ -223,7 +225,7 @@ fn os_execute(command: String) -> #(String, Int, String) {
 /// Test: validate command returns proper exit code and JSON output
 pub fn validate_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent validate " <> spec)
+  let result = execute_cli("gleam run -- validate " <> spec)
 
   // Validate exit code (0 for success)
   result.exit_code |> should.equal(0)
@@ -235,7 +237,7 @@ pub fn validate_spec_e2e_test() {
 
 /// Test: validate with missing file returns error code 3
 pub fn validate_missing_file_e2e_test() {
-  let result = execute_cli("intent validate nonexistent.cue")
+  let result = execute_cli("gleam run -- validate nonexistent.cue")
 
   // Exit code 3 for invalid input (per AGENTS.md)
   result.exit_code |> should.equal(3)
@@ -244,7 +246,7 @@ pub fn validate_missing_file_e2e_test() {
 /// Test: show command exports spec JSON
 pub fn show_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent show " <> spec)
+  let result = execute_cli("gleam run -- show " <> spec)
 
   // Should succeed
   result.exit_code |> should.equal(0)
@@ -256,7 +258,7 @@ pub fn show_spec_e2e_test() {
 /// Test: export command returns JSON
 pub fn export_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent export " <> spec)
+  let result = execute_cli("gleam run -- export " <> spec)
 
   // Should succeed
   result.exit_code |> should.equal(0)
@@ -268,7 +270,7 @@ pub fn export_spec_e2e_test() {
 /// Test: lint command checks for anti-patterns
 pub fn lint_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent lint " <> spec)
+  let result = execute_cli("gleam run -- lint " <> spec)
 
   // Should succeed (may have warnings but exit 0)
   result.exit_code |> should.equal(0)
@@ -280,7 +282,7 @@ pub fn lint_spec_e2e_test() {
 /// Test: analyze command provides quality scores
 pub fn analyze_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent analyze " <> spec)
+  let result = execute_cli("gleam run -- analyze " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -292,7 +294,7 @@ pub fn analyze_spec_e2e_test() {
 /// Test: doctor command returns health report
 pub fn doctor_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent doctor " <> spec)
+  let result = execute_cli("gleam run -- doctor " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -301,7 +303,7 @@ pub fn doctor_spec_e2e_test() {
 /// Test: improve command suggests improvements
 pub fn improve_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent improve " <> spec)
+  let result = execute_cli("gleam run -- improve " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -316,7 +318,7 @@ pub fn improve_spec_e2e_test() {
 
 /// Test: interview starts with API profile
 pub fn interview_api_profile_e2e_test() {
-  let result = execute_cli("intent interview --profile=api")
+  let result = execute_cli("gleam run -- interview --profile=api")
 
   result.exit_code |> should.equal(0)
   // Should return CUE directives (non-JSON is OK here)
@@ -324,21 +326,21 @@ pub fn interview_api_profile_e2e_test() {
 
 /// Test: interview with CLI profile
 pub fn interview_cli_profile_e2e_test() {
-  let result = execute_cli("intent interview --profile=cli")
+  let result = execute_cli("gleam run -- interview --profile=cli")
 
   result.exit_code |> should.equal(0)
 }
 
 /// Test: interview dry-run doesn't persist
 pub fn interview_dry_run_e2e_test() {
-  let result = execute_cli("intent interview --profile=api --dry-run")
+  let result = execute_cli("gleam run -- interview --profile=api --dry-run")
 
   result.exit_code |> should.equal(0)
 }
 
 /// Test: interview with invalid profile fails
 pub fn interview_invalid_profile_e2e_test() {
-  let result = execute_cli("intent interview --profile=invalid")
+  let result = execute_cli("gleam run -- interview --profile=invalid")
 
   // Should error (exit 4)
   result.exit_code |> should.equal(4)
@@ -351,7 +353,7 @@ pub fn interview_invalid_profile_e2e_test() {
 /// Test: quality command returns quality scores
 pub fn quality_analysis_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent quality " <> spec)
+  let result = execute_cli("gleam run -- quality " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -361,7 +363,7 @@ pub fn quality_analysis_e2e_test() {
 /// Test: invert command analyzes failure modes
 pub fn invert_analysis_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent invert " <> spec)
+  let result = execute_cli("gleam run -- invert " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -371,7 +373,7 @@ pub fn invert_analysis_e2e_test() {
 /// Test: coverage command detects gaps
 pub fn coverage_analysis_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent coverage " <> spec)
+  let result = execute_cli("gleam run -- coverage " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -380,7 +382,7 @@ pub fn coverage_analysis_e2e_test() {
 /// Test: gaps command finds missing coverage
 pub fn gaps_analysis_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent gaps " <> spec)
+  let result = execute_cli("gleam run -- gaps " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -389,7 +391,7 @@ pub fn gaps_analysis_e2e_test() {
 /// Test: ears command parses EARS patterns
 pub fn ears_parser_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent ears " <> spec)
+  let result = execute_cli("gleam run -- ears " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -398,7 +400,7 @@ pub fn ears_parser_e2e_test() {
 /// Test: effects command analyzes side effects
 pub fn effects_analysis_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent effects " <> spec)
+  let result = execute_cli("gleam run -- effects " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -407,7 +409,7 @@ pub fn effects_analysis_e2e_test() {
 /// Test: parse command shows structure
 pub fn parse_spec_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent parse " <> spec)
+  let result = execute_cli("gleam run -- parse " <> spec)
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -419,7 +421,7 @@ pub fn parse_spec_e2e_test() {
 
 /// Test: ai schema --all returns all schemas
 pub fn ai_schema_all_e2e_test() {
-  let result = execute_cli("intent ai schema --all")
+  let result = execute_cli("gleam run -- ai schema --all")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -427,7 +429,7 @@ pub fn ai_schema_all_e2e_test() {
 
 /// Test: ai aggregate combines specs
 pub fn ai_aggregate_e2e_test() {
-  let result = execute_cli("intent ai aggregate")
+  let result = execute_cli("gleam run -- ai aggregate")
 
   // May need specs to aggregate
   // Exit code 0 or 4 (error) is acceptable
@@ -442,7 +444,7 @@ pub fn ai_aggregate_e2e_test() {
 
 /// Test: bead-status shows tracking status
 pub fn bead_status_e2e_test() {
-  let result = execute_cli("intent bead-status")
+  let result = execute_cli("gleam run -- bead-status")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -450,7 +452,7 @@ pub fn bead_status_e2e_test() {
 
 /// Test: beads-regenerate regenerates from failures
 pub fn beads_regenerate_e2e_test() {
-  let result = execute_cli("intent beads-regenerate")
+  let result = execute_cli("gleam run -- beads-regenerate")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -458,7 +460,7 @@ pub fn beads_regenerate_e2e_test() {
 
 /// Test: history shows command history
 pub fn history_e2e_test() {
-  let result = execute_cli("intent history")
+  let result = execute_cli("gleam run -- history")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -466,7 +468,7 @@ pub fn history_e2e_test() {
 
 /// Test: sessions shows interview sessions
 pub fn sessions_e2e_test() {
-  let result = execute_cli("intent sessions")
+  let result = execute_cli("gleam run -- sessions")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -478,7 +480,7 @@ pub fn sessions_e2e_test() {
 
 /// Test: shape start begins shape phase
 pub fn shape_start_e2e_test() {
-  let result = execute_cli("intent shape start")
+  let result = execute_cli("gleam run -- shape start")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -486,7 +488,7 @@ pub fn shape_start_e2e_test() {
 
 /// Test: ready start begins ready phase
 pub fn ready_start_e2e_test() {
-  let result = execute_cli("intent ready start")
+  let result = execute_cli("gleam run -- ready start")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -494,7 +496,7 @@ pub fn ready_start_e2e_test() {
 
 /// Test: vision start begins vision phase
 pub fn vision_start_e2e_test() {
-  let result = execute_cli("intent vision start")
+  let result = execute_cli("gleam run -- vision start")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -506,7 +508,7 @@ pub fn vision_start_e2e_test() {
 
 /// Test: plan command shows development plan
 pub fn plan_e2e_test() {
-  let result = execute_cli("intent plan")
+  let result = execute_cli("gleam run -- plan")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -514,7 +516,7 @@ pub fn plan_e2e_test() {
 
 /// Test: diff command shows differences
 pub fn diff_e2e_test() {
-  let result = execute_cli("intent diff")
+  let result = execute_cli("gleam run -- diff")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -522,7 +524,7 @@ pub fn diff_e2e_test() {
 
 /// Test: feedback command provides feedback
 pub fn feedback_e2e_test() {
-  let result = execute_cli("intent feedback")
+  let result = execute_cli("gleam run -- feedback")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -530,7 +532,7 @@ pub fn feedback_e2e_test() {
 
 /// Test: prompt command generates prompts
 pub fn prompt_e2e_test() {
-  let result = execute_cli("intent prompt")
+  let result = execute_cli("gleam run -- prompt")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()
@@ -538,7 +540,7 @@ pub fn prompt_e2e_test() {
 
 /// Test: help command shows usage
 pub fn help_e2e_test() {
-  let result = execute_cli("intent help")
+  let result = execute_cli("gleam run -- help")
 
   result.exit_code |> should.equal(0)
   // Help may be text (non-JSON is OK)
@@ -575,7 +577,7 @@ pub fn all_json_responses_have_metadata_e2e_test() {
 
 /// Test: Error responses include fix suggestions
 pub fn error_responses_have_fix_e2e_test() {
-  let result = execute_cli("intent validate nonexistent.cue")
+  let result = execute_cli("gleam run -- validate nonexistent.cue")
 
   // Should have errors field
   result.has_errors_field |> should.be_true()
@@ -587,7 +589,7 @@ pub fn error_responses_have_fix_e2e_test() {
 /// Test: Success responses include next_actions for workflow guidance
 pub fn success_responses_have_next_actions_e2e_test() {
   let spec = "examples/user-api.cue"
-  let result = execute_cli("intent validate " <> spec)
+  let result = execute_cli("gleam run -- validate " <> spec)
 
   // Success responses should suggest next actions
   result.has_next_actions_field |> should.be_true()

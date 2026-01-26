@@ -29,3 +29,13 @@ pub fn current_iso8601_timestamp() -> String
 /// Used for progress messages that should not interfere with stdout JSON output.
 @external(erlang, "intent_ffi", "write_stderr")
 pub fn write_stderr(text: String) -> Nil
+
+/// Execute a shell command and return output
+///
+/// Runs the given command string through the system shell and returns
+/// a tuple containing the stdout output and the exit code.
+///
+/// Returns: #(String, Int) where the first element is stdout output
+/// and the second is the process exit code.
+@external(erlang, "intent_ffi", "execute_command")
+pub fn execute_command(command: String) -> #(String, Int)

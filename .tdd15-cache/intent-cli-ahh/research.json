@@ -1,0 +1,86 @@
+{
+  "phase": "RESEARCH",
+  "issue_id": "intent-cli-ahh",
+  "title": "Add comprehensive testing to parse command",
+  "research_date": "2026-01-25T23:20:00-06:00",
+  "key_findings": {
+    "parse_command_location": "src/intent.gleam:3791",
+    "parser_module": "src/intent/kirk/ears_parser.gleam",
+    "test_file_reference": "test/integration_e2e_test.gleam",
+    "command_syntax": "intent parse <requirements.ears.md> [-o spec.cue] [--json]",
+    "exit_codes": {
+      "success": 0,
+      "fail": 1,
+      "invalid": 3,
+      "error": 4
+    }
+  },
+  "existing_tests": {
+    "file": "test/integration_e2e_test.gleam",
+    "current_coverage": "Single test for parse_spec_e2e_test at line 408",
+    "test_approach": "CLI boundary testing using execute_cli() helper",
+    "contract_validation": "Validates exit codes, JSON structure, AI ergonomics"
+  },
+  "parse_command_behavior": {
+    "input": "EARS-formatted requirements text file",
+    "output": {
+      "json": "AI CLI Ergonomics v1.1 JSON output",
+      "cue": "Optional CUE spec file via --o flag"
+    },
+    "patterns_supported": [
+      "Ubiquitous: THE SYSTEM SHALL [behavior]",
+      "EventDriven: WHEN [trigger] THE SYSTEM SHALL [behavior]",
+      "StateDriven: WHILE [state] THE SYSTEM SHALL [behavior]",
+      "Optional: WHERE [condition] THE SYSTEM SHALL [behavior]",
+      "Unwanted: IF [condition] THEN THE SYSTEM SHALL NOT [behavior]",
+      "Complex: WHILE [state] WHEN [trigger] THE SYSTEM SHALL [behavior]"
+    ],
+    "error_handling": {
+      "missing_file": "exit_error (4) - Failed to read: <path>",
+      "no_args": "exit_error (4) - requirements file path required",
+      "parse_errors": "exit_fail (1) - Failed: <count> requirements"
+    },
+    "json_response_structure": {
+      "action": "parse_result",
+      "command": "parse",
+      "data": {
+        "requirements": "Array of parsed requirements",
+        "behaviors": "Array of generated behaviors",
+        "errors": "Array of parse errors",
+        "warnings": "Array of warnings",
+        "count": "Total requirements parsed"
+      },
+      "next_actions": "Suggested follow-up commands"
+    }
+  },
+  "test_gaps_identified": {
+    "ears_patterns": "No dedicated tests for each EARS pattern",
+    "edge_cases": "No tests for empty files, unicode, long requirements",
+    "error_paths": "Limited error path testing",
+    "integration": "No tests for parse → validate workflow",
+    "cli_boundary": "Current integration_e2e_test.gleam uses stub os_execute()"
+  },
+  "test_infrastructure": {
+    "execute_cli": "Stub function that returns placeholder (line 209)",
+    "needs_real_execution": "Should use Erlang/OTP :os.cmd/3 or similar",
+    "file_setup": "Need temp file creation/cleanup for input files",
+    "assertions": "gleeunit/should for assertions"
+  },
+  "dependencies": {
+    "ears_parser": "src/intent/kirk/ears_parser.gleam",
+    "json_output": "src/intent/json_output.gleam",
+    "simplifile": "File I/O operations"
+  },
+  "recommendations": [
+    "Create dedicated test/parse_cli_test.gleam",
+    "Use actual CLI execution (not stub)",
+    "Test all 6 EARS patterns individually",
+    "Test edge cases (empty, unicode, long, duplicate names)",
+    "Test error paths (missing file, invalid syntax)",
+    "Test integration (parse → validate → lint)",
+    "Validate JSON structure per AI CLI Ergonomics v1.1",
+    "Validate exit codes",
+    "Test --o flag file output",
+    "Test end-to-end workflows"
+  ]
+}

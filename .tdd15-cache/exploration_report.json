@@ -1,0 +1,167 @@
+{
+  "timestamp": "2026-01-25T23:14:00Z",
+  "issues_explored": 10,
+  "excluded_ids": ["intent-cli-7ch", "intent-cli-ahh"],
+  "summary": {
+    "total_issues_in_database": 50,
+    "eligible_issues": 48,
+    "explored_sample_size": 10,
+    "status_distribution": {
+      "closed": 9,
+      "blocked": 1,
+      "open": 0,
+      "in_progress": 0
+    }
+  },
+  "issues_that_can_be_started": [],
+  "issues_blocked_on_other_issues": [
+    {
+      "id": "intent-cli-aki",
+      "title": "WAVE5-01: Unified CLI Entry (all phase commands)",
+      "status": "blocked",
+      "issue_type": "feature",
+      "priority": 1,
+      "blocking_reason": "Status marked as blocked but no explicit dependencies found in database",
+      "can_be_unblocked": false,
+      "notes": "May be waiting on excluded issues (intent-cli-7ch, intent-cli-ahh) which are currently in_progress/open"
+    }
+  ],
+  "issues_that_need_clarification": [
+    {
+      "id": "intent-cli-aki",
+      "title": "WAVE5-01: Unified CLI Entry (all phase commands)",
+      "clarification_needed": "Issue is marked as 'blocked' but no explicit dependencies or blockers are visible in the database. Needs investigation into what is blocking this issue.",
+      "recommended_action": "Review bd show --refs output or check git history to understand blocking conditions"
+    }
+  ],
+  "complexity_distribution": {
+    "by_issue_type": {
+      "feature": {
+        "count": 7,
+        "details": [
+          "intent-cli-2kb: WAVE3-07: Spec Interview (5-round mental model flow) - CLOSED",
+          "intent-cli-492: WAVE5-02: Phase State Machine (gate enforcement) - CLOSED",
+          "intent-cli-62d: WAVE4-04: VORP Analyzer (Value Over Replacement validation) - CLOSED",
+          "intent-cli-6rq: WAVE4-02: Vision Alignment Checker (detect drift from Phase 1) - CLOSED",
+          "intent-cli-7wu: WAVE4-05: Ready Critique Protocol (Pre-Launch Auditor persona) - CLOSED",
+          "intent-cli-aki: WAVE5-01: Unified CLI Entry (all phase commands) - BLOCKED",
+          "intent-cli-dg8: WAVE4-06: Ready Commands (ready, critique, respond, agree) - CLOSED",
+          "intent-cli-f3n: WAVE1-05: Vision Commands (start, check, critique, respond, agree) - CLOSED"
+        ]
+      },
+      "task": {
+        "count": 2,
+        "details": [
+          "intent-cli-55x: WAVE2-03: Shape Questions (6 core questions) - CLOSED",
+          "intent-cli-79j: WAVE5-04: Wave Calculator (toposort, parallel grouping) - CLOSED"
+        ]
+      }
+    },
+    "by_complexity": {
+      "simple": 0,
+      "medium": 1,
+      "complex": 0,
+      "completed": 9
+    },
+    "complexity_assessment": "Most issues are closed/completed. The single blocked issue (intent-cli-aki) appears to be medium complexity based on its scope (Unified CLI Entry). Without explicit dependency data, cannot accurately assess complexity of the blocked work."
+  },
+  "detailed_findings": [
+    {
+      "id": "intent-cli-2kb",
+      "title": "WAVE3-07: Spec Interview (5-round mental model flow)",
+      "status": "closed",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "Implemented 5-round mental model interview with EARS, Contracts, Inversion, Effects, PreMortem across 6 profiles"
+    },
+    {
+      "id": "intent-cli-492",
+      "title": "WAVE5-02: Phase State Machine (gate enforcement)",
+      "status": "closed",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "Phase state machine with gate enforcement completed with MF#1=95/100 score"
+    },
+    {
+      "id": "intent-cli-55x",
+      "title": "WAVE2-03: Shape Questions (6 core questions)",
+      "status": "closed",
+      "issue_type": "task",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "Added 6 core shape questions to schema with question_loader support"
+    },
+    {
+      "id": "intent-cli-62d",
+      "title": "WAVE4-04: VORP Analyzer (Value Over Replacement validation)",
+      "status": "closed",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "VORP Analyzer implementation verified with MF#1=100%"
+    },
+    {
+      "id": "intent-cli-6rq",
+      "title": "WAVE4-02: Vision Alignment Checker (detect drift from Phase 1)",
+      "status": "closed",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "Vision Alignment Checker implemented comparing Phase 1 to Phase 4 across 4 dimensions"
+    },
+    {
+      "id": "intent-cli-79j",
+      "title": "WAVE5-04: Wave Calculator (toposort, parallel grouping)",
+      "status": "closed",
+      "issue_type": "task",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "Feature already fully implemented in plan_mode.gleam. No work required."
+    },
+    {
+      "id": "intent-cli-7wu",
+      "title": "WAVE4-05: Ready Critique Protocol (Pre-Launch Auditor persona)",
+      "status": "closed",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "Already implemented with 14 tests and MF#1 score of 85/100"
+    },
+    {
+      "id": "intent-cli-aki",
+      "title": "WAVE5-01: Unified CLI Entry (all phase commands)",
+      "status": "blocked",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "medium",
+      "notes": "BLOCKED - Unified CLI entry point for all phase commands. May be waiting on vision/parse testing completion.",
+      "can_be_started": false
+    },
+    {
+      "id": "intent-cli-dg8",
+      "title": "WAVE4-06: Ready Commands (ready, critique, respond, agree)",
+      "status": "closed",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "All 5 ready commands fully integrated into CLI"
+    },
+    {
+      "id": "intent-cli-f3n",
+      "title": "WAVE1-05: Vision Commands (start, check, critique, respond, agree)",
+      "status": "closed",
+      "issue_type": "feature",
+      "priority": 1,
+      "complexity": "completed",
+      "notes": "Vision Commands implemented with pure functional core, comprehensive tests, MF score 87/100"
+    }
+  ],
+  "recommendations": [
+    "The only blocked issue (intent-cli-aki) needs investigation into its blocking conditions",
+    "The two excluded issues (intent-cli-7ch, intent-cli-ahh) are the only 'ready' issues in the system",
+    "94% of the sampled issues are closed/completed, indicating significant progress",
+    "Consider unblocking intent-cli-aki if vision/parse testing is not a hard dependency"
+  ]
+}

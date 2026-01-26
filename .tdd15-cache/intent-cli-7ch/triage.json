@@ -1,0 +1,16 @@
+{
+  "bead_id": "intent-cli-7ch",
+  "phase": "triage",
+  "complexity": "MEDIUM",
+  "complexity_rationale": {
+    "criteria_count": "20+ test scenarios across 4 categories (EARS, edge cases, integration, E2E)",
+    "file_count": "2 files to modify (vision_commands.gleam + intent.gleam registration) + new test file",
+    "dependency_depth": "Medium - depends on existing vision storage, types, critique, and FFI modules",
+    "test_pattern": "DOGFOODING exercises - CLI boundary testing (not unit tests)"
+  },
+  "phases_to_run": ["0", "1", "2", "4", "5", "6", "7", "9", "11", "15"],
+  "phases_to_skip": ["3", "8", "10", "12", "13", "14"],
+  "skip_rationale": "MEDIUM complexity - skip plan verification (3), full implementation (8), FP-gates (10), MF#2 (12), consistency (13), liability (14)",
+  "estimated_savings": "~35%",
+  "reference_pattern": "ready_commands.gleam:36-200+ - 5 glint command wrappers with session management"
+}

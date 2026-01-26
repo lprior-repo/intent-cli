@@ -1,0 +1,42 @@
+{
+  "phase": "TRIAGE",
+  "issue_id": "intent-cli-ahh",
+  "title": "Add comprehensive testing to parse command",
+  "complexity": "MEDIUM",
+  "priority": 1,
+  "assessment": {
+    "is_bug_fix": false,
+    "is_feature_addition": false,
+    "is_test_addition": true,
+    "requires_refactoring": false,
+    "touches_critical_path": true,
+    "estimated_phases": [
+      "0: TRIAGE",
+      "1: RESEARCH",
+      "2: PLAN",
+      "3: RED",
+      "4: GREEN"
+    ],
+    "skipped_phases": [3, 8, 10, 12, 13, 14]
+  },
+  "acceptance_criteria": [
+    "E2E CLI boundary tests for parse command",
+    "EARS format testing (SHALL, WHEN/THEN, WHERE, SHALL NOT, IF/THEN)",
+    "Edge case coverage (empty files, unicode, long requirements, invalid flags)",
+    "Integration testing (parse → bead generation, session creation)",
+    "End-to-end workflows (reqs.txt → parse → CUE spec → validate)",
+    "Exit code validation (0, 1, 3, 4)",
+    "JSON structure validation",
+    "CUE output validation"
+  ],
+  "definition_of_done": [
+    "All tests written in test/parse_cli_test.gleam",
+    "Tests use actual CLI boundary (gleam run -- parse)",
+    "Tests are black-box (no internal implementation testing)",
+    "Tests cover happy path and error paths",
+    "Tests validate exit codes, JSON output, CUE output"
+  ],
+  "dependencies": [],
+  " blockers": [],
+  "notes": "Following Farley/Fowler E2E testing principles - dogfooding exercise"
+}

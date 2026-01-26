@@ -1,0 +1,32 @@
+{
+  "bead_id": "intent-cli-7ch",
+  "phase": "research",
+  "status": "completed",
+  "findings": {
+    "test_patterns": "DOGFOODING via integration_e2e_test.gleam using execute_cli() wrapper with TestOutcome type capturing exit_code/output/JSON validation",
+    "glint_pattern": "ready_commands.gleam:36-200+ provides reference pattern - extract args/flags, validate, json_output.error/failure/success, halt with exit codes",
+    "vision_modules": {
+      "vision_commands": "Has VisionCommandSession state management, glint wrappers MISSING",
+      "vision_critique": "Has critique_vision() for validation, scoring 0-100, threshold 70",
+      "vision_storage": "Has JSONL persistence with DI pattern",
+      "vision_session": "Has VisionSession for interview flow",
+      "vision_alignment": "Has vision→spec drift detection"
+    },
+    "test_fixtures": "Inline in test_helpers.gleam and vision_commands.gleam (empty_vision_section, sample_complete_vision)",
+    "exit_codes": "0=success, 1=fail, 2=blocked, 3=invalid, 4=error",
+    "registration_status": "Vision commands NOT registered in intent.gleam (only shape and ready exist)"
+  },
+  "reference_files": [
+    "src/intent/ready_commands.gleam:36-200+",
+    "test/integration_e2e_test.gleam",
+    "test/ready_test.gleam",
+    "src/intent/vision_commands.gleam",
+    "src/intent.gleam:182-207 (command registration area)"
+  ],
+  "key_functions": [
+    "json_output.success() / failure() / error() / next_action()",
+    "ffi.generate_uuid() / current_timestamp()",
+    "flag.get_string(input.flags, ...) |> result.unwrap(...)",
+    "halt(exit_code) with @external(erlang)"
+  ]
+}

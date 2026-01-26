@@ -1,0 +1,138 @@
+{
+  "bead_id": "intent-cli-7ch",
+  "phase": "plan",
+  "status": "in_progress",
+  "implementation_strategy": {
+    "approach": "Follow ready_commands pattern to add 5 glint wrappers to vision_commands.gleam, then register in intent.gleam",
+    "files_to_modify": [
+      "src/intent/vision_commands.gleam - add 5 glint command wrappers",
+      "src/intent.gleam - register 5 vision commands (lines 181+)"
+    ],
+    "files_to_create": [
+      "test/vision_cli_test.gleam - DOGFOODING/E2E tests for vision commands"
+    ]
+  },
+  "commands_to_implement": {
+    "vision start": {
+      "purpose": "Start new vision command session",
+      "inputs": "spec_path (arg), profile (flag, default='api')",
+      "outputs": "session_id, status='in_progress', created_at, next_actions",
+      "exit_codes": "0=success, 4=missing_spec_path",
+      "imports_needed": ["gleam/json", "glint", "glint/flag", "intent/ffi", "intent/json_output"],
+      "reference": "ready_commands.ready_start_command() line 36"
+    },
+    "vision check": {
+      "purpose": "Check vision command session status",
+      "inputs": "session (flag, required)",
+      "outputs": "session_id, status, critique_score, responses_count, updated_at",
+      "exit_codes": "0=success, 4=missing_session",
+      "imports_needed": ["gleam/json", "glint", "glint/flag", "intent/json_output"],
+      "reference": "ready_commands.ready_check_command()"
+    },
+    "vision critique": {
+      "purpose": "Run Skeptical PM critique on vision",
+      "inputs": "session (flag, required), spec_path (arg, optional)",
+      "outputs": "critique_result, score, issues_count, passed, next_actions",
+      "exit_codes": "0=critique_run, 3=critique_failed",
+      "imports_needed": ["gleam/json", "gleam/list", "gleam/result", "glint", "glint/flag", "intent/json_output", "intent/vision_critique"],
+      "reference": "ready_commands.ready_critique_command()",
+      "integration": "Call vision_critique.critique_vision(vision_section)"
+    },
+    "vision respond": {
+      "purpose": "Submit response to critique issue",
+      "inputs": "session (flag, required), issue_id (flag, required), response (flag, required)",
+      "outputs": "session_id, responses_count, status='ready_for_critique' or 'in_progress'",
+      "exit_codes": "0=response_recorded, 4=missing_required_fields",
+      "imports_needed": ["gleam/json", "glint", "glint/flag", "intent/ffi", "intent/json_output"],
+      "reference": "ready_commands.ready_respond_command()",
+      "integration": "Call vision_commands.record_response()"
+    },
+    "vision agree": {
+      "purpose": "Finalize vision session (requires score >= 70)",
+      "inputs": "session (flag, required)",
+      "outputs": "session_id, status='complete', finalized_at, critique_score",
+      "exit_codes": "0=finalized, 3=score_too_low (<70), 4=session_not_complete",
+      "imports_needed": ["gleam/json", "glint", "glint/flag", "intent/ffi", "intent/json_output", "intent/vision_commands"],
+      "reference": "ready_commands.ready_agree_command()",
+      "integration": "Call vision_commands.agree_session(), handle error"
+    }
+  },
+  "test_plan": {
+    "test_file": "test/vision_cli_test.gleam",
+    "test_categories": [
+      {
+        "category": "EARS_FORMAT_TESTING",
+        "tests": [
+          "vision_start_with_ears_scenarios_test",
+          "vision_critique_with_ears_patterns_test",
+          "vision_session_stores_ears_data_test"
+        ],
+        "description": "Verify vision accepts EARS input, validates properly"
+      },
+      {
+        "category": "EDGE_CASES",
+        "tests": [
+          "vision_start_empty_vision_test",
+          "vision_start_malformed_input_test",
+          "vision_check_invalid_session_test",
+          "vision_critique_missing_spec_test"
+        ],
+        "description": "Appropriate error codes, clear error messages"
+      },
+      {
+        "category": "INTEGRATION_TESTING",
+        "tests": [
+          "vision_to_shape_phase_transition_test",
+          "vision_session_storage_test",
+          "vision_session_retrieval_test",
+          "cross_phase_data_sharing_test"
+        ],
+        "description": "Clean session lifecycle, data persistence"
+      },
+      {
+        "category": "END_TO_END_TESTING",
+        "tests": [
+          "full_vision_workflow_test (start→check→critique→respond→agree)",
+          "vision_session_management_test",
+          "phase_transition_test",
+          "error_recovery_test"
+        ],
+        "description": "Complete vision workflow executes successfully"
+      }
+    ],
+    "test_helpers_needed": [
+      "mock_vision_storage() - in-memory JSONL for testing",
+      "create_test_vision_session() - factory for test sessions",
+      "assert_cli_success() - helper for exit code validation"
+    ]
+  },
+  "consolidation_opportunities": [
+    {
+      "opportunity": "Exit code constants duplication",
+      "current_issue": "exit_pass/fail/error/invalid duplicated in multiple command files",
+      "solution": "Extract to shared module (e.g., intent/exit_codes.gleam)",
+      "phase": "REFACTOR (Phase 6)"
+    },
+    {
+      "opportunity": "JSON error response pattern",
+      "current_issue": "Similar error handling pattern across commands",
+      "solution": "Create helper function in json_output module",
+      "phase": "REFACTOR (Phase 6)"
+    }
+  ],
+  "registration_plan": {
+    "file": "src/intent.gleam",
+    "location": "After shape commands (line 186), before ready commands (line 187)",
+    "registration_code": "|> glint.add(at: [\"vision\", \"start\"], do: vision_commands.vision_start_command())\n|> glint.add(at: [\"vision\", \"check\"], do: vision_commands.vision_check_command())\n|> glint.add(at: [\"vision\", \"critique\"], do: vision_commands.vision_critique_command())\n|> glint.add(at: [\"vision\", \"respond\"], do: vision_commands.vision_respond_command())\n|> glint.add(at: [\"vision\", \"agree\"], do: vision_commands.vision_agree_command())"
+  },
+  "success_criteria": [
+    "All 5 vision commands registered in intent.gleam",
+    "Commands follow ready_commands pattern (glint wrappers)",
+    "Exit codes consistent (0-4)",
+    "JSON output follows AI CLI spec (success/failure with action/data/errors)",
+    "E2E tests cover 4 categories (EARS, edge cases, integration, E2E)",
+    "Tests pass: gleam test",
+    "Code formatted: gleam format --check",
+    "Build succeeds: gleam build"
+  ]
+}

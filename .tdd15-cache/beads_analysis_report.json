@@ -1,0 +1,851 @@
+{
+  "metadata": {
+    "generated_at": "2026-01-26T05:20:45.845620Z",
+    "total_beads_in_repository": 50,
+    "excluded_ids": [
+      "intent-cli-ahh",
+      "intent-cli-7ch"
+    ],
+    "analyzed_count": 48
+  },
+  "summary": {
+    "total_closed": 47,
+    "total_blocked": 1,
+    "overall_completion_rate": 97.92,
+    "mf_score_average": 84.83,
+    "mf_score_min": 9.25,
+    "mf_score_max": 100.0,
+    "issues_with_tests": 18,
+    "total_tests_mentioned": 5323
+  },
+  "completion_by_wave": {
+    "WAVE0": {
+      "total": 2,
+      "closed": 2,
+      "types": {
+        "task": 2
+      },
+      "mf_scores": [],
+      "ids": [
+        "intent-cli-tpk",
+        "intent-cli-142"
+      ],
+      "completion_rate": 100.0
+    },
+    "WAVE1": {
+      "total": 1,
+      "closed": 1,
+      "types": {
+        "feature": 1
+      },
+      "mf_scores": [],
+      "ids": [
+        "intent-cli-f3n"
+      ],
+      "completion_rate": 100.0
+    },
+    "WAVE2": {
+      "total": 6,
+      "closed": 6,
+      "types": {
+        "feature": 3,
+        "task": 3
+      },
+      "mf_scores": [
+        92.0
+      ],
+      "ids": [
+        "intent-cli-rt0",
+        "intent-cli-z9e",
+        "intent-cli-vgh",
+        "intent-cli-55x",
+        "intent-cli-1vh",
+        "intent-cli-0bv"
+      ],
+      "completion_rate": 100.0,
+      "avg_mf_score": 92.0,
+      "mf_score_range": {
+        "min": 92.0,
+        "max": 92.0
+      }
+    },
+    "WAVE3": {
+      "total": 9,
+      "closed": 9,
+      "types": {
+        "feature": 3,
+        "task": 6
+      },
+      "mf_scores": [
+        95.0,
+        98.75,
+        100.0
+      ],
+      "ids": [
+        "intent-cli-vo0",
+        "intent-cli-uq2",
+        "intent-cli-2kb",
+        "intent-cli-m4t",
+        "intent-cli-yvs",
+        "intent-cli-qwk",
+        "intent-cli-iq6",
+        "intent-cli-g88",
+        "intent-cli-pb1"
+      ],
+      "completion_rate": 100.0,
+      "avg_mf_score": 97.91666666666667,
+      "mf_score_range": {
+        "min": 95.0,
+        "max": 100.0
+      }
+    },
+    "WAVE4": {
+      "total": 6,
+      "closed": 6,
+      "types": {
+        "feature": 6
+      },
+      "mf_scores": [
+        100.0
+      ],
+      "ids": [
+        "intent-cli-dg8",
+        "intent-cli-7wu",
+        "intent-cli-62d",
+        "intent-cli-d1d",
+        "intent-cli-6rq",
+        "intent-cli-vgk"
+      ],
+      "completion_rate": 100.0,
+      "avg_mf_score": 100.0,
+      "mf_score_range": {
+        "min": 100.0,
+        "max": 100.0
+      }
+    },
+    "WAVE5": {
+      "total": 5,
+      "closed": 4,
+      "types": {
+        "task": 2,
+        "feature": 2
+      },
+      "mf_scores": [
+        95.0
+      ],
+      "ids": [
+        "intent-cli-iyb",
+        "intent-cli-79j",
+        "intent-cli-dku",
+        "intent-cli-492"
+      ],
+      "completion_rate": 80.0,
+      "avg_mf_score": 95.0,
+      "mf_score_range": {
+        "min": 95.0,
+        "max": 95.0
+      }
+    }
+  },
+  "by_issue_type": {
+    "task": {
+      "total": 32,
+      "closed": 32,
+      "ids": [
+        "intent-cli-by5",
+        "intent-cli-5s9",
+        "intent-cli-dl6",
+        "intent-cli-nd5",
+        "intent-cli-3z7",
+        "intent-cli-x4k",
+        "intent-cli-9fd",
+        "intent-cli-8oo",
+        "intent-cli-cy9",
+        "intent-cli-76s",
+        "intent-cli-1qh",
+        "intent-cli-g5i",
+        "intent-cli-dqs",
+        "intent-cli-cgs",
+        "intent-cli-1u7",
+        "intent-cli-iyb",
+        "intent-cli-m4t",
+        "intent-cli-yvs",
+        "intent-cli-qwk",
+        "intent-cli-iq6",
+        "intent-cli-79j",
+        "intent-cli-g88",
+        "intent-cli-55x",
+        "intent-cli-pb1",
+        "intent-cli-1vh",
+        "intent-cli-0bv",
+        "intent-cli-dt9",
+        "intent-cli-ime",
+        "intent-cli-tpk",
+        "intent-cli-l4w",
+        "intent-cli-xkv",
+        "intent-cli-142"
+      ],
+      "completion_rate": 100.0
+    },
+    "feature": {
+      "total": 16,
+      "closed": 15,
+      "ids": [
+        "intent-cli-vo0",
+        "intent-cli-uq2",
+        "intent-cli-2kb",
+        "intent-cli-rt0",
+        "intent-cli-dg8",
+        "intent-cli-z9e",
+        "intent-cli-7wu",
+        "intent-cli-vgh",
+        "intent-cli-62d",
+        "intent-cli-dku",
+        "intent-cli-d1d",
+        "intent-cli-492",
+        "intent-cli-6rq",
+        "intent-cli-vgk",
+        "intent-cli-f3n"
+      ],
+      "completion_rate": 93.75
+    }
+  },
+  "by_category": {
+    "schema": {
+      "total": 8,
+      "closed": 8,
+      "mf_scores": [
+        77.0,
+        88.75,
+        9.25
+      ],
+      "ids": [
+        "intent-cli-by5",
+        "intent-cli-5s9",
+        "intent-cli-dl6",
+        "intent-cli-nd5",
+        "intent-cli-3z7",
+        "intent-cli-x4k",
+        "intent-cli-9fd",
+        "intent-cli-1u7"
+      ],
+      "avg_mf_score": 58.333333333333336
+    },
+    "cleanup": {
+      "total": 4,
+      "closed": 4,
+      "mf_scores": [],
+      "ids": [
+        "intent-cli-8oo",
+        "intent-cli-cy9",
+        "intent-cli-1qh",
+        "intent-cli-dqs"
+      ]
+    },
+    "delete": {
+      "total": 3,
+      "closed": 3,
+      "mf_scores": [],
+      "ids": [
+        "intent-cli-76s",
+        "intent-cli-g5i",
+        "intent-cli-cgs"
+      ]
+    },
+    "wave": {
+      "total": 29,
+      "closed": 28,
+      "mf_scores": [
+        95.0,
+        98.75,
+        100.0,
+        100.0,
+        92.0,
+        95.0
+      ],
+      "ids": [
+        "intent-cli-vo0",
+        "intent-cli-uq2",
+        "intent-cli-2kb",
+        "intent-cli-iyb",
+        "intent-cli-m4t",
+        "intent-cli-yvs",
+        "intent-cli-rt0",
+        "intent-cli-qwk",
+        "intent-cli-dg8",
+        "intent-cli-z9e",
+        "intent-cli-iq6",
+        "intent-cli-7wu",
+        "intent-cli-79j",
+        "intent-cli-vgh",
+        "intent-cli-g88",
+        "intent-cli-62d",
+        "intent-cli-55x",
+        "intent-cli-dku",
+        "intent-cli-pb1",
+        "intent-cli-d1d",
+        "intent-cli-1vh",
+        "intent-cli-492",
+        "intent-cli-6rq",
+        "intent-cli-0bv",
+        "intent-cli-vgk",
+        "intent-cli-f3n",
+        "intent-cli-tpk",
+        "intent-cli-142"
+      ],
+      "avg_mf_score": 96.79166666666667
+    },
+    "ai": {
+      "total": 4,
+      "closed": 4,
+      "mf_scores": [
+        92.5
+      ],
+      "ids": [
+        "intent-cli-dt9",
+        "intent-cli-ime",
+        "intent-cli-l4w",
+        "intent-cli-xkv"
+      ],
+      "avg_mf_score": 92.5
+    }
+  },
+  "closed_issues": [
+    {
+      "id": "intent-cli-by5",
+      "title": "SCHEMA-07: Create command_router.gleam (JSONL dispatch with validation)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 0,
+      "mf_score": 77.0,
+      "created_at": "2026-01-25T08:58:43.460360468-06:00",
+      "closed_at": "2026-01-25T15:30:58.454554036-06:00"
+    },
+    {
+      "id": "intent-cli-5s9",
+      "title": "SCHEMA-06: Create output_validator.gleam (validate responses against CUE)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 0,
+      "mf_score": 88.75,
+      "created_at": "2026-01-25T08:58:42.782243656-06:00",
+      "closed_at": "2026-01-25T10:03:32.667402221-06:00"
+    },
+    {
+      "id": "intent-cli-dl6",
+      "title": "SCHEMA-05: Create input_validator.gleam (validate requests against CUE)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 0,
+      "mf_score": 9.25,
+      "created_at": "2026-01-25T08:58:41.952897196-06:00",
+      "closed_at": "2026-01-25T10:00:00.463810894-06:00"
+    },
+    {
+      "id": "intent-cli-nd5",
+      "title": "SCHEMA-04: Create schema_registry.gleam (schema loading)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:41.278495738-06:00",
+      "closed_at": "2026-01-25T10:07:16.559832467-06:00"
+    },
+    {
+      "id": "intent-cli-3z7",
+      "title": "SCHEMA-03: Create schema/common/types.cue (shared types)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:40.484347849-06:00",
+      "closed_at": "2026-01-25T09:55:12.261070225-06:00"
+    },
+    {
+      "id": "intent-cli-x4k",
+      "title": "SCHEMA-02: Create schema/common/errors.cue (error taxonomy)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:39.361195393-06:00",
+      "closed_at": "2026-01-25T09:56:03.42884355-06:00"
+    },
+    {
+      "id": "intent-cli-9fd",
+      "title": "SCHEMA-01: Create schema/common/envelope.cue (Request/Response wrapper)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:38.566093982-06:00",
+      "closed_at": "2026-01-25T09:56:09.256203447-06:00"
+    },
+    {
+      "id": "intent-cli-8oo",
+      "title": "CLEANUP-04: Simplify intent.gleam to JSONL-only entry point",
+      "type": "task",
+      "wave": null,
+      "category": "cleanup",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:38.211010637-06:00",
+      "closed_at": "2026-01-25T10:10:58.514352008-06:00"
+    },
+    {
+      "id": "intent-cli-cy9",
+      "title": "CLEANUP-03: Remove spinners and colors from loader.gleam and runner.gleam",
+      "type": "task",
+      "wave": null,
+      "category": "cleanup",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:37.436149961-06:00",
+      "closed_at": "2026-01-25T09:36:58.792729345-06:00"
+    },
+    {
+      "id": "intent-cli-76s",
+      "title": "DELETE-03: Delete intent_checker.erl and intent_runner_ffi.erl (HTTP FFI)",
+      "type": "task",
+      "wave": null,
+      "category": "delete",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:37.015530823-06:00",
+      "closed_at": "2026-01-25T09:27:21.723531859-06:00"
+    },
+    {
+      "id": "intent-cli-1qh",
+      "title": "CLEANUP-02: Delete cli_ui.gleam and help.gleam (human formatting)",
+      "type": "task",
+      "wave": null,
+      "category": "cleanup",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:36.81508773-06:00",
+      "closed_at": "2026-01-25T09:35:05.668649566-06:00"
+    },
+    {
+      "id": "intent-cli-g5i",
+      "title": "DELETE-02: Delete checker/*.gleam (response validation)",
+      "type": "task",
+      "wave": null,
+      "category": "delete",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:36.296978911-06:00",
+      "closed_at": "2026-01-25T09:27:21.720490336-06:00"
+    },
+    {
+      "id": "intent-cli-dqs",
+      "title": "CLEANUP-01: Delete stdin.gleam and all interactive prompts",
+      "type": "task",
+      "wave": null,
+      "category": "cleanup",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:36.145473891-06:00",
+      "closed_at": "2026-01-25T09:30:59.472588551-06:00"
+    },
+    {
+      "id": "intent-cli-cgs",
+      "title": "DELETE-01: Delete runner.gleam and http_client.gleam (HTTP execution)",
+      "type": "task",
+      "wave": null,
+      "category": "delete",
+      "priority": 0,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:35.445104594-06:00",
+      "closed_at": "2026-01-25T09:27:11.331296767-06:00"
+    },
+    {
+      "id": "intent-cli-1u7",
+      "title": "SCHEMA-08: Schema validation tests (correspondence tests)",
+      "type": "task",
+      "wave": null,
+      "category": "schema",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:58:44.18378814-06:00",
+      "closed_at": "2026-01-25T16:06:29.784518087-06:00"
+    },
+    {
+      "id": "intent-cli-vo0",
+      "title": "WAVE3-09: Spec Commands (quality, coverage, gaps, invert, effects, ears)",
+      "type": "feature",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:55.871326812-06:00",
+      "closed_at": "2026-01-25T16:15:55.421684003-06:00"
+    },
+    {
+      "id": "intent-cli-uq2",
+      "title": "WAVE3-08: Spec Critique Protocol (Adversarial QA persona)",
+      "type": "feature",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:54.93303971-06:00",
+      "closed_at": "2026-01-25T16:17:12.73125431-06:00"
+    },
+    {
+      "id": "intent-cli-2kb",
+      "title": "WAVE3-07: Spec Interview (5-round mental model flow)",
+      "type": "feature",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:53.925823259-06:00",
+      "closed_at": "2026-01-25T16:13:05.629058362-06:00"
+    },
+    {
+      "id": "intent-cli-iyb",
+      "title": "WAVE5-07: Integration Tests (full 4-phase flow)",
+      "type": "task",
+      "wave": 5,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:53.868299415-06:00",
+      "closed_at": "2026-01-25T16:35:03.981299385-06:00"
+    },
+    {
+      "id": "intent-cli-m4t",
+      "title": "WAVE3-06: Port EARS Parser to Plan schema",
+      "type": "task",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:53.239399633-06:00",
+      "closed_at": "2026-01-25T16:30:33.699749419-06:00"
+    },
+    {
+      "id": "intent-cli-yvs",
+      "title": "WAVE3-05: Port KIRK Effects Analyzer to Plan schema",
+      "type": "task",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:52.462198375-06:00",
+      "closed_at": "2026-01-25T09:59:12.077533331-06:00"
+    },
+    {
+      "id": "intent-cli-rt0",
+      "title": "WAVE2-06: Shape Commands (start, check, critique, respond, agree)",
+      "type": "feature",
+      "wave": 2,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:51.526911438-06:00",
+      "closed_at": "2026-01-25T16:21:05.432829505-06:00"
+    },
+    {
+      "id": "intent-cli-qwk",
+      "title": "WAVE3-04: Port KIRK Inversion Checker to Plan schema",
+      "type": "task",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": 95.0,
+      "created_at": "2026-01-25T08:53:51.426710993-06:00",
+      "closed_at": "2026-01-25T16:11:25.164411294-06:00"
+    },
+    {
+      "id": "intent-cli-dg8",
+      "title": "WAVE4-06: Ready Commands (ready, critique, respond, agree)",
+      "type": "feature",
+      "wave": 4,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:51.356462918-06:00",
+      "closed_at": "2026-01-25T19:43:12.606308925-06:00"
+    },
+    {
+      "id": "intent-cli-z9e",
+      "title": "WAVE2-05: Shape Critique Protocol (Pragmatic Tech Lead persona)",
+      "type": "feature",
+      "wave": 2,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:50.798781696-06:00",
+      "closed_at": "2026-01-25T16:07:30.664330925-06:00"
+    },
+    {
+      "id": "intent-cli-iq6",
+      "title": "WAVE3-03: Port KIRK Gap Detector to Plan schema",
+      "type": "task",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": 98.75,
+      "created_at": "2026-01-25T08:53:50.423309362-06:00",
+      "closed_at": "2026-01-25T16:09:06.700099292-06:00"
+    },
+    {
+      "id": "intent-cli-7wu",
+      "title": "WAVE4-05: Ready Critique Protocol (Pre-Launch Auditor persona)",
+      "type": "feature",
+      "wave": 4,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:50.421475212-06:00",
+      "closed_at": "2026-01-25T16:20:44.034015662-06:00"
+    },
+    {
+      "id": "intent-cli-79j",
+      "title": "WAVE5-04: Wave Calculator (toposort, parallel grouping)",
+      "type": "task",
+      "wave": 5,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:50.335836166-06:00",
+      "closed_at": "2026-01-25T16:10:23.51143363-06:00"
+    },
+    {
+      "id": "intent-cli-vgh",
+      "title": "WAVE2-04: MVP Analyzer (critical path detection)",
+      "type": "feature",
+      "wave": 2,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:50.121579214-06:00",
+      "closed_at": "2026-01-25T16:24:11.079083974-06:00"
+    },
+    {
+      "id": "intent-cli-g88",
+      "title": "WAVE3-02: Port KIRK Coverage Analyzer to Plan schema",
+      "type": "task",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": 100.0,
+      "created_at": "2026-01-25T08:53:49.707864496-06:00",
+      "closed_at": "2026-01-25T16:05:50.661439132-06:00"
+    },
+    {
+      "id": "intent-cli-62d",
+      "title": "WAVE4-04: VORP Analyzer (Value Over Replacement validation)",
+      "type": "feature",
+      "wave": 4,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": 100.0,
+      "created_at": "2026-01-25T08:53:49.530297571-06:00",
+      "closed_at": "2026-01-25T16:19:26.318623878-06:00"
+    },
+    {
+      "id": "intent-cli-55x",
+      "title": "WAVE2-03: Shape Questions (6 core questions)",
+      "type": "task",
+      "wave": 2,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:49.404315903-06:00",
+      "closed_at": "2026-01-25T16:09:30.026696016-06:00"
+    },
+    {
+      "id": "intent-cli-dku",
+      "title": "WAVE5-03: Enhanced Bead Generator (EARS+Contracts+Types+Tests)",
+      "type": "feature",
+      "wave": 5,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:49.244606637-06:00",
+      "closed_at": "2026-01-25T16:23:19.952568044-06:00"
+    },
+    {
+      "id": "intent-cli-pb1",
+      "title": "WAVE3-01: Port KIRK Quality Analyzer to Plan schema",
+      "type": "task",
+      "wave": 3,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:49.018842802-06:00",
+      "closed_at": "2026-01-25T16:06:07.664872085-06:00"
+    },
+    {
+      "id": "intent-cli-d1d",
+      "title": "WAVE4-03: Empathy Simulator (Cognitive Limitation Protocol)",
+      "type": "feature",
+      "wave": 4,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:48.608219825-06:00",
+      "closed_at": "2026-01-25T16:20:58.788587575-06:00"
+    },
+    {
+      "id": "intent-cli-1vh",
+      "title": "WAVE2-02: Shape Storage (JSONL persistence)",
+      "type": "task",
+      "wave": 2,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": 92.0,
+      "created_at": "2026-01-25T08:53:48.559181976-06:00",
+      "closed_at": "2026-01-25T16:21:30.725708173-06:00"
+    },
+    {
+      "id": "intent-cli-492",
+      "title": "WAVE5-02: Phase State Machine (gate enforcement)",
+      "type": "feature",
+      "wave": 5,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": 95.0,
+      "created_at": "2026-01-25T08:53:48.387997937-06:00",
+      "closed_at": "2026-01-25T16:07:21.777845939-06:00"
+    },
+    {
+      "id": "intent-cli-6rq",
+      "title": "WAVE4-02: Vision Alignment Checker (detect drift from Phase 1)",
+      "type": "feature",
+      "wave": 4,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:47.832127727-06:00",
+      "closed_at": "2026-01-25T16:06:54.905439796-06:00"
+    },
+    {
+      "id": "intent-cli-0bv",
+      "title": "WAVE2-01: Shape Types (ShapeSection, FeatureShape, MVPSlice)",
+      "type": "task",
+      "wave": 2,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:47.380248142-06:00",
+      "closed_at": "2026-01-25T15:56:52.729001939-06:00"
+    },
+    {
+      "id": "intent-cli-vgk",
+      "title": "WAVE4-01: READY Checker (5 dimensions: R-E-A-D-Y)",
+      "type": "feature",
+      "wave": 4,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:47.1775336-06:00",
+      "closed_at": "2026-01-25T16:06:30.720380539-06:00"
+    },
+    {
+      "id": "intent-cli-dt9",
+      "title": "AI-05: Create command_router.gleam for dispatching JSONL commands",
+      "type": "task",
+      "wave": null,
+      "category": "ai",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:12.275866853-06:00",
+      "closed_at": "2026-01-25T16:20:19.014090305-06:00"
+    },
+    {
+      "id": "intent-cli-ime",
+      "title": "AI-11: Create schema/ai/output/*.cue for all commands",
+      "type": "task",
+      "wave": null,
+      "category": "ai",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:12.205933986-06:00",
+      "closed_at": "2026-01-25T16:15:50.370746702-06:00"
+    },
+    {
+      "id": "intent-cli-f3n",
+      "title": "WAVE1-05: Vision Commands (start, check, critique, respond, agree)",
+      "type": "feature",
+      "wave": 1,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:11.940799195-06:00",
+      "closed_at": "2026-01-25T16:42:17.240261263-06:00"
+    },
+    {
+      "id": "intent-cli-tpk",
+      "title": "WAVE0-06: CUE Loader (Plan schema)",
+      "type": "task",
+      "wave": 0,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:11.739265874-06:00",
+      "closed_at": "2026-01-25T15:48:54.677347953-06:00"
+    },
+    {
+      "id": "intent-cli-l4w",
+      "title": "AI-04: Create jsonl_input.gleam for parsing JSONL stdin",
+      "type": "task",
+      "wave": null,
+      "category": "ai",
+      "priority": 1,
+      "mf_score": 92.5,
+      "created_at": "2026-01-25T08:53:11.529620314-06:00",
+      "closed_at": "2026-01-25T16:19:00.252733698-06:00"
+    },
+    {
+      "id": "intent-cli-xkv",
+      "title": "AI-10: Create schema/ai/input/*.cue for all commands",
+      "type": "task",
+      "wave": null,
+      "category": "ai",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:11.345583546-06:00",
+      "closed_at": "2026-01-25T15:46:58.968777592-06:00"
+    },
+    {
+      "id": "intent-cli-142",
+      "title": "WAVE0-05: Dependency Resolver (Kahn's toposort)",
+      "type": "task",
+      "wave": 0,
+      "category": "wave",
+      "priority": 1,
+      "mf_score": null,
+      "created_at": "2026-01-25T08:53:11.005661418-06:00",
+      "closed_at": "2026-01-25T15:35:28.553883535-06:00"
+    }
+  ],
+  "blocked_issues": [
+    {
+      "id": "intent-cli-aki",
+      "title": "WAVE5-01: Unified CLI Entry (all phase commands)",
+      "type": "feature",
+      "wave": 5,
+      "category": "wave",
+      "priority": 1,
+      "created_at": "2026-01-25T08:53:47.364831092-06:00",
+      "updated_at": "2026-01-25T16:06:08.492613504-06:00"
+    }
+  ],
+  "insights": [
+    "EXCELLENT project health: 97.9% completion rate",
+    "High code quality: Average MF#1 score of 84.8/100",
+    "5 wave(s) fully completed (100% closure rate)",
+    "Attention needed: 1 issue(s) blocked",
+    "Balance: 15 features, 32 tasks completed"
+  ]
+}

@@ -5,7 +5,7 @@ import gleam/dict
 import gleam/json
 import gleam/option.{None, Some}
 import intent/planning_types.{
-  type Plan, FeatureShape, KIRKHealth, MVPSlice, Plan, ShapeSection, SpecSection,
+  type Plan, FeatureShape, MVPSlice, Plan, ShapeSection, SpecSection,
 }
 import intent/types.{
   type Behavior, type Config, type Feature, type Request, type Spec, AIHints,

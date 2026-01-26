@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, int_to_float/1, get_env/1, write_stderr/1]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, int_to_float/1, get_env/1, write_stderr/1, execute_command/1]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -61,3 +61,29 @@ get_env(Name) when is_binary(Name) ->
 write_stderr(Text) when is_binary(Text) ->
     io:format(standard_error, "~s~n", [Text]),
     nil.
+
+%% Execute a shell command and return output
+%% Returns: {stdout_binary, exit_code}
+execute_command(Command) when is_binary(Command) ->
+    CommandStr = binary_to_list(Command),
+    %% Use open_port to properly capture exit status
+    %% Execute through sh -c to support complex commands
+    Port = open_port({spawn_executable, "/bin/sh"}, [exit_status, use_stdio, stderr_to_stdout, binary, {args, ["-c", CommandStr]}]),
+    %% Collect output and exit status
+    collect_port_output(Port, <<>>).
+
+collect_port_output(Port, Acc) ->
+    receive
+        {Port, {data, Data}} ->
+            collect_port_output(Port, <<Acc/binary, Data/binary>>);
+        {Port, {exit_status, Status}} ->
+            %% Port closed normally
+            %% Status 0 means success, non-zero means failure
+            {Acc, Status};
+        {'EXIT', Port, Reason} ->
+            %% Port crashed
+            {Acc, 1}
+    after 30000 ->
+        %% Timeout after 30 seconds
+        {Acc, 124}  %% Timeout exit code
+    end.
