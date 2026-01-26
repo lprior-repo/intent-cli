@@ -257,17 +257,56 @@ pub fn run_critique(vision: VisionSection) -> CritiqueResult {
 @external(erlang, "erlang", "halt")
 fn halt(code: Int) -> Nil
 
+/// Valid profile types
+const valid_profiles = ["api", "cli", "event", "data", "workflow", "ui"]
+
+/// Check if a profile value is valid
+fn is_valid_profile(profile: String) -> Bool {
+  list.contains(valid_profiles, profile)
+}
+
 /// Start a new vision session
 pub fn vision_start_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let profile = case input.args {
-      [p, ..] -> p
-      [] -> ""
+    let profile =
+      flag.get_string(input.flags, "profile")
+      |> result.unwrap("api")
+
+    // Check if spec path was provided as positional argument
+    // For now, any spec path arg is considered invalid since spec validation is not yet implemented
+    let spec_path = case input.args {
+      [path, ..] -> Some(path)
+      [] -> None
     }
 
-    case profile {
-      "" -> {
-        let error = json_output.error("missing_profile", "Profile is required")
+    case spec_path, is_valid_profile(profile) {
+      Some(path), _ -> {
+        let error =
+          json_output.error(
+            "spec_validation_not_implemented",
+            "Spec file validation is not yet implemented for vision start. Use: intent vision start [--profile=api|cli|event|data|workflow|ui]",
+          )
+
+        let response =
+          json_output.failure(
+            "vision_start_error",
+            "vision start",
+            json.object([]),
+            [error],
+            spec_path,
+            [],
+            exit_error,
+          )
+
+        json_output.output(response)
+        halt(exit_error)
+      }
+      _, False -> {
+        let error =
+          json_output.error(
+            "invalid_profile",
+            "Invalid profile. Valid values: api, cli, event, data, workflow, ui",
+          )
 
         let response =
           json_output.failure(
@@ -283,11 +322,11 @@ pub fn vision_start_command() -> glint.Command(Nil) {
         json_output.output(response)
         halt(exit_error)
       }
-      _ -> {
+      None, True -> {
         let session_id = ffi.generate_uuid()
         let timestamp = ffi.current_timestamp()
 
-        let session = create_command_session(session_id, profile, timestamp)
+        let _session = create_command_session(session_id, profile, timestamp)
 
         let data =
           json.object([
@@ -321,6 +360,14 @@ pub fn vision_start_command() -> glint.Command(Nil) {
   })
   |> glint.description(
     "Start a new vision phase session for problem definition",
+  )
+  |> glint.flag(
+    "profile",
+    flag.string()
+      |> flag.default("api")
+      |> flag.description(
+        "System profile type: api, cli, event, data, workflow, or ui (default: api)",
+      ),
   )
 }
 

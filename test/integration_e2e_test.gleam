@@ -390,8 +390,9 @@ pub fn gaps_analysis_e2e_test() {
 
 /// Test: ears command parses EARS patterns
 pub fn ears_parser_e2e_test() {
-  let spec = "examples/user-api.cue"
-  let result = execute_cli("gleam run -- ears " <> spec)
+  // EARS parser expects markdown requirements file, not CUE spec
+  let spec = "examples/requirements.ears.md"
+  let result = execute_cli("gleam run -- ears " <> spec <> " --output=json")
 
   result.exit_code |> should.equal(0)
   result.is_valid_json |> should.be_true()

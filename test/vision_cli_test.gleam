@@ -229,7 +229,7 @@ pub fn vision_start_with_ears_scenarios_test() {
 
 pub fn vision_critique_with_ears_patterns_test() {
   let result =
-    execute_cli("intent vision critique --session=test-session spec.cue")
+    execute_cli("gleam run -- vision critique --session=test-session spec.cue")
 
   result.exit_code |> should.equal(0)
 
@@ -239,7 +239,7 @@ pub fn vision_critique_with_ears_patterns_test() {
 }
 
 pub fn vision_session_stores_ears_data_test() {
-  let result = execute_cli("intent vision check --session=test-session")
+  let result = execute_cli("gleam run -- vision check --session=test-session")
 
   result.exit_code |> should.equal(0)
 
@@ -253,7 +253,7 @@ pub fn vision_session_stores_ears_data_test() {
 // ============================================================================
 
 pub fn vision_start_empty_vision_test() {
-  let result = execute_cli("intent vision start spec.cue --profile=api")
+  let result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   result.exit_code |> should.equal(0)
 
@@ -263,7 +263,7 @@ pub fn vision_start_empty_vision_test() {
 }
 
 pub fn vision_start_malformed_input_test() {
-  let result = execute_cli("intent vision start invalid.cue")
+  let result = execute_cli("gleam run -- vision start invalid.cue")
 
   result.exit_code |> should.equal(4)
 
@@ -271,7 +271,7 @@ pub fn vision_start_malformed_input_test() {
 }
 
 pub fn vision_check_invalid_session_test() {
-  let result = execute_cli("intent vision check --session=nonexistent-session")
+  let result = execute_cli("gleam run -- vision check --session=nonexistent-session")
 
   result.exit_code |> should.equal(4)
 
@@ -279,7 +279,7 @@ pub fn vision_check_invalid_session_test() {
 }
 
 pub fn vision_critique_missing_spec_test() {
-  let result = execute_cli("intent vision critique --session=test-session")
+  let result = execute_cli("gleam run -- vision critique --session=test-session")
 
   result.exit_code |> should.equal(4)
 
@@ -291,17 +291,17 @@ pub fn vision_critique_missing_spec_test() {
 // ============================================================================
 
 pub fn vision_to_shape_phase_transition_test() {
-  let start_result = execute_cli("intent vision start spec.cue --profile=api")
+  let start_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   start_result.exit_code |> should.equal(0)
 
-  let check_result = execute_cli("intent vision check --session=test-session")
+  let check_result = execute_cli("gleam run -- vision check --session=test-session")
 
   check_result.exit_code |> should.equal(0)
 }
 
 pub fn vision_session_storage_test() {
-  let result = execute_cli("intent vision start spec.cue --profile=api")
+  let result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   result.exit_code |> should.equal(0)
 
@@ -309,7 +309,7 @@ pub fn vision_session_storage_test() {
 }
 
 pub fn vision_session_retrieval_test() {
-  let result = execute_cli("intent vision check --session=test-session")
+  let result = execute_cli("gleam run -- vision check --session=test-session")
 
   result.exit_code |> should.equal(0)
 
@@ -317,11 +317,11 @@ pub fn vision_session_retrieval_test() {
 }
 
 pub fn cross_phase_data_sharing_test() {
-  let vision_result = execute_cli("intent vision start spec.cue --profile=api")
+  let vision_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   vision_result.exit_code |> should.equal(0)
 
-  let shape_result = execute_cli("intent shape start")
+  let shape_result = execute_cli("gleam run -- shape start")
 
   shape_result.exit_code |> should.equal(0)
 }
@@ -331,16 +331,16 @@ pub fn cross_phase_data_sharing_test() {
 // ============================================================================
 
 pub fn full_vision_workflow_test() {
-  let start_result = execute_cli("intent vision start spec.cue --profile=api")
+  let start_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   start_result.exit_code |> should.equal(0)
 
-  let check_result = execute_cli("intent vision check --session=test-session")
+  let check_result = execute_cli("gleam run -- vision check --session=test-session")
 
   check_result.exit_code |> should.equal(0)
 
   let critique_result =
-    execute_cli("intent vision critique --session=test-session spec.cue")
+    execute_cli("gleam run -- vision critique --session=test-session spec.cue")
 
   critique_result.exit_code |> should.equal(0)
 
@@ -351,39 +351,39 @@ pub fn full_vision_workflow_test() {
 
   respond_result.exit_code |> should.equal(0)
 
-  let agree_result = execute_cli("intent vision agree --session=test-session")
+  let agree_result = execute_cli("gleam run -- vision agree --session=test-session")
 
   agree_result.exit_code |> should.equal(0)
 }
 
 pub fn vision_session_management_test() {
-  let result = execute_cli("intent vision start spec.cue --profile=api")
+  let result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   result.exit_code |> should.equal(0)
 
-  let check_result = execute_cli("intent vision check --session=test-session")
+  let check_result = execute_cli("gleam run -- vision check --session=test-session")
 
   check_result.exit_code |> should.equal(0)
 }
 
 pub fn phase_transition_test() {
-  let vision_result = execute_cli("intent vision start spec.cue --profile=api")
+  let vision_result = execute_cli("gleam run -- vision start spec.cue --profile=api")
 
   vision_result.exit_code |> should.equal(0)
 
   let critique_result =
-    execute_cli("intent vision critique --session=test-session spec.cue")
+    execute_cli("gleam run -- vision critique --session=test-session spec.cue")
 
   critique_result.exit_code |> should.equal(0)
 
-  let agree_result = execute_cli("intent vision agree --session=test-session")
+  let agree_result = execute_cli("gleam run -- vision agree --session=test-session")
 
   agree_result.exit_code |> should.equal(0)
 }
 
 pub fn error_recovery_test() {
   let result =
-    execute_cli("intent vision critique --session=test-session spec.cue")
+    execute_cli("gleam run -- vision critique --session=test-session spec.cue")
 
   result.exit_code |> should.equal(0)
 
@@ -395,7 +395,7 @@ pub fn error_recovery_test() {
   respond_result.exit_code |> should.equal(0)
 
   let critique_result =
-    execute_cli("intent vision critique --session=test-session spec.cue")
+    execute_cli("gleam run -- vision critique --session=test-session spec.cue")
 
   critique_result.exit_code |> should.equal(0)
 }

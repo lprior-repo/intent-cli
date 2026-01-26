@@ -525,6 +525,44 @@ pub fn parse_history_content(
   }
 }
 
+/// Parse all history content without session filtering (pure)
+pub fn parse_all_history_content(content: String) -> List(SessionSnapshot) {
+  case string.length(string.trim(content)) {
+    0 -> []
+    _ -> {
+      string.split(content, "\n")
+      |> list.filter_map(fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> Error(Nil)
+          _ ->
+            json.decode(line, snapshot_decoder)
+            |> result.map_error(fn(_) { Nil })
+        }
+      })
+    }
+  }
+}
+
+/// Convert a snapshot to JSON for API output
+pub fn snapshot_to_json(snapshot: SessionSnapshot) -> json.Json {
+  json.object([
+    #("session_id", json.string(snapshot.session_id)),
+    #("snapshot_id", json.string(snapshot.snapshot_id)),
+    #("timestamp", json.string(snapshot.timestamp)),
+    #("description", json.string(snapshot.description)),
+    #(
+      "answers",
+      json.object(
+        dict.to_list(snapshot.answers)
+        |> list.map(fn(pair) { #(pair.0, json.string(pair.1)) }),
+      ),
+    ),
+    #("gaps_count", json.int(snapshot.gaps_count)),
+    #("conflicts_count", json.int(snapshot.conflicts_count)),
+    #("stage", json.string(snapshot.stage)),
+  ])
+}
+
 // =============================================================================
 // Session History JSONL - I/O Functions with Dependency Injection
 // =============================================================================
@@ -580,6 +618,20 @@ pub fn list_session_history(
   session_id: String,
 ) -> Result(List(SessionSnapshot), String) {
   list_session_history_with_io(history_path, session_id, simplifile_reader())
+}
+
+/// List all history snapshots from all sessions using simplifile
+pub fn list_all_history(history_path: String) -> Result(List(SessionSnapshot), String) {
+  list_all_history_with_io(history_path, simplifile_reader())
+}
+
+/// List all history snapshots from all sessions (with DI)
+pub fn list_all_history_with_io(
+  history_path: String,
+  reader: FileReader,
+) -> Result(List(SessionSnapshot), String) {
+  use content <- result.try(reader(history_path))
+  Ok(parse_all_history_content(content))
 }
 
 fn snapshot_decoder(

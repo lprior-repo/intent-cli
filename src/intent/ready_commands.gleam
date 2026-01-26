@@ -40,62 +40,45 @@ pub fn ready_start_command() -> glint.Command(Nil) {
       [] -> ""
     }
 
-    case spec_path {
-      "" -> {
-        let error =
-          json_output.error("missing_spec_path", "Spec file path is required")
+    let session_id = ffi.generate_uuid()
+    let timestamp = ffi.current_timestamp()
 
-        let response =
-          json_output.failure(
-            "ready_start_error",
-            "ready start",
-            json.object([]),
-            [error],
-            None,
-            [],
-            exit_error,
-          )
+    let data =
+      json.object([
+        #("session_id", json.string(session_id)),
+        #("spec_path", json.string(spec_path)),
+        #("phase", json.string("ready")),
+        #("status", json.string("in_progress")),
+        #("created_at", json.string(timestamp)),
+      ])
 
-        json_output.output(response)
-        halt(exit_error)
-      }
-      _ -> {
-        let session_id = ffi.generate_uuid()
-        let timestamp = ffi.current_timestamp()
+    let next_actions = [
+      json_output.next_action(
+        "intent ready check --session=" <> session_id,
+        "Check session status",
+      ),
+      json_output.next_action(
+        "intent ready critique --session=" <> session_id,
+        "Run Pre-Launch Auditor critique",
+      ),
+    ]
 
-        let data =
-          json.object([
-            #("session_id", json.string(session_id)),
-            #("spec_path", json.string(spec_path)),
-            #("phase", json.string("ready")),
-            #("status", json.string("in_progress")),
-            #("created_at", json.string(timestamp)),
-          ])
-
-        let next_actions = [
-          json_output.next_action(
-            "intent ready check --session=" <> session_id,
-            "Check session status",
-          ),
-          json_output.next_action(
-            "intent ready critique --session=" <> session_id,
-            "Run Pre-Launch Auditor critique",
-          ),
-        ]
-
-        let response =
-          json_output.success(
-            "ready_start_result",
-            "ready start",
-            data,
-            Some(spec_path),
-            next_actions,
-          )
-
-        json_output.output(response)
-        halt(exit_pass)
-      }
+    let spec_path_opt = case spec_path {
+      "" -> None
+      _ -> Some(spec_path)
     }
+
+    let response =
+      json_output.success(
+        "ready_start_result",
+        "ready start",
+        data,
+        spec_path_opt,
+        next_actions,
+      )
+
+    json_output.output(response)
+    halt(exit_pass)
   })
   |> glint.description(
     "Start a new ready phase session for pre-launch validation",
