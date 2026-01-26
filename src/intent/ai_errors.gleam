@@ -441,5 +441,69 @@ fn format_decode_errors(errors: List(DecodeError)) -> String {
 @external(erlang, "intent_ffi", "halt")
 fn halt(code: Int) -> Nil
 
+// =============================================================================
+// CLI Error Formatting - Standardized Error Output
+// =============================================================================
+
+/// Lightweight CLI error for consistent human-readable output.
+/// Use this for simple command-line error messages.
+pub type CliError {
+  CliError(
+    /// The error message
+    message: String,
+    /// Optional usage hint (e.g., "intent export <spec.cue>")
+    usage_hint: Option(String),
+    /// Additional context lines (suggestions, hints, examples)
+    context: List(String),
+  )
+}
+
+/// Create a simple CLI error with just a message
+pub fn cli_error(message: String) -> CliError {
+  CliError(message: message, usage_hint: None, context: [])
+}
+
+/// Create a CLI error with a usage hint
+pub fn cli_error_with_usage(
+  message message: String,
+  usage usage: String,
+) -> CliError {
+  CliError(message: message, usage_hint: Some(usage), context: [])
+}
+
+/// Create a CLI error with context lines
+pub fn cli_error_with_context(
+  message message: String,
+  context context: List(String),
+) -> CliError {
+  CliError(message: message, usage_hint: None, context: context)
+}
+
+/// Convert a StructuredError to a CliError
+pub fn cli_error_from_structured(error: StructuredError) -> CliError {
+  CliError(message: error.message, usage_hint: None, context: error.recovery)
+}
+
+/// Format a CLI error as a human-readable string.
+/// Standard format:
+///   Error: <message>
+///
+///   Usage: <hint>  (if present)
+///
+///   <context lines>  (if present)
+pub fn format_cli_error(error: CliError) -> String {
+  let base = "Error: " <> error.message
+
+  let with_usage = case error.usage_hint {
+    None -> base
+    Some(usage) -> base <> "\n\nUsage: " <> usage
+  }
+
+  case error.context {
+    [] -> with_usage
+    lines -> with_usage <> "\n\n" <> string.join(lines, "\n")
+  }
+}
+
 // Required imports
 import gleam/int

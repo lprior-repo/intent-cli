@@ -1,7 +1,5 @@
 /// Tests for batch mode interview functionality
 /// Batch mode allows AI to process all answers non-interactively from JSON file
-import gleam/dict
-import gleam/json
 import gleam/list
 import gleeunit
 import gleeunit/should

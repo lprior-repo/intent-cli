@@ -1,0 +1,236 @@
+import gleam/list
+import gleeunit
+import gleeunit/should
+import intent/question_loader
+import intent/question_types.{
+  Business, Constraint, Critical, HappyPath, Important, User,
+}
+
+pub fn main() -> Nil {
+  gleeunit.main()
+}
+
+// ============================================================================
+// Vision Questions Tests
+// ============================================================================
+
+pub fn vision_questions_load_from_cue_test() {
+  let result = question_loader.load_default_questions()
+
+  case result {
+    Ok(db) -> {
+      // Should have vision profile
+      db.vision.round_1
+      |> list.length
+      |> should.equal(8)
+    }
+    Error(e) -> {
+      question_loader.format_error(e)
+      |> should.fail()
+    }
+  }
+}
+
+pub fn vision_round_1_has_8_questions_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      let questions = question_loader.get_questions(db, "vision", 1)
+      list.length(questions) |> should.equal(8)
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_round_2_is_empty_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      let questions = question_loader.get_questions(db, "vision", 2)
+      list.length(questions) |> should.equal(0)
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_1_press_release_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [q1, ..] -> {
+          q1.id |> should.equal("r1-vision-1")
+          q1.question |> should.equal("What problem are we solving?")
+          q1.extract_into |> should.equal(["press_release"])
+          q1.perspective |> should.equal(Business)
+          q1.category |> should.equal(HappyPath)
+          q1.priority |> should.equal(Critical)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_2_persona_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [_, q2, ..] -> {
+          q2.id |> should.equal("r1-vision-2")
+          q2.question |> should.equal("Who specifically needs this?")
+          q2.extract_into |> should.equal(["persona"])
+          q2.perspective |> should.equal(User)
+          q2.priority |> should.equal(Critical)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_3_non_personas_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [_, _, q3, ..] -> {
+          q3.id |> should.equal("r1-vision-3")
+          q3.question |> should.equal("Who is this NOT for?")
+          q3.extract_into |> should.equal(["non_personas"])
+          q3.perspective |> should.equal(User)
+          q3.category |> should.equal(Constraint)
+          q3.priority |> should.equal(Important)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_4_replaces_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [_, _, _, q4, ..] -> {
+          q4.id |> should.equal("r1-vision-4")
+          q4.question |> should.equal("What do they currently use?")
+          q4.extract_into |> should.equal(["replaces"])
+          q4.perspective |> should.equal(Business)
+          q4.category |> should.equal(Constraint)
+          q4.priority |> should.equal(Important)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_5_vorp_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [_, _, _, _, q5, ..] -> {
+          q5.id |> should.equal("r1-vision-5")
+          q5.question
+          |> should.equal(
+            "What would make them switch? (VORP - Value Over Replacement)",
+          )
+          q5.extract_into |> should.equal(["vorp"])
+          q5.perspective |> should.equal(Business)
+          q5.category |> should.equal(HappyPath)
+          q5.priority |> should.equal(Critical)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_6_north_star_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [_, _, _, _, _, q6, ..] -> {
+          q6.id |> should.equal("r1-vision-6")
+          q6.question
+          |> should.equal("What is their ideal journey? (North star)")
+          q6.extract_into |> should.equal(["north_star"])
+          q6.perspective |> should.equal(User)
+          q6.category |> should.equal(HappyPath)
+          q6.priority |> should.equal(Critical)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_7_scenarios_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [_, _, _, _, _, _, q7, ..] -> {
+          q7.id |> should.equal("r1-vision-7")
+          q7.question
+          |> should.equal(
+            "What scenarios demonstrate this? (2-3 concrete scenarios)",
+          )
+          q7.extract_into |> should.equal(["scenarios"])
+          q7.perspective |> should.equal(User)
+          q7.category |> should.equal(HappyPath)
+          q7.priority |> should.equal(Critical)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_question_8_out_of_scope_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      case db.vision.round_1 {
+        [_, _, _, _, _, _, _, q8] -> {
+          q8.id |> should.equal("r1-vision-8")
+          q8.question |> should.equal("What is explicitly out of scope?")
+          q8.extract_into |> should.equal(["out_of_scope"])
+          q8.perspective |> should.equal(Business)
+          q8.category |> should.equal(Constraint)
+          q8.priority |> should.equal(Important)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_all_questions_have_context_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      db.vision.round_1
+      |> list.each(fn(q) {
+        q.context
+        |> should.not_equal("")
+      })
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn vision_all_questions_have_examples_test() {
+  case question_loader.load_default_questions() {
+    Ok(db) -> {
+      db.vision.round_1
+      |> list.each(fn(q) {
+        q.example
+        |> should.not_equal("")
+      })
+    }
+    Error(_) -> should.fail()
+  }
+}

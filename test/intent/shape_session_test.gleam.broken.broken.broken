@@ -1,0 +1,161 @@
+import gleeunit/should
+import intent/shape_session
+import gleam/dict
+import gleam/option.{Some}
+
+pub fn create_session_test() {
+  let session = shape_session.create_session(
+    "sess-123",
+    "shape",
+    "2026-01-25T10:00:00Z",
+  )
+
+  session.id |> should.equal("sess-123")
+  session.profile |> should.equal("shape")
+  session.status |> should.equal(shape_session.InProgress)
+  session.answers |> should.equal([])
+  session.gaps |> should.equal([])
+  session.conflicts |> should.equal([])
+}
+
+pub fn record_answer_test() {
+  let session = shape_session.create_session(
+    "sess-123",
+    "shape",
+    "2026-01-25T10:00:00Z",
+  )
+
+  let extracted = dict.from_list([#("features", "User API, Dashboard")])
+  let updated = shape_session.record_answer(
+    session,
+    "q1-features",
+    "We need a User API and Dashboard",
+    extracted,
+    "2026-01-25T10:05:00Z",
+  )
+
+  updated.answers |> should.have_length(1)
+  updated.updated_at |> should.equal("2026-01-25T10:05:00Z")
+}
+
+pub fn find_answer_test() {
+  let session = shape_session.create_session(
+    "sess-123",
+    "shape",
+    "2026-01-25T10:00:00Z",
+  )
+
+  let extracted = dict.from_list([#("features", "User API")])
+  let updated = shape_session.record_answer(
+    session,
+    "q1-features",
+    "User API",
+    extracted,
+    "2026-01-25T10:05:00Z",
+  )
+
+  let found = shape_session.find_answer(updated, "q1-features")
+  found |> should.be_some()
+
+  let not_found = shape_session.find_answer(updated, "q2-nonexistent")
+  not_found |> should.be_none()
+}
+
+pub fn get_answered_count_test() {
+  let session = shape_session.create_session(
+    "sess-123",
+    "shape",
+    "2026-01-25T10:00:00Z",
+  )
+
+  shape_session.get_answered_count(session) |> should.equal(0)
+
+  let extracted = dict.new()
+  let updated = shape_session.record_answer(
+    session,
+    "q1",
+    "answer1",
+    extracted,
+    "2026-01-25T10:05:00Z",
+  )
+
+  shape_session.get_answered_count(updated) |> should.equal(1)
+}
+
+pub fn build_shape_section_missing_fields_test() {
+  let session = shape_session.create_session(
+    "sess-123",
+    "shape",
+    "2026-01-25T10:00:00Z",
+  )
+
+  // Should fail with missing required fields
+  let result = shape_session.build_shape_section(session)
+  result |> should.be_error()
+}
+
+pub fn build_shape_section_complete_test() {
+  let session = shape_session.create_session(
+    "sess-123",
+    "shape",
+    "2026-01-25T10:00:00Z",
+  )
+
+  // Add all required fields
+  let extracted1 = dict.from_list([#("features", "User API, Dashboard")])
+  let s1 = shape_session.record_answer(
+    session,
+    "q1",
+    "User API and Dashboard",
+    extracted1,
+    "2026-01-25T10:05:00Z",
+  )
+
+  let extracted2 = dict.from_list([#("critical_path", "Auth, CRUD")])
+  let s2 = shape_session.record_answer(
+    s1,
+    "q2",
+    "Auth and CRUD",
+    extracted2,
+    "2026-01-25T10:06:00Z",
+  )
+
+  let extracted3 = dict.from_list([#("mvp_description", "Basic CRUD")])
+  let s3 = shape_session.record_answer(
+    s2,
+    "q3",
+    "Basic CRUD",
+    extracted3,
+    "2026-01-25T10:07:00Z",
+  )
+
+  let extracted4 = dict.from_list([#("shortcuts", "Hardcode admin")])
+  let s4 = shape_session.record_answer(
+    s3,
+    "q4",
+    "Hardcode admin",
+    extracted4,
+    "2026-01-25T10:08:00Z",
+  )
+
+  let extracted5 = dict.from_list([#("post_mvp", "Advanced features")])
+  let s5 = shape_session.record_answer(
+    s4,
+    "q5",
+    "Advanced features",
+    extracted5,
+    "2026-01-25T10:09:00Z",
+  )
+
+  let extracted6 = dict.from_list([#("validation_moment", "User can log in and create item")])
+  let s6 = shape_session.record_answer(
+    s5,
+    "q6",
+    "User can log in and create item",
+    extracted6,
+    "2026-01-25T10:10:00Z",
+  )
+
+  let result = shape_session.build_shape_section(s6)
+  result |> should.be_ok()
+}

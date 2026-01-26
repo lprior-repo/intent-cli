@@ -1,0 +1,43 @@
+{
+  "bead_id": "intent-cli-bxk",
+  "title": "WAVE1-06: Vision Tests",
+  "language": "gleam",
+  "complexity": "MEDIUM",
+  "current_phase": 15,
+  "phase_status": "complete",
+  "phases": {
+    "0_triage": {
+      "status": "complete",
+      "complexity_assessment": "MEDIUM",
+      "rationale": "Two modules need comprehensive test coverage (vision_session, vision_commands). Each module has ~10-15 functions with clear contracts. Existing vision tests provide patterns to follow. No complex dependencies or HTTP testing needed.",
+      "criteria_count": 2,
+      "file_count": 2,
+      "dependency_depth": 1,
+      "test_command": "gleam test",
+      "format_command": "gleam format"
+    },
+    "1_research": {"status": "complete"},
+    "2_plan": {"status": "complete"},
+    "3_verify": {"status": "skipped"},
+    "4_red": {"status": "complete", "tests_created": ["vision_session_test.gleam", "vision_commands_test.gleam"], "test_count": 60},
+    "5_green": {"status": "complete", "note": "Modules already implemented, tests pass"},
+    "6_refactor": {"status": "complete", "note": "Tests formatted with gleam format, follow conventions"},
+    "7_martin_fowler_1": {"status": "complete", "score": 95, "note": "Clean code, good naming, follows Gleam 7 Commandments"},
+    "8_implement": {"status": "skipped"},
+    "9_verify_criteria": {"status": "complete", "note": "All success criteria met"},
+    "10_fp_gates": {"status": "skipped"},
+    "11_qa": {"status": "complete", "note": "60 comprehensive tests covering all public functions"},
+    "12_martin_fowler_2": {"status": "skipped"},
+    "13_consistency": {"status": "skipped"},
+    "14_liability": {"status": "complete", "note": "No unnecessary code added, only tests"},
+    "15_landing": {"status": "pending"}
+  },
+  "route": ["0_triage", "1_research", "2_plan", "4_red", "5_green", "6_refactor", "7_martin_fowler_1", "9_verify_criteria", "11_qa", "15_landing"],
+  "success_criteria": [
+    "Comprehensive tests for vision_session.gleam covering all public functions",
+    "Comprehensive tests for vision_commands.gleam covering all public functions",
+    "All tests pass with gleam test",
+    "Code follows Gleam 7 Commandments (immutability, exhaustive matching, pipelines)",
+    "Tests use Result types and exhaustive pattern matching"
+  ]
+}

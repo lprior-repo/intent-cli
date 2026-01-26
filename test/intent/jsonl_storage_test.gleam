@@ -1,7 +1,6 @@
 //// Tests for generic JSONL storage pattern
 //// Tests pure functions and I/O functions with mock dependencies
 
-import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
@@ -55,25 +54,6 @@ fn mock_reader(content: String) -> jsonl_storage.FileReader {
 /// Mock file reader that returns error
 fn mock_reader_error() -> jsonl_storage.FileReader {
   fn(_path: String) -> Result(String, String) { Error("Mock read error") }
-}
-
-/// Mock file writer that captures written content
-/// Returns a writer function and a way to get the captured content
-type WriterCapture {
-  WriterCapture(
-    writer: jsonl_storage.FileWriter,
-    get_content: fn() -> Result(String, Nil),
-  )
-}
-
-fn mock_writer_capture() -> WriterCapture {
-  // In real implementation, this would use mutable reference or closure state
-  // For now, just return a writer that accepts anything
-  let writer = fn(_path: String, _content: String) -> Result(Nil, String) {
-    Ok(Nil)
-  }
-  let get_content = fn() -> Result(String, Nil) { Error(Nil) }
-  WriterCapture(writer: writer, get_content: get_content)
 }
 
 /// Mock file writer that returns success

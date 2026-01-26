@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-cw1",
+    "title": "AI-08: Implement intent ai validate command",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "feature",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:53:09.732903669-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T16:40:15.158593315-06:00"
+  }
+]

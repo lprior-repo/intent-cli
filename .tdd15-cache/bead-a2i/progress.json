@@ -1,0 +1,27 @@
+{
+  "bead_id": "intent-cli-a2i",
+  "title": "WAVE0-01: Core Types (Plan, Vision, Shape, Spec, Ready)",
+  "workflow_version": "1.0",
+  "started_at": "2026-01-25T15:17:58Z",
+  "current_phase": 5,
+  "complexity": "MEDIUM",
+  "language": "gleam",
+  "phases": {
+    "0": {"name": "TRIAGE", "status": "complete"},
+    "1": {"name": "RESEARCH", "status": "complete"},
+    "2": {"name": "PLAN", "status": "complete"},
+    "3": {"name": "VERIFY", "status": "skipped"},
+    "4": {"name": "RED", "status": "complete", "completed_at": "2026-01-25T15:35:00Z", "result": "Tests fail as expected - KIRKHealth, SpecSection, Plan types missing"},
+    "5": {"name": "GREEN", "status": "in_progress", "started_at": "2026-01-25T15:35:00Z"},
+    "6": {"name": "REFACTOR", "status": "pending"},
+    "7": {"name": "MF#1", "status": "pending"},
+    "8": {"name": "IMPLEMENT", "status": "skipped"},
+    "9": {"name": "VERIFY_CRITERIA", "status": "pending"},
+    "10": {"name": "FP_GATES", "status": "skipped"},
+    "11": {"name": "QA", "status": "pending"},
+    "12": {"name": "MF#2", "status": "skipped"},
+    "13": {"name": "CONSISTENCY", "status": "skipped"},
+    "14": {"name": "LIABILITY", "status": "skipped"},
+    "15": {"name": "LANDING", "status": "pending"}
+  }
+}

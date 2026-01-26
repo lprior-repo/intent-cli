@@ -1,0 +1,145 @@
+{
+  "phase": "2_plan",
+  "completed_at": "2026-01-25T16:17:00Z",
+  "implementation_plan": {
+    "overview": "Create shape_storage.gleam following the exact pattern from vision_storage.gleam, adapted for ShapeSection types",
+    "file_structure": {
+      "src/intent/shape_storage.gleam": {
+        "sections": [
+          "File I/O Function Types (Dependency Injection)",
+          "Simplifile Adapter Functions (reader, writer, dir_creator)",
+          "Data Types (ShapeDocument wrapper)",
+          "JSON Serialization - Pure Functions",
+          "JSON Deserialization - Decoders",
+          "JSONL Operations - Pure Functions",
+          "I/O Operations with Dependency Injection",
+          "Simplifile Convenience Wrappers"
+        ],
+        "estimated_lines": 400
+      },
+      "test/shape_storage_test.gleam": {
+        "test_groups": [
+          "ShapeDocument creation",
+          "JSON serialization (pure)",
+          "JSONL serialization (pure)",
+          "Update content (pure)",
+          "Find document (pure)",
+          "DI I/O tests (mocked)",
+          "Concurrent access patterns"
+        ],
+        "estimated_tests": 15
+      }
+    },
+    "types": {
+      "ShapeDocument": {
+        "fields": {
+          "id": "String",
+          "title": "String",
+          "created_at": "String (ISO 8601)",
+          "updated_at": "String (ISO 8601)",
+          "shape": "ShapeSection (from planning_types)"
+        },
+        "note": "Wrapper type similar to VisionDocument but holds a single ShapeSection instead of List(VisionSection)"
+      }
+    },
+    "function_implementation_order": [
+      {
+        "step": 1,
+        "name": "Dependency Injection types and simplifile adapters",
+        "functions": [
+          "FileReader type alias",
+          "FileWriter type alias",
+          "DirectoryCreator type alias",
+          "simplifile_reader()",
+          "simplifile_writer()",
+          "simplifile_dir_creator()"
+        ],
+        "complexity": "simple",
+        "note": "Copy pattern from vision_storage"
+      },
+      {
+        "step": 2,
+        "name": "ShapeDocument type",
+        "functions": ["ShapeDocument type definition"],
+        "complexity": "simple"
+      },
+      {
+        "step": 3,
+        "name": "JSON serialization (to JSON)",
+        "functions": [
+          "feature_shape_to_json(FeatureShape) -> json.Json",
+          "mvp_slice_to_json(MVPSlice) -> json.Json",
+          "shape_section_to_json(ShapeSection) -> json.Json",
+          "shape_document_to_json(ShapeDocument) -> json.Json",
+          "json_to_string(json.Json) -> String"
+        ],
+        "complexity": "medium",
+        "note": "Use json.object with field pairs"
+      },
+      {
+        "step": 4,
+        "name": "JSON deserialization (from JSON)",
+        "functions": [
+          "feature_shape_decoder(dynamic.Dynamic) -> Result(FeatureShape, DecodeErrors)",
+          "mvp_slice_decoder(dynamic.Dynamic) -> Result(MVPSlice, DecodeErrors)",
+          "shape_section_decoder(dynamic.Dynamic) -> Result(ShapeSection, DecodeErrors)",
+          "shape_document_decoder(dynamic.Dynamic) -> Result(ShapeDocument, DecodeErrors)",
+          "document_id_decoder(dynamic.Dynamic) -> Result(String, DecodeErrors)"
+        ],
+        "complexity": "medium",
+        "note": "Use dynamic.field and use-bind pattern"
+      },
+      {
+        "step": 5,
+        "name": "JSONL pure functions",
+        "functions": [
+          "shape_document_to_jsonl_line(ShapeDocument) -> String",
+          "parse_shape_documents_content(String) -> List(ShapeDocument)",
+          "update_documents_content(String, ShapeDocument) -> String",
+          "find_document_by_id(List(ShapeDocument), String) -> Result(ShapeDocument, String)",
+          "get_parent_directory(String) -> Result(String, Nil)"
+        ],
+        "complexity": "medium",
+        "note": "Pure transformations, no I/O"
+      },
+      {
+        "step": 6,
+        "name": "I/O operations with DI",
+        "functions": [
+          "ensure_parent_directory_with_io(String, DirectoryCreator) -> Result(Nil, String)",
+          "append_document_with_io(ShapeDocument, String, FileReader, FileWriter, DirectoryCreator) -> Result(Nil, String)",
+          "list_documents_with_io(String, FileReader) -> Result(List(ShapeDocument), String)",
+          "get_document_with_io(String, String, FileReader) -> Result(ShapeDocument, String)"
+        ],
+        "complexity": "medium",
+        "note": "Accept DI functions as parameters"
+      },
+      {
+        "step": 7,
+        "name": "Simplifile convenience wrappers",
+        "functions": [
+          "append_document(ShapeDocument, String) -> Result(Nil, String)",
+          "list_documents(String) -> Result(List(ShapeDocument), String)",
+          "get_document(String, String) -> Result(ShapeDocument, String)"
+        ],
+        "complexity": "simple",
+        "note": "Call DI functions with simplifile adapters"
+      }
+    ],
+    "test_strategy": {
+      "red_phase": "Write failing tests for each function group",
+      "green_phase": "Implement minimal code to pass tests",
+      "refactor_phase": "Extract common patterns, ensure DRY"
+    },
+    "success_criteria": [
+      "All tests pass with gleam test",
+      "ShapeDocument can be serialized to JSONL",
+      "ShapeDocument can be deserialized from JSONL",
+      "Multiple documents can be stored in single file",
+      "Document updates use last-write-wins pattern",
+      "DI pattern allows testing without filesystem",
+      "Code follows vision_storage.gleam architecture exactly"
+    ]
+  },
+  "gate_passed": "plan_verified"
+}

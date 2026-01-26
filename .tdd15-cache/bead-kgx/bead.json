@@ -1,0 +1,11 @@
+{
+  "id": "intent-cli-kgx",
+  "title": "AI-03: Extend json_output.gleam with correlation ID and duration_ms",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "task",
+  "owner": "priorlewis43@gmail.com",
+  "created_at": "2026-01-25T08:53:09.671816904-06:00",
+  "created_by": "Lewis Prior",
+  "updated_at": "2026-01-25T08:53:09.671816904-06:00"
+}

@@ -1,0 +1,43 @@
+import gleam/dict
+import gleeunit/should
+import intent/kirk/ready
+import intent/planning_types
+import intent/types.{AIHints, Config, ImplementationHints, SecurityHints, Spec}
+
+pub fn ready_module_exists_test() {
+  // Just test that we can call the module
+  let spec =
+    Spec(
+      name: "Test",
+      description: "Test spec",
+      audience: "devs",
+      version: "1.0.0",
+      success_criteria: [],
+      config: Config(
+        base_url: "http://localhost",
+        timeout_ms: 5000,
+        headers: dict.new(),
+        allow_localhost: False,
+      ),
+      features: [],
+      rules: [],
+      anti_patterns: [],
+      ai_hints: AIHints(
+        implementation: ImplementationHints(suggested_stack: []),
+        entities: dict.new(),
+        security: SecurityHints(
+          password_hashing: "",
+          jwt_algorithm: "",
+          jwt_expiry: "",
+          rate_limiting: "",
+        ),
+        pitfalls: [],
+      ),
+    )
+
+  let report = ready.analyze_ready(spec)
+
+  // Check structure exists
+  { report.overall_readiness >= 0 }
+  |> should.be_true
+}

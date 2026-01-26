@@ -1,0 +1,45 @@
+{
+  "bead_id": "intent-cli-eu9",
+  "title": "AI-09: Implement intent ai stream command",
+  "language": "gleam",
+  "complexity": "SIMPLE",
+  "phase": 0,
+  "status": "triage_complete",
+  "assessment": {
+    "criteria_count": 1,
+    "file_count": 2,
+    "dependency_depth": 1,
+    "has_existing_tests": true,
+    "has_existing_patterns": true
+  },
+  "routing": {
+    "path": "SIMPLE",
+    "phases": [0, 4, 5, 6, 14, 15],
+    "reason": "Simple command implementation - streaming JSONL from stdin to stdout. Similar to existing ai batch command. Low complexity with clear pattern to follow."
+  },
+  "implementation_notes": {
+    "description": "Implement `intent ai stream` command for interactive JSONL streaming",
+    "pattern": "Read JSONL from stdin line-by-line, execute each command, write response to stdout",
+    "similar_to": "ai_batch_command in intent.gleam",
+    "files_to_modify": [
+      "src/intent.gleam"
+    ],
+    "files_to_create": [],
+    "test_files": [
+      "test/command_router_test.gleam"
+    ],
+    "dependencies": [
+      "intent/jsonl_input.gleam",
+      "intent/command_router.gleam",
+      "intent/json_output.gleam"
+    ]
+  },
+  "success_criteria": [
+    "Command `intent ai stream` reads JSONL from stdin",
+    "Each line is parsed and executed immediately",
+    "Responses are written to stdout as JSONL",
+    "Command exits on EOF or invalid input",
+    "Tests pass with `gleam test`",
+    "Code formatted with `gleam format`"
+  ]
+}

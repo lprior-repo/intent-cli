@@ -1,0 +1,253 @@
+{
+  "phase": "RESEARCH",
+  "started_at": "2026-01-25T15:45:00Z",
+  "completed_at": "2026-01-25T16:00:00Z",
+  "objective": "Map all commands to their JSON output structures",
+  "status": "complete",
+
+  "common_envelope": {
+    "description": "All commands use JsonResponse from json_output.gleam",
+    "file": "src/intent/json_output.gleam",
+    "fields": {
+      "success": "Bool - whether command succeeded",
+      "action": "String - result type (e.g., 'check_result', 'quality_result')",
+      "command": "String - command name (e.g., 'check', 'quality')",
+      "data": "Json - command-specific output (THIS IS WHAT SCHEMAS DEFINE)",
+      "errors": "List(JsonError) - structured errors",
+      "next_actions": "List(NextAction) - suggested follow-ups",
+      "metadata": "JsonMetadata - timestamp, version, exit_code, correlation_id, duration_ms",
+      "spec_path": "Option(String) - path to spec file if applicable"
+    }
+  },
+
+  "command_data_structures": {
+    "validate": {
+      "action": "validate_result",
+      "data_fields": {
+        "valid": "bool"
+      },
+      "line_numbers": "185-247",
+      "notes": "Simple boolean validation result"
+    },
+
+    "lint": {
+      "action": "lint_result",
+      "data_fields": {
+        "valid": "bool",
+        "total_warnings": "int (optional, when warnings exist)",
+        "errors": "int (count of error-severity warnings)",
+        "warnings": "int (count of warning-severity)",
+        "info": "int (count of info-severity)",
+        "findings": "array of warning objects (when warnings exist)"
+      },
+      "line_numbers": "352-476",
+      "notes": "Two forms: simple (valid:true) or detailed (with findings)"
+    },
+
+    "quality": {
+      "action": "quality_result",
+      "data_fields": {
+        "coverage_score": "int",
+        "clarity_score": "int",
+        "testability_score": "int",
+        "ai_readiness_score": "int",
+        "overall_score": "int",
+        "issues": "array of strings",
+        "suggestions": "array of strings"
+      },
+      "line_numbers": "2981-3056",
+      "schema_file": "schema/ai/output/quality.cue",
+      "notes": "Existing schema file, 5 dimension scoring"
+    },
+
+    "analyze": {
+      "action": "analyze_result",
+      "data_fields": "SAME AS quality command (analyze is an alias)",
+      "line_numbers": "480-545",
+      "notes": "Shares structure with quality command"
+    },
+
+    "improve": {
+      "action": "improve_result",
+      "data_fields": {
+        "suggestions": "array of suggestion objects with {title, description, reasoning, impact_score}",
+        "suggestion_count": "int"
+      },
+      "line_numbers": "548-614",
+      "notes": "Improvement suggestions with impact scores"
+    },
+
+    "doctor": {
+      "action": "doctor_result",
+      "data_fields": "Delegated to doctor.json_output() - need to check doctor.gleam",
+      "line_numbers": "617-643",
+      "notes": "Health report with prioritized improvements"
+    },
+
+    "coverage": {
+      "action": "coverage_result",
+      "data_fields": {
+        "overall_score": "float",
+        "methods": "object (dict of method:count)",
+        "status_codes": "object (dict of code:count)",
+        "owasp_score": "float",
+        "owasp_missing": "array of strings"
+      },
+      "line_numbers": "3160-3242",
+      "notes": "OWASP + edge case coverage analysis"
+    },
+
+    "gaps": {
+      "action": "gaps_result",
+      "data_fields": "Need to check kirk/gap_detector.gleam for structure",
+      "line_numbers": "3245-3350",
+      "notes": "Mental model gap detection"
+    },
+
+    "invert": {
+      "action": "invert_result",
+      "data_fields": "Need to check kirk/inversion_checker.gleam for structure",
+      "line_numbers": "3059-3159",
+      "notes": "24 failure patterns (security, usability, integration)"
+    },
+
+    "effects": {
+      "action": "effects_result",
+      "data_fields": "Need to check kirk/effects_analyzer.gleam for structure",
+      "line_numbers": "3351-3408",
+      "notes": "Second-order effects analysis"
+    },
+
+    "ears": {
+      "action": "ears_result",
+      "data_fields": "Need to check kirk/ears_parser.gleam for structure",
+      "line_numbers": "3419-3634",
+      "notes": "EARS pattern parsing (5 patterns)"
+    },
+
+    "parse": {
+      "action": "parse_result",
+      "data_fields": "Similar to ears but simpler validation",
+      "line_numbers": "3635-3889",
+      "notes": "Quick EARS validation"
+    },
+
+    "sessions": {
+      "action": "sessions_result",
+      "data_fields": {
+        "sessions": "array of session objects",
+        "total": "int",
+        "shown": "int",
+        "truncated": "bool"
+      },
+      "line_numbers": "2839-2980",
+      "notes": "List interview sessions with filtering"
+    },
+
+    "prompt": {
+      "action": "prompt_result",
+      "data_fields": {
+        "prompts": "array of prompt objects",
+        "count": "int",
+        "total_beads": "int",
+        "session_id": "string"
+      },
+      "line_numbers": "2450-2626",
+      "notes": "AI implementation prompts from beads"
+    },
+
+    "beads": {
+      "action": "beads_result",
+      "data_fields": "Need to check full structure around line 1623",
+      "line_numbers": "1623-1730",
+      "notes": "Generate work items from interview session"
+    },
+
+    "feedback": {
+      "action": "feedback_result",
+      "data_fields": "Need to check bead_feedback module",
+      "line_numbers": "2312-2449",
+      "notes": "Generate fix beads from check failures"
+    },
+
+    "plan": {
+      "action": "plan_result",
+      "data_fields": "Need to check plan_mode module",
+      "line_numbers": "1907-1977",
+      "notes": "Health + waves + beads planning"
+    },
+
+    "show": {
+      "action": "show_result",
+      "data_fields": "Exports spec JSON - likely full spec structure",
+      "line_numbers": "250-325",
+      "notes": "Pretty print parsed spec"
+    },
+
+    "export": {
+      "action": "export_result",
+      "data_fields": "CUE spec export - need to check structure",
+      "line_numbers": "326-351",
+      "notes": "Export session to CUE spec"
+    },
+
+    "history": {
+      "action": "history_result",
+      "data_fields": "Interview history snapshots",
+      "line_numbers": "2627-2731",
+      "notes": "Show interview snapshots"
+    },
+
+    "diff": {
+      "action": "diff_result",
+      "data_fields": "Session comparison results",
+      "line_numbers": "2732-2804",
+      "notes": "Compare interview sessions"
+    },
+
+    "bead-status": {
+      "action": "bead_status_result",
+      "data_fields": "Status update confirmation",
+      "line_numbers": "1731-1906",
+      "notes": "Update individual bead execution status"
+    },
+
+    "plan-approve": {
+      "action": "plan_approve_result",
+      "data_fields": "Approval confirmation",
+      "line_numbers": "1978-2146",
+      "notes": "Approve execution plan"
+    },
+
+    "beads-regenerate": {
+      "action": "beads_regenerate_result",
+      "data_fields": "Regenerated beads from spec",
+      "line_numbers": "2147-2311",
+      "notes": "Regenerate beads from spec"
+    },
+
+    "interview": {
+      "action": "interview_result",
+      "data_fields": "Session state/progress - complex interactive command",
+      "line_numbers": "646-1622",
+      "notes": "Guided specification discovery - may not have JSON output"
+    }
+  },
+
+  "patterns_identified": {
+    "simple_boolean": ["validate"],
+    "score_based": ["quality", "analyze", "coverage"],
+    "list_based": ["lint", "improve", "sessions", "prompt"],
+    "complex_nested": ["gaps", "invert", "effects", "plan"],
+    "session_related": ["sessions", "history", "diff", "export", "beads"],
+    "bead_related": ["beads", "prompt", "feedback", "bead-status", "plan-approve", "beads-regenerate"]
+  },
+
+  "next_steps": [
+    "1. Read additional analyzer modules (gap_detector, inversion_checker, effects_analyzer, ears_parser)",
+    "2. Read doctor.gleam to understand doctor command output",
+    "3. Read plan_mode.gleam to understand plan command output",
+    "4. Read bead_templates.gleam and bead_feedback.gleam for bead command outputs",
+    "5. Create detailed plan for schema file creation"
+  ]
+}

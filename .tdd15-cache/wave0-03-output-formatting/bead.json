@@ -1,0 +1,15 @@
+{
+  "id": "intent-cli-imq",
+  "title": "WAVE0-03: Output Formatting (JSON + next_actions)",
+  "status": "in_progress",
+  "priority": 1,
+  "issue_type": "task",
+  "description": "Implement consistent JSON output formatting with next_actions field for AI workflow guidance across all commands",
+  "success_criteria": [
+    "All commands support --json=true flag",
+    "Consistent ActionResult schema across all outputs",
+    "next_actions field populated with relevant workflow suggestions",
+    "Machine-readable error messages in JSON format",
+    "All KIRK commands return structured action metadata"
+  ]
+}

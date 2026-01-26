@@ -1,0 +1,24 @@
+{
+  "bead_id": "intent-cli-dku",
+  "title": "WAVE5-03: Enhanced Bead Generator (EARS+Contracts+Types+Tests)",
+  "current_phase": "COMPLETE",
+  "complexity": "MEDIUM",
+  "language": "gleam",
+  "phases_completed": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "phases_pending": [],
+  "phases_skipped": [3, 8, 10, 12, 13, 14],
+  "started_at": "2026-01-25T08:53:49-06:00",
+  "gates_passed": {
+    "phase_0_triage": true,
+    "phase_1_research": true,
+    "phase_2_plan": true,
+    "phase_4_red": true,
+    "phase_5_green": true,
+    "phase_6_refactor": true,
+    "phase_7_martin_fowler_1": true,
+    "phase_9_verify_criteria": true,
+    "phase_11_qa": true,
+    "phase_15_landing": true
+  },
+  "notes": ["MEDIUM complexity: 4 criteria, 2 files, EARS+Contracts integration"]
+}

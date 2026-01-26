@@ -1,0 +1,123 @@
+{
+  "goal": "Implement `intent ai validate` command to validate JSONL files against CUE schemas",
+  "command_signature": "intent ai validate <file> --type=input|output --command=<command>",
+  "files_to_create": [
+    {
+      "path": "src/intent/ai_validator.gleam",
+      "purpose": "Core JSONL validation logic",
+      "exports": [
+        "validate_jsonl/3",
+        "ValidationError type",
+        "ValidationResult type"
+      ]
+    },
+    {
+      "path": "test/intent/ai_validator_test.gleam",
+      "purpose": "Unit tests for ai_validator module",
+      "test_cases": [
+        "valid JSONL passes validation",
+        "invalid JSON syntax fails",
+        "valid JSON but fails schema",
+        "empty file",
+        "file not found"
+      ]
+    }
+  ],
+  "files_to_modify": [
+    {
+      "path": "src/intent.gleam",
+      "changes": [
+        "Add ai_validate_command() function around line 4250",
+        "Register command: glint.add(at: [\"ai\", \"validate\"], do: ai_validate_command())",
+        "Add import for intent/ai_validator"
+      ]
+    }
+  ],
+  "module_structure": {
+    "ai_validator": {
+      "types": [
+        "ValidationError { JsonParseError(line, msg) | SchemaValidationError(line, msg) | FileReadError(msg) | SchemaNotFound(cmd) }",
+        "ValidationResult { total_lines, valid_lines, errors }"
+      ],
+      "functions": [
+        "validate_jsonl(file_path, schema_type, command) -> Result(ValidationResult, String)",
+        "parse_jsonl_lines(content) -> List(Result(String, Int))",
+        "validate_line_against_schema(json_line, schema_content, line_num) -> Result(Nil, ValidationError)",
+        "aggregate_results(results) -> ValidationResult"
+      ]
+    }
+  },
+  "validation_flow": [
+    "1. Read file content with simplifile.read",
+    "2. Split content by newlines",
+    "3. For each line (with line number):",
+    "   a. Skip empty lines",
+    "   b. Parse as JSON (collect errors)",
+    "   c. Get schema from ai_schema.get_schema(command, type)",
+    "   d. Write JSON to temp file /tmp/intent-validate-{uuid}.json",
+    "   e. Write schema to temp file /tmp/intent-schema-{uuid}.cue",
+    "   f. Run `cue vet schema.cue data.json` via loader.validate_cue_with_executor",
+    "   g. Delete temp files",
+    "   h. Collect result with line number",
+    "4. Aggregate results (count valid/invalid)",
+    "5. Return ValidationResult"
+  ],
+  "command_flow": [
+    "1. Parse flags: --type (required), --command (required)",
+    "2. Parse args: <file> (required)",
+    "3. Validate: file exists, type in [input,output], command is valid",
+    "4. Call ai_validator.validate_jsonl(file, type, command)",
+    "5. On success: json_output.success with validation results",
+    "6. On error: json_output.failure with error details",
+    "7. halt(exit_code)"
+  ],
+  "test_strategy": {
+    "unit_tests": [
+      "parse_jsonl_lines with valid JSONL",
+      "parse_jsonl_lines with invalid JSON",
+      "parse_jsonl_lines with empty lines",
+      "validate_line_against_schema success",
+      "validate_line_against_schema failure",
+      "aggregate_results with mixed results"
+    ],
+    "integration_tests": [
+      "Full validation of valid JSONL file",
+      "Full validation with schema errors",
+      "File not found error",
+      "Schema not found error"
+    ]
+  },
+  "edge_cases": [
+    "Empty file (0 lines)",
+    "File with only whitespace",
+    "JSONL with blank lines between valid JSON",
+    "Very large files (performance)",
+    "Invalid UTF-8 in file",
+    "Schema file missing",
+    "CUE validation timeout"
+  ],
+  "dependencies": {
+    "internal": [
+      "intent/ai_schema (get_schema)",
+      "intent/loader (validate_cue_with_executor)",
+      "intent/json_output (response formatting)",
+      "intent/security (path validation)"
+    ],
+    "external": [
+      "simplifile (file I/O)",
+      "gleam/json (JSON parsing)",
+      "gleam/string (splitting)",
+      "glint (CLI)",
+      "shellout (via loader)"
+    ]
+  },
+  "success_criteria": [
+    "Command accepts <file> --type=TYPE --command=CMD",
+    "Validates each JSONL line against CUE schema",
+    "Returns JSON output with line-by-line results",
+    "Reports line numbers for errors",
+    "Handles all error cases gracefully",
+    "All tests pass",
+    "gleam format succeeds"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "bead_id": "intent-cli-qgup",
+  "complexity": "MEDIUM",
+  "language": "gleam",
+  "test_command": "gleam test",
+  "format_command": "gleam format",
+  "route": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "current_phase": 0,
+  "phase_status": {
+    "0_triage": "complete",
+    "1_research": "pending",
+    "2_plan": "pending",
+    "4_red": "pending",
+    "5_green": "pending",
+    "6_refactor": "pending",
+    "7_mf1": "pending",
+    "9_verify": "pending",
+    "11_qa": "pending",
+    "15_landing": "pending"
+  },
+  "gates_passed": [],
+  "started_at": "2026-01-25T16:41:05Z",
+  "complexity_rationale": "Multiple files (2-3), 3-4 validation scenarios, moderate testing needs"
+}

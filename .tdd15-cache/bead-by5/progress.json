@@ -1,0 +1,27 @@
+{
+  "bead_id": "intent-cli-by5",
+  "title": "SCHEMA-07: Create command_router.gleam (JSONL dispatch with validation)",
+  "complexity": "COMPLEX",
+  "language": "gleam",
+  "current_phase": 15,
+  "phases": {
+    "0_triage": "complete",
+    "1_research": "complete",
+    "2_plan": "complete",
+    "3_verify": "complete",
+    "4_red": "complete",
+    "5_green": "complete",
+    "6_refactor": "skipped",
+    "7_mf1": "pending",
+    "8_implement": "pending",
+    "9_verify_criteria": "pending",
+    "10_fp_gates": "pending",
+    "11_qa": "pending",
+    "12_mf2": "pending",
+    "13_consistency": "pending",
+    "14_liability": "pending",
+    "15_landing": "pending"
+  },
+  "started_at": "2026-01-25T09:51:00Z",
+  "last_updated": "2026-01-25T09:51:00Z"
+}

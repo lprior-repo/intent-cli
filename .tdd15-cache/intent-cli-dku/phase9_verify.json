@@ -1,0 +1,106 @@
+{
+  "phase": 9,
+  "phase_name": "VERIFY_CRITERIA",
+  "bead_id": "intent-cli-dku",
+  "success_criteria_verification": [
+    {
+      "criterion": "Enhanced bead type includes EARS patterns",
+      "status": "MET",
+      "evidence": [
+        "EarsPatternInfo type defined with pattern_type, trigger, state, condition, behavior fields",
+        "EnhancedBeadRecord includes ears_patterns: List(EarsPatternInfo) field",
+        "extract_ears_patterns function detects 5 pattern types: EventDriven, StateDriven, Optional, Unwanted, Ubiquitous",
+        "Tests verify EARS pattern extraction for all pattern types"
+      ]
+    },
+    {
+      "criterion": "Enhanced bead type includes contract specs (pre/post conditions)",
+      "status": "MET",
+      "evidence": [
+        "BeadContracts type defined with preconditions, postconditions, invariants fields",
+        "ContractCheck type wraps rule + why + check_name",
+        "EnhancedBeadRecord includes contracts: BeadContracts field",
+        "extract_contracts_from_behavior extracts preconditions from behavior.requires",
+        "extract_contracts_from_behavior extracts postconditions from response.checks",
+        "Tests verify contract extraction with multiple checks and requires"
+      ]
+    },
+    {
+      "criterion": "Enhanced bead type includes type definitions needed",
+      "status": "MET",
+      "evidence": [
+        "TypeDefinition type defined with name, signature, purpose fields",
+        "EnhancedBeadRecord includes types: List(TypeDefinition) field",
+        "generate_type_definitions infers handler function signature from method and path",
+        "generate_type_definitions detects request body type when present",
+        "generate_type_definitions detects response body type when present",
+        "Tests verify type generation for POST requests with bodies"
+      ]
+    },
+    {
+      "criterion": "Enhanced bead type includes test cases to write",
+      "status": "MET",
+      "evidence": [
+        "TestCase type defined with BDD structure: name, given, when, then, assertion",
+        "EnhancedBeadRecord includes tests: List(TestCase) field",
+        "generate_test_cases creates one test case per check in behavior",
+        "Test cases include preconditions (given), action (when), expectation (then), validation (assertion)",
+        "Tests verify test case generation maps checks to test scenarios"
+      ]
+    },
+    {
+      "criterion": "Integration with existing bead generation system",
+      "status": "MET",
+      "evidence": [
+        "EnhancedBeadRecord wraps BeadRecord via 'base' field (composition over modification)",
+        "generate_enhanced_bead creates BeadRecord using bead_templates.BeadRecord constructor",
+        "Non-breaking change - existing bead workflow unaffected",
+        "Can be integrated via new command or --enhanced flag in future"
+      ]
+    },
+    {
+      "criterion": "Tests verify EARS pattern extraction",
+      "status": "MET",
+      "evidence": [
+        "test_extract_ears_event_driven_test verifies WHEN pattern detection",
+        "test_extract_ears_state_driven_test verifies WHILE pattern detection",
+        "test_extract_ears_ubiquitous_fallback_test verifies default behavior",
+        "All EARS extraction tests passing"
+      ]
+    },
+    {
+      "criterion": "Tests verify contract extraction from behaviors",
+      "status": "MET",
+      "evidence": [
+        "test_extract_contracts_with_multiple_checks_test verifies postcondition extraction",
+        "test_extract_contracts_with_empty_checks_test verifies empty case handling",
+        "test_contract_check_preserves_rule_and_why_test verifies data integrity",
+        "All contract extraction tests passing"
+      ]
+    },
+    {
+      "criterion": "Gleam 7 Commandments compliance",
+      "status": "MET",
+      "evidence": [
+        "Immutability: All data structures immutable, no mutation",
+        "No nulls: Option(T) used for optional fields",
+        "Pipelines: |> used for transformations",
+        "Exhaustive matching: All case statements exhaustive",
+        "Labeled args: Not needed (functions have ≤2 params)",
+        "Type safety: All functions properly typed",
+        "Formatting: gleam format applied successfully"
+      ]
+    }
+  ],
+  "additional_verification": {
+    "tests_passing": true,
+    "test_count": 12,
+    "test_failures": 0,
+    "compilation_warnings": 0,
+    "code_formatted": true,
+    "documentation_complete": true
+  },
+  "overall_assessment": "ALL_CRITERIA_MET",
+  "gate_passed": true,
+  "completed_at": "2026-01-25T09:35:00-06:00"
+}

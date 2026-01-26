@@ -1,0 +1,27 @@
+{
+  "bead_id": "intent-cli-c5h",
+  "title": "WAVE0-02: JSONL Storage Pattern",
+  "current_phase": 4,
+  "complexity": "MEDIUM",
+  "route": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "language": "gleam",
+  "phases": {
+    "0": {"name": "TRIAGE", "status": "complete", "gate": "complexity_assessed"},
+    "1": {"name": "RESEARCH", "status": "complete", "gate": "sufficient_context"},
+    "2": {"name": "PLAN", "status": "complete", "gate": "plan_verified"},
+    "3": {"name": "VERIFY", "status": "skipped", "gate": "plan_verified_llm"},
+    "4": {"name": "RED", "status": "complete", "gate": "tests_fail"},
+    "5": {"name": "GREEN", "status": "pending", "gate": "tests_pass"},
+    "6": {"name": "REFACTOR", "status": "pending", "gate": "tests_green"},
+    "7": {"name": "MF#1", "status": "pending", "gate": "martin_fowler_1"},
+    "8": {"name": "IMPLEMENT", "status": "skipped", "gate": "implementation_complete"},
+    "9": {"name": "VERIFY_CRITERIA", "status": "pending", "gate": "criteria_met"},
+    "10": {"name": "FP_GATES", "status": "skipped", "gate": "no_critical_issues"},
+    "11": {"name": "QA", "status": "pending", "gate": "qa_pass"},
+    "12": {"name": "MF#2", "status": "skipped", "gate": "martin_fowler_2"},
+    "13": {"name": "CONSISTENCY", "status": "skipped", "gate": "standards_met"},
+    "14": {"name": "LIABILITY", "status": "skipped", "gate": "minimized"},
+    "15": {"name": "LANDING", "status": "pending", "gate": "push_succeeded"}
+  },
+  "started_at": "2026-01-25T10:12:48-06:00"
+}

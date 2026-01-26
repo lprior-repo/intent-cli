@@ -88,19 +88,19 @@ pub fn api_profile_has_questions_for_all_five_rounds_test() {
   let round5 = interview_questions.get_questions_for_round("api", 5)
 
   // All rounds should have at least one question
-  { list.length(round1) > 0 }
+  { round1 != [] }
   |> should.be_true()
 
-  { list.length(round2) > 0 }
+  { round2 != [] }
   |> should.be_true()
 
-  { list.length(round3) > 0 }
+  { round3 != [] }
   |> should.be_true()
 
-  { list.length(round4) > 0 }
+  { round4 != [] }
   |> should.be_true()
 
-  { list.length(round5) > 0 }
+  { round5 != [] }
   |> should.be_true()
 }
 
@@ -234,18 +234,18 @@ pub fn cli_profile_has_questions_for_all_five_rounds_test() {
   let round5 = interview_questions.get_questions_for_round("cli", 5)
 
   // All rounds should have at least one question
-  { list.length(round1) > 0 }
+  { round1 != [] }
   |> should.be_true()
 
-  { list.length(round2) > 0 }
+  { round2 != [] }
   |> should.be_true()
 
-  { list.length(round3) > 0 }
+  { round3 != [] }
   |> should.be_true()
 
-  { list.length(round4) > 0 }
+  { round4 != [] }
   |> should.be_true()
 
-  { list.length(round5) > 0 }
+  { round5 != [] }
   |> should.be_true()
 }

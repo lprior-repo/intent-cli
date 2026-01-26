@@ -1,0 +1,56 @@
+# Command Analysis for JSONL Router Port
+
+## Currently Implemented in JSONL Router (3):
+- quality
+- coverage
+- gaps
+
+## Missing Commands to Port (23):
+
+### Core Spec Operations (4 missing):
+1. validate - CUE syntax check
+2. check - run spec against API (CRITICAL - HTTP testing)
+3. analyze - quality scoring (alias for quality - may skip)
+4. lint - anti-pattern detection
+5. improve - improvement suggestions
+
+### KIRK Analysis (3 missing):
+6. invert - failure mode analysis
+7. effects - second-order effects
+8. ears - parse EARS requirements
+
+### Interview Workflow (5):
+9. interview - guided spec discovery
+10. sessions - list interview sessions
+11. history - show interview snapshots
+12. diff - compare interview sessions
+13. export - export session to CUE spec
+
+### Beads/Planning (7):
+14. beads - generate work items from session
+15. beads-regenerate - regenerate beads from spec
+16. bead-status - update individual bead status
+17. plan - health + waves + beads
+18. plan-approve - approve execution plan
+19. prompt - generate AI implementation prompts
+20. feedback - generate fix beads from failures
+
+### Parsing (1 - ears covered above):
+21. parse - quick EARS validation
+
+### Utilities (2):
+22. doctor - prioritized improvements
+23. show - display spec details
+
+## Common Pattern from glint handlers:
+1. Extract args from input.args (positional) or flags
+2. Load spec using load_spec_for_mode(path, json_mode)
+3. Call analyzer/processor module
+4. Format response with json_output.success() or json_output.failure()
+5. Output and halt with exit code
+
+## For JSONL Router:
+1. Extract args from Dynamic using dynamic.field()
+2. Load spec using loader.load_spec_quiet() (always quiet for JSON)
+3. Call same analyzer/processor module
+4. Return JsonResponse directly (no halt/output needed)

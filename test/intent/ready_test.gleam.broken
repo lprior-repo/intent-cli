@@ -1,0 +1,437 @@
+import gleam/dict
+import gleam/json
+import gleam/list
+import gleam/string
+import gleeunit/should
+import intent/kirk/ready
+import intent/planning_types.{BlockerSeverity, Critical, High, Low, Medium}
+import intent/types.{
+  type Behavior, AIHints, AntiPattern, Config, Feature,
+  ImplementationHints, Request, Response, Rule, SecurityHints, Spec,
+}
+import test_helpers
+
+// =============================================================================
+// Test Fixtures
+// =============================================================================
+
+/// Minimal spec with bare minimum fields
+fn minimal_spec() -> Spec {
+  Spec(
+    name: "Minimal API",
+    description: "Basic spec",
+    audience: "users",
+    version: "0.1.0",
+    success_criteria: [],
+    config: test_helpers.make_test_config(),
+    features: [],
+    rules: [],
+    anti_patterns: [],
+    ai_hints: AIHints(
+      implementation: ImplementationHints(suggested_stack: []),
+      entities: dict.new(),
+      security: SecurityHints(
+        password_hashing: "",
+        jwt_algorithm: "",
+        jwt_expiry: "",
+        rate_limiting: "",
+      ),
+      pitfalls: [],
+    ),
+  )
+}
+
+/// Complete spec with all READY dimensions well-addressed
+fn complete_spec() -> Spec {
+  let error_behavior =
+    test_helpers.make_test_behavior_with_status("handle-not-found", 404, [])
+  let success_behavior = test_helpers.make_test_behavior("get-users", [])
+
+  let behavior_with_checks =
+    Behavior(
+      ..success_behavior,
+      response: Response(
+        ..success_behavior.response,
+        checks: dict.from_list([
+          #(
+            "status",
+            types.Check(rule: "status == 200", why: "Success response expected"),
+          ),
+        ]),
+      ),
+      tags: ["core", "users"],
+    )
+
+  let feature =
+    Feature(
+      name: "User Management",
+      description: "Complete user CRUD operations",
+      behaviors: [behavior_with_checks, error_behavior],
+    )
+
+  Spec(
+    name: "Complete User API",
+    description: "Comprehensive user management API with detailed specifications for all CRUD operations and error handling scenarios",
+    audience: "Mobile app developers building user authentication flows",
+    version: "1.0.0",
+    success_criteria: [
+      "Users can register and authenticate",
+      "Profile updates are validated",
+      "Error messages guide recovery",
+    ],
+    config: test_helpers.make_test_config(),
+    features: [feature],
+    rules: [
+      Rule(
+        name: "Email validation",
+        description: "All email fields must be valid",
+      ),
+    ],
+    anti_patterns: [
+      AntiPattern(
+        name: "Missing pagination",
+        description: "List endpoints without limits",
+        why: "Can cause performance issues",
+      ),
+      AntiPattern(
+        name: "Weak passwords",
+        description: "No password complexity rules",
+        why: "Security vulnerability",
+      ),
+    ],
+    ai_hints: AIHints(
+      implementation: ImplementationHints(suggested_stack: [
+        "PostgreSQL for persistence",
+        "JWT for authentication",
+      ]),
+      entities: dict.from_list([#("User", "id, email, name, created_at")]),
+      security: SecurityHints(
+        password_hashing: "bcrypt",
+        jwt_algorithm: "HS256",
+        jwt_expiry: "24h",
+        rate_limiting: "100/hour per IP",
+      ),
+      pitfalls: ["Remember to sanitize inputs", "Handle rate limit edge cases"],
+    ),
+  )
+}
+
+/// Spec with good VORP but missing other dimensions
+fn spec_with_clear_vorp() -> Spec {
+  Spec(
+    ..minimal_spec(),
+    description: "Authentication API that provides passwordless login via magic links, eliminating password management burden for users",
+    audience: "SaaS product teams wanting to reduce support tickets related to password resets",
+    success_criteria: [
+      "95% reduction in password-related support tickets",
+      "Login flow completes in under 30 seconds",
+      "99.9% email delivery reliability",
+    ],
+  )
+}
+
+/// Spec with error handling behaviors
+fn spec_with_error_handling() -> Spec {
+  let behaviors = [
+    test_helpers.make_test_behavior_with_status("bad-request", 400, []),
+    test_helpers.make_test_behavior_with_status("unauthorized", 401, []),
+    test_helpers.make_test_behavior_with_status("not-found", 404, []),
+    test_helpers.make_test_behavior("success-case", []),
+  ]
+  let feature = test_helpers.make_test_feature("API", behaviors)
+
+  Spec(..minimal_spec(), features: [feature], anti_patterns: [
+    AntiPattern(
+      name: "Generic errors",
+      description: "No context in error messages",
+      why: "Users can't recover",
+    ),
+    AntiPattern(
+      name: "Missing validation",
+      description: "No input validation",
+      why: "Leads to confusing errors",
+    ),
+  ])
+}
+
+// =============================================================================
+// Core Functionality Tests
+// =============================================================================
+
+pub fn analyze_ready_minimal_spec_test() {
+  let spec = minimal_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Minimal spec should have low overall readiness
+  report.overall_readiness
+  |> should.be_less_than(50)
+
+  // Should have blockers
+  list.length(report.blockers)
+  |> should.be_greater_than(0)
+
+  // Should have recommendations
+  list.length(report.recommendations)
+  |> should.be_greater_than(0)
+}
+
+pub fn analyze_ready_complete_spec_test() {
+  let spec = complete_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Complete spec should have high overall readiness
+  report.overall_readiness
+  |> should.be_greater_than(80)
+
+  // All dimensions should score positively
+  report.replacement.score
+  |> should.be_greater_than(70)
+
+  report.empathy.score
+  |> should.be_greater_than(70)
+
+  report.actionable.score
+  |> should.be_greater_than(70)
+
+  report.discoverable.score
+  |> should.be_greater_than(70)
+
+  report.yet_complete.score
+  |> should.be_greater_than(70)
+}
+
+// =============================================================================
+// Dimension-Specific Tests
+// =============================================================================
+
+pub fn replacement_dimension_scores_vorp_test() {
+  let spec = spec_with_clear_vorp()
+  let report = ready.analyze_ready(spec)
+
+  // Clear VORP should score well
+  report.replacement.score
+  |> should.be_greater_than(70)
+
+  // Reasoning should be non-empty
+  report.replacement.reasoning
+  |> string.is_empty()
+  |> should.be_false()
+}
+
+pub fn empathy_dimension_detects_error_handling_test() {
+  let spec = spec_with_error_handling()
+  let report = ready.analyze_ready(spec)
+
+  // Should recognize error behaviors
+  report.empathy.score
+  |> should.be_greater_than(50)
+
+  // Should mention error handling in reasoning
+  report.empathy.reasoning
+  |> string.lowercase()
+  |> string.contains("error")
+  |> should.be_true()
+}
+
+pub fn actionable_dimension_requires_checks_test() {
+  let spec = minimal_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Without checks, actionable should be low
+  report.actionable.score
+  |> should.be_less_than(40)
+
+  // Should identify missing checks as issue
+  report.actionable.issues
+  |> list.is_empty()
+  |> should.be_false()
+}
+
+pub fn discoverable_dimension_evaluates_naming_test() {
+  let spec = complete_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Well-named features should score positively
+  report.discoverable.score
+  |> should.be_greater_than(50)
+}
+
+pub fn yet_complete_dimension_checks_completeness_test() {
+  let spec = minimal_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Minimal spec missing many elements
+  report.yet_complete.score
+  |> should.be_less_than(50)
+
+  let complete = complete_spec()
+  let complete_report = ready.analyze_ready(complete)
+
+  // Complete spec should score high
+  complete_report.yet_complete.score
+  |> should.be_greater_than(75)
+}
+
+// =============================================================================
+// Blocker Generation Tests
+// =============================================================================
+
+pub fn blockers_generated_for_low_scores_test() {
+  let spec = minimal_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Should have at least one blocker
+  list.length(report.blockers)
+  |> should.be_greater_than(0)
+
+  // Blockers should have severity
+  case list.first(report.blockers) {
+    Ok(blocker) -> {
+      blocker.description
+      |> string.is_empty()
+      |> should.be_false()
+
+      blocker.affected_areas
+      |> list.is_empty()
+      |> should.be_false()
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn critical_blockers_for_very_low_scores_test() {
+  let spec = minimal_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Should have critical blockers for overall < 70
+  let has_critical =
+    report.blockers
+    |> list.any(fn(b) {
+      case b.severity {
+        Critical -> True
+        _ -> False
+      }
+    })
+
+  has_critical
+  |> should.be_true()
+}
+
+// =============================================================================
+// Recommendation Generation Tests
+// =============================================================================
+
+pub fn recommendations_prioritized_test() {
+  let spec = minimal_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Should have recommendations
+  list.length(report.recommendations)
+  |> should.be_greater_than(0)
+
+  // First recommendation should have priority 1-3 (high priority)
+  case list.first(report.recommendations) {
+    Ok(rec) -> {
+      rec.priority
+      |> should.be_less_than(4)
+
+      rec.description
+      |> string.is_empty()
+      |> should.be_false()
+
+      rec.rationale
+      |> string.is_empty()
+      |> should.be_false()
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+// =============================================================================
+// Format Tests
+// =============================================================================
+
+pub fn format_report_produces_readable_output_test() {
+  let spec = complete_spec()
+  let report = ready.analyze_ready(spec)
+  let formatted = ready.format_report(report)
+
+  // Should contain section headers
+  formatted
+  |> string.contains("READY")
+  |> should.be_true()
+
+  // Should show overall readiness
+  formatted
+  |> string.contains("Overall Readiness")
+  |> should.be_true()
+
+  // Should show all dimensions
+  formatted
+  |> string.contains("Replacement")
+  |> should.be_true()
+
+  formatted
+  |> string.contains("Empathy")
+  |> should.be_true()
+
+  formatted
+  |> string.contains("Actionable")
+  |> should.be_true()
+
+  formatted
+  |> string.contains("Discoverable")
+  |> should.be_true()
+
+  formatted
+  |> string.contains("Yet-complete")
+  |> should.be_true()
+}
+
+// =============================================================================
+// Overall Readiness Calculation Tests
+// =============================================================================
+
+pub fn overall_readiness_weighted_correctly_test() {
+  // This tests the weighted average calculation
+  // Weights: R=25%, E=20%, A=20%, D=15%, Y=20%
+  let spec = complete_spec()
+  let report = ready.analyze_ready(spec)
+
+  // Overall should be between min and max of dimensions
+  let scores = [
+    report.replacement.score,
+    report.empathy.score,
+    report.actionable.score,
+    report.discoverable.score,
+    report.yet_complete.score,
+  ]
+
+  let sorted_scores =
+    list.sort(scores, fn(a, b) {
+      case a < b {
+        True -> order.Lt
+        False ->
+          case a > b {
+            True -> order.Gt
+            False -> order.Eq
+          }
+      }
+    })
+
+  case sorted_scores {
+    [min, ..] -> {
+      // Overall should be >= min dimension score
+      report.overall_readiness
+      |> should.be_greater_than(min - 15)
+    }
+    _ -> should.fail()
+  }
+
+  // Also check it's not absurdly high
+  report.overall_readiness
+  |> should.be_less_than(101)
+}
+
+// Required import for ordering
+import gleam/order

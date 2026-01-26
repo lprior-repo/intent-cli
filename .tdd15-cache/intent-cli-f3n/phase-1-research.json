@@ -1,0 +1,155 @@
+{
+  "phase": 1,
+  "name": "RESEARCH",
+  "completed_at": "2026-01-25T21:50:00Z",
+  "findings": {
+    "existing_infrastructure": {
+      "command_pattern": {
+        "framework": "glint",
+        "location": "src/intent.gleam",
+        "pattern": "glint.command(fn(input: glint.CommandInput) {...})",
+        "flags": "flag.get_string(), flag.get_bool()",
+        "output": "json_output module for structured responses"
+      },
+      "vision_modules": {
+        "types": {
+          "file": "src/intent/vision_types.gleam",
+          "provides": ["VisionSection", "Scenario", "Stakeholder"]
+        },
+        "critique": {
+          "file": "src/intent/vision_critique.gleam",
+          "provides": ["critique_vision", "validate_problem_reality", "validate_persona", "validate_vorp_strength"],
+          "output": "CritiqueResult(passed: Bool, issues: List(CritiqueIssue), score: Int)"
+        },
+        "storage": {
+          "file": "src/intent/vision_storage.gleam",
+          "provides": ["VisionDocument", "append_document", "list_documents", "get_document"],
+          "pattern": "JSONL persistence with simplifile"
+        }
+      },
+      "question_system": {
+        "loader": {
+          "file": "src/intent/question_loader.gleam",
+          "provides": ["load_default_questions", "get_questions"],
+          "supports_vision": true,
+          "structure": "QuestionsDatabase with vision: ProfileQuestions(round_1, round_2)"
+        },
+        "types": {
+          "file": "src/intent/question_types.gleam",
+          "provides": ["Question", "Perspective", "QuestionCategory", "QuestionPriority"]
+        }
+      },
+      "interview_session": {
+        "file": "src/intent/interview.gleam",
+        "provides": ["InterviewSession", "Answer", "Gap", "Conflict"],
+        "pattern": "Session state machine with JSONL storage"
+      },
+      "json_output": {
+        "file": "src/intent/json_output.gleam",
+        "provides": ["JsonResponse", "success", "failure", "error", "next_action"],
+        "schema": {
+          "success": "Bool",
+          "action": "String (e.g., 'vision_start_result')",
+          "command": "String (e.g., 'vision.start')",
+          "data": "Json (command-specific)",
+          "errors": "List(JsonError)",
+          "next_actions": "List(NextAction)",
+          "metadata": "JsonMetadata",
+          "spec_path": "Option(String)"
+        }
+      }
+    },
+    "implementation_approach": {
+      "strategy": "Use Glint CLI pattern (like existing commands)",
+      "commands_to_add": [
+        {
+          "command_name": "vision-start",
+          "glint_path": ["vision", "start"],
+          "flags": ["--profile"],
+          "output_action": "vision_start_result",
+          "primary_logic": "Load vision questions, create session, return questions"
+        },
+        {
+          "command_name": "vision-answer",
+          "glint_path": ["vision", "answer"],
+          "flags": ["--session-id", "--question-id", "--answer"],
+          "output_action": "vision_answer_result",
+          "primary_logic": "Record answer, extract fields, update session, check for conflicts"
+        },
+        {
+          "command_name": "vision-critique",
+          "glint_path": ["vision", "critique"],
+          "flags": ["--session-id"],
+          "output_action": "vision_critique_result",
+          "primary_logic": "Load session, build VisionSection, run critique_vision, return issues/score"
+        },
+        {
+          "command_name": "vision-check",
+          "glint_path": ["vision", "check"],
+          "flags": ["--session-id"],
+          "output_action": "vision_check_result",
+          "primary_logic": "Run critique, check score >= threshold, return gate status"
+        }
+      ],
+      "note": "vision-check and vision-agree can be the same command (gate check)"
+    },
+    "modules_to_create": [
+      {
+        "file": "src/intent/vision_session.gleam",
+        "purpose": "Vision session state management (similar to InterviewSession)",
+        "types": ["VisionSession", "VisionAnswer", "VisionGap", "VisionConflict"],
+        "functions": ["create_session", "record_answer", "extract_fields", "detect_conflicts"]
+      },
+      {
+        "file": "src/intent/vision_commands.gleam",
+        "purpose": "Command implementations for vision phase",
+        "functions": ["handle_start", "handle_answer", "handle_critique", "handle_check"]
+      },
+      {
+        "file": "test/intent/vision_commands_test.gleam",
+        "purpose": "Tests for vision commands",
+        "tests": ["start_creates_session", "answer_records_response", "critique_runs_validation", "check_returns_gate_status"]
+      }
+    ],
+    "data_flow": {
+      "vision_start": [
+        "1. Parse --profile flag",
+        "2. Load vision questions from question_loader (profile='vision', round=1)",
+        "3. Create new VisionSession with UUID",
+        "4. Save session to JSONL",
+        "5. Return session_id + questions list"
+      ],
+      "vision_answer": [
+        "1. Parse --session-id, --question-id, --answer flags",
+        "2. Load VisionSession from JSONL",
+        "3. Extract fields from answer (based on question.extract_into)",
+        "4. Check for conflicts with previous answers",
+        "5. Record VisionAnswer in session",
+        "6. Save updated session to JSONL",
+        "7. Return answered=true, extracted fields, conflicts, remaining questions count"
+      ],
+      "vision_critique": [
+        "1. Parse --session-id flag",
+        "2. Load VisionSession from JSONL",
+        "3. Build VisionSection from answered questions",
+        "4. Call vision_critique.critique_vision(section)",
+        "5. Return CritiqueResult (issues, score, passed)"
+      ],
+      "vision_check": [
+        "1. Parse --session-id flag",
+        "2. Run critique (same as vision_critique)",
+        "3. Check if score >= 70 (pass threshold)",
+        "4. Return gate_status: 'unlocked' or 'locked', blockers list"
+      ]
+    },
+    "key_insights": [
+      "Question loader already supports 'vision' profile",
+      "Vision critique logic already exists and works",
+      "JSONL storage pattern is well-established",
+      "json_output provides consistent response format",
+      "Can follow the interview command pattern closely",
+      "Need to create VisionSession type separate from InterviewSession (different fields)",
+      "Vision questions are in round_1 and round_2 only (not 3-5)"
+    ]
+  }
+}

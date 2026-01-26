@@ -1,0 +1,41 @@
+{
+  "bead_id": "intent-cli-cs3",
+  "title": "WAVE5-06: Documentation Update (CLAUDE.md with new commands)",
+  "complexity": "SIMPLE",
+  "language": "gleam",
+  "phases": {
+    "0_triage": {"status": "complete", "timestamp": "2026-01-25T16:30:00Z"},
+    "1_research": {"status": "skipped", "reason": "SIMPLE routing"},
+    "2_plan": {"status": "skipped", "reason": "SIMPLE routing"},
+    "3_verify": {"status": "skipped", "reason": "SIMPLE routing"},
+    "4_red": {"status": "complete", "timestamp": "2026-01-25T16:32:00Z", "note": "Identified 6 new commands to document"},
+    "5_green": {"status": "complete", "timestamp": "2026-01-25T16:35:00Z", "note": "Added AI Commands and Shape Phase Commands sections"},
+    "6_refactor": {"status": "complete", "timestamp": "2026-01-25T16:38:00Z", "note": "Updated Dev examples, added vision and ai modules documentation"},
+    "7_mf1": {"status": "skipped", "reason": "SIMPLE routing"},
+    "8_implement": {"status": "skipped", "reason": "SIMPLE routing"},
+    "9_verify_criteria": {"status": "skipped", "reason": "SIMPLE routing"},
+    "10_fp_gates": {"status": "skipped", "reason": "SIMPLE routing"},
+    "11_qa": {"status": "skipped", "reason": "SIMPLE routing"},
+    "12_mf2": {"status": "skipped", "reason": "SIMPLE routing"},
+    "13_consistency": {"status": "skipped", "reason": "SIMPLE routing"},
+    "14_liability": {"status": "complete", "timestamp": "2026-01-25T16:40:00Z", "note": "Verified all 32 commands documented accurately match implementation"},
+    "15_landing": {"status": "complete", "timestamp": "2026-01-25T16:42:00Z", "note": "Committed and closed bead"}
+  },
+  "gates_passed": ["complexity_assessed", "tests_fail", "tests_pass", "tests_green", "minimized", "push_succeeded"],
+  "current_phase": "complete",
+  "commit": "ee6018d",
+  "changes": {
+    "total_commands": "26 → 32",
+    "added_sections": ["AI Commands (1)", "Shape Phase Commands (5)"],
+    "updated_sections": ["Core Spec Operations (5→4)", "Parsing (2→1)", "Utilities (2→3)"],
+    "removed_duplicates": ["check command (not implemented)", "ears in Parsing (duplicate)"],
+    "updated_examples": ["Dev section now uses validate and quality instead of check"],
+    "added_modules": ["ai_schema", "ai_errors", "vision_types", "vision_storage", "vision_critique", "vision_session", "vision_commands"]
+  },
+  "verification": {
+    "command_count_matches": true,
+    "all_commands_exist": true,
+    "no_false_documentation": true
+  },
+  "tdd15_complete": true
+}

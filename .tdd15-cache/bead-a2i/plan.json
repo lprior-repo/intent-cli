@@ -1,0 +1,109 @@
+{
+  "phase": 2,
+  "name": "PLAN",
+  "implementation_strategy": "Minimal additive changes to preserve existing vision_storage.gleam contract",
+  "steps": [
+    {
+      "step": 1,
+      "action": "Add SpecSection type to planning_types.gleam",
+      "details": {
+        "type": "SpecSection",
+        "fields": [
+          "name: String",
+          "description: String",
+          "features: List(Feature)",
+          "rounds_complete: Int",
+          "kirk_health: KIRKHealth"
+        ],
+        "reason": "Phase 3 in planning pipeline needs representation"
+      },
+      "files": ["src/intent/planning_types.gleam"],
+      "risk": "LOW - purely additive"
+    },
+    {
+      "step": 2,
+      "action": "Add KIRKHealth type to planning_types.gleam",
+      "details": {
+        "type": "KIRKHealth",
+        "fields": [
+          "coverage_score: Float",
+          "quality_score: Float",
+          "gaps: List(String)",
+          "inversions: List(String)",
+          "effects: List(String)"
+        ],
+        "reason": "Needed by SpecSection to track KIRK 5-round analysis"
+      },
+      "files": ["src/intent/planning_types.gleam"],
+      "risk": "LOW - purely additive"
+    },
+    {
+      "step": 3,
+      "action": "Update planning_types.gleam VisionSection to import from vision_types",
+      "details": {
+        "change": "Replace VisionSection definition with re-export",
+        "approach": "pub use intent/vision_types.{type VisionSection}",
+        "reason": "Unify VisionSection - single source of truth"
+      },
+      "files": ["src/intent/planning_types.gleam"],
+      "risk": "MEDIUM - affects existing code but vision_types matches needed structure"
+    },
+    {
+      "step": 4,
+      "action": "Add Plan container type to planning_types.gleam",
+      "details": {
+        "type": "Plan",
+        "fields": [
+          "id: String",
+          "created_at: String",
+          "updated_at: String",
+          "vision: VisionSection",
+          "shape: ShapeSection",
+          "spec: Option(SpecSection)",
+          "ready: Option(ReadyReport)"
+        ],
+        "reason": "Top-level container for 4-phase planning workflow"
+      },
+      "files": ["src/intent/planning_types.gleam"],
+      "risk": "LOW - purely additive, Option for phases 3-4 allows incremental building"
+    },
+    {
+      "step": 5,
+      "action": "Create test/planning_types_test.gleam",
+      "details": {
+        "rename_from": "test/intent/planning_types_test.gleam.broken",
+        "tests": [
+          "vision_section_reexport_test",
+          "shape_section_creation_test",
+          "spec_section_creation_test",
+          "ready_report_creation_test",
+          "plan_container_test",
+          "plan_incremental_building_test"
+        ]
+      },
+      "files": ["test/planning_types_test.gleam"],
+      "risk": "LOW - new test file"
+    }
+  ],
+  "test_strategy": {
+    "red_phase": "Write failing tests for SpecSection, Plan types before implementation",
+    "green_phase": "Implement minimal types to pass tests",
+    "refactor_phase": "Add documentation, ensure consistency"
+  },
+  "rollback_plan": {
+    "if_vision_storage_breaks": "Revert step 3, keep planning_types.VisionSection separate",
+    "if_tests_fail": "Fix incrementally, types are independent"
+  },
+  "dependencies": {
+    "imports_needed": [
+      "gleam/option.{type Option}",
+      "intent/vision_types.{type VisionSection, type Scenario}",
+      "intent/types.{type Feature}"
+    ]
+  },
+  "validation": {
+    "compile": "gleam build",
+    "test": "gleam test",
+    "format": "gleam format"
+  }
+}

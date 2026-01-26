@@ -1,0 +1,323 @@
+{
+  "phase": "PLAN (AMENDED after Phase 3 verification)",
+  "started_at": "2026-01-25T16:10:00Z",
+  "amended_at": "2026-01-25T16:35:00Z",
+  "objective": "Create systematic implementation plan for 23 new CUE schema files + 1 update",
+  "status": "verified",
+  "verification_result": "APPROVED WITH AMENDMENTS",
+
+  "scope_clarification": {
+    "total_commands": 24,
+    "breakdown": {
+      "existing_schemas": 1,
+      "comment": "quality.cue exists but needs update to be more explicit"
+    },
+    "new_schemas_needed": 23,
+    "total_files_after": 24,
+    "analyze_command_handling": {
+      "issue": "analyze is an alias for quality command",
+      "resolution": "Create analyze.cue that references #QualityOutput from quality.cue",
+      "rationale": "Explicit reference improves AI agent discoverability"
+    }
+  },
+
+  "prerequisites": {
+    "cue_cli": {
+      "required": true,
+      "purpose": "Validate schemas against JSON outputs in Phase 11 (QA)",
+      "check_in_phase_4": "Verify CUE is installed: `cue version`",
+      "install_if_missing": "https://cuelang.org/docs/install/"
+    },
+    "package_declarations": {
+      "needed": false,
+      "rationale": "Schemas are standalone validation files, not imported modules",
+      "usage": "cue vet output.json schema.cue"
+    }
+  },
+
+  "approach": {
+    "strategy": "Incremental implementation with quality gates",
+    "rationale": "Prove approach with simple schemas first, then scale to complex ones",
+    "phases": "Use full TDD15 workflow adapted for schema creation"
+  },
+
+  "file_conventions": {
+    "location": "schema/ai/output/",
+    "filename_pattern": "<command-name>.cue (keep hyphens, lowercase)",
+    "type_name_pattern": "#<CommandName>Output (CamelCase, remove hyphens)",
+    "package_declaration": "None (standalone validation files)",
+    "examples": {
+      "validate command": {
+        "file": "schema/ai/output/validate.cue",
+        "type": "#ValidateOutput"
+      },
+      "bead-status command": {
+        "file": "schema/ai/output/bead-status.cue",
+        "type": "#BeadStatusOutput"
+      },
+      "analyze command": {
+        "file": "schema/ai/output/analyze.cue",
+        "type": "#AnalyzeOutput (references #QualityOutput)",
+        "content_example": "import \"schema/ai/output:quality\"\n\n// Analyze command output schema (alias for quality)\n#AnalyzeOutput: quality.#QualityOutput"
+      }
+    },
+    "formatting": {
+      "indentation": "tabs (follow quality.cue)",
+      "comments": "// <Command> command output schema",
+      "field_names": "match JSON exactly (snake_case or camelCase)",
+      "types": "explicit types, avoid {...} placeholders",
+      "no_package_declaration": "Files are standalone, no package needed"
+    }
+  },
+
+  "implementation_groups": {
+    "group_1_simple": {
+      "name": "Simple schemas (Phase 5 - GREEN)",
+      "files": ["validate.cue", "show.cue", "export.cue"],
+      "count": 3,
+      "rationale": "Prove approach with simple structures"
+    },
+    "group_2_kirk": {
+      "name": "KIRK analysis commands (Phase 8 batch 1)",
+      "files": ["coverage.cue", "gaps.cue", "invert.cue", "effects.cue", "ears.cue", "parse.cue"],
+      "count": 6,
+      "rationale": "Analytical outputs with scores and arrays"
+    },
+    "group_3_analysis": {
+      "name": "Analysis/improvement commands (Phase 8 batch 2)",
+      "files": ["lint.cue", "improve.cue", "doctor.cue", "analyze.cue"],
+      "count": 4,
+      "rationale": "Quality/improvement suggestions",
+      "note": "analyze.cue references #QualityOutput from quality.cue"
+    },
+    "group_4_session": {
+      "name": "Session management (Phase 8 batch 3)",
+      "files": ["sessions.cue", "history.cue", "diff.cue", "interview.cue"],
+      "count": 4,
+      "rationale": "Interview session outputs"
+    },
+    "group_5_beads": {
+      "name": "Bead/work management (Phase 8 batch 4)",
+      "files": ["beads.cue", "prompt.cue", "feedback.cue", "bead-status.cue", "plan-approve.cue", "beads-regenerate.cue"],
+      "count": 6,
+      "rationale": "Work item generation and status"
+    },
+    "group_6_complex": {
+      "name": "Complex commands (Phase 8 batch 5)",
+      "files": ["check.cue", "plan.cue"],
+      "count": 2,
+      "rationale": "Largest/most complex outputs, tackle last"
+    },
+    "existing": {
+      "name": "Existing schemas to improve",
+      "files": ["quality.cue"],
+      "count": 1,
+      "action": "Update in Phase 6 (REFACTOR) to be more explicit (replace {...} with actual fields)"
+    },
+    "totals": {
+      "new_schemas": 25,
+      "note": "25 files in groups, but analyze.cue is a reference, so 23 original + 1 reference + 1 update = 25 total files touched"
+    }
+  },
+
+  "phase_breakdown": {
+    "phase_4_red": {
+      "gate": "tests_fail",
+      "actions": [
+        "Document 23 missing schemas + 1 needing update",
+        "Create checklist of all schema files",
+        "Verify CUE CLI is installed (`cue version`)",
+        "If CUE missing, document installation needed"
+      ]
+    },
+    "phase_5_green": {
+      "gate": "tests_pass",
+      "action": "Create Group 1 (validate, show, export) - 3 files",
+      "success": "3 schemas exist, compile with CUE, match code structures",
+      "validation": "Run `cue fmt` on each file to verify syntax"
+    },
+    "phase_6_refactor": {
+      "gate": "tests_green",
+      "actions": [
+        "Improve quality.cue to be explicit (define all fields instead of {...})",
+        "Establish clear pattern for other schemas",
+        "Extract common patterns if any emerge"
+      ],
+      "success": "quality.cue has all fields defined, pattern is clear"
+    },
+    "phase_7_mf1": {
+      "gate": "martin_fowler_1",
+      "action": "Quality review of first 4 schemas (3 new + quality.cue)",
+      "checks": [
+        "Naming consistent across files",
+        "Types explicit and correct",
+        "Comments clear and helpful",
+        "Formatting consistent (tabs, style)"
+      ]
+    },
+    "phase_8_implement": {
+      "gate": "implementation_complete",
+      "action": "Create remaining 20 schemas in 5 batches (Groups 2-6)",
+      "batches": [
+        "KIRK (6 files): coverage, gaps, invert, effects, ears, parse",
+        "Analysis (4 files): lint, improve, doctor, analyze (reference)",
+        "Session (4 files): sessions, history, diff, interview",
+        "Beads (6 files): beads, prompt, feedback, bead-status, plan-approve, beads-regenerate",
+        "Complex (2 files): check, plan"
+      ],
+      "note": "May need to run commands during implementation for complex structures",
+      "immediate_feedback": "Run `cue fmt` after each file to catch syntax errors early"
+    },
+    "phase_9_verify": {
+      "gate": "criteria_met",
+      "action": "Verify all 24 schema files exist and are valid",
+      "checks": [
+        "File count: 24 files in schema/ai/output/ (23 new + 1 updated)",
+        "All files compile: `cue fmt schema/ai/output/*.cue`",
+        "All type names follow convention",
+        "No {...} placeholders (grep check)",
+        "All files have comments"
+      ]
+    },
+    "phase_10_fp_gates": {
+      "gate": "no_critical_issues",
+      "action": "Run 5 schema quality checks (adapted FP gates)",
+      "checks": [
+        "Type completeness: All JSON fields from code represented in schemas",
+        "Type correctness: Types match JSON (number vs string vs bool vs array vs object)",
+        "No loose types: No {...} or [...] without type constraints",
+        "Consistent naming: Field names match JSON output exactly",
+        "Documentation: All schemas have descriptive comments"
+      ],
+      "method": "Manual review of each schema against intent.gleam code"
+    },
+    "phase_11_qa": {
+      "gate": "qa_pass",
+      "action": "Battle test 7 representative schemas with real command outputs",
+      "test_commands": [
+        "intent validate examples/user-api.cue",
+        "intent lint examples/user-api.cue",
+        "intent quality examples/user-api.cue",
+        "intent coverage examples/user-api.cue",
+        "intent gaps examples/user-api.cue",
+        "intent sessions (if sessions exist)",
+        "intent prompt <session-id> (if sessions exist)"
+      ],
+      "method": [
+        "1. Run command with --json flag (if applicable) or capture JSON output",
+        "2. Save JSON to file (e.g., output.json)",
+        "3. Validate: `cue vet output.json schema/ai/output/<command>.cue`",
+        "4. Fix schema if validation fails",
+        "5. Repeat for all 7 commands"
+      ],
+      "note": "May need to create test spec or session for some commands"
+    },
+    "phase_12_mf2": {
+      "gate": "martin_fowler_2",
+      "action": "Opus final review of all 24 schemas",
+      "focus": [
+        "Consistency across all files",
+        "Completeness of type definitions",
+        "Clarity for AI agent consumption",
+        "No unnecessary complexity",
+        "Documentation quality"
+      ]
+    },
+    "phase_13_consistency": {
+      "gate": "standards_met",
+      "action": "Check consistency across all 24 files",
+      "checks": [
+        "Filenames follow pattern (lowercase, hyphens)",
+        "Type names follow convention (CamelCase, #<Name>Output)",
+        "Formatting consistent (tabs, comment style)",
+        "No duplicated structures (DRY principle)",
+        "All referenced types exist",
+        "analyze.cue properly references quality.#QualityOutput"
+      ]
+    },
+    "phase_14_liability": {
+      "gate": "minimized",
+      "action": "Ensure schemas are minimal and well-documented",
+      "checks": [
+        "No unnecessary complexity in type definitions",
+        "Clear comments explain purpose of each schema",
+        "No over-constrained types that might break on valid inputs",
+        "Optional fields marked with ? where appropriate",
+        "Union types used for conditional outputs (e.g., lint)"
+      ]
+    },
+    "phase_15_landing": {
+      "gate": "push_succeeded",
+      "action": "Git commit and close bead",
+      "commit_message": "feat(schemas): Add CUE schemas for all 24 command outputs\n\n- Created 23 new schema files in schema/ai/output/\n- Updated quality.cue to be explicit\n- Added analyze.cue as reference to quality\n- All schemas validated against actual command outputs",
+      "bead_closure": "bd close intent-cli-ime --reason 'Completed: All 24 commands have CUE schemas'"
+    }
+  },
+
+  "success_criteria": {
+    "primary": "All 24 commands have accurate CUE schemas in schema/ai/output/",
+    "secondary": [
+      "Schemas are explicit (no {...} placeholders except where necessary)",
+      "Schemas match actual JSON output from commands (validated in Phase 11)",
+      "Consistent naming and formatting across all files",
+      "Well-documented for AI agent consumption (comments on all schemas)",
+      "analyze.cue properly references quality schema"
+    ],
+    "measurable_outcomes": {
+      "file_count": "24 files in schema/ai/output/",
+      "cue_validation": "All files pass `cue fmt` without errors",
+      "real_output_validation": "7 sample commands validate successfully against schemas",
+      "no_placeholders": "grep -r '{...}' schema/ai/output/ returns no matches (or only intentional ones)"
+    }
+  },
+
+  "risks_and_mitigations": {
+    "risk_1": {
+      "risk": "Command output structures not fully understood from code",
+      "mitigation": "Run actual commands during Phase 8 for complex structures, validate all in Phase 11",
+      "likelihood": "medium",
+      "impact": "medium"
+    },
+    "risk_2": {
+      "risk": "Commands with conditional output (e.g., lint valid vs invalid)",
+      "mitigation": "Use CUE optional fields (?) or union types (type1 | type2)",
+      "likelihood": "high",
+      "impact": "low",
+      "examples": "lint: valid=true (simple) OR valid=false (with findings)"
+    },
+    "risk_3": {
+      "risk": "Schema too restrictive, breaks on valid outputs",
+      "mitigation": "Test with multiple real outputs in Phase 11, use appropriate constraints",
+      "likelihood": "low",
+      "impact": "medium"
+    },
+    "risk_4": {
+      "risk": "CUE CLI not available for validation",
+      "mitigation": "Check in Phase 4, document installation if needed, provide fallback manual validation",
+      "likelihood": "low",
+      "impact": "medium"
+    },
+    "risk_5": {
+      "risk": "Commands that don't actually support --json output",
+      "mitigation": "Verify during Phase 8, document which commands have JSON output, skip schemas for commands without JSON",
+      "likelihood": "low",
+      "impact": "low"
+    }
+  },
+
+  "verification_notes": {
+    "verified_by": "LLM-as-Judge (Phase 3)",
+    "verification_date": "2026-01-25T16:35:00Z",
+    "verdict": "APPROVED WITH AMENDMENTS",
+    "amendments_made": [
+      "Clarified analyze.cue handling (create as reference)",
+      "Added CUE CLI verification to Phase 4",
+      "Clarified package declaration (none needed)",
+      "Added immediate feedback suggestion (run cue fmt during Phase 8)",
+      "Added risk about CUE CLI availability",
+      "Corrected scope count (23 new + 1 update = 24 total)"
+    ]
+  },
+
+  "ready_for_phase_4": true
+}

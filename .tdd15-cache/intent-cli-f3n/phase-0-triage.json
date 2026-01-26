@@ -1,0 +1,98 @@
+{
+  "phase": 0,
+  "name": "TRIAGE",
+  "bead_id": "intent-cli-f3n",
+  "title": "WAVE1-05: Vision Commands (start, check, critique, respond, agree)",
+  "completed_at": "2026-01-25T21:45:00Z",
+  "complexity": "MEDIUM",
+  "rationale": {
+    "file_count": "5-8 files (command handlers, tests, integration)",
+    "behavior_count": "4 distinct commands (vision.start, vision.answer, vision.critique, vision.gate)",
+    "dependency_depth": "Moderate - uses existing vision modules (types, critique, storage) but needs session management",
+    "criteria_count": "Multiple: session state, question loading, answer extraction, critique scoring, gate checking"
+  },
+  "commands_to_implement": [
+    {
+      "command": "vision.start",
+      "description": "Create new vision session with questions",
+      "maps_to": "start"
+    },
+    {
+      "command": "vision.answer",
+      "description": "Answer questions in session, extract fields, detect conflicts",
+      "maps_to": "respond"
+    },
+    {
+      "command": "vision.critique",
+      "description": "Run Skeptical PM critique on vision section",
+      "maps_to": "critique"
+    },
+    {
+      "command": "vision.gate",
+      "description": "Check if vision gate can be unlocked (alignment score check)",
+      "maps_to": "check, agree"
+    }
+  ],
+  "existing_modules": [
+    "src/intent/vision_types.gleam",
+    "src/intent/vision_critique.gleam",
+    "src/intent/vision_storage.gleam"
+  ],
+  "dependencies": [
+    {
+      "bead_id": "AI-05",
+      "title": "Create command_router.gleam for dispatching JSONL commands",
+      "status": "open",
+      "criticality": "HIGH",
+      "note": "Command router is needed for JSONL protocol. Can work around by using Glint CLI pattern temporarily."
+    },
+    {
+      "bead_id": "AI-04",
+      "title": "Create jsonl_input.gleam for parsing JSONL stdin",
+      "status": "in_progress",
+      "criticality": "HIGH",
+      "note": "JSONL input parsing needed for AI-native protocol. Can work around by using Glint CLI pattern temporarily."
+    },
+    {
+      "bead_id": "WAVE0-02",
+      "title": "JSONL Storage Pattern",
+      "status": "in_progress",
+      "criticality": "MEDIUM",
+      "note": "Vision storage already exists using JSONL, may need updates for consistency"
+    },
+    {
+      "bead_id": "WAVE0-03",
+      "title": "Output Formatting (JSON + next_actions)",
+      "status": "in_progress",
+      "criticality": "MEDIUM",
+      "note": "json_output module exists and is used by other commands, should be sufficient"
+    }
+  ],
+  "blocking_decision": {
+    "blocked": false,
+    "approach": "HYBRID",
+    "reasoning": "While AI-04 and AI-05 are not complete, we can implement vision commands using the existing Glint CLI pattern (like other commands in intent.gleam). The json_output module already provides structured output. This allows us to ship functionality now and refactor to pure JSONL protocol later when the router is ready.",
+    "implementation_strategy": "Follow the pattern of existing commands (validate, quality, etc.) using Glint CLI + json_output for structured responses"
+  },
+  "phase_path": "MEDIUM",
+  "phases_to_execute": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    9,
+    11,
+    15
+  ],
+  "phases_skipped": [
+    3,
+    8,
+    10,
+    12,
+    13,
+    14
+  ],
+  "estimated_duration": "2-3 hours"
+}

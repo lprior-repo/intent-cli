@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-02xu",
+    "title": "interview: Add --batch mode for AI non-interactive use",
+    "description": "WHEN AI runs 'intent interview --batch --input=answers.json' THE SYSTEM SHALL process all answers non-interactively and export CUE spec.\n\nCurrent: Interactive TUI only, blocks until user input\nDesired: Batch mode accepts JSON file with all answers, outputs spec\n\nEARS Patterns:\n- UBIQUITOUS: THE SYSTEM SHALL validate answer JSON schema before processing\n- EVENT: WHEN --batch provided THE SYSTEM SHALL skip interactive prompts\n- UNWANTED: THE SYSTEM SHALL NOT prompt for input in batch mode\n- STATE: WHILE processing answers THE SYSTEM SHALL track validation errors\n\nInput JSON Schema:\n{\n  \"profile\": \"api|cli\",\n  \"answers\": [{\"question_id\": \"...\", \"response\": \"...\"}]\n}\n\nOutput: CUE spec file + session ID\n\nInvariants:\n- Exit 0 = success (spec generated)\n- Exit 3 = invalid input JSON\n- Exit 4 = missing required fields\n\nAI UX: Critical for automated spec generation. Enables CI/CD integration and API-driven workflows.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "feature",
+    "created_at": "2026-01-23T22:03:25.410214324-06:00",
+    "created_by": "lewis",
+    "updated_at": "2026-01-24T07:56:22.469640738-06:00"
+  }
+]

@@ -1,0 +1,76 @@
+{
+  "phase": 1,
+  "research_findings": {
+    "existing_code": {
+      "file": "src/intent/command_router.gleam",
+      "status": "partial_implementation",
+      "lines": 226,
+      "has_tests": false,
+      "integrated": false,
+      "summary": "Basic router with parse_request, route_request, process_single_request. Has 3 stub handlers (quality, coverage, gaps). Not used by main CLI."
+    },
+    "test_patterns": {
+      "framework": "gleeunit",
+      "imports": ["gleeunit/should", "gleam/result"],
+      "style": "Pure function tests with mock I/O",
+      "example": "test/intent/jsonl_storage_test.gleam",
+      "patterns": [
+        "Test function names end with _test",
+        "Use should.be_ok(), should.equal(), should.be_true()",
+        "Mock dependencies for I/O functions",
+        "Test happy path and error cases",
+        "Test edge cases (empty, invalid input)"
+      ]
+    },
+    "integration_patterns": {
+      "entry_point": "src/intent.gleam main() function",
+      "framework": "glint CLI builder",
+      "registration": "glint.add(at: [\"command\"], do: command_function())",
+      "examples": [
+        "line 151: glint.add(at: [\"quality\"], do: kirk_quality_command())",
+        "line 153: glint.add(at: [\"coverage\"], do: kirk_coverage_command())"
+      ],
+      "pattern": "Each command is a glint.Command(Nil) function that processes input.args and calls halt(exit_code)"
+    },
+    "json_output_module": {
+      "file": "src/intent/json_output.gleam",
+      "types": ["JsonResponse", "JsonError", "NextAction", "JsonMetadata"],
+      "key_functions": [
+        "success(action, command, data, spec_path, next_actions) -> JsonResponse",
+        "failure(action, command, data, errors, spec_path, next_actions, exit_code) -> JsonResponse",
+        "output(response) -> Nil - prints JSON to stdout",
+        "to_json(response) -> Json - converts to JSON for tests"
+      ]
+    },
+    "handler_examples": {
+      "quality": "src/intent/quality_analyzer.gleam - analyze_spec_json function",
+      "coverage": "src/intent/kirk/coverage_analyzer.gleam - analyze_coverage_json function",
+      "gaps": "src/intent/kirk/gap_detector.gleam - detect_gaps_json function"
+    },
+    "gaps_identified": [
+      "No tests for command_router.gleam",
+      "Not integrated into main CLI",
+      "Handlers are stubs - need to call actual analyzer functions",
+      "No validation of args structure",
+      "Only 3 commands implemented (should support all 26)",
+      "No stdin loop for continuous JSONL processing"
+    ]
+  },
+  "dependencies": [
+    "gleam/json",
+    "gleam/dynamic",
+    "gleam/result",
+    "gleam/string",
+    "intent/json_output",
+    "intent/ffi",
+    "gleeunit (test only)"
+  ],
+  "success_criteria": [
+    "Comprehensive test suite with >90% coverage",
+    "Integration with main CLI (jsonl mode or stdin mode)",
+    "Real handler implementations (not stubs)",
+    "Validation of args structure for each command",
+    "Support for all documented commands",
+    "JSONL streaming from stdin with line-by-line processing"
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "phase": 1,
+  "phase_name": "RESEARCH",
+  "bead_id": "intent-cli-c5h",
+  "findings": {
+    "related_implementations": [
+      {
+        "file": "src/intent/interview_storage.gleam",
+        "purpose": "Interview session JSONL storage with Functional Core / Imperative Shell pattern",
+        "key_types": ["FileReader", "FileWriter", "DirectoryCreator", "SessionSnapshot", "SessionDiff"],
+        "key_functions": [
+          "session_to_jsonl_line",
+          "update_sessions_content",
+          "parse_sessions_content",
+          "append_session_to_jsonl_with_io",
+          "list_sessions_from_jsonl_with_io",
+          "simplifile_reader",
+          "simplifile_writer",
+          "simplifile_dir_creator"
+        ],
+        "patterns": [
+          "Pure serialization functions (type -> String)",
+          "Pure parsing functions (String -> List(type))",
+          "Pure content manipulation (String -> String)",
+          "I/O functions with dependency injection",
+          "Simplifile convenience wrappers"
+        ]
+      },
+      {
+        "file": "src/intent/bead_templates.gleam",
+        "purpose": "Bead JSONL formatting",
+        "key_functions": ["bead_to_jsonl_line", "beads_to_jsonl"],
+        "patterns": [
+          "Simple serialization to JSONL line",
+          "List of records to JSONL string"
+        ]
+      },
+      {
+        "file": "src/intent/bead_feedback.gleam",
+        "purpose": "Feedback parsing from CUE/JSON",
+        "key_functions": ["parse_feedback_content"],
+        "patterns": ["Content parsing with format detection"]
+      },
+      {
+        "file": "src/intent/bead_claims.gleam",
+        "purpose": "Claims parsing from CUE/JSON",
+        "key_functions": ["parse_claims_content"],
+        "patterns": ["Content parsing with format detection"]
+      }
+    ],
+    "test_patterns": [
+      {
+        "convention": "Roundtrip tests",
+        "example": "test/intent/interview_storage_test.gleam - session_roundtrip_with_answers_test",
+        "pattern": "Encode to JSON, verify JSON contains expected data"
+      },
+      {
+        "convention": "Test naming",
+        "pattern": "pub fn <feature>_<scenario>_test()"
+      },
+      {
+        "convention": "Test organization",
+        "pattern": "test/intent/<module>_test.gleam mirrors src/intent/<module>.gleam"
+      },
+      {
+        "convention": "Pure function testing",
+        "pattern": "Test pure functions directly without I/O mocking"
+      }
+    ],
+    "jsonl_pattern_analysis": {
+      "core_operations": [
+        "Serialize record to JSON object",
+        "Convert JSON to single-line string (JSONL line)",
+        "Parse JSONL content (split by newline, decode each line)",
+        "Update content (filter + append)",
+        "Find record by ID in parsed list"
+      ],
+      "dependency_injection_pattern": {
+        "function_types": [
+          "FileReader: fn(String) -> Result(String, String)",
+          "FileWriter: fn(String, String) -> Result(Nil, String)",
+          "DirectoryCreator: fn(String) -> Result(Nil, String)"
+        ],
+        "pure_functions": [
+          "to_jsonl_line: type -> String",
+          "parse_content: String -> List(type)",
+          "update_content: String, type -> String"
+        ],
+        "io_functions_with_di": [
+          "append_with_io: type, path, reader, writer, dir_creator -> Result",
+          "list_with_io: path, reader -> Result"
+        ],
+        "simplifile_wrappers": [
+          "append: type, path -> Result (uses simplifile adapters)",
+          "list: path -> Result (uses simplifile adapters)"
+        ]
+      },
+      "type_requirements": [
+        "Record must have unique ID field",
+        "Record must have JSON encoder",
+        "Record must have JSON decoder"
+      ]
+    },
+    "module_dependencies": {
+      "required_imports": [
+        "gleam/json",
+        "gleam/string",
+        "gleam/list",
+        "gleam/result",
+        "gleam/option",
+        "gleam/dict (if type has Dict fields)",
+        "gleam/dynamic (for decoders)",
+        "simplifile (for adapters)"
+      ],
+      "consumer_modules": [
+        "Vision Storage (WAVE1-02)",
+        "Shape Storage (WAVE2-02)",
+        "Spec Storage (WAVE3-02)",
+        "Ready Storage (WAVE4-02)"
+      ]
+    },
+    "extraction_strategy": {
+      "approach": "Generic JSONL storage module with type parameters",
+      "key_abstractions": [
+        "Generic record ID extraction",
+        "Generic JSON encoder/decoder",
+        "Reusable I/O function types",
+        "Reusable pure functions",
+        "Reusable simplifile adapters"
+      ],
+      "files_to_create": [
+        "src/intent/jsonl_storage.gleam - Generic JSONL storage pattern",
+        "test/intent/jsonl_storage_test.gleam - Pattern tests"
+      ],
+      "files_to_update": [
+        "src/intent/interview_storage.gleam - May optionally refactor to use generic pattern"
+      ]
+    },
+    "gleam_conventions": {
+      "style": "Functional with explicit Result types",
+      "error_handling": "Result(t, String) for domain errors",
+      "naming": "snake_case for functions, PascalCase for types",
+      "documentation": "/// doc comments above public items",
+      "formatting": "gleam format enforced",
+      "testing": "gleeunit with should assertions"
+    }
+  },
+  "success_criteria": [
+    "Generic JSONL storage module created",
+    "Supports type-parameterized record serialization",
+    "Maintains Functional Core / Imperative Shell pattern",
+    "Dependency injection for I/O operations",
+    "Simplifile adapters provided",
+    "Comprehensive tests for generic pattern",
+    "Documentation explains usage pattern",
+    "Follows existing gleam conventions"
+  ],
+  "gate": "sufficient_context",
+  "status": "complete",
+  "timestamp": "2026-01-25T10:30:00-06:00"
+}

@@ -1,0 +1,164 @@
+import gleam/option.{None, Some}
+import gleam/string
+import gleeunit/should
+import intent/ai_aggregate
+
+pub fn aggregate_empty_input_test() {
+  let result = ai_aggregate.aggregate_responses([], None)
+  result
+  |> should.be_ok
+
+  let aggregated = case result {
+    Ok(agg) -> agg
+    Error(_) -> panic as "Expected Ok"
+  }
+
+  aggregated.response_count
+  |> should.equal(0)
+
+  aggregated.combined_data
+  |> should.equal([])
+}
+
+pub fn aggregate_single_response_test() {
+  let responses = [
+    ai_aggregate.Response(
+      id: "req-001",
+      success: True,
+      command: "quality",
+      data: ai_aggregate.ResponseData(
+        fields: [#("overall_score", "85"), #("dimensions", "4")],
+      ),
+    ),
+  ]
+
+  let result = ai_aggregate.aggregate_responses(responses, None)
+  result
+  |> should.be_ok
+
+  let aggregated = case result {
+    Ok(agg) -> agg
+    Error(_) -> panic as "Expected Ok"
+  }
+
+  aggregated.response_count
+  |> should.equal(1)
+
+  aggregated.combined_data
+  |> should.not_equal([])
+}
+
+pub fn aggregate_multiple_responses_test() {
+  let responses = [
+    ai_aggregate.Response(
+      id: "req-001",
+      success: True,
+      command: "quality",
+      data: ai_aggregate.ResponseData(fields: [#("score", "85")]),
+    ),
+    ai_aggregate.Response(
+      id: "req-002",
+      success: True,
+      command: "coverage",
+      data: ai_aggregate.ResponseData(fields: [#("coverage", "90")]),
+    ),
+  ]
+
+  let result = ai_aggregate.aggregate_responses(responses, None)
+  result
+  |> should.be_ok
+
+  let aggregated = case result {
+    Ok(agg) -> agg
+    Error(_) -> panic as "Expected Ok"
+  }
+
+  aggregated.response_count
+  |> should.equal(2)
+}
+
+pub fn aggregate_with_token_limit_test() {
+  let responses = [
+    ai_aggregate.Response(
+      id: "req-001",
+      success: True,
+      command: "quality",
+      data: ai_aggregate.ResponseData(fields: [#("score", "85")]),
+    ),
+    ai_aggregate.Response(
+      id: "req-002",
+      success: True,
+      command: "coverage",
+      data: ai_aggregate.ResponseData(fields: [#("coverage", "90")]),
+    ),
+  ]
+
+  // Set very low token limit
+  let result = ai_aggregate.aggregate_responses(responses, Some(50))
+  result
+  |> should.be_ok
+
+  let aggregated = case result {
+    Ok(agg) -> agg
+    Error(_) -> panic as "Expected Ok"
+  }
+
+  // Should have truncated or limited data
+  aggregated.truncated
+  |> should.be_true
+}
+
+pub fn aggregate_filters_failures_test() {
+  let responses = [
+    ai_aggregate.Response(
+      id: "req-001",
+      success: True,
+      command: "quality",
+      data: ai_aggregate.ResponseData(fields: [#("score", "85")]),
+    ),
+    ai_aggregate.Response(
+      id: "req-002",
+      success: False,
+      command: "coverage",
+      data: ai_aggregate.ResponseData(fields: []),
+    ),
+  ]
+
+  let result = ai_aggregate.aggregate_responses(responses, None)
+  result
+  |> should.be_ok
+
+  let aggregated = case result {
+    Ok(agg) -> agg
+    Error(_) -> panic as "Expected Ok"
+  }
+
+  // Should only count successful responses
+  aggregated.response_count
+  |> should.equal(1)
+}
+
+pub fn to_json_produces_valid_output_test() {
+  let aggregated =
+    ai_aggregate.AggregatedResult(
+      response_count: 2,
+      combined_data: [
+        #("quality", ai_aggregate.ResponseData(fields: [#("score", "85")])),
+        #("coverage", ai_aggregate.ResponseData(fields: [#("coverage", "90")])),
+      ],
+      truncated: False,
+      token_count: 150,
+    )
+
+  let json_string = ai_aggregate.to_json(aggregated)
+
+  json_string
+  |> should.not_equal("")
+
+  // Should contain expected fields
+  string.contains(json_string, "response_count")
+  |> should.be_true
+
+  string.contains(json_string, "combined_data")
+  |> should.be_true
+}

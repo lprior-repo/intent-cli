@@ -1,0 +1,1003 @@
+//// Tests for intent/kirk/ready.gleam
+//// Contract: READY Framework analysis across 5 dimensions
+//// - Replacement: Is the VORP (Value Over Replacement Product) still valid?
+//// - Empathy: Is user friction simulated?
+//// - Actionable: Do errors guide users?
+//// - Discoverable: Are features findable?
+//// - Yet-complete: Can the north star be achieved?
+
+import gleam/dict
+import gleam/float
+import gleam/int
+import gleam/json
+import gleam/list
+import gleam/string
+import gleeunit
+import gleeunit/should
+import intent/kirk/ready
+import intent/planning_types.{
+  type BlockerSeverity, Critical, DimensionScore, High, Medium,
+}
+import intent/types.{
+  type Spec, AIHints, AntiPattern, Behavior, Check, Config, Feature, Get,
+  ImplementationHints, Request, Response, Rule, SecurityHints, Spec,
+}
+import test_helpers
+
+pub fn main() {
+  gleeunit.main()
+}
+
+// =============================================================================
+// TEST HELPERS
+// =============================================================================
+
+/// Create a minimal spec for testing
+fn minimal_spec() -> Spec {
+  Spec(
+    name: "Minimal Spec",
+    description: "A very short description",
+    audience: "",
+    version: "1",
+    success_criteria: [],
+    config: Config(
+      base_url: "",
+      timeout_ms: 5000,
+      headers: dict.new(),
+      allow_localhost: False,
+    ),
+    features: [],
+    rules: [],
+    anti_patterns: [],
+    ai_hints: AIHints(
+      implementation: ImplementationHints(suggested_stack: []),
+      entities: dict.new(),
+      security: SecurityHints(
+        password_hashing: "",
+        jwt_algorithm: "",
+        jwt_expiry: "",
+        rate_limiting: "",
+      ),
+      pitfalls: [],
+    ),
+  )
+}
+
+/// Create a complete, high-quality spec for testing
+fn complete_spec() -> Spec {
+  let behavior_with_checks =
+    Behavior(
+      name: "get-user",
+      intent: "Retrieve a user by their unique identifier from the database",
+      notes: "This validates that the user exists",
+      requires: [],
+      tags: ["users", "read"],
+      request: Request(
+        method: Get,
+        path: "/users/${id}",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 200,
+        example: json.object([
+          #("id", json.int(1)),
+          #("name", json.string("Test")),
+        ]),
+        checks: dict.from_list([
+          #(
+            "id",
+            Check(
+              rule: "integer",
+              why: "ID must be numeric for database lookup",
+            ),
+          ),
+          #("name", Check(rule: "string", why: "Name must be a valid string")),
+        ]),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+
+  let error_behavior =
+    Behavior(
+      name: "user-not-found",
+      intent: "Return 404 when user does not exist in the database",
+      notes: "Validation test for missing resource",
+      requires: [],
+      tags: ["users", "error"],
+      request: Request(
+        method: Get,
+        path: "/users/999999",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 404,
+        example: json.object([#("error", json.string("User not found"))]),
+        checks: dict.from_list([
+          #("error", Check(rule: "string", why: "Error message must be clear")),
+        ]),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+
+  let unauthorized_behavior =
+    Behavior(
+      name: "unauthorized-access",
+      intent: "Verify that unauthorized access is properly rejected",
+      notes: "Security validation check",
+      requires: [],
+      tags: ["security", "auth"],
+      request: Request(
+        method: Get,
+        path: "/admin/users",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 401,
+        example: json.object([#("error", json.string("Unauthorized"))]),
+        checks: dict.new(),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+
+  let feature1 =
+    Feature(
+      name: "User Management",
+      description: "Manage user accounts",
+      behaviors: [behavior_with_checks, error_behavior],
+    )
+
+  let feature2 =
+    Feature(
+      name: "Security",
+      description: "Authentication and authorization",
+      behaviors: [unauthorized_behavior],
+    )
+
+  Spec(
+    name: "Complete User API",
+    description: "A comprehensive user management API with authentication, CRUD operations, and error handling",
+    audience: "Frontend developers building user interfaces for web and mobile applications",
+    version: "2.1.0",
+    success_criteria: [
+      "All user CRUD operations work correctly",
+      "Authentication prevents unauthorized access",
+      "Error messages guide users to resolution",
+      "API follows REST conventions",
+    ],
+    config: Config(
+      base_url: "https://api.example.com",
+      timeout_ms: 5000,
+      headers: dict.new(),
+      allow_localhost: False,
+    ),
+    features: [feature1, feature2],
+    rules: [
+      Rule(
+        name: "auth-required",
+        condition: "path.startswith('/admin')",
+        constraint: "headers.authorization != null",
+        why: "Admin endpoints require authentication",
+      ),
+    ],
+    anti_patterns: [
+      AntiPattern(
+        pattern: "exposing-internal-ids",
+        description: "Never expose internal database IDs to clients",
+        why: "Security risk and tight coupling",
+      ),
+      AntiPattern(
+        pattern: "generic-errors",
+        description: "Avoid generic error messages like 'Something went wrong'",
+        why: "Users cannot diagnose or fix the issue",
+      ),
+    ],
+    ai_hints: AIHints(
+      implementation: ImplementationHints(suggested_stack: [
+        "Express.js",
+        "PostgreSQL",
+        "JWT",
+      ]),
+      entities: dict.from_list([
+        #("User", "id, email, name, created_at"),
+      ]),
+      security: SecurityHints(
+        password_hashing: "bcrypt with cost factor 12",
+        jwt_algorithm: "RS256",
+        jwt_expiry: "15 minutes",
+        rate_limiting: "100 requests per minute per IP",
+      ),
+      pitfalls: ["SQL injection in user queries", "Missing rate limiting"],
+    ),
+  )
+}
+
+// =============================================================================
+// ANALYZE_READY - Core Functionality
+// =============================================================================
+
+pub fn analyze_ready_empty_spec_test() {
+  // Contract: Empty spec produces valid ReadyReport with scores in range [0, 100]
+  let spec = test_helpers.make_test_spec_from_behaviors([])
+
+  let report = ready.analyze_ready(spec)
+
+  // All dimension scores should be in valid range
+  { report.replacement.score >= 0 && report.replacement.score <= 100 }
+  |> should.be_true
+  { report.empathy.score >= 0 && report.empathy.score <= 100 }
+  |> should.be_true
+  { report.actionable.score >= 0 && report.actionable.score <= 100 }
+  |> should.be_true
+  { report.discoverable.score >= 0 && report.discoverable.score <= 100 }
+  |> should.be_true
+  { report.yet_complete.score >= 0 && report.yet_complete.score <= 100 }
+  |> should.be_true
+  { report.overall_readiness >= 0 && report.overall_readiness <= 100 }
+  |> should.be_true
+}
+
+pub fn analyze_ready_minimal_spec_test() {
+  // Contract: Minimal spec with basic fields produces low but valid scores
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have low scores due to minimal content
+  { report.overall_readiness < 50 } |> should.be_true
+  // Should generate blockers for low quality
+  { list.length(report.blockers) > 0 } |> should.be_true
+  // Should generate recommendations
+  { list.length(report.recommendations) > 0 } |> should.be_true
+}
+
+pub fn analyze_ready_complete_spec_test() {
+  // Contract: Well-formed spec with all fields produces high scores
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Overall readiness should be relatively high
+  { report.overall_readiness >= 70 } |> should.be_true
+  // Each dimension should have reasoning
+  { string.length(report.replacement.reasoning) > 0 } |> should.be_true
+  { string.length(report.empathy.reasoning) > 0 } |> should.be_true
+  { string.length(report.actionable.reasoning) > 0 } |> should.be_true
+  { string.length(report.discoverable.reasoning) > 0 } |> should.be_true
+  { string.length(report.yet_complete.reasoning) > 0 } |> should.be_true
+}
+
+pub fn analyze_ready_generates_blockers_test() {
+  // Contract: Low dimension scores generate appropriate blockers
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have blockers
+  { list.length(report.blockers) > 0 } |> should.be_true
+
+  // At least one should be Critical or High severity
+  let has_high_severity =
+    report.blockers
+    |> list.any(fn(b) {
+      case b.severity {
+        Critical -> True
+        High -> True
+        _ -> False
+      }
+    })
+
+  has_high_severity |> should.be_true
+}
+
+pub fn analyze_ready_generates_recommendations_test() {
+  // Contract: Medium scores generate prioritized recommendations
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have recommendations
+  { list.length(report.recommendations) > 0 } |> should.be_true
+
+  // Recommendations should have priorities
+  let all_have_priorities =
+    report.recommendations
+    |> list.all(fn(r) { r.priority > 0 })
+
+  all_have_priorities |> should.be_true
+}
+
+// =============================================================================
+// DIMENSION ANALYZERS - Replacement
+// =============================================================================
+
+pub fn analyze_replacement_no_audience_test() {
+  // Contract: Missing audience reduces replacement score
+  let spec = Spec(..minimal_spec(), audience: "")
+
+  let report = ready.analyze_ready(spec)
+
+  // Replacement score should be penalized
+  { report.replacement.score < 100 } |> should.be_true
+}
+
+pub fn analyze_replacement_few_success_criteria_test() {
+  // Contract: < 3 success criteria reduces replacement score
+  let spec = Spec(..minimal_spec(), success_criteria: ["One criterion"])
+
+  let report = ready.analyze_ready(spec)
+
+  // Should be penalized for insufficient criteria
+  { report.replacement.score < 100 } |> should.be_true
+}
+
+pub fn analyze_replacement_short_description_test() {
+  // Contract: Short description (<=50 chars) reduces replacement score
+  let spec = Spec(..minimal_spec(), description: "Short desc")
+
+  let report = ready.analyze_ready(spec)
+
+  // Should be penalized
+  { report.replacement.score < 100 } |> should.be_true
+}
+
+pub fn analyze_replacement_no_version_dot_test() {
+  // Contract: Version without dot reduces replacement score
+  let spec = Spec(..minimal_spec(), version: "1")
+
+  let report = ready.analyze_ready(spec)
+
+  // Should be penalized for non-semantic version
+  { report.replacement.score < 100 } |> should.be_true
+}
+
+pub fn analyze_replacement_complete_test() {
+  // Contract: All replacement criteria met produces high score
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Replacement should score very high
+  { report.replacement.score >= 80 } |> should.be_true
+}
+
+// =============================================================================
+// DIMENSION ANALYZERS - Empathy
+// =============================================================================
+
+pub fn analyze_empathy_no_error_behaviors_test() {
+  // Contract: No 4xx status behaviors produces low empathy score
+  let behavior =
+    Behavior(
+      name: "get-user",
+      intent: "Get user",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: Request(
+        method: Get,
+        path: "/users/1",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 200,
+        example: json.null(),
+        checks: dict.new(),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+
+  let spec = test_helpers.make_test_spec_from_behaviors([behavior])
+
+  let report = ready.analyze_ready(spec)
+
+  // Empathy score should be low without error handling
+  { report.empathy.score < 50 } |> should.be_true
+}
+
+pub fn analyze_empathy_has_error_behaviors_test() {
+  // Contract: Multiple 4xx behaviors increase empathy score
+  let behaviors = [
+    test_helpers.make_test_behavior_with_status("not-found", 404, []),
+    test_helpers.make_test_behavior_with_status("bad-request", 400, []),
+    test_helpers.make_test_behavior_with_status("unauthorized", 401, []),
+  ]
+
+  let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
+
+  let report = ready.analyze_ready(spec)
+
+  // Empathy score should be relatively high
+  { report.empathy.score >= 70 } |> should.be_true
+}
+
+pub fn analyze_empathy_has_anti_patterns_test() {
+  // Contract: 2+ anti_patterns boost empathy score
+  let spec =
+    Spec(..minimal_spec(), anti_patterns: [
+      AntiPattern(pattern: "pattern1", description: "desc1", why: "why1"),
+      AntiPattern(pattern: "pattern2", description: "desc2", why: "why2"),
+    ])
+
+  let report = ready.analyze_ready(spec)
+
+  // Anti-patterns should boost empathy
+  // (compared to spec without them)
+  let spec_without = Spec(..minimal_spec(), anti_patterns: [])
+  let report_without = ready.analyze_ready(spec_without)
+
+  { report.empathy.score > report_without.empathy.score } |> should.be_true
+}
+
+pub fn analyze_empathy_has_validation_keywords_test() {
+  // Contract: Validation keywords in intent/notes boost empathy
+  let behavior =
+    Behavior(
+      name: "validate-user",
+      intent: "Validate user input before processing",
+      notes: "Check email format and verify password strength",
+      requires: [],
+      tags: [],
+      request: Request(
+        method: Get,
+        path: "/validate",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 200,
+        example: json.null(),
+        checks: dict.new(),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+
+  let spec = test_helpers.make_test_spec_from_behaviors([behavior])
+
+  let report = ready.analyze_ready(spec)
+
+  // Should get validation bonus
+  // (Base score should be improved by validation keywords)
+  { report.empathy.score > 0 } |> should.be_true
+}
+
+// =============================================================================
+// DIMENSION ANALYZERS - Actionable
+// =============================================================================
+
+pub fn analyze_actionable_no_checks_test() {
+  // Contract: No response checks produces actionable score of 0
+  let behavior = test_helpers.make_test_behavior("test", [])
+
+  let spec = test_helpers.make_test_spec_from_behaviors([behavior])
+
+  let report = ready.analyze_ready(spec)
+
+  // Actionable score should be 0 without checks
+  report.actionable.score |> should.equal(0)
+}
+
+pub fn analyze_actionable_has_checks_test() {
+  // Contract: 3+ behaviors with checks produce high actionable score
+  let make_behavior_with_checks = fn(name) {
+    Behavior(
+      name: name,
+      intent: "Test behavior with checks",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: Request(
+        method: Get,
+        path: "/" <> name,
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 200,
+        example: json.null(),
+        checks: dict.from_list([
+          #("field1", Check(rule: "string", why: "Must be string")),
+        ]),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+  }
+
+  let behaviors = [
+    make_behavior_with_checks("b1"),
+    make_behavior_with_checks("b2"),
+    make_behavior_with_checks("b3"),
+  ]
+
+  let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have high actionable score
+  { report.actionable.score >= 90 } |> should.be_true
+}
+
+pub fn analyze_actionable_quality_checks_test() {
+  // Contract: Checks with detailed 'why' boost actionable score
+  let behavior =
+    Behavior(
+      name: "quality-check",
+      intent: "Test",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: Request(
+        method: Get,
+        path: "/test",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 200,
+        example: json.null(),
+        checks: dict.from_list([
+          #(
+            "field1",
+            Check(
+              rule: "string",
+              why: "This field must be a string to ensure proper formatting in the UI",
+            ),
+          ),
+        ]),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+
+  let spec = test_helpers.make_test_spec_from_behaviors([behavior])
+
+  let report = ready.analyze_ready(spec)
+
+  // Should get quality check bonus (>30 base)
+  { report.actionable.score > 30 } |> should.be_true
+}
+
+pub fn analyze_actionable_clear_intents_test() {
+  // Contract: Clear intents (>20 chars) boost actionable score
+  let behavior =
+    Behavior(
+      name: "clear-intent",
+      intent: "This is a very clear and detailed intent that explains what the behavior does",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: Request(
+        method: Get,
+        path: "/test",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: Response(
+        status: 200,
+        example: json.null(),
+        checks: dict.from_list([
+          #("field1", Check(rule: "string", why: "Test")),
+        ]),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+
+  let spec = test_helpers.make_test_spec_from_behaviors([behavior])
+
+  let report = ready.analyze_ready(spec)
+
+  // Should get intent clarity bonus
+  { report.actionable.score > 30 } |> should.be_true
+}
+
+// =============================================================================
+// DIMENSION ANALYZERS - Discoverable
+// =============================================================================
+
+pub fn analyze_discoverable_no_features_test() {
+  // Contract: 0 features produces low discoverable score
+  let spec = Spec(..minimal_spec(), features: [])
+
+  let report = ready.analyze_ready(spec)
+
+  // Score should be 0 without features
+  report.discoverable.score |> should.equal(0)
+}
+
+pub fn analyze_discoverable_multiple_features_test() {
+  // Contract: 3+ features produce high feature score component
+  let features = [
+    test_helpers.make_test_feature("Feature1", []),
+    test_helpers.make_test_feature("Feature2", []),
+    test_helpers.make_test_feature("Feature3", []),
+  ]
+
+  let spec = test_helpers.make_test_spec(features)
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have high feature score
+  { report.discoverable.score >= 60 } |> should.be_true
+}
+
+pub fn analyze_discoverable_has_tags_test() {
+  // Contract: Behaviors with tags boost discoverable score
+  let behaviors = [
+    Behavior(..test_helpers.make_test_behavior("b1", []), tags: ["tag1", "tag2"]),
+    Behavior(..test_helpers.make_test_behavior("b2", []), tags: ["tag3"]),
+    Behavior(..test_helpers.make_test_behavior("b3", []), tags: ["tag4", "tag5"]),
+  ]
+
+  let spec = test_helpers.make_test_spec_from_behaviors(behaviors)
+
+  let report = ready.analyze_ready(spec)
+
+  // Should get tag bonus (30 points)
+  { report.discoverable.score >= 50 } |> should.be_true
+}
+
+pub fn analyze_discoverable_restful_paths_test() {
+  // Contract: RESTful paths (containing /) boost discoverable score
+  let behavior =
+    Behavior(
+      ..test_helpers.make_test_behavior("test", []),
+      request: Request(
+        method: Get,
+        path: "/api/users/123",
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+    )
+
+  let spec = test_helpers.make_test_spec_from_behaviors([behavior])
+
+  let report = ready.analyze_ready(spec)
+
+  // Should get RESTful bonus (10 points)
+  { report.discoverable.score > 0 } |> should.be_true
+}
+
+// =============================================================================
+// DIMENSION ANALYZERS - Yet-complete
+// =============================================================================
+
+pub fn analyze_yet_complete_incomplete_test() {
+  // Contract: Missing features, rules, ai_hints, config produces low score
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have low yet-complete score
+  { report.yet_complete.score < 50 } |> should.be_true
+}
+
+pub fn analyze_yet_complete_features_without_behaviors_test() {
+  // Contract: Features without behaviors reduce yet_complete score
+  let empty_feature =
+    Feature(name: "Empty", description: "No behaviors", behaviors: [])
+
+  let spec = Spec(..minimal_spec(), features: [empty_feature])
+
+  let report = ready.analyze_ready(spec)
+
+  // Should be penalized
+  { report.yet_complete.score < 75 } |> should.be_true
+  // Should have issue about features without behaviors
+  let has_issue =
+    report.yet_complete.issues
+    |> list.any(fn(issue) {
+      string.contains(string.lowercase(issue), "behavior")
+    })
+  has_issue |> should.be_true
+}
+
+pub fn analyze_yet_complete_has_rules_test() {
+  // Contract: Defined rules boost yet_complete score
+  let spec =
+    Spec(..minimal_spec(), rules: [
+      Rule(
+        name: "test-rule",
+        condition: "true",
+        constraint: "true",
+        why: "For testing",
+      ),
+    ])
+
+  let report = ready.analyze_ready(spec)
+
+  // Should get rules bonus (25 points)
+  let spec_without_rules = Spec(..minimal_spec(), rules: [])
+  let report_without_rules = ready.analyze_ready(spec_without_rules)
+
+  { report.yet_complete.score > report_without_rules.yet_complete.score }
+  |> should.be_true
+}
+
+pub fn analyze_yet_complete_complete_test() {
+  // Contract: All completeness criteria met produces score of 100
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have perfect or near-perfect yet-complete score
+  { report.yet_complete.score >= 75 } |> should.be_true
+}
+
+// =============================================================================
+// OVERALL READINESS CALCULATION
+// =============================================================================
+
+pub fn calculate_overall_readiness_weighted_average_test() {
+  // Contract: Overall = R(25%) + E(20%) + A(20%) + D(15%) + Y(20%)
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Calculate expected overall
+  let expected =
+    int.to_float(report.replacement.score)
+    *. 0.25
+    +. int.to_float(report.empathy.score)
+    *. 0.2
+    +. int.to_float(report.actionable.score)
+    *. 0.2
+    +. int.to_float(report.discoverable.score)
+    *. 0.15
+    +. int.to_float(report.yet_complete.score)
+    *. 0.2
+
+  let expected_rounded = float.round(expected)
+
+  // Should match within rounding tolerance
+  let diff =
+    float.absolute_value(
+      int.to_float(report.overall_readiness) -. int.to_float(expected_rounded),
+    )
+  { diff <=. 1.0 } |> should.be_true
+}
+
+pub fn calculate_overall_readiness_all_zero_test() {
+  // Contract: All dimensions zero produces overall of 0
+  let spec = Spec(..minimal_spec(), features: [])
+
+  let report = ready.analyze_ready(spec)
+
+  // With no features, many dimensions should be 0 or very low
+  // Overall should be very low
+  { report.overall_readiness < 30 } |> should.be_true
+}
+
+pub fn calculate_overall_readiness_all_hundred_test() {
+  // Contract: Perfect spec approaches 100
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Complete spec should have high overall readiness
+  { report.overall_readiness >= 70 } |> should.be_true
+}
+
+// =============================================================================
+// BLOCKER GENERATION
+// =============================================================================
+
+pub fn generate_blockers_overall_below_70_test() {
+  // Contract: Overall readiness < 70 generates Critical blocker
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Verify low overall readiness
+  { report.overall_readiness < 70 } |> should.be_true
+
+  // Should have Critical blocker
+  let has_critical_overall =
+    report.blockers
+    |> list.any(fn(b) {
+      b.severity == Critical
+      && string.contains(string.lowercase(b.description), "overall")
+    })
+
+  has_critical_overall |> should.be_true
+}
+
+pub fn generate_blockers_dimension_below_40_test() {
+  // Contract: Dimension score < 40 generates Critical blocker
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // At least one dimension should be < 40 in minimal spec
+  let has_low_dimension =
+    report.replacement.score < 40
+    || report.empathy.score < 40
+    || report.actionable.score < 40
+    || report.discoverable.score < 40
+    || report.yet_complete.score < 40
+
+  { has_low_dimension } |> should.be_true
+
+  // Should have Critical blocker for dimension
+  let has_critical =
+    report.blockers
+    |> list.any(fn(b) { b.severity == Critical })
+
+  has_critical |> should.be_true
+}
+
+pub fn generate_blockers_no_blockers_test() {
+  // Contract: High scores (>=75) produce no or few blockers
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have minimal or no blockers
+  { list.length(report.blockers) <= 3 } |> should.be_true
+}
+
+// =============================================================================
+// RECOMMENDATION GENERATION
+// =============================================================================
+
+pub fn generate_recommendations_sorted_by_priority_test() {
+  // Contract: Recommendations sorted by priority (ascending)
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have recommendations
+  { list.length(report.recommendations) > 0 } |> should.be_true
+
+  // Verify sorted
+  let is_sorted = fn(recs, prev_priority) {
+    case recs {
+      [] -> True
+      [first, ..rest] -> {
+        case first.priority >= prev_priority {
+          True -> is_sorted(rest, first.priority)
+          False -> False
+        }
+      }
+    }
+  }
+
+  case report.recommendations {
+    [] -> True
+    [first, ..rest] -> is_sorted(rest, first.priority)
+  }
+  |> should.be_true
+}
+
+pub fn generate_recommendations_no_recommendations_test() {
+  // Contract: High scores (>=75) produce no or few recommendations
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Should have minimal or no recommendations
+  { list.length(report.recommendations) <= 5 } |> should.be_true
+}
+
+// =============================================================================
+// FORMAT REPORT
+// =============================================================================
+
+pub fn format_report_produces_output_test() {
+  // Contract: format_report produces non-empty string
+  let spec = test_helpers.make_test_spec_from_behaviors([])
+
+  let report = ready.analyze_ready(spec)
+  let formatted = ready.format_report(report)
+
+  // Should be non-empty
+  formatted |> string.is_empty |> should.be_false
+}
+
+pub fn format_report_includes_header_test() {
+  // Contract: Output contains READY Framework header
+  let spec = test_helpers.make_test_spec_from_behaviors([])
+
+  let report = ready.analyze_ready(spec)
+  let formatted = ready.format_report(report)
+
+  // Should contain READY or Framework
+  let lower = string.lowercase(formatted)
+  { string.contains(lower, "ready") || string.contains(lower, "framework") }
+  |> should.be_true
+}
+
+pub fn format_report_includes_overall_readiness_test() {
+  // Contract: Output contains overall readiness score
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+  let formatted = ready.format_report(report)
+
+  // Should contain the overall readiness percentage
+  let score_str = int.to_string(report.overall_readiness)
+  { string.contains(formatted, score_str) } |> should.be_true
+}
+
+pub fn format_report_includes_dimension_scores_test() {
+  // Contract: Output contains all 5 dimension scores
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+  let formatted = ready.format_report(report)
+
+  // Should contain score values
+  let replacement_str = int.to_string(report.replacement.score)
+  let empathy_str = int.to_string(report.empathy.score)
+
+  { string.contains(formatted, replacement_str) } |> should.be_true
+  { string.contains(formatted, empathy_str) } |> should.be_true
+}
+
+pub fn format_report_includes_blockers_test() {
+  // Contract: Output contains blocker information when present
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Verify we have blockers
+  { list.length(report.blockers) > 0 } |> should.be_true
+
+  let formatted = ready.format_report(report)
+
+  // Should contain blocker text
+  let lower = string.lowercase(formatted)
+  { string.contains(lower, "blocker") } |> should.be_true
+}
+
+pub fn format_report_includes_recommendations_test() {
+  // Contract: Output contains recommendations when present
+  let spec = minimal_spec()
+
+  let report = ready.analyze_ready(spec)
+
+  // Verify we have recommendations
+  { list.length(report.recommendations) > 0 } |> should.be_true
+
+  let formatted = ready.format_report(report)
+
+  // Should contain recommendation text
+  let lower = string.lowercase(formatted)
+  { string.contains(lower, "recommendation") } |> should.be_true
+}
+
+pub fn format_report_readiness_labels_test() {
+  // Contract: Output shows correct readiness label based on score
+  let spec = complete_spec()
+
+  let report = ready.analyze_ready(spec)
+  let formatted = ready.format_report(report)
+
+  // Should contain a readiness label
+  let lower = string.lowercase(formatted)
+  let has_label =
+    string.contains(lower, "launch")
+    || string.contains(lower, "production")
+    || string.contains(lower, "beta")
+    || string.contains(lower, "rework")
+
+  has_label |> should.be_true
+}

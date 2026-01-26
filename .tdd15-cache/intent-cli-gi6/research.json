@@ -1,0 +1,67 @@
+{
+  "bead_id": "intent-cli-gi6",
+  "research_findings": {
+    "module_under_test": "intent/kirk/ready.gleam",
+    "public_functions": [
+      "analyze_ready(spec: Spec) -> ReadyReport",
+      "format_report(report: ReadyReport) -> String"
+    ],
+    "private_functions_to_test_indirectly": [
+      "analyze_replacement(spec: Spec) -> DimensionScore",
+      "analyze_empathy(spec: Spec) -> DimensionScore",
+      "analyze_actionable(spec: Spec) -> DimensionScore",
+      "analyze_discoverable(spec: Spec) -> DimensionScore",
+      "analyze_yet_complete(spec: Spec) -> DimensionScore",
+      "calculate_overall_readiness(...) -> Int",
+      "generate_blockers(report: ReadyReport) -> List(Blocker)",
+      "generate_recommendations(report: ReadyReport) -> List(Recommendation)"
+    ],
+    "dependencies": {
+      "types": "intent/types.gleam (Spec, Behavior)",
+      "planning_types": "intent/planning_types.gleam (ReadyReport, DimensionScore, Blocker, Recommendation, BlockerSeverity)",
+      "test_helpers": "test_helpers.gleam (factory functions)"
+    },
+    "test_patterns": {
+      "structure": "One test per public function behavior, use gleeunit/should for assertions",
+      "naming": "function_name_scenario_test format",
+      "factory_usage": "test_helpers.make_test_spec_from_behaviors() for building test Specs",
+      "contract_comments": "Contract comments explain what each test verifies"
+    },
+    "similar_tests": [
+      "quality_analyzer_test.gleam - tests another KIRK analyzer",
+      "ready_critique_test.gleam - tests ready report validation (related module)"
+    ],
+    "key_insights": {
+      "dimension_scoring": "Each dimension has 0-100 scoring logic with different criteria",
+      "weighted_average": "Overall readiness = R(25%) + E(20%) + A(20%) + D(15%) + Y(20%)",
+      "blocker_generation": "Blockers generated based on dimension scores and overall readiness",
+      "recommendation_priority": "Recommendations sorted by priority (1=highest)",
+      "format_output": "format_report produces human-readable text with emojis and formatting"
+    }
+  },
+  "test_coverage_needed": {
+    "analyze_ready": [
+      "Empty spec",
+      "Spec with all dimensions scoring high",
+      "Spec with all dimensions scoring low",
+      "Mixed dimension scores",
+      "Verify overall_readiness calculation",
+      "Verify blockers generated for low scores",
+      "Verify recommendations generated for low scores"
+    ],
+    "dimension_analyzers": [
+      "analyze_replacement: audience, success_criteria, description, version, ai_hints",
+      "analyze_empathy: error behaviors (4xx), anti_patterns, validation keywords",
+      "analyze_actionable: response checks, quality checks with 'why', clear intents",
+      "analyze_discoverable: feature count, behavior tags, RESTful paths",
+      "analyze_yet_complete: features with behaviors, rules, ai_hints, config"
+    ],
+    "format_report": [
+      "Non-empty output",
+      "Contains dimension scores",
+      "Contains overall readiness",
+      "Contains blockers when present",
+      "Contains recommendations when present"
+    ]
+  }
+}

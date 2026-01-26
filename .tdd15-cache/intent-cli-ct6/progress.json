@@ -1,0 +1,56 @@
+{
+  "bead_id": "intent-cli-ct6",
+  "title": "AI-13: Add --parallel flag to batch command",
+  "current_phase": 4,
+  "complexity": "SIMPLE",
+  "language": "gleam",
+  "phases": [
+    {
+      "phase": 0,
+      "name": "TRIAGE",
+      "status": "complete",
+      "gate": "complexity_assessed",
+      "started_at": "2026-01-25T16:36:00Z",
+      "completed_at": "2026-01-25T16:37:00Z"
+    },
+    {
+      "phase": 4,
+      "name": "RED",
+      "status": "in_progress",
+      "gate": "tests_fail",
+      "started_at": "2026-01-25T16:37:00Z"
+    },
+    {
+      "phase": 5,
+      "name": "GREEN",
+      "status": "pending",
+      "gate": "tests_pass"
+    },
+    {
+      "phase": 6,
+      "name": "REFACTOR",
+      "status": "pending",
+      "gate": "tests_green"
+    },
+    {
+      "phase": 14,
+      "name": "LIABILITY",
+      "status": "pending",
+      "gate": "minimized"
+    },
+    {
+      "phase": 15,
+      "name": "LANDING",
+      "status": "pending",
+      "gate": "push_succeeded"
+    }
+  ],
+  "routing_rationale": "SIMPLE complexity: Single flag addition to existing batch command with concurrent processing. No new modules, limited scope, clear success criteria.",
+  "complexity_factors": {
+    "criteria_count": 1,
+    "file_count": 2,
+    "dependency_depth": "low",
+    "new_modules": false,
+    "architectural_change": false
+  }
+}

@@ -7,7 +7,6 @@
 ////
 //// This module tests the pure parsing functions (no I/O).
 
-import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list

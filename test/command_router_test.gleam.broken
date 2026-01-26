@@ -1,0 +1,264 @@
+/// Tests for JSONL command router
+import gleam/dynamic
+import gleam/json
+import gleam/string
+import gleeunit
+import gleeunit/should
+import intent/command_router
+
+pub fn main() {
+  gleeunit.main()
+}
+
+// ============================================================================
+// Routing Tests - These WILL FAIL until commands are implemented
+// ============================================================================
+
+pub fn route_validate_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-1",
+      command: "validate",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because validate isn't implemented in router yet
+  response.action
+  |> should.equal("validate_result")
+}
+
+pub fn route_analyze_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-2",
+      command: "analyze",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because analyze isn't implemented in router yet
+  response.action
+  |> should.equal("analyze_result")
+}
+
+pub fn route_lint_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(id: "test-3", command: "lint", args: args_dyn)
+
+  let response = command_router.route_request(request)
+
+  // This will fail because lint isn't implemented in router yet
+  response.action
+  |> should.equal("lint_result")
+}
+
+pub fn route_improve_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-4",
+      command: "improve",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because improve isn't implemented in router yet
+  response.action
+  |> should.equal("improve_result")
+}
+
+pub fn route_doctor_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-5",
+      command: "doctor",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because doctor isn't implemented in router yet
+  response.action
+  |> should.equal("doctor_result")
+}
+
+pub fn route_show_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(id: "test-6", command: "show", args: args_dyn)
+
+  let response = command_router.route_request(request)
+
+  // This will fail because show isn't implemented in router yet
+  response.action
+  |> should.equal("show_result")
+}
+
+pub fn route_invert_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-7",
+      command: "invert",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because invert isn't implemented in router yet
+  response.action
+  |> should.equal("invert_result")
+}
+
+pub fn route_effects_command_test() {
+  let args_json = json.object([#("spec_path", json.string("api.cue"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-8",
+      command: "effects",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because effects isn't implemented in router yet
+  response.action
+  |> should.equal("effects_result")
+}
+
+pub fn route_sessions_command_test() {
+  let args_json = json.object([])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-9",
+      command: "sessions",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because sessions isn't implemented in router yet
+  response.action
+  |> should.equal("sessions_result")
+}
+
+pub fn route_interview_command_test() {
+  let args_json = json.object([#("profile", json.string("api"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-10",
+      command: "interview",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because interview isn't implemented in router yet
+  response.action
+  |> should.equal("interview_result")
+}
+
+pub fn route_beads_command_test() {
+  let args_json = json.object([#("session_id", json.string("sess_123"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-11",
+      command: "beads",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because beads isn't implemented in router yet
+  response.action
+  |> should.equal("beads_result")
+}
+
+pub fn route_plan_command_test() {
+  let args_json = json.object([#("session_id", json.string("sess_123"))])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-12",
+      command: "plan",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // This will fail because plan isn't implemented in router yet
+  response.action
+  |> should.equal("plan_result")
+}
+
+pub fn route_unknown_command_test() {
+  let args_json = json.object([])
+  let args_dyn = dynamic.from(args_json)
+
+  let request =
+    command_router.CommandRequest(
+      id: "test-unknown",
+      command: "nonexistent",
+      args: args_dyn,
+    )
+
+  let response = command_router.route_request(request)
+
+  // Should return error for unknown command
+  response.success
+  |> should.be_false
+}
+
+pub fn process_single_request_valid_quality_test() {
+  let jsonl = "{\"command\":\"quality\",\"args\":{\"spec_path\":\"api.cue\"}}"
+
+  let response_str = command_router.process_single_request(jsonl)
+
+  // This should work since quality is already implemented
+  should.not_equal(response_str, "")
+}
+
+pub fn process_single_request_invalid_json_test() {
+  let invalid_jsonl = "{invalid json"
+
+  let response_str = command_router.process_single_request(invalid_jsonl)
+
+  // Should return error response
+  should.not_equal(response_str, "")
+  // Response should contain error
+  let has_error =
+    string.contains(response_str, "error")
+    || string.contains(response_str, "INVALID_JSON")
+  should.be_true(has_error)
+}

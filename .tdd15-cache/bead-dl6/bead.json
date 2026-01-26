@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-dl6",
+    "title": "SCHEMA-05: Create input_validator.gleam (validate requests against CUE)",
+    "status": "open",
+    "priority": 0,
+    "issue_type": "task",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:58:41.952897196-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T08:58:41.952897196-06:00"
+  }
+]

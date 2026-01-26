@@ -72,7 +72,6 @@ fn default_executor(
   shellout.command(run: cmd, with: args, in: dir, opt: [])
 }
 
-
 // ============================================================================
 // FUNCTIONAL CORE - Pure Business Logic (No I/O)
 // ============================================================================

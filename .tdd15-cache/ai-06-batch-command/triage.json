@@ -1,0 +1,60 @@
+{
+  "phase": "TRIAGE",
+  "bead_id": "intent-cli-ia6",
+  "title": "AI-06: Implement intent ai batch command",
+  "status": "BLOCKED",
+  "complexity": "COMPLEX (would require all 16 phases if dependencies were met)",
+  "blocking_dependencies": [
+    {
+      "id": "AI-04",
+      "title": "jsonl_input.gleam (JSONL stdin parser)",
+      "effort": "30min",
+      "reason": "Required to parse JSONL input from stdin"
+    },
+    {
+      "id": "AI-05",
+      "title": "command_router.gleam (JSONL dispatch)",
+      "effort": "30min",
+      "reason": "Required to route commands from batch to existing handlers"
+    }
+  ],
+  "analysis": {
+    "file_count": 4,
+    "estimated_files": [
+      "src/intent/ai/batch_executor.gleam",
+      "src/intent.gleam (add ai batch command)",
+      "test/intent/ai/batch_executor_test.gleam",
+      "integration with command_router.gleam"
+    ],
+    "success_criteria": [
+      "Read JSONL from stdin",
+      "Process each line as a separate request",
+      "Preserve correlation IDs in responses",
+      "Output JSONL to stdout (one response per line)",
+      "Handle errors gracefully with proper error JSON",
+      "Support all existing commands via router",
+      "Pass correlation ID through command chain"
+    ],
+    "integration_points": [
+      "Main CLI (intent.gleam)",
+      "Command router (AI-05)",
+      "JSONL input parser (AI-04)",
+      "All existing commands (quality, coverage, gaps, etc.)",
+      "JSON output module (already exists)",
+      "Error handling"
+    ],
+    "architectural_requirements": [
+      "AI-only architecture (no interactive features)",
+      "JSONL everywhere (stdin/stdout)",
+      "CUE schema validation",
+      "Correlation ID tracking",
+      "Stateless request/response model"
+    ]
+  },
+  "recommendation": "HALT - Complete AI-04 and AI-05 first, then retry AI-06",
+  "next_beads": [
+    "AI-04: jsonl_input.gleam (JSONL stdin parser)",
+    "AI-05: command_router.gleam (JSONL dispatch)"
+  ],
+  "completed_at": "2026-01-25T10:15:00Z"
+}

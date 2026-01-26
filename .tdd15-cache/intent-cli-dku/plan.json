@@ -1,0 +1,293 @@
+{
+  "phase": 2,
+  "phase_name": "PLAN",
+  "bead_id": "intent-cli-dku",
+  "think_step_by_step": true,
+  "implementation_plan": {
+    "overview": "Create enhanced_bead_generator module with pure functions that extract EARS patterns, contract specifications, type definitions, and test cases from Behavior types. Build structured EnhancedBeadRecord type that provides rich implementation context for AI agents.",
+    "architectural_decisions": [
+      {
+        "decision": "Create new module instead of modifying bead_templates",
+        "rationale": "Non-breaking change, allows existing workflow to continue, clear separation of concerns"
+      },
+      {
+        "decision": "Define EnhancedBeadRecord as separate type from BeadRecord",
+        "rationale": "BeadRecord is used in multiple places, changing it would require widespread updates. New type allows gradual adoption."
+      },
+      {
+        "decision": "Pure functions for all extraction logic",
+        "rationale": "Testable, composable, follows Gleam 7 Commandments (immutability, no side effects)"
+      },
+      {
+        "decision": "Use Result types for error handling",
+        "rationale": "Railway-Oriented Programming, explicit error cases, no panics"
+      }
+    ],
+    "file_structure": {
+      "new_files": [
+        {
+          "path": "src/intent/enhanced_bead_generator.gleam",
+          "purpose": "Core module with types and extraction functions",
+          "exports": [
+            "EnhancedBeadRecord type",
+            "BeadContracts type",
+            "TestCase type",
+            "EarsPattern type alias",
+            "generate_enhanced_bead/2",
+            "extract_contracts_from_behavior/1",
+            "extract_ears_patterns/1",
+            "generate_type_definitions/1",
+            "generate_test_cases/1"
+          ]
+        },
+        {
+          "path": "test/enhanced_bead_generator_test.gleam",
+          "purpose": "Unit tests for enhanced bead generation",
+          "test_cases": [
+            "test_extract_contracts_from_checks",
+            "test_extract_ears_patterns_from_intent",
+            "test_generate_type_definitions_from_behavior",
+            "test_generate_test_cases_from_checks",
+            "test_generate_enhanced_bead_complete"
+          ]
+        }
+      ],
+      "modified_files": []
+    },
+    "type_definitions": [
+      {
+        "name": "EarsPatternInfo",
+        "definition": "EarsPatternInfo(pattern_type: String, trigger: Option(String), state: Option(String), condition: Option(String), behavior: String)",
+        "purpose": "Simplified EARS pattern representation for beads (not full EarsRequirement)",
+        "rationale": "BeadRecord needs string-serializable EARS info, not full parsing structure"
+      },
+      {
+        "name": "BeadContracts",
+        "definition": "BeadContracts(preconditions: List(String), postconditions: List(ContractCheck), invariants: List(String))",
+        "purpose": "Structured contract specifications",
+        "fields": {
+          "preconditions": "Derived from behavior.requires (dependencies)",
+          "postconditions": "Derived from response.checks (rule + why)",
+          "invariants": "System-wide constraints (extracted from global rules if available)"
+        }
+      },
+      {
+        "name": "ContractCheck",
+        "definition": "ContractCheck(rule: String, why: String, check_name: String)",
+        "purpose": "Single contract postcondition with metadata",
+        "rationale": "Wraps types.Check with additional context"
+      },
+      {
+        "name": "TestCase",
+        "definition": "TestCase(name: String, given: List(String), when: String, then: String, assertion: String)",
+        "purpose": "BDD-style test scenario",
+        "fields": {
+          "name": "Descriptive test name from check name",
+          "given": "Preconditions (from behavior.requires)",
+          "when": "Action (from behavior.intent and request)",
+          "then": "Expected outcome (from Check.why)",
+          "assertion": "Validation expression (from Check.rule)"
+        }
+      },
+      {
+        "name": "TypeDefinition",
+        "definition": "TypeDefinition(name: String, signature: String, purpose: String)",
+        "purpose": "Type signature needed for implementation",
+        "fields": {
+          "name": "Type/function name",
+          "signature": "Gleam type signature",
+          "purpose": "What this type represents"
+        }
+      },
+      {
+        "name": "EnhancedBeadRecord",
+        "definition": "EnhancedBeadRecord(base: BeadRecord, ears_patterns: List(EarsPatternInfo), contracts: BeadContracts, types: List(TypeDefinition), tests: List(TestCase))",
+        "purpose": "Enriched bead with all AI implementation context",
+        "rationale": "Composition over modification - wraps BeadRecord instead of replacing it"
+      }
+    ],
+    "implementation_steps": [
+      {
+        "step": 1,
+        "task": "Define types in enhanced_bead_generator.gleam",
+        "details": "Create EarsPatternInfo, BeadContracts, ContractCheck, TestCase, TypeDefinition, EnhancedBeadRecord types with proper exports",
+        "dependencies": []
+      },
+      {
+        "step": 2,
+        "task": "Implement extract_contracts_from_behavior",
+        "signature": "fn extract_contracts_from_behavior(behavior: Behavior) -> BeadContracts",
+        "logic": [
+          "Extract preconditions from behavior.requires list",
+          "Convert response.checks Dict to List(ContractCheck) for postconditions",
+          "For each check: ContractCheck(rule: check.rule, why: check.why, check_name: name)",
+          "Invariants empty for now (could be enhanced later with global rules)",
+          "Return BeadContracts"
+        ],
+        "dependencies": ["types.gleam (Behavior, Check)", "gleam/dict (to_list)"]
+      },
+      {
+        "step": 3,
+        "task": "Implement extract_ears_patterns",
+        "signature": "fn extract_ears_patterns(intent: String) -> List(EarsPatternInfo)",
+        "logic": [
+          "Parse intent string to detect EARS keywords",
+          "Match patterns: WHEN->EventDriven, WHILE->StateDriven, WHERE->Optional, SHALL NOT->Unwanted",
+          "Default to Ubiquitous if no keywords",
+          "Extract trigger/state/condition using string operations",
+          "Return list of EarsPatternInfo (typically 1 item, but behavior.intent might have multiple)",
+          "Handle parse failures gracefully - return Ubiquitous pattern with full intent as behavior"
+        ],
+        "dependencies": ["gleam/string", "gleam/list", "gleam/option"]
+      },
+      {
+        "step": 4,
+        "task": "Implement generate_type_definitions",
+        "signature": "fn generate_type_definitions(behavior: Behavior) -> List(TypeDefinition)",
+        "logic": [
+          "Analyze behavior.request.method and path to infer handler function",
+          "Extract request body type from behavior.request.body (if object)",
+          "Extract response type from behavior.response.example (if object)",
+          "Generate TypeDefinition for request handler: 'handle_<path>(request: Request) -> Response'",
+          "Generate TypeDefinition for request body type if present",
+          "Generate TypeDefinition for response body type if present",
+          "Return list of type definitions"
+        ],
+        "dependencies": ["types.gleam (Behavior, Request, Response)", "gleam/json", "gleam/string"]
+      },
+      {
+        "step": 5,
+        "task": "Implement generate_test_cases",
+        "signature": "fn generate_test_cases(behavior: Behavior) -> List(TestCase)",
+        "logic": [
+          "For each check in behavior.response.checks:",
+          "  Create TestCase(",
+          "    name: check_name + ' validation',",
+          "    given: behavior.requires (preconditions),",
+          "    when: behavior.intent + ' with ' + method + ' ' + path,",
+          "    then: Check.why,",
+          "    assertion: Check.rule",
+          "  )",
+          "Add base test case for status code check",
+          "Return list of test cases"
+        ],
+        "dependencies": ["types.gleam (Behavior, Check)", "gleam/dict (to_list)"]
+      },
+      {
+        "step": 6,
+        "task": "Implement generate_enhanced_bead",
+        "signature": "fn generate_enhanced_bead(behavior: Behavior, profile_type: String) -> EnhancedBeadRecord",
+        "logic": [
+          "Create base BeadRecord from behavior (similar to existing bead_templates logic)",
+          "Call extract_contracts_from_behavior(behavior) -> contracts",
+          "Call extract_ears_patterns(behavior.intent) -> ears_patterns",
+          "Call generate_type_definitions(behavior) -> types",
+          "Call generate_test_cases(behavior) -> tests",
+          "Return EnhancedBeadRecord(base, ears_patterns, contracts, types, tests)"
+        ],
+        "dependencies": ["All extraction functions", "bead_templates.gleam (for base bead logic)"]
+      },
+      {
+        "step": 7,
+        "task": "Add JSON serialization",
+        "details": "Implement to_json functions for EnhancedBeadRecord and all sub-types to enable --json output",
+        "functions": [
+          "enhanced_bead_to_json(bead: EnhancedBeadRecord) -> Json",
+          "contracts_to_json(contracts: BeadContracts) -> Json",
+          "test_case_to_json(test: TestCase) -> Json",
+          "type_def_to_json(typedef: TypeDefinition) -> Json",
+          "ears_pattern_to_json(pattern: EarsPatternInfo) -> Json"
+        ],
+        "dependencies": ["gleam/json"]
+      }
+    ],
+    "testing_strategy": {
+      "approach": "Test-driven development (RED-GREEN-REFACTOR)",
+      "test_file": "test/enhanced_bead_generator_test.gleam",
+      "test_cases": [
+        {
+          "name": "test_extract_contracts_with_multiple_checks",
+          "purpose": "Verify multiple response checks convert to postconditions correctly",
+          "setup": "Create Behavior with 3 checks in response.checks",
+          "assertion": "BeadContracts has 3 postconditions with correct rule/why"
+        },
+        {
+          "name": "test_extract_contracts_with_requires",
+          "purpose": "Verify behavior.requires becomes preconditions",
+          "setup": "Create Behavior with 2 items in requires list",
+          "assertion": "BeadContracts.preconditions has 2 items matching requires"
+        },
+        {
+          "name": "test_extract_ears_event_driven",
+          "purpose": "Verify WHEN pattern detection",
+          "setup": "Create behavior with intent 'WHEN user clicks submit THE SYSTEM SHALL validate form'",
+          "assertion": "EarsPatternInfo has pattern_type='EventDriven', trigger='user clicks submit', behavior='validate form'"
+        },
+        {
+          "name": "test_extract_ears_state_driven",
+          "purpose": "Verify WHILE pattern detection",
+          "setup": "Create behavior with intent 'WHILE user is authenticated THE SYSTEM SHALL show dashboard'",
+          "assertion": "EarsPatternInfo has pattern_type='StateDriven', state='user is authenticated'"
+        },
+        {
+          "name": "test_extract_ears_ubiquitous_fallback",
+          "purpose": "Verify default to Ubiquitous when no keywords",
+          "setup": "Create behavior with intent 'The system validates input'",
+          "assertion": "EarsPatternInfo has pattern_type='Ubiquitous', behavior=full intent"
+        },
+        {
+          "name": "test_generate_type_definitions_post_request",
+          "purpose": "Verify type generation for POST with request body",
+          "setup": "Create POST behavior with JSON body in request",
+          "assertion": "TypeDefinition includes request body type and handler signature"
+        },
+        {
+          "name": "test_generate_test_cases_from_checks",
+          "purpose": "Verify each check becomes a test case",
+          "setup": "Create behavior with 2 checks",
+          "assertion": "2 TestCases generated with given/when/then/assertion populated"
+        },
+        {
+          "name": "test_generate_enhanced_bead_integration",
+          "purpose": "Verify full pipeline from Behavior to EnhancedBeadRecord",
+          "setup": "Create realistic behavior with intent, checks, requires",
+          "assertion": "EnhancedBeadRecord has all fields populated: ears_patterns, contracts, types, tests"
+        }
+      ],
+      "test_data": {
+        "sample_behavior": "Create helper function make_test_behavior() that returns a realistic Behavior with method=POST, path='/users', intent with EARS pattern, 2 requires, 3 checks in response"
+      }
+    },
+    "edge_cases": [
+      "Behavior with empty response.checks -> contracts has empty postconditions",
+      "Behavior with empty requires -> contracts has empty preconditions",
+      "Intent without EARS keywords -> defaults to Ubiquitous pattern",
+      "Request with no body -> types list omits request body type",
+      "Response example is null -> types list omits response body type",
+      "Behavior with complex nested JSON -> type generation handles recursion"
+    ],
+    "gleam_conventions": {
+      "immutability": "All types immutable, no mutable state",
+      "no_nulls": "Use Option(T) for optional fields, never null",
+      "pipelines": "Use |> for data transformations (checks |> dict.to_list |> list.map)",
+      "exhaustive_matching": "Pattern match on all cases (Option, Result, custom types)",
+      "labeled_args": "Use labeled arguments for functions with 3+ params",
+      "type_safety": "Leverage type system, avoid dynamic types where possible",
+      "formatting": "Run 'gleam format' before commit"
+    },
+    "success_criteria": [
+      "All types defined with proper exports",
+      "Extract contracts function handles checks and requires",
+      "Extract EARS patterns function detects at least 3 pattern types",
+      "Generate type definitions function infers request/response types",
+      "Generate test cases function creates BDD-style scenarios",
+      "Main generate_enhanced_bead function composes all extractors",
+      "All tests pass with 'gleam test'",
+      "Code formatted with 'gleam format'",
+      "No compiler warnings"
+    ]
+  },
+  "gate_passed": true,
+  "plan_verified": true,
+  "completed_at": "2026-01-25T09:10:00-06:00"
+}

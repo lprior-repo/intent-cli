@@ -1,0 +1,349 @@
+{
+  "bead_id": "intent-cli-gi6",
+  "test_file": "test/intent/kirk/ready_test.gleam",
+  "implementation_approach": "TDD - write failing tests first, then verify they pass with existing implementation",
+  "test_groups": [
+    {
+      "group": "analyze_ready - Core functionality",
+      "tests": [
+        {
+          "name": "analyze_ready_empty_spec_test",
+          "contract": "Empty spec produces valid ReadyReport with scores in range [0, 100]",
+          "setup": "Empty behaviors list",
+          "assertion": "All dimension scores and overall_readiness in [0, 100]"
+        },
+        {
+          "name": "analyze_ready_minimal_spec_test",
+          "contract": "Minimal spec with basic fields produces low but valid scores",
+          "setup": "Spec with minimal fields populated",
+          "assertion": "Scores reflect minimal quality"
+        },
+        {
+          "name": "analyze_ready_complete_spec_test",
+          "contract": "Well-formed spec with all fields produces high scores",
+          "setup": "Spec with audience, success_criteria, behaviors, checks, etc",
+          "assertion": "Overall readiness >= 70"
+        },
+        {
+          "name": "analyze_ready_generates_blockers_test",
+          "contract": "Low dimension scores generate appropriate blockers",
+          "setup": "Spec with low scores in multiple dimensions",
+          "assertion": "blockers list not empty, contains Critical/High severity"
+        },
+        {
+          "name": "analyze_ready_generates_recommendations_test",
+          "contract": "Medium scores generate prioritized recommendations",
+          "setup": "Spec with medium scores (50-75 range)",
+          "assertion": "recommendations list not empty, sorted by priority"
+        }
+      ]
+    },
+    {
+      "group": "Dimension Analyzers - Replacement",
+      "tests": [
+        {
+          "name": "analyze_replacement_via_analyze_ready_no_audience_test",
+          "contract": "Missing audience reduces replacement score",
+          "setup": "Spec with empty audience string",
+          "assertion": "replacement.score < 100, issues contains audience-related item"
+        },
+        {
+          "name": "analyze_replacement_via_analyze_ready_few_success_criteria_test",
+          "contract": "< 3 success criteria reduces replacement score",
+          "setup": "Spec with 0-2 success criteria",
+          "assertion": "replacement.score reflects criteria count"
+        },
+        {
+          "name": "analyze_replacement_via_analyze_ready_short_description_test",
+          "contract": "Short description (<=50 chars) reduces replacement score",
+          "setup": "Spec with 30-char description",
+          "assertion": "replacement.score penalized"
+        },
+        {
+          "name": "analyze_replacement_via_analyze_ready_no_version_dot_test",
+          "contract": "Version without dot reduces replacement score",
+          "setup": "Spec with version='1' (no dot)",
+          "assertion": "replacement.score penalized"
+        },
+        {
+          "name": "analyze_replacement_via_analyze_ready_complete_test",
+          "contract": "All replacement criteria met produces high score",
+          "setup": "Spec with audience, 3+ success_criteria, long description, semantic version, ai_hints",
+          "assertion": "replacement.score == 100"
+        }
+      ]
+    },
+    {
+      "group": "Dimension Analyzers - Empathy",
+      "tests": [
+        {
+          "name": "analyze_empathy_via_analyze_ready_no_error_behaviors_test",
+          "contract": "No 4xx status behaviors produces low empathy score",
+          "setup": "Spec with only 2xx status behaviors",
+          "assertion": "empathy.score == 0 or very low"
+        },
+        {
+          "name": "analyze_empathy_via_analyze_ready_has_error_behaviors_test",
+          "contract": "Multiple 4xx behaviors increase empathy score",
+          "setup": "Spec with 3+ behaviors having 4xx status",
+          "assertion": "empathy.score >= 75"
+        },
+        {
+          "name": "analyze_empathy_via_analyze_ready_has_anti_patterns_test",
+          "contract": "2+ anti_patterns boost empathy score",
+          "setup": "Spec with 2+ anti_patterns defined",
+          "assertion": "empathy.score increased by anti_patterns bonus"
+        },
+        {
+          "name": "analyze_empathy_via_analyze_ready_has_validation_keywords_test",
+          "contract": "Validation keywords in intent/notes boost empathy",
+          "setup": "Behavior with 'validation' or 'verify' in intent",
+          "assertion": "empathy.score includes validation bonus"
+        }
+      ]
+    },
+    {
+      "group": "Dimension Analyzers - Actionable",
+      "tests": [
+        {
+          "name": "analyze_actionable_via_analyze_ready_no_checks_test",
+          "contract": "No response checks produces actionable score of 0",
+          "setup": "Behaviors with empty checks dict",
+          "assertion": "actionable.score == 0"
+        },
+        {
+          "name": "analyze_actionable_via_analyze_ready_has_checks_test",
+          "contract": "3+ behaviors with checks produce high actionable score",
+          "setup": "3 behaviors with non-empty checks",
+          "assertion": "actionable.score >= 90"
+        },
+        {
+          "name": "analyze_actionable_via_analyze_ready_quality_checks_test",
+          "contract": "Checks with detailed 'why' boost actionable score",
+          "setup": "Checks with why field > 10 chars",
+          "assertion": "actionable.score includes quality bonus"
+        },
+        {
+          "name": "analyze_actionable_via_analyze_ready_clear_intents_test",
+          "contract": "Clear intents (>20 chars) boost actionable score",
+          "setup": "Behaviors with long intent strings",
+          "assertion": "actionable.score includes intent clarity bonus"
+        }
+      ]
+    },
+    {
+      "group": "Dimension Analyzers - Discoverable",
+      "tests": [
+        {
+          "name": "analyze_discoverable_via_analyze_ready_no_features_test",
+          "contract": "0 features produces low discoverable score",
+          "setup": "Spec with empty features list",
+          "assertion": "discoverable.score == 0"
+        },
+        {
+          "name": "analyze_discoverable_via_analyze_ready_multiple_features_test",
+          "contract": "3+ features produce high feature score component",
+          "setup": "Spec with 3 features",
+          "assertion": "discoverable.score >= 60"
+        },
+        {
+          "name": "analyze_discoverable_via_analyze_ready_has_tags_test",
+          "contract": "Behaviors with tags boost discoverable score",
+          "setup": "3+ behaviors with non-empty tags",
+          "assertion": "discoverable.score includes tag bonus (up to 30 points)"
+        },
+        {
+          "name": "analyze_discoverable_via_analyze_ready_restful_paths_test",
+          "contract": "RESTful paths (containing /) boost discoverable score",
+          "setup": "Behaviors with paths like '/users/id'",
+          "assertion": "discoverable.score includes RESTful bonus (10 points)"
+        }
+      ]
+    },
+    {
+      "group": "Dimension Analyzers - Yet-complete",
+      "tests": [
+        {
+          "name": "analyze_yet_complete_via_analyze_ready_incomplete_test",
+          "contract": "Missing features, rules, ai_hints, config produces low score",
+          "setup": "Spec with empty/minimal fields",
+          "assertion": "yet_complete.score < 50"
+        },
+        {
+          "name": "analyze_yet_complete_via_analyze_ready_features_without_behaviors_test",
+          "contract": "Features without behaviors reduce yet_complete score",
+          "setup": "Feature with empty behaviors list",
+          "assertion": "yet_complete.score penalized, issues contains 'Features without behaviors'"
+        },
+        {
+          "name": "analyze_yet_complete_via_analyze_ready_has_rules_test",
+          "contract": "Defined rules boost yet_complete score",
+          "setup": "Spec with non-empty rules list",
+          "assertion": "yet_complete.score includes rules bonus (25 points)"
+        },
+        {
+          "name": "analyze_yet_complete_via_analyze_ready_complete_test",
+          "contract": "All completeness criteria met produces score of 100",
+          "setup": "Spec with features+behaviors, rules, ai_hints, config.base_url",
+          "assertion": "yet_complete.score == 100"
+        }
+      ]
+    },
+    {
+      "group": "Overall Readiness Calculation",
+      "tests": [
+        {
+          "name": "calculate_overall_readiness_weighted_average_test",
+          "contract": "Overall = R(25%) + E(20%) + A(20%) + D(15%) + Y(20%)",
+          "setup": "Spec with known dimension scores",
+          "assertion": "overall_readiness matches weighted formula within float tolerance"
+        },
+        {
+          "name": "calculate_overall_readiness_all_zero_test",
+          "contract": "All dimensions zero produces overall of 0",
+          "setup": "Minimal spec with all zeros",
+          "assertion": "overall_readiness == 0"
+        },
+        {
+          "name": "calculate_overall_readiness_all_hundred_test",
+          "contract": "All dimensions 100 produces overall of 100",
+          "setup": "Perfect spec",
+          "assertion": "overall_readiness == 100"
+        }
+      ]
+    },
+    {
+      "group": "Blocker Generation",
+      "tests": [
+        {
+          "name": "generate_blockers_overall_below_70_test",
+          "contract": "Overall readiness < 70 generates Critical blocker",
+          "setup": "Spec with overall_readiness = 65",
+          "assertion": "blockers contains Critical severity blocker for overall readiness"
+        },
+        {
+          "name": "generate_blockers_overall_70_to_80_test",
+          "contract": "Overall readiness 70-79 generates High blocker",
+          "setup": "Spec with overall_readiness = 75",
+          "assertion": "blockers contains High severity blocker"
+        },
+        {
+          "name": "generate_blockers_dimension_below_40_test",
+          "contract": "Dimension score < 40 generates Critical blocker",
+          "setup": "Spec with replacement.score = 35",
+          "assertion": "blockers contains Critical blocker for Replacement"
+        },
+        {
+          "name": "generate_blockers_dimension_40_to_60_test",
+          "contract": "Dimension score 40-59 generates High blocker",
+          "setup": "Spec with empathy.score = 50",
+          "assertion": "blockers contains High blocker for Empathy"
+        },
+        {
+          "name": "generate_blockers_dimension_60_to_75_test",
+          "contract": "Dimension score 60-74 generates Medium blocker",
+          "setup": "Spec with actionable.score = 65",
+          "assertion": "blockers contains Medium blocker for Actionable"
+        },
+        {
+          "name": "generate_blockers_no_blockers_test",
+          "contract": "High scores (>=75) produce no blockers",
+          "setup": "Spec with all dimensions >= 75 and overall >= 80",
+          "assertion": "blockers list is empty"
+        }
+      ]
+    },
+    {
+      "group": "Recommendation Generation",
+      "tests": [
+        {
+          "name": "generate_recommendations_dimension_below_40_test",
+          "contract": "Dimension < 40 generates priority 1-2 recommendations",
+          "setup": "Spec with replacement.score = 30",
+          "assertion": "recommendations contains items with priority 1-2"
+        },
+        {
+          "name": "generate_recommendations_dimension_40_to_60_test",
+          "contract": "Dimension 40-59 generates priority 3-4 recommendations",
+          "setup": "Spec with empathy.score = 50",
+          "assertion": "recommendations contains items with priority 3-4"
+        },
+        {
+          "name": "generate_recommendations_dimension_60_to_75_test",
+          "contract": "Dimension 60-74 generates priority 5-6 recommendations",
+          "setup": "Spec with actionable.score = 65",
+          "assertion": "recommendations contains items with priority 5-6"
+        },
+        {
+          "name": "generate_recommendations_sorted_by_priority_test",
+          "contract": "Recommendations sorted by priority (ascending)",
+          "setup": "Spec with mixed dimension scores",
+          "assertion": "recommendations[i].priority <= recommendations[i+1].priority"
+        },
+        {
+          "name": "generate_recommendations_no_recommendations_test",
+          "contract": "High scores (>=75) produce no recommendations",
+          "setup": "Spec with all dimensions >= 75",
+          "assertion": "recommendations list is empty"
+        }
+      ]
+    },
+    {
+      "group": "Format Report",
+      "tests": [
+        {
+          "name": "format_report_produces_output_test",
+          "contract": "format_report produces non-empty string",
+          "setup": "Any ReadyReport",
+          "assertion": "output is non-empty"
+        },
+        {
+          "name": "format_report_includes_header_test",
+          "contract": "Output contains READY Framework header",
+          "setup": "Any ReadyReport",
+          "assertion": "output contains 'READY' or 'Framework'"
+        },
+        {
+          "name": "format_report_includes_overall_readiness_test",
+          "contract": "Output contains overall readiness score",
+          "setup": "ReadyReport with overall_readiness = 85",
+          "assertion": "output contains '85%' or '85'"
+        },
+        {
+          "name": "format_report_includes_dimension_scores_test",
+          "contract": "Output contains all 5 dimension scores",
+          "setup": "ReadyReport with known dimension scores",
+          "assertion": "output contains score values for R, E, A, D, Y"
+        },
+        {
+          "name": "format_report_includes_blockers_test",
+          "contract": "Output contains blocker information when present",
+          "setup": "ReadyReport with blockers",
+          "assertion": "output contains 'Blocker' or blocker description"
+        },
+        {
+          "name": "format_report_includes_recommendations_test",
+          "contract": "Output contains recommendations when present",
+          "setup": "ReadyReport with recommendations",
+          "assertion": "output contains 'Recommendation' or recommendation text"
+        },
+        {
+          "name": "format_report_readiness_labels_test",
+          "contract": "Output shows correct readiness label (Launch Ready, Beta, etc)",
+          "setup": "Reports with different overall_readiness values",
+          "assertion": ">=90 shows 'Launch Ready', >=80 shows 'Production', etc"
+        }
+      ]
+    }
+  ],
+  "total_tests": 54,
+  "success_criteria": [
+    "All tests pass with existing ready.gleam implementation",
+    "Test coverage includes all public functions",
+    "Tests verify all 5 dimension scoring logic",
+    "Tests verify blocker and recommendation generation",
+    "Tests verify overall readiness calculation",
+    "Tests verify format_report output",
+    "Code formatted with gleam format"
+  ]
+}

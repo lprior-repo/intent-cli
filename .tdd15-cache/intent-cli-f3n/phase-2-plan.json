@@ -1,0 +1,226 @@
+{
+  "phase": 2,
+  "name": "PLAN",
+  "completed_at": "2026-01-25T21:55:00Z",
+  "implementation_plan": {
+    "overview": "Implement 4 vision commands using Glint CLI pattern, following existing interview command structure",
+    "new_modules": [
+      {
+        "file": "src/intent/vision_session.gleam",
+        "purpose": "Vision session state management with pure functions",
+        "exports": [
+          "VisionSession type",
+          "VisionAnswer type",
+          "VisionGap type",
+          "VisionConflict type",
+          "VisionStatus type (InProgress, ReadyForCritique, Complete)",
+          "create_session(id, profile, created_at) -> VisionSession",
+          "record_answer(session, question_id, answer, extracted) -> VisionSession",
+          "build_vision_section(session) -> Result(VisionSection, String)",
+          "find_answer(session, question_id) -> Option(VisionAnswer)",
+          "get_answered_count(session) -> Int",
+          "get_required_unanswered(session, questions) -> List(Question)"
+        ],
+        "dependencies": ["vision_types", "dict", "list", "option"]
+      },
+      {
+        "file": "src/intent/vision_session_storage.gleam",
+        "purpose": "JSONL persistence for vision sessions",
+        "pattern": "Functional Core / Imperative Shell with dependency injection",
+        "exports": [
+          "FileReader, FileWriter, DirectoryCreator types",
+          "session_to_json(session) -> Json",
+          "session_from_json(data) -> Result(VisionSession, DecodeErrors)",
+          "save_session(session, path) -> Result(Nil, String)",
+          "load_session(session_id, path) -> Result(VisionSession, String)",
+          "list_sessions(path) -> Result(List(VisionSession), String)",
+          "simplifile_reader(), simplifile_writer(), simplifile_dir_creator()"
+        ],
+        "default_path": ".intent/vision-sessions.jsonl",
+        "dependencies": ["vision_session", "json", "dynamic", "simplifile", "result"]
+      }
+    ],
+    "command_implementations": [
+      {
+        "command": "vision start",
+        "glint_path": ["vision", "start"],
+        "flags": ["--profile (string, default='api')"],
+        "logic": [
+          "1. Parse --profile flag",
+          "2. Load questions: question_loader.load_default_questions()",
+          "3. Get vision questions: question_loader.get_questions(db, profile, 1)",
+          "4. Generate session ID: ffi.generate_uuid()",
+          "5. Get timestamp: ffi.get_timestamp()",
+          "6. Create session: vision_session.create_session(id, profile, timestamp)",
+          "7. Save session: vision_session_storage.save_session(session, path)",
+          "8. Build questions JSON array",
+          "9. Return json_output.success with session_id, questions, created_at"
+        ],
+        "output_action": "vision_start_result",
+        "next_actions": ["intent vision answer --session-id={id} --question-id={first_q} --answer='...'"],
+        "error_cases": [
+          "Invalid profile: return error 'Unknown profile'",
+          "Questions load fail: return error 'Failed to load questions'",
+          "Session save fail: return error 'Failed to save session'"
+        ]
+      },
+      {
+        "command": "vision answer",
+        "glint_path": ["vision", "answer"],
+        "flags": [
+          "--session-id (string, required)",
+          "--question-id (string, required)",
+          "--answer (string, required)"
+        ],
+        "logic": [
+          "1. Parse flags: session-id, question-id, answer",
+          "2. Validate all flags present",
+          "3. Load session: vision_session_storage.load_session(session_id, path)",
+          "4. Load questions database",
+          "5. Find question by ID",
+          "6. Extract fields from answer (using question.extract_into)",
+          "7. Build extracted: Dict(String, String)",
+          "8. Check for conflicts (placeholder: return empty list)",
+          "9. Record answer: vision_session.record_answer(session, qid, answer, extracted)",
+          "10. Save updated session",
+          "11. Count remaining questions",
+          "12. Return json_output.success with answered, extracted, conflicts, remaining"
+        ],
+        "output_action": "vision_answer_result",
+        "next_actions": [
+          "If more questions: intent vision answer --session-id={id} --question-id={next_q}",
+          "If all answered: intent vision critique --session-id={id}"
+        ],
+        "error_cases": [
+          "Session not found: return error 'Session {id} not found'",
+          "Question not found: return error 'Question {id} not found'",
+          "Missing flags: return error 'Required flag missing'"
+        ]
+      },
+      {
+        "command": "vision critique",
+        "glint_path": ["vision", "critique"],
+        "flags": ["--session-id (string, required)"],
+        "logic": [
+          "1. Parse --session-id flag",
+          "2. Load session",
+          "3. Build VisionSection: vision_session.build_vision_section(session)",
+          "4. Run critique: vision_critique.critique_vision(section)",
+          "5. Extract CritiqueResult fields",
+          "6. Map issues to JSON array",
+          "7. Return json_output.success with persona, issues, score, passed"
+        ],
+        "output_action": "vision_critique_result",
+        "next_actions": [
+          "If passed: intent vision check --session-id={id}",
+          "If not passed: Fix critical issues by answering questions again"
+        ],
+        "error_cases": [
+          "Session not found: return error",
+          "Incomplete answers: return error 'Missing required answers for critique'"
+        ]
+      },
+      {
+        "command": "vision check",
+        "glint_path": ["vision", "check"],
+        "flags": ["--session-id (string, required)"],
+        "logic": [
+          "1. Parse --session-id flag",
+          "2. Load session",
+          "3. Build VisionSection",
+          "4. Run critique: vision_critique.critique_vision(section)",
+          "5. Determine gate_status: score >= 70 && passed ? 'unlocked' : 'locked'",
+          "6. Extract blockers: filter Critical issues",
+          "7. Return json_output.success with gate_status, score, blockers, can_proceed"
+        ],
+        "output_action": "vision_check_result",
+        "next_actions": [
+          "If unlocked: intent shape start",
+          "If locked: Fix blockers with intent vision answer"
+        ],
+        "error_cases": ["Session not found: return error"]
+      }
+    ],
+    "modifications": [
+      {
+        "file": "src/intent.gleam",
+        "changes": [
+          "Import vision_session",
+          "Import vision_session_storage",
+          "Import vision_critique",
+          "Add vision_start_command() function",
+          "Add vision_answer_command() function",
+          "Add vision_critique_command() function",
+          "Add vision_check_command() function",
+          "Register commands in main() with glint.add()"
+        ]
+      }
+    ],
+    "test_files": [
+      {
+        "file": "test/intent/vision_session_test.gleam",
+        "tests": [
+          "create_session_sets_fields_correctly",
+          "record_answer_adds_to_list",
+          "record_multiple_answers",
+          "build_vision_section_happy_path",
+          "build_vision_section_missing_required_field_returns_error",
+          "find_answer_by_question_id",
+          "get_answered_count"
+        ]
+      },
+      {
+        "file": "test/intent/vision_session_storage_test.gleam",
+        "tests": [
+          "session_to_json_roundtrip",
+          "save_and_load_session",
+          "load_nonexistent_session_returns_error",
+          "list_empty_sessions",
+          "list_multiple_sessions"
+        ]
+      },
+      {
+        "file": "test/intent/vision_commands_test.gleam",
+        "tests": [
+          "vision_start_creates_session",
+          "vision_answer_records_response",
+          "vision_answer_missing_session_id_fails",
+          "vision_critique_returns_score",
+          "vision_check_locked_when_score_low",
+          "vision_check_unlocked_when_score_high"
+        ]
+      }
+    ],
+    "question_id_mapping": {
+      "description": "Mapping from question IDs (assumed) to VisionSection fields",
+      "note": "Actual question IDs need to be verified from schema/questions.cue",
+      "mappings": [
+        {"question_id": "vision-press-release", "field": "press_release", "type": "String"},
+        {"question_id": "vision-persona", "field": "persona", "type": "String"},
+        {"question_id": "vision-non-personas", "field": "non_personas", "type": "List(String)", "parse": "split by comma/newline"},
+        {"question_id": "vision-north-star", "field": "north_star", "type": "String"},
+        {"question_id": "vision-replaces", "field": "replaces", "type": "Option(String)"},
+        {"question_id": "vision-vorp", "field": "vorp", "type": "String"},
+        {"question_id": "vision-out-of-scope", "field": "out_of_scope", "type": "List(String)", "parse": "split by comma/newline"},
+        {"question_id": "vision-scenarios", "field": "scenarios", "type": "List(Scenario)", "parse": "structured format TBD"}
+      ]
+    },
+    "tdd_workflow": [
+      "Phase 4 (RED): Write failing tests for all modules",
+      "Phase 5 (GREEN): Implement vision_session.gleam to pass tests",
+      "Phase 5 (GREEN): Implement vision_session_storage.gleam to pass tests",
+      "Phase 5 (GREEN): Implement command functions in intent.gleam to pass tests",
+      "Phase 6 (REFACTOR): Clean up, DRY, extract helpers"
+    ],
+    "acceptance_criteria": [
+      "intent vision start --profile=api creates a session and returns questions",
+      "intent vision answer records answers and extracts fields",
+      "intent vision critique runs skeptical PM validation and returns score",
+      "intent vision check determines gate status based on critique score",
+      "All commands output valid JSON using json_output module",
+      "All tests pass: gleam test",
+      "Code follows Gleam conventions: gleam format succeeds",
+      "No panics, all error paths return Result types"
+    ]
+  }
+}

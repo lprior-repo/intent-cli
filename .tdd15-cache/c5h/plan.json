@@ -1,0 +1,414 @@
+{
+  "phase": 2,
+  "phase_name": "PLAN",
+  "bead_id": "intent-cli-c5h",
+  "title": "WAVE0-02: JSONL Storage Pattern",
+  "success_criteria_coverage": {
+    "criteria": [
+      {
+        "criterion": "Generic JSONL storage module created",
+        "steps": ["A", "B", "C"],
+        "addressed": true
+      },
+      {
+        "criterion": "Supports type-parameterized record serialization",
+        "steps": ["A", "D"],
+        "addressed": true
+      },
+      {
+        "criterion": "Maintains Functional Core / Imperative Shell pattern",
+        "steps": ["A", "E"],
+        "addressed": true
+      },
+      {
+        "criterion": "Dependency injection for I/O operations",
+        "steps": ["A", "F"],
+        "addressed": true
+      },
+      {
+        "criterion": "Simplifile adapters provided",
+        "steps": ["G"],
+        "addressed": true
+      },
+      {
+        "criterion": "Comprehensive tests for generic pattern",
+        "steps": ["H", "I"],
+        "addressed": true
+      },
+      {
+        "criterion": "Documentation explains usage pattern",
+        "steps": ["J"],
+        "addressed": true
+      },
+      {
+        "criterion": "Follows existing gleam conventions",
+        "steps": ["K"],
+        "addressed": true
+      }
+    ],
+    "all_covered": true
+  },
+  "implementation_steps": [
+    {
+      "id": "A",
+      "name": "Create jsonl_storage module scaffold",
+      "description": "Create src/intent/jsonl_storage.gleam with module documentation and core type definitions",
+      "duration_min": 10,
+      "what": "Define the generic JSONL storage API with type parameters and core abstractions",
+      "file": "src/intent/jsonl_storage.gleam",
+      "success_check": "Module compiles with public type signatures defined",
+      "dependencies": [],
+      "details": [
+        "Module documentation explaining Functional Core / Imperative Shell pattern",
+        "Define FileReader, FileWriter, DirectoryCreator types (same as interview_storage)",
+        "Define generic encoder/decoder function types",
+        "Define IdExtractor type for getting record IDs"
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Implement simplifile adapters",
+      "description": "Create simplifile_reader, simplifile_writer, simplifile_dir_creator functions",
+      "duration_min": 5,
+      "what": "Port the simplifile adapter functions from interview_storage",
+      "file": "src/intent/jsonl_storage.gleam",
+      "success_check": "Adapters compile and match interview_storage signatures",
+      "dependencies": ["A"],
+      "details": [
+        "simplifile_reader() -> FileReader",
+        "simplifile_writer() -> FileWriter",
+        "simplifile_dir_creator() -> DirectoryCreator",
+        "Error message formatting consistent with interview_storage"
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Implement pure JSONL functions",
+      "description": "Create generic pure functions for JSONL content manipulation",
+      "duration_min": 15,
+      "what": "Implement core pure functions that operate on strings without I/O",
+      "file": "src/intent/jsonl_storage.gleam",
+      "success_check": "Functions compile with correct signatures",
+      "dependencies": ["A"],
+      "details": [
+        "to_jsonl_line(record, encoder) -> String",
+        "parse_jsonl_content(content, decoder) -> List(record)",
+        "update_jsonl_content(content, record, encoder, id_extractor) -> String",
+        "find_by_id(records, id) -> Result(record, String)"
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Implement I/O functions with dependency injection",
+      "description": "Create I/O functions that accept reader/writer/creator parameters",
+      "duration_min": 15,
+      "what": "Implement JSONL file operations with dependency injection for testability",
+      "file": "src/intent/jsonl_storage.gleam",
+      "success_check": "I/O functions compile and accept function parameters",
+      "dependencies": ["C"],
+      "details": [
+        "append_to_jsonl_with_io(record, path, encoder, id_extractor, reader, writer, dir_creator) -> Result",
+        "list_from_jsonl_with_io(path, decoder, reader) -> Result(List(record), String)",
+        "get_from_jsonl_with_io(path, id, decoder, reader) -> Result(record, String)"
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Implement simplifile convenience wrappers",
+      "description": "Create convenience functions that use simplifile adapters by default",
+      "duration_min": 5,
+      "what": "Wrapper functions for common case (using simplifile)",
+      "file": "src/intent/jsonl_storage.gleam",
+      "success_check": "Wrappers compile and call _with_io variants",
+      "dependencies": ["B", "D"],
+      "details": [
+        "append_to_jsonl(record, path, encoder, id_extractor) -> Result",
+        "list_from_jsonl(path, decoder) -> Result(List(record), String)",
+        "get_from_jsonl(path, id, decoder) -> Result(record, String)"
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Implement utility functions",
+      "description": "Add helper functions for file path manipulation",
+      "duration_min": 5,
+      "what": "Utility functions for directory handling",
+      "file": "src/intent/jsonl_storage.gleam",
+      "success_check": "Utilities compile and tests pass",
+      "dependencies": ["A"],
+      "details": [
+        "get_parent_directory(path) -> Option(String)",
+        "ensure_parent_directory_with_io(path, dir_creator) -> Result",
+        "ensure_parent_directory(path) -> Result"
+      ]
+    },
+    {
+      "id": "G",
+      "name": "Create test module scaffold",
+      "description": "Create test/intent/jsonl_storage_test.gleam with imports and test helpers",
+      "duration_min": 5,
+      "what": "Set up test infrastructure and example record type",
+      "file": "test/intent/jsonl_storage_test.gleam",
+      "success_check": "Test module compiles",
+      "dependencies": ["A"],
+      "details": [
+        "Import jsonl_storage module",
+        "Define TestRecord type with id, name, value fields",
+        "Create encoder and decoder for TestRecord",
+        "Create id_extractor for TestRecord"
+      ]
+    },
+    {
+      "id": "H",
+      "name": "Write pure function tests",
+      "description": "Test all pure JSONL functions with TestRecord",
+      "duration_min": 20,
+      "what": "Comprehensive tests for pure functions (no I/O)",
+      "file": "test/intent/jsonl_storage_test.gleam",
+      "success_check": "All pure function tests pass",
+      "dependencies": ["C", "G"],
+      "details": [
+        "test_to_jsonl_line_encodes_correctly",
+        "test_parse_jsonl_content_empty",
+        "test_parse_jsonl_content_single_record",
+        "test_parse_jsonl_content_multiple_records",
+        "test_parse_jsonl_content_with_invalid_lines",
+        "test_update_jsonl_content_new_record",
+        "test_update_jsonl_content_replace_existing",
+        "test_find_by_id_found",
+        "test_find_by_id_not_found"
+      ]
+    },
+    {
+      "id": "I",
+      "name": "Write I/O function tests with mocks",
+      "description": "Test I/O functions using mock reader/writer/creator",
+      "duration_min": 25,
+      "what": "Test I/O functions with dependency injection (mock I/O)",
+      "file": "test/intent/jsonl_storage_test.gleam",
+      "success_check": "All I/O function tests pass",
+      "dependencies": ["D", "E", "F", "G"],
+      "details": [
+        "Create mock_reader, mock_writer, mock_dir_creator test helpers",
+        "test_append_to_jsonl_with_io_new_file",
+        "test_append_to_jsonl_with_io_existing_file",
+        "test_append_to_jsonl_with_io_replace_existing_id",
+        "test_list_from_jsonl_with_io_empty",
+        "test_list_from_jsonl_with_io_multiple",
+        "test_get_from_jsonl_with_io_found",
+        "test_get_from_jsonl_with_io_not_found",
+        "test_ensure_parent_directory_creates_dirs"
+      ]
+    },
+    {
+      "id": "J",
+      "name": "Add module documentation and examples",
+      "description": "Write comprehensive module-level documentation with usage examples",
+      "duration_min": 15,
+      "what": "Document the pattern and provide clear usage examples",
+      "file": "src/intent/jsonl_storage.gleam",
+      "success_check": "Documentation explains pattern clearly with examples",
+      "dependencies": ["E"],
+      "details": [
+        "Module overview explaining Functional Core / Imperative Shell",
+        "Explain dependency injection pattern and why",
+        "Provide example of defining encoder/decoder/id_extractor",
+        "Show example of using with custom type",
+        "Show example of testing with mocks",
+        "Document JSONL format (newline-delimited JSON)",
+        "Explain update semantics (filter + append)"
+      ]
+    },
+    {
+      "id": "K",
+      "name": "Run gleam format and final checks",
+      "description": "Format code and verify gleam conventions",
+      "duration_min": 5,
+      "what": "Ensure code follows all gleam conventions",
+      "file": "All files",
+      "success_check": "gleam format shows no changes, gleam test passes",
+      "dependencies": ["H", "I", "J"],
+      "details": [
+        "Run gleam format",
+        "Run gleam test",
+        "Verify no compiler warnings",
+        "Check all public functions have doc comments",
+        "Verify Result types used for errors"
+      ]
+    }
+  ],
+  "files_to_modify": [
+    {
+      "path": "src/intent/jsonl_storage.gleam",
+      "action": "create",
+      "scope": "New generic JSONL storage module (~300-400 lines)",
+      "rationale": "Extracts reusable JSONL pattern from interview_storage for use by Vision, Shape, Spec, and Ready storage",
+      "structure": {
+        "sections": [
+          "Module documentation with pattern explanation and examples",
+          "File I/O function types (FileReader, FileWriter, DirectoryCreator)",
+          "Simplifile adapter functions",
+          "Pure JSONL functions (to_jsonl_line, parse, update, find)",
+          "I/O functions with dependency injection",
+          "Simplifile convenience wrappers",
+          "Utility functions (path manipulation)"
+        ],
+        "type_parameters": "Functions accept encoder, decoder, id_extractor as parameters",
+        "no_custom_types": "Only function types, no record types (generic over caller's types)"
+      }
+    },
+    {
+      "path": "test/intent/jsonl_storage_test.gleam",
+      "action": "create",
+      "scope": "Comprehensive test suite (~300-400 lines)",
+      "rationale": "Verify generic pattern works correctly and can be tested with mocks",
+      "structure": {
+        "sections": [
+          "TestRecord type definition",
+          "Encoder/decoder/id_extractor for TestRecord",
+          "Mock I/O functions for testing",
+          "Pure function tests (9 tests)",
+          "I/O function tests with mocks (8 tests)",
+          "Test helpers"
+        ],
+        "test_count": "~17 test functions"
+      }
+    }
+  ],
+  "data_flows": {
+    "write_flow": [
+      "Record (caller's type)",
+      "→ encoder(record) → json.Json",
+      "→ json.to_string() → JSONL line (String)",
+      "→ read existing content (String)",
+      "→ parse_jsonl_content() → List(record)",
+      "→ filter out old version (by ID)",
+      "→ append new JSONL line",
+      "→ write updated content",
+      "→ Result(Nil, String)"
+    ],
+    "read_flow": [
+      "File path (String)",
+      "→ reader(path) → Result(String, String)",
+      "→ split by newline → List(String)",
+      "→ filter empty lines",
+      "→ json.decode(line, decoder) for each → List(record)",
+      "→ Result(List(record), String)"
+    ],
+    "pure_flow": [
+      "Content (String) + Record + Encoder + IdExtractor",
+      "→ parse to List(record)",
+      "→ filter where id != new record id",
+      "→ encode new record to JSONL line",
+      "→ append to filtered lines",
+      "→ join with newline",
+      "→ Updated content (String)"
+    ]
+  },
+  "architectural_decisions": [
+    {
+      "decision": "Generic functions vs generic module",
+      "options": [
+        "Create generic functions that accept encoder/decoder/id_extractor as parameters",
+        "Create generic module with type parameters (requires Gleam generics features)",
+        "Create code generation tool to generate storage modules"
+      ],
+      "chosen": "Option 1: Generic functions with parameters",
+      "rationale": "Gleam's type system works well with functions as parameters. More flexible and testable than code generation. Simpler than generic modules.",
+      "tradeoffs": "Callers must pass encoder/decoder/id_extractor to each function call. More verbose but more explicit.",
+      "reversibility": "Yes, can refactor to generic module later if Gleam adds better support"
+    },
+    {
+      "decision": "Dependency injection pattern",
+      "options": [
+        "Use dependency injection (FileReader, FileWriter as parameters)",
+        "Hard-code simplifile everywhere",
+        "Use global configuration"
+      ],
+      "chosen": "Option 1: Dependency injection",
+      "rationale": "Matches existing interview_storage pattern. Makes testing easier with mocks. Follows Functional Core / Imperative Shell principle.",
+      "tradeoffs": "More verbose function signatures. Requires passing functions around.",
+      "reversibility": "Yes, can add convenience wrappers (already planned)"
+    },
+    {
+      "decision": "Update semantics (filter + append vs in-place update)",
+      "options": [
+        "Filter out old record and append new one (last occurrence wins)",
+        "Parse, update in list, re-serialize entire content",
+        "Use line numbers to replace specific lines"
+      ],
+      "chosen": "Option 1: Filter + append",
+      "rationale": "Matches interview_storage pattern. Simple and predictable. Git-friendly (additions at end). Efficient for append-heavy workloads.",
+      "tradeoffs": "File grows until compaction. Multiple versions of same ID until update. Reading gets last occurrence.",
+      "reversibility": "Yes, can add compaction function later"
+    },
+    {
+      "decision": "Error handling strategy",
+      "options": [
+        "Result(t, String) for all errors",
+        "Result(t, custom Error type)",
+        "Exceptions for I/O errors"
+      ],
+      "chosen": "Option 1: Result(t, String)",
+      "rationale": "Matches existing codebase convention. Simple and consistent. String errors are descriptive.",
+      "tradeoffs": "Less type-safe error handling. Can't pattern match on error types.",
+      "reversibility": "Yes, can introduce custom error types later"
+    },
+    {
+      "decision": "Module scope (what to include)",
+      "options": [
+        "Only JSONL operations (read, write, parse, encode)",
+        "Include snapshot/diff/history features from interview_storage",
+        "Include SQLite sync operations"
+      ],
+      "chosen": "Option 1: Only JSONL operations",
+      "rationale": "Keep module focused on one responsibility. Snapshot/diff are domain-specific to interviews. SQLite sync is separate concern.",
+      "tradeoffs": "Callers must implement snapshot/diff/history if needed. Less code reuse.",
+      "reversibility": "Yes, can extract additional patterns later (WAVE0-02.5?)"
+    }
+  ],
+  "risks_and_mitigation": [
+    {
+      "risk": "Generic pattern too abstract or hard to use",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "mitigation": "Comprehensive documentation with examples. Test with TestRecord to prove usability. Get feedback in Phase 3 verification."
+    },
+    {
+      "risk": "Type inference issues with generic functions",
+      "likelihood": "Low",
+      "impact": "High",
+      "mitigation": "Explicit type annotations. Test with multiple record types. Follow gleam conventions for type parameters."
+    },
+    {
+      "risk": "Pattern doesn't fit Vision/Shape/Spec needs",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "mitigation": "Review WAVE1-02, WAVE2-02 requirements. Keep pattern simple and flexible. Can extend later if needed."
+    },
+    {
+      "risk": "Test mocks too complex",
+      "likelihood": "Low",
+      "impact": "Low",
+      "mitigation": "Simple mock functions (just return Ok/Error). Use closures to capture state if needed."
+    }
+  ],
+  "dependencies_dag": {
+    "A": [],
+    "B": ["A"],
+    "C": ["A"],
+    "D": ["C"],
+    "E": ["B", "D"],
+    "F": ["A"],
+    "G": ["A"],
+    "H": ["C", "G"],
+    "I": ["D", "E", "F", "G"],
+    "J": ["E"],
+    "K": ["H", "I", "J"]
+  },
+  "critical_path": ["A", "C", "D", "E", "J", "K"],
+  "estimated_total_time_min": 120,
+  "gate": "plan_verified",
+  "status": "complete",
+  "timestamp": "2026-01-25T10:45:00-06:00"
+}

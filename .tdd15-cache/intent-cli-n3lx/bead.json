@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-n3lx",
+    "title": "Ralph Loop Iteration 14 COMPLETE: All 3 P1 commands now support --json",
+    "description": "P1 Consolidation Complete - 100% Success\n\nIMPLEMENTED \u0026 VERIFIED:\n✓ analyze --json (iteration 13)\n✓ improve --json (iteration 13)  \n✓ lint --json (iteration 14)\n\nAll three return proper action JSON with:\n- Structured data appropriate to command\n- next_actions guiding AI workflow\n- Consistent format across CLI\n\nJSON Structures Verified:\n1. analyze: scores + issues + suggestions\n2. improve: suggestions array with impact scores\n3. lint: warnings array with types + details\n\nImpact:\n- AI pipeline chaining: COMPLETE\n- Command consistency: ACHIEVED\n- Pattern established: REUSABLE\n\nBeads Closed (4):\n✓ intent-cli-try1 [P1]: analyze --json\n✓ intent-cli-wxm0 [P1]: improve --json  \n✓ intent-cli-i4gf [P1]: lint --json\n✓ intent-cli-o6rc [P1]: Consolidation task\n\nEARS: WHEN commands have structured output THE commands SHALL support --json ✓✓✓\n\nRalph Loop: 14/50 (28%)",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "epic",
+    "created_at": "2026-01-23T22:45:23.342581084-06:00",
+    "created_by": "lewis",
+    "updated_at": "2026-01-25T16:43:18.171448498-06:00"
+  }
+]

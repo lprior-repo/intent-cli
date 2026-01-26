@@ -1,0 +1,6 @@
+import gleeunit
+import intent/ffi_test
+
+pub fn main() {
+  gleeunit.main()
+}

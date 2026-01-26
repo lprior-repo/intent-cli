@@ -1,0 +1,11 @@
+{
+  "id": "intent-cli-ia6",
+  "title": "AI-06: Implement intent ai batch command",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "feature",
+  "owner": "priorlewis43@gmail.com",
+  "created_at": "2026-01-25T08:53:07.531472228-06:00",
+  "created_by": "Lewis Prior",
+  "updated_at": "2026-01-25T08:53:07.531472228-06:00"
+}

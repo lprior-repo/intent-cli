@@ -1,0 +1,187 @@
+{
+  "phase": "plan",
+  "module": "src/intent/command_router.gleam",
+  "ffi_addition": "src/intent_ffi.erl (add read_stdin_line)",
+  "test_file": "test/command_router_test.gleam",
+
+  "types": {
+    "CommandRequest": {
+      "fields": ["id: String", "command: String", "args: Dynamic"],
+      "purpose": "Parsed JSONL request",
+      "note": "args is Dynamic for flexible decoding in handlers"
+    },
+    "RouterError": {
+      "variants": [
+        "InvalidJson(line: String, error: String)",
+        "MissingCommandField",
+        "UnknownCommand(command: String)",
+        "HandlerError(command: String, error: String)"
+      ],
+      "purpose": "Router-specific errors"
+    }
+  },
+
+  "public_functions": [
+    {
+      "name": "process_jsonl_stdin",
+      "signature": "() -> Nil",
+      "purpose": "Main entry point - read stdin loop, output JSONL responses",
+      "behavior": "Read lines until EOF, process each, output result JSONL"
+    },
+    {
+      "name": "process_single_request",
+      "signature": "(String) -> String",
+      "purpose": "Process one JSONL line and return response JSONL",
+      "behavior": "Parse → route → execute → serialize response"
+    }
+  ],
+
+  "internal_functions": [
+    {
+      "name": "parse_request",
+      "signature": "(String) -> Result(CommandRequest, RouterError)",
+      "purpose": "Parse JSONL line into CommandRequest",
+      "tests": [
+        "Valid JSON with id, command, args",
+        "Invalid JSON returns InvalidJson error",
+        "Missing command field returns MissingCommandField",
+        "Missing id uses generated UUID"
+      ]
+    },
+    {
+      "name": "route_request",
+      "signature": "(CommandRequest) -> json_output.JsonResponse",
+      "purpose": "Route request to appropriate handler",
+      "tests": [
+        "Known command routes to handler",
+        "Unknown command returns error response",
+        "Handler success returns success response",
+        "Handler error returns error response"
+      ]
+    },
+    {
+      "name": "execute_quality",
+      "signature": "(String, Dynamic) -> json_output.JsonResponse",
+      "purpose": "Execute quality command",
+      "minimal": "Extract spec_path from args, call quality_analyzer, return response"
+    },
+    {
+      "name": "execute_coverage",
+      "signature": "(String, Dynamic) -> json_output.JsonResponse",
+      "purpose": "Execute coverage command",
+      "minimal": "Extract spec_path from args, call coverage_analyzer, return response"
+    },
+    {
+      "name": "execute_gaps",
+      "signature": "(String, Dynamic) -> json_output.JsonResponse",
+      "purpose": "Execute gaps command",
+      "minimal": "Extract spec_path from args, call gap_detector, return response"
+    },
+    {
+      "name": "error_response",
+      "signature": "(String, RouterError) -> json_output.JsonResponse",
+      "purpose": "Convert RouterError to JsonResponse",
+      "tests": [
+        "InvalidJson creates proper error code",
+        "MissingCommandField creates proper error code",
+        "UnknownCommand creates proper error code with fix_hint",
+        "HandlerError preserves original error message"
+      ]
+    }
+  ],
+
+  "ffi_functions": [
+    {
+      "name": "read_stdin_line",
+      "signature": "() -> Result(String, Nil)",
+      "erlang": "intent_ffi:read_stdin_line/0",
+      "implementation": "io:get_line(\"\") with EOF and error handling"
+    }
+  ],
+
+  "test_cases": [
+    {
+      "name": "parse_valid_jsonl_request",
+      "input": "{\"id\":\"req-1\",\"command\":\"quality\",\"args\":{\"spec_path\":\"api.cue\"}}",
+      "expected": "CommandRequest with id, command, args extracted"
+    },
+    {
+      "name": "parse_invalid_json",
+      "input": "{invalid json}",
+      "expected": "Error(InvalidJson(...))"
+    },
+    {
+      "name": "parse_missing_command_field",
+      "input": "{\"id\":\"req-1\",\"args\":{}}",
+      "expected": "Error(MissingCommandField)"
+    },
+    {
+      "name": "parse_missing_id_generates_uuid",
+      "input": "{\"command\":\"quality\",\"args\":{\"spec_path\":\"api.cue\"}}",
+      "expected": "CommandRequest with auto-generated UUID id"
+    },
+    {
+      "name": "route_quality_command",
+      "request": "CommandRequest(\"req-1\", \"quality\", {...})",
+      "expected": "Success response with correlation id=\"req-1\""
+    },
+    {
+      "name": "route_unknown_command",
+      "request": "CommandRequest(\"req-1\", \"unknown\", {...})",
+      "expected": "Error response with UnknownCommand"
+    },
+    {
+      "name": "preserve_correlation_id",
+      "request": "Any valid request with id=\"custom-id\"",
+      "expected": "Response has same id=\"custom-id\""
+    },
+    {
+      "name": "process_single_request_success",
+      "input": "{\"id\":\"req-1\",\"command\":\"quality\",\"args\":{\"spec_path\":\"test.cue\"}}",
+      "expected": "Valid JSONL response string with success:true"
+    },
+    {
+      "name": "process_single_request_error",
+      "input": "{invalid}",
+      "expected": "Valid JSONL response string with success:false"
+    }
+  ],
+
+  "implementation_order": [
+    "1. Add read_stdin_line to intent_ffi.erl",
+    "2. Create CommandRequest and RouterError types",
+    "3. Implement parse_request with tests",
+    "4. Implement error_response with tests",
+    "5. Implement execute_quality (minimal) with tests",
+    "6. Implement route_request with tests",
+    "7. Implement process_single_request with tests",
+    "8. Implement process_jsonl_stdin",
+    "9. Add integration test with real spec file"
+  ],
+
+  "success_criteria": [
+    "Can parse valid JSONL request",
+    "Handles malformed JSON gracefully",
+    "Routes quality command to handler",
+    "Preserves correlation ID in response",
+    "Returns error for unknown commands",
+    "Outputs valid JSONL response",
+    "process_jsonl_stdin reads from stdin and outputs to stdout",
+    "All tests pass with gleam test"
+  ],
+
+  "dependencies": [
+    "gleam/json",
+    "gleam/dynamic",
+    "gleam/result",
+    "gleam/io",
+    "gleam/string",
+    "intent/json_output",
+    "intent/quality_analyzer (for execute_quality)",
+    "intent/kirk/coverage_analyzer (for execute_coverage)",
+    "intent/kirk/gap_detector (for execute_gaps)",
+    "intent/loader (for loading specs)"
+  ],
+
+  "completed_at": "2026-01-25T09:52:00Z"
+}

@@ -7,7 +7,6 @@
 //// - File I/O operations accept reader/writer functions (dependency injection)
 //// - Simplifile wrappers provided for convenience
 
-import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json
 import gleam/list
@@ -187,27 +186,6 @@ fn scenario_decoder(
     motivation: motivation,
     simulation: simulation,
     outcome: outcome,
-  ))
-}
-
-fn stakeholder_decoder(
-  json_value: dynamic.Dynamic,
-) -> Result(Stakeholder, dynamic.DecodeErrors) {
-  use name <- result.try(dynamic.field("name", dynamic.string)(json_value))
-  use role <- result.try(dynamic.field("role", dynamic.string)(json_value))
-  use needs <- result.try(dynamic.field("needs", dynamic.list(dynamic.string))(
-    json_value,
-  ))
-  use pain_points <- result.try(dynamic.field(
-    "pain_points",
-    dynamic.list(dynamic.string),
-  )(json_value))
-
-  Ok(vision_types.Stakeholder(
-    name: name,
-    role: role,
-    needs: needs,
-    pain_points: pain_points,
   ))
 }
 

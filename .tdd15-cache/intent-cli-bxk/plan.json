@@ -1,0 +1,168 @@
+{
+  "phase": "2_plan",
+  "bead_id": "intent-cli-bxk",
+  "plan": {
+    "overview": "Create comprehensive tests for vision_session and vision_commands modules following TDD RED-GREEN-REFACTOR cycle",
+    "test_files": [
+      {
+        "file": "test/vision_session_test.gleam",
+        "module_under_test": "intent/vision_session",
+        "test_groups": [
+          {
+            "group": "Session Creation Tests",
+            "tests": [
+              "create_session_test: Verify session created with correct initial state",
+              "create_session_fields_test: Verify all fields set correctly",
+              "create_session_empty_collections_test: Verify answers/gaps/conflicts start empty"
+            ]
+          },
+          {
+            "group": "Answer Recording Tests",
+            "tests": [
+              "record_answer_test: Verify answer added to session",
+              "record_answer_updates_timestamp_test: Verify updated_at changes",
+              "record_answer_multiple_test: Verify multiple answers accumulate",
+              "record_answer_preserves_order_test: Verify answers maintain insertion order"
+            ]
+          },
+          {
+            "group": "Answer Lookup Tests",
+            "tests": [
+              "find_answer_existing_test: Verify Some returned for existing answer",
+              "find_answer_missing_test: Verify None returned for missing question",
+              "find_answer_multiple_test: Verify correct answer found among many"
+            ]
+          },
+          {
+            "group": "Answer Count Tests",
+            "tests": [
+              "get_answered_count_empty_test: Verify 0 for new session",
+              "get_answered_count_one_test: Verify 1 after one answer",
+              "get_answered_count_multiple_test: Verify correct count with multiple answers"
+            ]
+          },
+          {
+            "group": "Vision Section Building Tests",
+            "tests": [
+              "build_vision_section_complete_test: Verify Ok with all required fields",
+              "build_vision_section_missing_press_release_test: Verify Error for missing press_release",
+              "build_vision_section_missing_persona_test: Verify Error for missing persona",
+              "build_vision_section_missing_non_personas_test: Verify Error for missing non_personas",
+              "build_vision_section_missing_north_star_test: Verify Error for missing north_star",
+              "build_vision_section_missing_vorp_test: Verify Error for missing vorp",
+              "build_vision_section_missing_scenarios_test: Verify Error for missing scenarios",
+              "build_vision_section_missing_out_of_scope_test: Verify Error for missing out_of_scope",
+              "build_vision_section_optional_replaces_test: Verify replaces can be None",
+              "build_vision_section_list_parsing_test: Verify comma/newline list parsing"
+            ]
+          }
+        ]
+      },
+      {
+        "file": "test/vision_commands_test.gleam",
+        "module_under_test": "intent/vision_commands",
+        "test_groups": [
+          {
+            "group": "Command Session Creation Tests",
+            "tests": [
+              "create_command_session_test: Verify session created with correct initial state",
+              "create_command_session_fields_test: Verify all fields initialized correctly",
+              "create_command_session_initial_status_test: Verify status is CommandInProgress",
+              "create_command_session_score_zero_test: Verify critique_score starts at 0"
+            ]
+          },
+          {
+            "group": "Status String Tests",
+            "tests": [
+              "get_status_string_in_progress_test: Verify 'in_progress' string",
+              "get_status_string_ready_for_critique_test: Verify 'ready_for_critique' string",
+              "get_status_string_complete_test: Verify 'complete' string"
+            ]
+          },
+          {
+            "group": "Response Recording Tests",
+            "tests": [
+              "record_response_test: Verify response added to session",
+              "record_response_updates_timestamp_test: Verify updated_at changes",
+              "record_response_multiple_test: Verify multiple responses tracked",
+              "record_response_overwrites_test: Verify same issue_id overwrites previous response"
+            ]
+          },
+          {
+            "group": "Status Transition Tests",
+            "tests": [
+              "set_status_ready_for_critique_test: Verify status transitions to ReadyForCritique",
+              "set_status_complete_test: Verify status transitions to Complete with score",
+              "set_status_complete_updates_count_test: Verify issues_addressed updated"
+            ]
+          },
+          {
+            "group": "Session Agreement Tests",
+            "tests": [
+              "agree_session_success_test: Verify Ok when score >= 70 and status Complete",
+              "agree_session_low_score_test: Verify Error when score < 70",
+              "agree_session_not_complete_test: Verify Error when status not Complete",
+              "agree_session_sets_finalized_at_test: Verify finalized_at set on success",
+              "agree_session_boundary_70_test: Verify exactly 70 score passes",
+              "agree_session_boundary_69_test: Verify 69 score fails"
+            ]
+          },
+          {
+            "group": "JSON Serialization Tests",
+            "tests": [
+              "session_to_json_test: Verify JSON contains all fields",
+              "session_to_json_status_string_test: Verify status converted to string",
+              "session_to_json_finalized_none_test: Verify null for None finalized_at",
+              "session_to_json_finalized_some_test: Verify string for Some finalized_at"
+            ]
+          },
+          {
+            "group": "Helper Function Tests",
+            "tests": [
+              "empty_vision_section_test: Verify empty section has empty strings and lists",
+              "sample_complete_vision_test: Verify sample has all required fields populated",
+              "sample_complete_vision_scenarios_test: Verify sample has 2 scenarios"
+            ]
+          }
+        ]
+      }
+    ],
+    "implementation_order": [
+      "1. Create test/vision_session_test.gleam with failing tests (RED)",
+      "2. Run gleam test - verify tests fail",
+      "3. Tests should pass (module already implemented) (GREEN)",
+      "4. Refactor tests for clarity (REFACTOR)",
+      "5. Create test/vision_commands_test.gleam with failing tests (RED)",
+      "6. Run gleam test - verify tests fail",
+      "7. Tests should pass (module already implemented) (GREEN)",
+      "8. Refactor tests for clarity (REFACTOR)",
+      "9. Run gleam format on both test files",
+      "10. Final verification with gleam test"
+    ],
+    "edge_cases_covered": [
+      "Empty collections (answers, gaps, conflicts, responses)",
+      "Missing required fields in build_vision_section",
+      "Optional fields (replaces, finalized_at)",
+      "Score boundary conditions (69 vs 70)",
+      "Status transition validation",
+      "Multiple answers/responses accumulation",
+      "Find operations on empty and populated collections",
+      "List parsing with comma and newline separators"
+    ],
+    "gleam_conventions_applied": [
+      "Immutability: Use spread operator for session updates",
+      "Result types: Test both Ok and Error paths",
+      "Exhaustive matching: Pattern match on Option (Some/None) and Result (Ok/Error)",
+      "Pipelines: Use |> in test setup where appropriate",
+      "Pure functions: All tests are deterministic with no side effects"
+    ]
+  },
+  "success_criteria": [
+    "All public functions in vision_session have tests",
+    "All public functions in vision_commands have tests",
+    "Tests cover happy path and error cases",
+    "Tests follow existing gleeunit patterns",
+    "Tests pass with gleam test",
+    "Code formatted with gleam format"
+  ]
+}

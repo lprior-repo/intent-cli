@@ -1,0 +1,149 @@
+{
+  "phase": "RESEARCH",
+  "timestamp": "2026-01-25T09:51:10Z",
+  "findings": {
+    "current_implementation": {
+      "interview_command": {
+        "file": "src/intent.gleam",
+        "function": "interview_command()",
+        "lines": "936-1120",
+        "description": "Main CLI command handler for interview",
+        "current_flags": [
+          "--profile (string, default: api)",
+          "--resume (string)",
+          "--answers (string) - exists but unused",
+          "--strict (bool)",
+          "--export (string)",
+          "--cue (bool) - required for AI mode",
+          "--session (string) - for CUE mode",
+          "--answer (string) - for CUE mode",
+          "--dry-run (bool)"
+        ],
+        "modes": {
+          "cue_mode": "Machine-readable output, question-by-question interaction",
+          "interactive_mode": "Disabled - exits with error"
+        }
+      },
+      "interview_functions": {
+        "run_interview_cue_start": "Starts new CUE session, returns first question",
+        "run_interview_cue_resume": "Resumes session, returns next question",
+        "run_interview_cue_answer": "Processes single answer, returns next question or completion"
+      },
+      "session_storage": {
+        "module": "intent/interview_storage.gleam",
+        "format": "JSONL + SQLite hybrid",
+        "path": ".interview/sessions.jsonl"
+      },
+      "spec_generation": {
+        "module": "intent/spec_builder.gleam",
+        "function": "build_spec_from_session(session: InterviewSession) -> String",
+        "output": "CUE format string"
+      },
+      "interview_engine": {
+        "module": "intent/interview.gleam",
+        "types": {
+          "Profile": "Api | Cli | Event | Data | Workflow | UI",
+          "InterviewSession": "Persistent state with id, profile, answers, stage, etc",
+          "Answer": "Single question response with metadata"
+        },
+        "functions": {
+          "create_session": "Creates new session",
+          "add_answer": "Adds answer to session",
+          "complete_round": "Increments rounds_completed"
+        }
+      }
+    },
+    "required_changes": {
+      "1_add_batch_flag": {
+        "description": "Add --batch boolean flag to interview_command",
+        "location": "src/intent.gleam:1088-1119"
+      },
+      "2_add_input_flag": {
+        "description": "Add --input string flag for JSON file path",
+        "location": "src/intent.gleam:1088-1119",
+        "note": "May rename existing --answers flag or use it"
+      },
+      "3_batch_mode_logic": {
+        "description": "Add batch mode branch in interview_command handler",
+        "location": "src/intent.gleam:990-1047",
+        "logic": "Parse JSON, validate schema, process all answers non-interactively"
+      },
+      "4_json_parser": {
+        "description": "Create JSON parsing for batch input",
+        "schema": {
+          "profile": "string (api|cli|event|data|workflow|ui)",
+          "answers": "array of {question_id: string, response: string}"
+        },
+        "validation": [
+          "Valid JSON format",
+          "Required fields present",
+          "Valid profile value",
+          "Non-empty answers array",
+          "Each answer has question_id and response"
+        ]
+      },
+      "5_batch_processor": {
+        "description": "Process answers sequentially without prompts",
+        "flow": [
+          "Create session",
+          "Load questions for profile",
+          "Match answers to questions by ID",
+          "Add each answer to session",
+          "Call complete_round when round finishes",
+          "Generate CUE spec",
+          "Save to file if --export provided",
+          "Output session ID and spec path"
+        ]
+      },
+      "6_error_handling": {
+        "description": "Exit codes as specified in bead",
+        "codes": {
+          "0": "Success (spec generated)",
+          "3": "Invalid input JSON (exit_invalid)",
+          "4": "Missing required fields (exit_error)"
+        }
+      }
+    },
+    "integration_points": {
+      "interview_questions": {
+        "module": "intent/interview_questions.gleam",
+        "purpose": "Get questions for profile and round",
+        "note": "Need to access question IDs for matching"
+      },
+      "interview_storage": {
+        "save_function": "append_session_to_jsonl",
+        "load_function": "get_session_from_jsonl"
+      },
+      "spec_builder": {
+        "export_function": "build_spec_from_session",
+        "note": "Already exists, just need to call it"
+      }
+    },
+    "test_strategy": {
+      "unit_tests": [
+        "Parse valid batch JSON",
+        "Parse invalid batch JSON (exit 3)",
+        "Parse missing required fields (exit 4)",
+        "Parse invalid profile",
+        "Match answers to questions",
+        "Process all answers in sequence"
+      ],
+      "integration_tests": [
+        "Full batch workflow: JSON -> session -> spec",
+        "Batch mode with export flag",
+        "Batch mode error handling"
+      ]
+    }
+  },
+  "files_to_modify": [
+    "src/intent.gleam"
+  ],
+  "files_to_create": [],
+  "dependencies": [
+    "gleam/json - JSON parsing",
+    "gleam/dynamic - JSON decoding",
+    "simplifile - file I/O"
+  ],
+  "complexity_validation": "MEDIUM - confirmed: 2 flags, 1 file modification, JSON parsing, integration with existing engine",
+  "gate_status": "sufficient_context"
+}

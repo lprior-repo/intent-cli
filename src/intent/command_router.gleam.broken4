@@ -1,0 +1,287 @@
+/// JSONL command router with validation
+/// Reads JSONL from stdin, dispatches to handlers, outputs JSONL responses
+import gleam/dynamic.{type Dynamic}
+import gleam/json
+import gleam/option.{None}
+import gleam/result
+import gleam/string
+import intent/ffi
+import intent/json_output.{type JsonResponse}
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/// A parsed command request from JSONL
+pub type CommandRequest {
+  CommandRequest(id: String, command: String, args: Dynamic)
+}
+
+/// Router-specific errors
+pub type RouterError {
+  InvalidJson(line: String, error: String)
+  MissingCommandField
+  UnknownCommand(command: String)
+  HandlerError(command: String, error: String)
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/// Parse a JSONL line into a CommandRequest
+pub fn parse_request(line: String) -> Result(CommandRequest, RouterError) {
+  // Parse JSON
+  case json.decode(from: line, using: dynamic.dynamic) {
+    Error(_) -> Error(InvalidJson(line: line, error: "Invalid JSON syntax"))
+    Ok(data) -> {
+      // Extract command field (required)
+      let command_result = dynamic.field("command", dynamic.string)(data)
+      case command_result {
+        Error(_) -> Error(MissingCommandField)
+        Ok(command) -> {
+          // Extract id field (optional - generate UUID if missing)
+          let id =
+            dynamic.field("id", dynamic.string)(data)
+            |> result.unwrap(ffi.generate_uuid())
+
+          // Extract args field (optional - default to empty object)
+          let args =
+            dynamic.field("args", dynamic.dynamic)(data)
+            |> result.unwrap(dynamic.from(json.object([])))
+
+          Ok(CommandRequest(id: id, command: command, args: args))
+        }
+      }
+    }
+  }
+}
+
+/// Route a request to the appropriate handler
+pub fn route_request(request: CommandRequest) -> JsonResponse {
+  case request.command {
+    // Core Spec Operations
+    "validate" -> execute_validate(request.id, request.args)
+    "check" -> execute_check(request.id, request.args)
+    "analyze" -> execute_analyze(request.id, request.args)
+    "lint" -> execute_lint(request.id, request.args)
+    "improve" -> execute_improve(request.id, request.args)
+
+    // KIRK Analysis
+    "quality" -> execute_quality(request.id, request.args)
+    "coverage" -> execute_coverage(request.id, request.args)
+    "gaps" -> execute_gaps(request.id, request.args)
+    "invert" -> execute_invert(request.id, request.args)
+    "effects" -> execute_effects(request.id, request.args)
+    "ears" -> execute_ears(request.id, request.args)
+
+    // Interview Workflow
+    "interview" -> execute_interview(request.id, request.args)
+    "sessions" -> execute_sessions(request.id, request.args)
+    "history" -> execute_history(request.id, request.args)
+    "diff" -> execute_diff(request.id, request.args)
+    "export" -> execute_export(request.id, request.args)
+
+    // Beads/Planning
+    "beads" -> execute_beads(request.id, request.args)
+    "beads-regenerate" -> execute_beads_regenerate(request.id, request.args)
+    "bead-status" -> execute_bead_status(request.id, request.args)
+    "plan" -> execute_plan(request.id, request.args)
+    "plan-approve" -> execute_plan_approve(request.id, request.args)
+    "prompt" -> execute_prompt(request.id, request.args)
+    "feedback" -> execute_feedback(request.id, request.args)
+
+    // Parsing
+    "parse" -> execute_parse(request.id, request.args)
+
+    // Utilities
+    "doctor" -> execute_doctor(request.id, request.args)
+    "show" -> execute_show(request.id, request.args)
+
+    _ -> error_response(request.id, UnknownCommand(request.command))
+  }
+}
+
+/// Process a single JSONL request line and return JSONL response
+pub fn process_single_request(line: String) -> String {
+  case parse_request(line) {
+    Ok(request) -> {
+      let response = route_request(request)
+      response
+      |> json_output.to_json
+      |> json.to_string
+    }
+    Error(err) -> {
+      // Generate auto ID for error responses when parsing fails
+      let error_id = ffi.generate_uuid()
+      let response = error_response(error_id, err)
+      response
+      |> json_output.to_json
+      |> json.to_string
+    }
+  }
+}
+
+/// Convert RouterError to JsonResponse
+pub fn error_response(_id: String, error: RouterError) -> JsonResponse {
+  case error {
+    InvalidJson(line: line, error: err_msg) -> {
+      let errors = [
+        json_output.detailed_error(
+          "INVALID_JSON",
+          "Failed to parse JSON: " <> err_msg,
+          "request",
+          "Ensure the request is valid JSON",
+          "",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        "unknown",
+        json.object([#("invalid_line", json.string(line))]),
+        errors,
+        [],
+        None,
+        1,
+      )
+    }
+
+    MissingCommandField -> {
+      let errors = [
+        json_output.detailed_error(
+          "MISSING_COMMAND_FIELD",
+          "Request is missing required 'command' field",
+          "request.command",
+          "Add a 'command' field with the command name",
+          "{\"command\":\"quality\",\"args\":{...}}",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        "unknown",
+        json.null(),
+        errors,
+        [],
+        None,
+        1,
+      )
+    }
+
+    UnknownCommand(cmd) -> {
+      let available_commands = [
+        "validate",
+        "check",
+        "analyze",
+        "lint",
+        "improve",
+        "quality",
+        "coverage",
+        "gaps",
+        "invert",
+        "effects",
+        "ears",
+        "interview",
+        "sessions",
+        "history",
+        "diff",
+        "export",
+        "beads",
+        "beads-regenerate",
+        "bead-status",
+        "plan",
+        "plan-approve",
+        "prompt",
+        "feedback",
+        "parse",
+        "doctor",
+        "show",
+      ]
+      let hint = "Available commands: " <> string.join(available_commands, ", ")
+      let errors = [
+        json_output.detailed_error(
+          "UNKNOWN_COMMAND",
+          "Unknown command: " <> cmd,
+          "request.command",
+          hint,
+          "",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        cmd,
+        json.object([
+          #("available_commands", json.array(available_commands, json.string)),
+        ]),
+        errors,
+        [],
+        None,
+        1,
+      )
+    }
+
+    HandlerError(cmd, err_msg) -> {
+      let errors = [
+        json_output.detailed_error(
+          "HANDLER_ERROR",
+          "Handler for '" <> cmd <> "' failed: " <> err_msg,
+          "handler",
+          "Check the command arguments and try again",
+          "",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        cmd,
+        json.null(),
+        errors,
+        [],
+        None,
+        1,
+      )
+    }
+  }
+}
+
+// ============================================================================
+// Command Handlers (Minimal stubs for MVP)
+// ============================================================================
+
+fn execute_quality(_id: String, _args: Dynamic) -> JsonResponse {
+  // TODO: Extract spec_path from args, load spec, run quality analyzer
+  // For now, return a minimal success response
+  json_output.success(
+    "quality_result",
+    "quality",
+    json.object([#("message", json.string("Quality analysis pending"))]),
+    None,
+    [],
+  )
+}
+
+fn execute_coverage(_id: String, _args: Dynamic) -> JsonResponse {
+  // TODO: Extract spec_path from args, load spec, run coverage analyzer
+  json_output.success(
+    "coverage_result",
+    "coverage",
+    json.object([
+      #("message", json.string("Coverage analysis pending")),
+    ]),
+    None,
+    [],
+  )
+}
+
+fn execute_gaps(_id: String, _args: Dynamic) -> JsonResponse {
+  // TODO: Extract spec_path from args, load spec, run gap detector
+  json_output.success(
+    "gaps_result",
+    "gaps",
+    json.object([#("message", json.string("Gap detection pending"))]),
+    None,
+    [],
+  )
+}

@@ -1,0 +1,211 @@
+{
+  "phase": "PLAN",
+  "timestamp": "2026-01-25T09:51:15Z",
+  "implementation_plan": {
+    "overview": "Add batch mode to interview command for non-interactive AI use. Accepts JSON file with profile and answers, processes them, generates CUE spec.",
+    "components": [
+      {
+        "component": "CLI Flags",
+        "file": "src/intent.gleam",
+        "changes": [
+          "Add --batch boolean flag (default: false)",
+          "Add --input string flag for JSON file path (default: '')",
+          "Note: Existing --answers flag exists but unused, use --input per bead spec"
+        ]
+      },
+      {
+        "component": "Command Handler Logic",
+        "file": "src/intent.gleam",
+        "function": "interview_command()",
+        "changes": [
+          "Add batch mode detection (check --batch flag and --input flag)",
+          "Add batch mode branch before CUE mode check",
+          "Call run_interview_batch() when batch mode enabled",
+          "Validate --input is provided when --batch is used"
+        ]
+      },
+      {
+        "component": "Batch Input Types",
+        "file": "src/intent.gleam",
+        "new_types": [
+          "BatchInput(profile: String, answers: List(BatchAnswer))",
+          "BatchAnswer(question_id: String, response: String)"
+        ]
+      },
+      {
+        "component": "JSON Parsing",
+        "file": "src/intent.gleam",
+        "new_function": "parse_batch_input(file_path: String) -> Result(BatchInput, String)",
+        "logic": [
+          "Read file using simplifile.read()",
+          "Parse JSON using json.decode()",
+          "Decode with dynamic decoders",
+          "Validate structure and required fields",
+          "Return BatchInput or error message"
+        ],
+        "error_handling": [
+          "File not found -> exit 3 (exit_invalid)",
+          "Invalid JSON syntax -> exit 3 (exit_invalid)",
+          "Missing profile field -> exit 4 (exit_error)",
+          "Missing answers field -> exit 4 (exit_error)",
+          "Invalid profile value -> exit 4 (exit_error)",
+          "Empty answers array -> exit 4 (exit_error)",
+          "Answer missing question_id -> exit 4 (exit_error)",
+          "Answer missing response -> exit 4 (exit_error)"
+        ]
+      },
+      {
+        "component": "Batch Processor",
+        "file": "src/intent.gleam",
+        "new_function": "run_interview_batch(input_file: String, export_path: String) -> Nil",
+        "steps": [
+          "1. Parse batch input from file -> handle errors with exit codes",
+          "2. Validate and parse profile string -> exit 4 if invalid",
+          "3. Create new interview session with generated ID and timestamp",
+          "4. Load questions for profile and round 1 using interview_questions.get_questions_for_profile()",
+          "5. For each answer in batch input:",
+          "   a. Find matching question by ID",
+          "   b. Create Answer object with metadata (timestamp, confidence=1.0)",
+          "   c. Add answer to session using interview.add_answer()",
+          "6. Determine if round is complete (all critical questions answered)",
+          "7. Call interview.complete_round() if round finished",
+          "8. Save session to storage using interview_storage.append_session_to_jsonl()",
+          "9. Generate CUE spec using spec_builder.build_spec_from_session()",
+          "10. Write spec to export file if --export provided",
+          "11. Output success JSON with session_id, spec_path, answers_processed",
+          "12. Exit with code 0"
+        ]
+      },
+      {
+        "component": "Output Format",
+        "description": "JSON output for AI consumption",
+        "structure": {
+          "success": "boolean",
+          "session_id": "string",
+          "profile": "string",
+          "answers_processed": "number",
+          "spec_generated": "boolean",
+          "spec_path": "string (if --export provided)"
+        },
+        "example": "{\"success\":true,\"session_id\":\"interview-abc123\",\"profile\":\"api\",\"answers_processed\":5,\"spec_generated\":true,\"spec_path\":\"api.cue\"}"
+      }
+    ],
+    "testing_strategy": {
+      "unit_tests": [
+        {
+          "test": "parse_valid_batch_json",
+          "description": "Parse valid JSON with profile and answers",
+          "expected": "Returns Ok(BatchInput)"
+        },
+        {
+          "test": "parse_invalid_json_syntax",
+          "description": "Parse malformed JSON",
+          "expected": "Returns Error with message, command exits with code 3"
+        },
+        {
+          "test": "parse_missing_profile",
+          "description": "Parse JSON without profile field",
+          "expected": "Returns Error with message, command exits with code 4"
+        },
+        {
+          "test": "parse_missing_answers",
+          "description": "Parse JSON without answers field",
+          "expected": "Returns Error with message, command exits with code 4"
+        },
+        {
+          "test": "parse_invalid_profile_value",
+          "description": "Parse JSON with invalid profile (not api|cli|etc)",
+          "expected": "Returns Error with message, command exits with code 4"
+        },
+        {
+          "test": "parse_empty_answers_array",
+          "description": "Parse JSON with empty answers array",
+          "expected": "Returns Error with message, command exits with code 4"
+        },
+        {
+          "test": "parse_answer_missing_question_id",
+          "description": "Parse answer without question_id",
+          "expected": "Returns Error with message, command exits with code 4"
+        },
+        {
+          "test": "parse_answer_missing_response",
+          "description": "Parse answer without response",
+          "expected": "Returns Error with message, command exits with code 4"
+        }
+      ],
+      "integration_tests": [
+        {
+          "test": "batch_mode_full_workflow",
+          "description": "Run full batch workflow with valid input",
+          "steps": [
+            "Create valid batch JSON file",
+            "Run: intent interview --batch --input=test.json --export=output.cue",
+            "Verify exit code 0",
+            "Verify JSON output with session_id",
+            "Verify session saved to .interview/sessions.jsonl",
+            "Verify CUE spec written to output.cue",
+            "Verify spec is valid CUE"
+          ]
+        },
+        {
+          "test": "batch_mode_file_not_found",
+          "description": "Run batch with non-existent input file",
+          "expected": "Exit code 3"
+        },
+        {
+          "test": "batch_mode_without_input_flag",
+          "description": "Run batch without --input flag",
+          "expected": "Error message, exit code 4"
+        }
+      ]
+    },
+    "success_criteria": [
+      "1. --batch flag added to interview command",
+      "2. --input flag added to interview command",
+      "3. Batch JSON parsing with all validations",
+      "4. Exit code 3 for invalid JSON",
+      "5. Exit code 4 for missing required fields",
+      "6. Exit code 0 for successful processing",
+      "7. Session created and saved to storage",
+      "8. CUE spec generated from session",
+      "9. JSON output with session_id and metadata",
+      "10. All unit tests pass",
+      "11. All integration tests pass"
+    ],
+    "edge_cases": [
+      "Empty response strings (allow)",
+      "Unknown question_id (warn but continue or error?)",
+      "Duplicate question_ids in answers (use last)",
+      "Special characters in responses (handle properly)",
+      "Very large answer arrays (performance)",
+      "Missing export path (spec not written to file, just returned)"
+    ],
+    "dependencies": {
+      "imports": [
+        "gleam/json",
+        "gleam/dynamic",
+        "simplifile",
+        "intent/interview",
+        "intent/interview_questions",
+        "intent/interview_storage",
+        "intent/spec_builder"
+      ],
+      "functions_used": [
+        "interview.create_session()",
+        "interview.add_answer()",
+        "interview.complete_round()",
+        "interview_questions.get_questions_for_profile()",
+        "interview_storage.append_session_to_jsonl()",
+        "spec_builder.build_spec_from_session()"
+      ]
+    }
+  },
+  "verification": {
+    "plan_complete": true,
+    "all_requirements_covered": true,
+    "error_handling_specified": true,
+    "test_cases_defined": true,
+    "exit_codes_correct": true
+  },
+  "gate_status": "plan_verified"
+}

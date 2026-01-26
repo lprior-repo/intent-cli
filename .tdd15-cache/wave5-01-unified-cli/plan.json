@@ -1,0 +1,268 @@
+{
+  "phase": 2,
+  "status": "complete",
+  "goal": "Port 24 missing commands from glint interface to JSONL router for unified CLI entry and wire up JSONL mode in main()",
+  "approach": "Incremental implementation by command groups, following established patterns",
+
+  "command_groups": {
+    "A_spec_analysis": {
+      "commands": ["validate", "analyze", "lint", "improve", "doctor", "show", "invert", "effects"],
+      "pattern": "spec_path param, load spec, run analyzer, return result",
+      "estimated_lines": 520,
+      "note": "analyze is an alias for quality"
+    },
+    "B_ears_parsing": {
+      "commands": ["ears", "parse"],
+      "pattern": "file_path param, parse EARS, return result",
+      "estimated_lines": 130
+    },
+    "C_session_queries": {
+      "commands": ["sessions", "history", "export", "diff"],
+      "pattern": "session_id param(s), query storage, return result",
+      "estimated_lines": 260
+    },
+    "D_interview_active": {
+      "commands": ["interview"],
+      "pattern": "complex stateful, profile/resume_id params",
+      "estimated_lines": 100
+    },
+    "E_beads_generation": {
+      "commands": ["beads", "prompt", "beads-regenerate"],
+      "pattern": "session_id or spec_path, generate beads/prompts",
+      "estimated_lines": 200
+    },
+    "F_planning": {
+      "commands": ["plan", "plan-approve"],
+      "pattern": "session_id, optional rounds/notes",
+      "estimated_lines": 130
+    },
+    "G_feedback": {
+      "commands": ["bead-status", "feedback"],
+      "pattern": "execution results, update status or generate fix beads",
+      "estimated_lines": 130
+    },
+    "H_check_stub": {
+      "commands": ["check"],
+      "pattern": "HTTP testing - NOT IMPLEMENTED, return clear TODO error",
+      "estimated_lines": 30,
+      "note": "Requires HTTP runner module - defer to future work"
+    }
+  },
+
+  "file_changes": {
+    "modify": [
+      {
+        "file": "src/intent/command_router.gleam",
+        "changes": [
+          "Add ~15 module imports for analyzers/processors",
+          "Add 5 parameter extraction helper functions (~100 lines)",
+          "Update route_request() with 24 new case branches (~35 lines)",
+          "Add 24 execute_* handler functions (~1600 lines)",
+          "Update available_commands list in error messages"
+        ],
+        "estimated_total_lines": 1835
+      },
+      {
+        "file": "src/intent.gleam",
+        "changes": [
+          "Import command_router module",
+          "Add JSONL mode detection in main()",
+          "Add STDIN reading and command_router invocation",
+          "Preserve existing glint behavior as default"
+        ],
+        "estimated_total_lines": 50
+      }
+    ],
+    "create": [
+      {
+        "file": "test/command_router_test.gleam",
+        "content": "Comprehensive tests for all command routes and parameter extraction",
+        "estimated_lines": 500
+      }
+    ]
+  },
+
+  "implementation_phases": [
+    {
+      "phase": "5.1",
+      "name": "Foundation",
+      "tasks": [
+        "Add all required imports",
+        "Implement parameter extraction helpers",
+        "Update route_request skeleton",
+        "Update available_commands list"
+      ],
+      "lines": 300
+    },
+    {
+      "phase": "5.2",
+      "name": "Group A - Spec Analysis",
+      "commands": 8,
+      "lines": 520
+    },
+    {
+      "phase": "5.3",
+      "name": "Group B - EARS Parsing",
+      "commands": 2,
+      "lines": 130
+    },
+    {
+      "phase": "5.4",
+      "name": "Group C - Session Queries",
+      "commands": 4,
+      "lines": 260
+    },
+    {
+      "phase": "5.5",
+      "name": "Group D - Interview",
+      "commands": 1,
+      "lines": 100
+    },
+    {
+      "phase": "5.6",
+      "name": "Group E - Beads",
+      "commands": 3,
+      "lines": 200
+    },
+    {
+      "phase": "5.7",
+      "name": "Group F - Planning",
+      "commands": 2,
+      "lines": 130
+    },
+    {
+      "phase": "5.8",
+      "name": "Group G - Feedback",
+      "commands": 2,
+      "lines": 130
+    },
+    {
+      "phase": "5.9",
+      "name": "Check Stub",
+      "commands": 1,
+      "lines": 30
+    },
+    {
+      "phase": "5.10",
+      "name": "Wire JSONL Mode",
+      "tasks": [
+        "Add command_router import to intent.gleam",
+        "Add JSONL mode detection (check for --jsonl flag or STDIN)",
+        "Add STDIN reading loop",
+        "Call command_router.process_single_request for each line",
+        "Print responses to STDOUT"
+      ],
+      "lines": 50
+    }
+  ],
+
+  "test_strategy": {
+    "approach": "Group-based testing with focus on critical paths",
+    "test_categories": [
+      {
+        "category": "Parameter Extraction",
+        "tests": 10,
+        "coverage": "All helper functions with valid/invalid cases"
+      },
+      {
+        "category": "Routing",
+        "tests": 5,
+        "coverage": "All commands route correctly, unknown command errors"
+      },
+      {
+        "category": "Command Groups",
+        "tests": 8,
+        "coverage": "One representative test per group"
+      },
+      {
+        "category": "Critical Paths",
+        "tests": 7,
+        "coverage": "Complex commands (interview, beads, plan, feedback)"
+      }
+    ],
+    "total_tests": 30,
+    "test_command": "gleam test"
+  },
+
+  "success_criteria": [
+    {
+      "criterion": "All 26 commands routable via JSONL",
+      "measure": "route_request matches all command names",
+      "test": "Send JSONL for each command, verify non-UNKNOWN_COMMAND response"
+    },
+    {
+      "criterion": "Tests pass for all command routes",
+      "measure": "gleam test exits 0",
+      "test": "Minimum 30 tests covering all groups"
+    },
+    {
+      "criterion": "Gleam 7 Commandments followed",
+      "measure": "Code review checklist",
+      "test": "Immutability, Option types, pipelines, exhaustive matching, labeled args, type safety, gleam format"
+    },
+    {
+      "criterion": "No regression in glint interface",
+      "measure": "Existing tests still pass",
+      "test": "No modifications to glint commands in intent.gleam"
+    },
+    {
+      "criterion": "Proper error handling",
+      "measure": "All parameter extraction uses Result types",
+      "test": "Clear error messages for AI agents, structured errors"
+    },
+    {
+      "criterion": "Consistent output format",
+      "measure": "All commands use json_output.success/failure",
+      "test": "Metadata populated, next_actions suggested"
+    }
+  ],
+
+  "risks_and_mitigations": [
+    {
+      "risk": "Parameter extraction type errors",
+      "impact": "Runtime crashes on invalid input",
+      "mitigation": "Use Result types throughout, comprehensive error handling tests"
+    },
+    {
+      "risk": "Behavioral parity with glint commands",
+      "impact": "Different results between interfaces",
+      "mitigation": "Copy logic directly from glint handlers, add comparison tests"
+    },
+    {
+      "risk": "Missing next_actions suggestions",
+      "impact": "Poor AI agent experience",
+      "mitigation": "Review each command for logical next steps, add to success response"
+    },
+    {
+      "risk": "Test coverage gaps",
+      "impact": "Undetected bugs in edge cases",
+      "mitigation": "Focus on parameter validation and error paths"
+    },
+    {
+      "risk": "Code duplication",
+      "impact": "Maintenance burden",
+      "mitigation": "Extract common patterns to helper functions"
+    }
+  ],
+
+  "estimated_effort": {
+    "code_lines": 1885,
+    "test_lines": 500,
+    "total_lines": 2385,
+    "complexity": "COMPLEX",
+    "phases_required": 16,
+    "commands_added": 24
+  },
+
+  "notes": [
+    "The check command requires HTTP runner implementation - marked as TODO",
+    "All JSONL handlers use loader.load_spec_quiet() to avoid ANSI codes",
+    "Follow existing pattern from quality/coverage/gaps implementations",
+    "Parameter extraction helpers reduce duplication significantly",
+    "This enables the headless AI kernel vision from VISION_3_HEADLESS.md",
+    "Added 'analyze' command as 24th command (alias for quality)",
+    "main() will support both --jsonl mode and traditional glint CLI",
+    "JSONL mode reads from STDIN, outputs to STDOUT line-by-line",
+    "Glint mode remains default for backward compatibility"
+  ]
+}

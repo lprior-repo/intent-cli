@@ -1,0 +1,52 @@
+{
+  "phase": 0,
+  "phase_name": "TRIAGE",
+  "bead_id": "intent-cli-dku",
+  "title": "WAVE5-03: Enhanced Bead Generator (EARS+Contracts+Types+Tests)",
+  "analysis": {
+    "language": "gleam",
+    "test_command": "gleam test",
+    "format_command": "gleam format",
+    "criteria_count": 4,
+    "description": "Create enhanced bead generator that enriches work items with EARS requirements patterns, contract specifications (pre/post conditions), type definitions, and test cases. This provides AI agents with comprehensive implementation context.",
+    "estimated_files": 2,
+    "new_modules": [
+      "src/intent/enhanced_bead_generator.gleam"
+    ],
+    "modified_modules": [
+      "src/intent/bead_templates.gleam (possible integration)"
+    ],
+    "dependencies": [
+      "intent/kirk/ears_parser.gleam (EARS pattern matching)",
+      "intent/types.gleam (Behavior, Check types for contracts)",
+      "intent/bead_templates.gleam (existing bead generation)"
+    ],
+    "dependency_depth": 2,
+    "complexity_factors": {
+      "new_type_definitions": true,
+      "integration_with_existing_beads": true,
+      "ears_pattern_analysis": true,
+      "contract_extraction": true,
+      "multiple_domain_concepts": true
+    }
+  },
+  "complexity_assessment": "MEDIUM",
+  "reasoning": "This is a MEDIUM complexity task. While it creates a new module (enhanced bead generator), it requires: (1) Understanding and integrating EARS patterns from kirk/ears_parser, (2) Extracting contract specifications from behaviors, (3) Designing new type structures for enhanced beads, (4) Integration with existing bead generation. The criteria count (4) and dependency depth (2) put it squarely in MEDIUM territory. Not SIMPLE because it requires multiple domain integrations. Not COMPLEX because the scope is well-defined and doesn't involve architectural changes.",
+  "routing": {
+    "phases": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+    "skipped_phases": [3, 8, 10, 12, 13, 14],
+    "rationale": "MEDIUM complexity: Skip phase 3 (verify), 8 (implement), 10 (FP-gates), 12 (MF#2), 13 (consistency), 14 (liability). Use streamlined RED-GREEN-REFACTOR with quality gates."
+  },
+  "success_criteria": [
+    "Enhanced bead type includes EARS patterns",
+    "Enhanced bead type includes contract specs (pre/post conditions)",
+    "Enhanced bead type includes type definitions needed",
+    "Enhanced bead type includes test cases to write",
+    "Integration with existing bead generation system",
+    "Tests verify EARS pattern extraction",
+    "Tests verify contract extraction from behaviors",
+    "Gleam 7 Commandments compliance"
+  ],
+  "gate_passed": true,
+  "completed_at": "2026-01-25T09:00:00-06:00"
+}

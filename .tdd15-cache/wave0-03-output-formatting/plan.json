@@ -1,0 +1,75 @@
+{
+  "phase": 2,
+  "phase_name": "PLAN",
+  "status": "completed",
+  "implementation_plan": {
+    "overview": "Update doctor and effects commands to use json_output.success with next_actions instead of create_response",
+    "steps": [
+      {
+        "step": 1,
+        "description": "Update doctor.gleam json_output function",
+        "file": "src/intent/doctor.gleam",
+        "changes": [
+          "Replace json_output.create_response (line 260-267) with json_output.success",
+          "Add next_actions list with 2 suggestions: improve and quality commands"
+        ],
+        "rationale": "Doctor provides health report, so next logical steps are getting improvement suggestions or checking quality scores"
+      },
+      {
+        "step": 2,
+        "description": "Update effects_analyzer.gleam effects_report_to_action_json function",
+        "file": "src/intent/kirk/effects_analyzer.gleam",
+        "changes": [
+          "Replace json_output.create_response (line 762-768) with json_output.success",
+          "Add next_actions list with 2 suggestions: gaps and doctor commands"
+        ],
+        "rationale": "Effects analysis identifies second-order effects, so next steps are finding gaps in coverage or getting comprehensive health report"
+      },
+      {
+        "step": 3,
+        "description": "Create tests for next_actions field",
+        "file": "test/intent/json_output_test.gleam",
+        "changes": [
+          "Add test: doctor_includes_next_actions_test",
+          "Add test: effects_includes_next_actions_test"
+        ],
+        "rationale": "Ensure next_actions field is present and contains expected suggestions"
+      },
+      {
+        "step": 4,
+        "description": "Verify all KIRK commands consistency",
+        "files": ["src/intent.gleam"],
+        "changes": [
+          "Manual verification that quality, coverage, gaps, invert, effects, doctor all use consistent pattern"
+        ],
+        "rationale": "Ensure uniform AI-friendly JSON output across all analysis commands"
+      }
+    ],
+    "test_strategy": {
+      "unit_tests": [
+        "Test doctor command JSON output includes next_actions",
+        "Test effects command JSON output includes next_actions",
+        "Test next_actions contains expected command suggestions"
+      ],
+      "integration_tests": [
+        "Run 'intent doctor examples/user-api.cue' and verify JSON structure",
+        "Run 'intent effects examples/user-api.cue' and verify JSON structure"
+      ],
+      "acceptance_criteria": [
+        "doctor command outputs next_actions with improve and quality suggestions",
+        "effects command outputs next_actions with gaps and doctor suggestions",
+        "JSON follows action schema: success, action, command, data, errors, next_actions, metadata, spec_path",
+        "All KIRK commands (quality, coverage, gaps, invert, effects, doctor) use consistent pattern"
+      ]
+    },
+    "rollback_plan": {
+      "if_tests_fail": "Revert to create_response calls",
+      "backward_compatibility": "No breaking changes - only adding next_actions field"
+    }
+  },
+  "estimated_time": "15-20 minutes",
+  "risks": {
+    "low": "Simple refactoring with established pattern",
+    "mitigation": "Follow existing patterns from quality/coverage/gaps commands"
+  }
+}

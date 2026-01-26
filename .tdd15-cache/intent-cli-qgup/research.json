@@ -1,0 +1,76 @@
+{
+  "phase": 1,
+  "research_findings": {
+    "command_structure": {
+      "location": "src/intent.gleam",
+      "pattern": "glint.Command functions registered in main() via glint.add()",
+      "key_commands": {
+        "beads": {
+          "function": "beads_command()",
+          "line": 1640,
+          "current_validation": "Checks if session exists in .interview/sessions.jsonl, detects .cue file mistake",
+          "needs_enhancement": "Should detect if NO sessions exist and suggest 'intent interview'"
+        },
+        "validate": {
+          "function": "validate_command()",
+          "line": 196,
+          "uses": "loader.load_spec_quiet() to validate CUE syntax and structure"
+        }
+      }
+    },
+    "session_detection": {
+      "module": "intent/interview_storage.gleam",
+      "key_functions": {
+        "list_sessions_from_jsonl": {
+          "signature": "fn(String) -> Result(List(InterviewSession), String)",
+          "purpose": "Lists all sessions from JSONL file",
+          "file_path": ".interview/sessions.jsonl"
+        },
+        "get_session_from_jsonl": {
+          "signature": "fn(String, String) -> Result(InterviewSession, String)",
+          "purpose": "Gets specific session by ID"
+        }
+      }
+    },
+    "spec_validation": {
+      "module": "intent/loader.gleam",
+      "key_functions": {
+        "load_spec": {
+          "signature": "fn(String) -> Result(Spec, LoadError)",
+          "purpose": "Validates CUE spec syntax and structure via 'cue vet' and 'cue export'"
+        },
+        "load_spec_quiet": {
+          "signature": "fn(String) -> Result(Spec, LoadError)",
+          "purpose": "Same as load_spec but for testing/automation"
+        }
+      },
+      "validation_steps": [
+        "security.validate_file_path()",
+        "cue vet (syntax check)",
+        "cue export (structure check)",
+        "parser.parse_spec() (Gleam type validation)"
+      ]
+    },
+    "error_handling_pattern": {
+      "current": "io.println_error() + halt(exit_error)",
+      "json_mode": "json_output.failure() + json_output.output()",
+      "exit_codes": {
+        "exit_pass": 0,
+        "exit_fail": 1,
+        "exit_invalid": 3,
+        "exit_error": 4
+      }
+    },
+    "files_to_modify": [
+      "src/intent.gleam (beads_command, potentially validate_command)"
+    ],
+    "files_to_create": [
+      "src/intent/workflow_validator.gleam (new module for state detection)"
+    ],
+    "missing_check_command": {
+      "note": "CLAUDE.md mentions 'check' command for running specs against APIs, but it's not in current glint routes",
+      "action": "Focus on 'beads' command which exists and needs validation, skip 'check' enhancement for now"
+    }
+  },
+  "complexity_confirmation": "MEDIUM - 2 files (intent.gleam + new workflow_validator.gleam), clear patterns, moderate testing"
+}

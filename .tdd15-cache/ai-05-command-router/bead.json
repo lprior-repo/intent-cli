@@ -1,0 +1,7 @@
+{
+  "id": "intent-cli-dt9",
+  "title": "AI-05: Create command_router.gleam for dispatching JSONL commands",
+  "description": "Build router module to parse JSONL commands and dispatch to appropriate handlers",
+  "status": "ready",
+  "context": "Part of AI-native interface implementation - enables JSONL command processing for AI agents"
+}

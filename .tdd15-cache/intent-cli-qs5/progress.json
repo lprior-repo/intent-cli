@@ -1,0 +1,28 @@
+{
+  "bead_id": "intent-cli-qs5",
+  "title": "AI-14: Add --progress flag for stderr progress output",
+  "complexity": "SIMPLE",
+  "route": ["0", "4", "5", "6", "14", "15"],
+  "current_phase": 15,
+  "language": "gleam",
+  "phases": {
+    "0": {"status": "complete", "name": "TRIAGE"},
+    "4": {"status": "complete", "name": "RED", "note": "Tests failing as expected - module doesn't exist"},
+    "5": {"status": "complete", "name": "GREEN", "note": "Implemented progress_output module with FFI stderr support"},
+    "6": {"status": "complete", "name": "REFACTOR", "note": "Centralized FFI in ffi.gleam, code formatted"},
+    "14": {"status": "complete", "name": "LIABILITY", "note": "Code is minimal - no unnecessary complexity"},
+    "15": {"status": "complete", "name": "LANDING", "note": "Committed and bead closed"}
+  },
+  "completion": {
+    "timestamp": "2026-01-25T16:41:38Z",
+    "commit": "be0e08a",
+    "bead_closed": true
+  },
+  "assessment": {
+    "criteria_count": 1,
+    "estimated_files": 3,
+    "dependency_depth": "low",
+    "risk_level": "low",
+    "rationale": "Simple flag addition with stderr output, no complex logic or breaking changes"
+  }
+}

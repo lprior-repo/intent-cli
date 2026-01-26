@@ -1,0 +1,12 @@
+{
+  "id": "intent-cli-aki",
+  "title": "WAVE5-01: Unified CLI Entry (all phase commands)",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "feature",
+  "owner": "priorlewis43@gmail.com",
+  "created_at": "2026-01-25T08:53:47.364831092-06:00",
+  "created_by": "Lewis Prior",
+  "updated_at": "2026-01-25T08:53:47.364831092-06:00",
+  "description": "Create unified CLI entry point that supports all phase commands (validate, check, analyze, lint, improve, quality, coverage, gaps, invert, effects, ears, interview, sessions, history, diff, export, beads, beads-regenerate, bead-status, plan, plan-approve, prompt, feedback, parse, doctor, show)"
+}

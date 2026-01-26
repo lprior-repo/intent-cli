@@ -1,0 +1,29 @@
+{
+  "bead_id": "intent-cli-6hd",
+  "title": "AI-12: Implement intent ai aggregate command (context combination)",
+  "current_phase": 5,
+  "complexity": "SIMPLE",
+  "language": "gleam",
+  "test_command": "gleam test",
+  "format_command": "gleam format",
+  "phases": {
+    "0": {"name": "TRIAGE", "status": "complete", "result": "SIMPLE - Fast path: 0→4→5→6→14→15"},
+    "1": {"name": "RESEARCH", "status": "skipped"},
+    "2": {"name": "PLAN", "status": "skipped"},
+    "3": {"name": "VERIFY", "status": "skipped"},
+    "4": {"name": "RED", "status": "complete", "result": "Tests created with failing stubs"},
+    "5": {"name": "GREEN", "status": "in_progress"},
+    "6": {"name": "REFACTOR", "status": "pending"},
+    "7": {"name": "MF#1", "status": "skipped"},
+    "8": {"name": "IMPLEMENT", "status": "skipped"},
+    "9": {"name": "VERIFY_CRITERIA", "status": "skipped"},
+    "10": {"name": "FP_GATES", "status": "skipped"},
+    "11": {"name": "QA", "status": "skipped"},
+    "12": {"name": "MF#2", "status": "skipped"},
+    "13": {"name": "CONSISTENCY", "status": "skipped"},
+    "14": {"name": "LIABILITY", "status": "pending"},
+    "15": {"name": "LANDING", "status": "pending"}
+  },
+  "started_at": "2026-01-25T16:35:45Z",
+  "triage_notes": "Command reads JSONL responses from stdin/file, aggregates data fields with token limit control. Uses existing jsonl_input module. Simple JSONL processing + token counting."
+}

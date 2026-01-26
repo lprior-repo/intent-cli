@@ -1,0 +1,66 @@
+{
+  "phase": 1,
+  "phase_name": "RESEARCH",
+  "status": "completed",
+  "findings": {
+    "current_state": {
+      "json_output_module": {
+        "file": "src/intent/json_output.gleam",
+        "types": ["JsonResponse", "JsonError", "NextAction", "JsonMetadata"],
+        "functions": {
+          "success": "Creates successful response with next_actions support",
+          "failure": "Creates failure response with next_actions support",
+          "create_response": "Old function, does not support next_actions (sets to [])",
+          "create_full_response": "Full control but verbose"
+        }
+      },
+      "commands_using_success": [
+        "validate_command (src/intent.gleam:181-207)",
+        "kirk_quality_command (src/intent.gleam:2966-3041)",
+        "kirk_invert_command (src/intent.gleam:3044-3095)",
+        "kirk_coverage_command (src/intent.gleam:3145-3195)",
+        "kirk_gaps_command (src/intent.gleam:3230-3280)"
+      ],
+      "commands_using_create_response": [
+        "doctor.json_output (src/intent/doctor.gleam:252-270)",
+        "effects_analyzer.effects_report_to_action_json (src/intent/kirk/effects_analyzer.gleam:755-770)"
+      ]
+    },
+    "files_to_modify": {
+      "src/intent/doctor.gleam": {
+        "function": "json_output (line 252-270)",
+        "change": "Replace create_response with success and add next_actions",
+        "next_actions_suggestions": [
+          "intent improve <spec> - Get targeted improvement suggestions",
+          "intent quality <spec> --json - Assess overall quality scores"
+        ]
+      },
+      "src/intent/kirk/effects_analyzer.gleam": {
+        "function": "effects_report_to_action_json (line 755-770)",
+        "change": "Replace create_response with success and add next_actions",
+        "next_actions_suggestions": [
+          "intent gaps <spec> --json - Find missing verifications",
+          "intent doctor <spec> - Get comprehensive health report"
+        ]
+      }
+    },
+    "test_files": {
+      "existing": "test/intent/json_output_test.gleam - Tests correlation_id and duration_ms (not yet implemented)",
+      "needed": "Tests for next_actions field presence in doctor and effects commands"
+    },
+    "patterns_observed": {
+      "next_actions_pattern": "Commands suggest logical workflow progression (quality→gaps→invert, coverage→gaps→quality, etc.)",
+      "action_naming": "Uses <command>_result or <command>_report format",
+      "spec_path_handling": "Some(spec_path) for commands that take spec file, None for others"
+    }
+  },
+  "dependencies": {
+    "no_new_dependencies": true,
+    "uses_existing": ["gleam/json", "gleam/option", "intent/json_output"]
+  },
+  "risk_assessment": {
+    "breaking_changes": false,
+    "backward_compatibility": "Existing JSON structure unchanged, just adds next_actions field",
+    "test_coverage": "Need to add tests for next_actions field"
+  }
+}

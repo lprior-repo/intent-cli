@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-c5h",
+    "title": "WAVE0-02: JSONL Storage Pattern",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:53:08.665601292-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T10:12:48.03514138-06:00"
+  }
+]

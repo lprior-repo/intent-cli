@@ -1,0 +1,95 @@
+{
+  "phase": 2,
+  "implementation_plan": {
+    "scope": "Complete command_router.gleam with real handlers and comprehensive tests",
+    "approach": "TDD - write tests first, then implement handlers, then integrate CLI",
+    "phases": {
+      "phase_4_red": [
+        "Create test/intent/command_router_test.gleam",
+        "Write parse_request tests (5 cases: valid, missing command, invalid JSON, optional id, optional args)",
+        "Write route_request tests (4 cases: quality, coverage, gaps, unknown)",
+        "Write error_response tests (4 cases: each RouterError variant)",
+        "Write process_single_request tests (3 cases: success, parse error, handler error)",
+        "Write handler tests expecting real implementations (will fail)",
+        "Run gleam test - expect handler tests to fail with stub messages"
+      ],
+      "phase_5_green": [
+        "Check analyzer function signatures",
+        "Implement execute_quality with loader + quality_analyzer",
+        "Implement execute_coverage with loader + coverage_analyzer",
+        "Implement execute_gaps with loader + gap_detector",
+        "Add helper execute_with_spec for common pattern",
+        "Run gleam test - all tests should pass",
+        "Add jsonl_command to src/intent.gleam",
+        "Test CLI integration manually: echo '{\"command\":\"quality\",\"args\":{\"spec_path\":\"test.cue\"}}' | intent jsonl"
+      ],
+      "phase_6_refactor": [
+        "Extract common handler pattern",
+        "Add inline documentation",
+        "Improve error messages",
+        "Run gleam format",
+        "Verify tests still pass"
+      ]
+    },
+    "files_to_modify": [
+      {
+        "path": "test/intent/command_router_test.gleam",
+        "action": "create",
+        "description": "Comprehensive test suite"
+      },
+      {
+        "path": "src/intent/command_router.gleam",
+        "action": "modify",
+        "description": "Replace stub handlers with real implementations"
+      },
+      {
+        "path": "src/intent.gleam",
+        "action": "modify",
+        "description": "Add jsonl_command registration"
+      },
+      {
+        "path": "src/intent/ffi.gleam",
+        "action": "check_and_modify",
+        "description": "Add read_stdin_lines if not present"
+      }
+    ],
+    "dependencies_required": [
+      "intent/loader.load_spec_quiet",
+      "intent/quality_analyzer.analyze_spec_json",
+      "intent/kirk/coverage_analyzer.analyze_coverage_json",
+      "intent/kirk/gap_detector.detect_gaps_json"
+    ],
+    "test_strategy": {
+      "framework": "gleeunit",
+      "coverage_target": "90%",
+      "test_categories": [
+        "parse_request: 5 tests",
+        "route_request: 4 tests",
+        "error_response: 4 tests",
+        "process_single_request: 3 tests",
+        "handlers (quality, coverage, gaps): 6 tests total"
+      ],
+      "total_tests": 22
+    },
+    "integration_strategy": {
+      "command_name": "jsonl",
+      "description": "Process JSONL commands from stdin",
+      "usage": "echo '{\"command\":\"quality\",\"args\":{\"spec_path\":\"api.cue\"}}' | intent jsonl",
+      "behavior": "Read stdin line by line, process each as JSONL command, output JSONL responses"
+    },
+    "risks": [
+      {
+        "risk": "Analyzer functions may not have JSON output variants",
+        "mitigation": "Check function signatures first, wrap if needed"
+      },
+      {
+        "risk": "stdin reading in Gleam may be complex",
+        "mitigation": "Use FFI if needed, or process line-by-line with io.read_line"
+      },
+      {
+        "risk": "Integration tests harder without real spec files",
+        "mitigation": "Use examples/ directory specs for manual testing"
+      }
+    ]
+  }
+}

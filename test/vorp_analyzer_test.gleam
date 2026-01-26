@@ -1,8 +1,8 @@
 //// Tests for kirk/vorp_analyzer.gleam
 //// Contract: VORP (Value Over Replacement) quality scoring
 
-import gleam/dict
 import gleeunit/should
+import gleam/json
 import intent/kirk/vorp_analyzer
 import intent/types
 import test_helpers
@@ -74,14 +74,18 @@ pub fn analyze_vorp_strong_vorp_test() {
       ),
       anti_patterns: [
         types.AntiPattern(
-          pattern: "Manual testing",
-          why_bad: "Slow and error-prone",
-          better_approach: "Contract verification",
+          name: "Manual testing",
+          description: "Slow and error-prone",
+          why: "Contract verification is superior",
+          bad_example: json.object([]),
+          good_example: json.object([]),
         ),
         types.AntiPattern(
-          pattern: "Postman collections without validation",
-          why_bad: "No determinism",
-          better_approach: "CUE specs",
+          name: "Postman collections without validation",
+          description: "No determinism",
+          why: "CUE specs provide deterministic contracts",
+          bad_example: json.object([]),
+          good_example: json.object([]),
         ),
       ],
     )
@@ -115,9 +119,11 @@ pub fn analyze_vorp_no_audience_test() {
       ),
       anti_patterns: [
         types.AntiPattern(
-          pattern: "Bad pattern",
-          why_bad: "It's bad",
-          better_approach: "Good pattern",
+          name: "Bad pattern",
+          description: "It's bad",
+          why: "Good pattern is better",
+          bad_example: json.object([]),
+          good_example: json.object([]),
         ),
       ],
     )

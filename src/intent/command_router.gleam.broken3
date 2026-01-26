@@ -1,0 +1,270 @@
+/// JSONL command router with validation
+/// Reads JSONL from stdin, dispatches to handlers, outputs JSONL responses
+import gleam/dynamic.{type Dynamic}
+import gleam/io
+import gleam/json
+import gleam/list
+import gleam/option.{None}
+import gleam/result
+import gleam/string
+import intent/json_output.{type JsonResponse}
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/// A parsed command request from JSONL
+pub type CommandRequest {
+  CommandRequest(id: String, command: String, args: Dynamic)
+}
+
+/// Router-specific errors
+pub type RouterError {
+  InvalidJson(line: String, error: String)
+  MissingCommandField
+  UnknownCommand(command: String)
+  HandlerError(command: String, error: String)
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/// Process JSONL from stdin, output JSONL responses to stdout
+pub fn process_jsonl_stdin() -> Nil {
+  case read_stdin_line() {
+    Ok(line) -> {
+      // Skip empty or whitespace-only lines
+      case string.trim(line) {
+        "" -> process_jsonl_stdin()
+        trimmed_line -> {
+          let response_str = process_single_request(trimmed_line)
+          io.println(response_str)
+          process_jsonl_stdin()
+        }
+      }
+    }
+    Error(_) -> Nil
+    // EOF or error - stop processing
+  }
+}
+
+/// Process a single JSONL request line and return JSONL response
+pub fn process_single_request(line: String) -> String {
+  case parse_request(line) {
+    Ok(request) -> {
+      let response = route_request(request)
+      response
+      |> json_output.to_json
+      |> json.to_string
+    }
+    Error(err) -> {
+      // Generate auto ID for error responses when parsing fails
+      let error_id = generate_uuid()
+      let response = error_response(error_id, err)
+      response
+      |> json_output.to_json
+      |> json.to_string
+    }
+  }
+}
+
+/// Parse a JSONL line into a CommandRequest
+pub fn parse_request(line: String) -> Result(CommandRequest, RouterError) {
+  // Parse JSON
+  case json.decode(from: line, using: dynamic.dynamic) {
+    Error(_) -> Error(InvalidJson(line: line, error: "Invalid JSON syntax"))
+    Ok(data) -> {
+      // Extract command field (required)
+      let command_result = dynamic.field("command", dynamic.string)(data)
+      case command_result {
+        Error(_) -> Error(MissingCommandField)
+        Ok(command) -> {
+          // Extract id field (optional - generate UUID if missing)
+          let id =
+            dynamic.field("id", dynamic.string)(data)
+            |> result.unwrap(generate_uuid())
+
+          // Extract args field (optional - default to empty object)
+          let args =
+            dynamic.field("args", dynamic.dynamic)(data)
+            |> result.unwrap(dynamic.from(json.object([])))
+
+          Ok(CommandRequest(id: id, command: command, args: args))
+        }
+      }
+    }
+  }
+}
+
+/// Route a request to the appropriate handler
+pub fn route_request(request: CommandRequest) -> JsonResponse {
+  case request.command {
+    "quality" -> execute_quality(request.id, request.args)
+    "coverage" -> execute_coverage(request.id, request.args)
+    "gaps" -> execute_gaps(request.id, request.args)
+    _ -> error_response(request.id, UnknownCommand(request.command))
+  }
+}
+
+/// Convert RouterError to JsonResponse
+pub fn error_response(id: String, error: RouterError) -> JsonResponse {
+  case error {
+    InvalidJson(line: line, error: err_msg) -> {
+      let errors = [
+        json_output.detailed_error(
+          "INVALID_JSON",
+          "Failed to parse JSON: " <> err_msg,
+          "request",
+          "Ensure the request is valid JSON",
+          "",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        "unknown",
+        json.object([#("invalid_line", json.string(line))]),
+        errors,
+        [],
+        None,
+        1,
+      )
+      |> with_correlation_id(id)
+    }
+
+    MissingCommandField -> {
+      let errors = [
+        json_output.detailed_error(
+          "MISSING_COMMAND_FIELD",
+          "Request is missing required 'command' field",
+          "request.command",
+          "Add a 'command' field with the command name",
+          "{\"command\":\"quality\",\"args\":{...}}",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        "unknown",
+        json.null(),
+        errors,
+        [],
+        None,
+        1,
+      )
+      |> with_correlation_id(id)
+    }
+
+    UnknownCommand(cmd) -> {
+      let available_commands = ["quality", "coverage", "gaps"]
+      let hint =
+        "Available commands: " <> string.join(available_commands, ", ")
+      let errors = [
+        json_output.detailed_error(
+          "UNKNOWN_COMMAND",
+          "Unknown command: " <> cmd,
+          "request.command",
+          hint,
+          "",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        cmd,
+        json.object([
+          #("available_commands", json.array(available_commands, json.string)),
+        ]),
+        errors,
+        [],
+        None,
+        1,
+      )
+      |> with_correlation_id(id)
+    }
+
+    HandlerError(cmd, err_msg) -> {
+      let errors = [
+        json_output.detailed_error(
+          "HANDLER_ERROR",
+          "Handler for '" <> cmd <> "' failed: " <> err_msg,
+          "handler",
+          "Check the command arguments and try again",
+          "",
+        ),
+      ]
+      json_output.create_full_response(
+        False,
+        "error",
+        cmd,
+        json.null(),
+        errors,
+        [],
+        None,
+        1,
+      )
+      |> with_correlation_id(id)
+    }
+  }
+}
+
+// ============================================================================
+// Command Handlers (Minimal implementations for MVP)
+// ============================================================================
+
+fn execute_quality(_id: String, _args: Dynamic) -> JsonResponse {
+  // TODO: Extract spec_path from args, load spec, run quality analyzer
+  // For now, return a minimal success response
+  json_output.success(
+    "quality_result",
+    "quality",
+    json.object([#("message", json.string("Quality analysis pending"))]),
+    None,
+    [],
+  )
+}
+
+fn execute_coverage(_id: String, _args: Dynamic) -> JsonResponse {
+  // TODO: Extract spec_path from args, load spec, run coverage analyzer
+  json_output.success(
+    "coverage_result",
+    "coverage",
+    json.object([#("message", json.string("Coverage analysis pending"))]),
+    None,
+    [],
+  )
+}
+
+fn execute_gaps(_id: String, _args: Dynamic) -> JsonResponse {
+  // TODO: Extract spec_path from args, load spec, run gap detector
+  json_output.success(
+    "gaps_result",
+    "gaps",
+    json.object([#("message", json.string("Gap detection pending"))]),
+    None,
+    [],
+  )
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/// Add correlation ID to JsonResponse
+/// JsonResponse doesn't have an id field, so we need to add it to metadata or data
+/// For now, we'll add it to the data object
+fn with_correlation_id(response: JsonResponse, _id: String) -> JsonResponse {
+  // This is a workaround - ideally JsonResponse would have an id field
+  // For now, we'll just return the response as-is
+  // The id will be in the command field or we need to extend JsonResponse
+  response
+}
+
+/// Generate a UUID v4
+@external(erlang, "intent_ffi", "generate_uuid")
+fn generate_uuid() -> String
+
+/// Read a line from stdin
+@external(erlang, "intent_ffi", "read_stdin_line")
+fn read_stdin_line() -> Result(String, Nil)

@@ -1,0 +1,12 @@
+{
+  "bead_id": "intent-cli-7wu",
+  "title": "WAVE4-05: Ready Critique Protocol (Pre-Launch Auditor persona)",
+  "complexity": "MEDIUM",
+  "phases": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "current_phase": 15,
+  "started_at": "2026-01-25T22:18:00Z",
+  "completed_at": "2026-01-25T22:25:00Z",
+  "status": "complete",
+  "mf1_score": 85,
+  "notes": "Ready Critique Protocol already implemented. Fixed missing import in intent.gleam."
+}

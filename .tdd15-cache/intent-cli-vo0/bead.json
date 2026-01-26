@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-vo0",
+    "title": "WAVE3-09: Spec Commands (quality, coverage, gaps, invert, effects, ears)",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:53:55.871326812-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T08:53:55.871326812-06:00"
+  }
+]

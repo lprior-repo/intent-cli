@@ -1,0 +1,31 @@
+{
+  "validation_approach": "Use `cue vet <schema>.cue <data>.json` to validate JSON against CUE schemas. The loader module provides validate_cue_with_executor which uses shellout to run cue commands. Pattern: execute cue vet, parse result, return Ok(Nil) or Error(LoadError)",
+  "jsonl_parsing": "JSONL is newline-delimited JSON. Parse by: (1) read file with simplifile.read, (2) split by \\n with string.split, (3) filter empty lines, (4) parse each line with json.decode. See interview_storage.gleam for JSONL patterns",
+  "schema_usage": "ai_schema.get_schema(command: cmd, schema_type: type) returns CUE schema content. Schemas are in schema/ai/input/*.cue and schema/ai/output/*.cue. Use simplifile to write temp files for validation",
+  "command_structure": "Pattern: (1) glint.command(fn(input) {...}), (2) Parse flags with flag.get_string/get_bool, (3) Match on args/flags, (4) Execute logic, (5) Return JSON using json_output.success or json_output.failure, (6) Call halt(exit_code). See ai_schema_command() lines 4010-4250",
+  "error_handling": "Use json_output.error(code, message) for errors. json_output.failure() wraps errors in response. Exit codes: exit_pass=0, exit_fail=1, exit_invalid=3, exit_error=4. All commands return JSON via json_output.output(response)",
+  "key_files": [
+    "src/intent.gleam (command registration)",
+    "src/intent/loader.gleam (CUE validation)",
+    "src/intent/ai_schema.gleam (schema access)",
+    "src/intent/json_output.gleam (response formatting)",
+    "schema/ai/envelope.cue (AI request/response format)"
+  ],
+  "key_functions": [
+    "validate_cue_with_executor (loader.gleam:128)",
+    "get_schema (ai_schema.gleam:22)",
+    "json_output.success",
+    "json_output.failure",
+    "simplifile.read",
+    "string.split"
+  ],
+  "external_dependencies": [
+    "cue (command line tool)",
+    "simplifile (file I/O)",
+    "shellout (command execution)",
+    "glint (CLI framework)",
+    "gleam/json (JSON encoding/decoding)"
+  ],
+  "validation_strategy": "For each JSONL line: (1) parse as JSON, (2) write to temp file, (3) run `cue vet <schema>.cue <temp>.json`, (4) collect results. Return aggregate success/failure with line numbers for errors",
+  "temp_file_approach": "Use simplifile.create_temporary_file or write to /tmp/intent-validate-*.json, then delete after validation"
+}

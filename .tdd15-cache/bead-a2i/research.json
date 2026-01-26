@@ -1,0 +1,60 @@
+{
+  "phase": 1,
+  "name": "RESEARCH",
+  "findings": {
+    "existing_types": {
+      "planning_types.gleam": {
+        "has": ["VisionSection", "ShapeSection", "ReadyReport", "FeatureShape", "MVPSlice", "BlockerSeverity", "DimensionScore", "Blocker", "Recommendation"],
+        "missing": ["Spec phase type", "unified Plan container"],
+        "issues": ["VisionSection different from vision_types.gleam version"]
+      },
+      "vision_types.gleam": {
+        "has": ["VisionSection", "Scenario", "Stakeholder"],
+        "status": "actively used by vision_storage.gleam",
+        "structure": "title, description, scenarios, stakeholders, principles"
+      },
+      "types.gleam": {
+        "has": ["Spec"],
+        "purpose": "CUE spec for HTTP testing"
+      },
+      "plan_mode.gleam": {
+        "has": ["ExecutionPlan", "ExecutionPhase"],
+        "purpose": "bead execution planning"
+      }
+    },
+    "dependencies": {
+      "vision_storage.gleam": "imports vision_types.VisionSection - ACTIVE USER",
+      "test/vision_types_test.gleam": "tests vision_types.VisionSection",
+      "test/vision_storage_test.gleam": "tests persistence",
+      "test/intent/planning_types_test.gleam.broken": "broken test file - needs fixing"
+    },
+    "required_changes": {
+      "1_consolidate_vision": {
+        "action": "Keep vision_types.gleam as source of truth",
+        "reason": "Already used by vision_storage.gleam",
+        "update": "planning_types.gleam should import from vision_types"
+      },
+      "2_add_spec_phase": {
+        "action": "Add SpecSection type to planning_types.gleam",
+        "structure": "matches planning_types.gleam comment line 5-6 (Phase 3: Spec KIRK)"
+      },
+      "3_create_plan_container": {
+        "action": "Add Plan type to planning_types.gleam",
+        "structure": "contains vision, shape, spec, ready sections"
+      },
+      "4_fix_broken_test": {
+        "action": "Rename planning_types_test.gleam.broken to .gleam and fix",
+        "validation": "gleam test should pass"
+      }
+    },
+    "success_criteria": [
+      "VisionSection unified (single source of truth)",
+      "ShapeSection exists and documented",
+      "SpecSection added for Phase 3",
+      "ReadyReport complete for Phase 4",
+      "Plan container type unifies all 4 phases",
+      "All tests pass",
+      "Zero breaking changes to vision_storage.gleam"
+    ]
+  }
+}

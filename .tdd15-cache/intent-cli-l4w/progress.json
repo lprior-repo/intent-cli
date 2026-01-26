@@ -1,0 +1,13 @@
+{
+  "bead_id": "intent-cli-l4w",
+  "title": "AI-04: Create jsonl_input.gleam for parsing JSONL stdin",
+  "complexity": "MEDIUM",
+  "phases_route": ["0_init", "1_contract", "2_break", "4_red", "5_green", "6_refactor", "7_mf1", "9_types", "11_docs", "15_done"],
+  "current_phase": "15_done",
+  "started_at": "2026-01-25T15:40:22Z",
+  "completed_at": "2026-01-25T16:05:00Z",
+  "language": "gleam",
+  "mf_score": 92.5,
+  "tests_count": 21,
+  "commit": "bb84e88"
+}

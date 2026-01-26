@@ -148,7 +148,7 @@ fn analyze_replacement(spec: Spec) -> DimensionScore {
   let mut_score = 0
 
   // Base score: 20 points for having any audience
-  let score = case string.length(spec.audience) > 0 {
+  let score = case spec.audience != "" {
     True -> mut_score + 20
     False -> mut_score
   }
@@ -167,7 +167,7 @@ fn analyze_replacement(spec: Spec) -> DimensionScore {
 
   // +20 if ai_hints.implementation has content
   let score = case
-    list.length(spec.ai_hints.implementation.suggested_stack) > 0
+    spec.ai_hints.implementation.suggested_stack != []
   {
     True -> score + 20
     False -> score
@@ -194,7 +194,7 @@ fn analyze_replacement(spec: Spec) -> DimensionScore {
         True -> ["Audience too vague"]
         False -> []
       })
-      |> list.append(case list.length(spec.success_criteria) < 2 {
+      |> list.append(case spec.success_criteria == [] || list.length(spec.success_criteria) < 2 {
         True -> ["Insufficient success criteria"]
         False -> []
       })
@@ -261,7 +261,7 @@ fn analyze_empathy(spec: Spec) -> DimensionScore {
         True -> ["No error handling behaviors"]
         False -> []
       })
-      |> list.append(case list.length(spec.anti_patterns) == 0 {
+      |> list.append(case spec.anti_patterns == [] {
         True -> ["No anti-patterns documented"]
         False -> []
       })
@@ -350,7 +350,7 @@ fn analyze_discoverable(spec: Spec) -> DimensionScore {
   // +10 per behavior with tags (up to 30 points)
   let behaviors_with_tags =
     behaviors
-    |> list.filter(fn(b) { list.length(b.tags) > 0 })
+    |> list.filter(fn(b) { b.tags != [] })
     |> list.length()
 
   let tag_score = case behaviors_with_tags {
@@ -385,7 +385,7 @@ fn analyze_discoverable(spec: Spec) -> DimensionScore {
   let issues = case score {
     s if s < 60 ->
       []
-      |> list.append(case list.length(features) < 2 {
+      |> list.append(case features == [] || list.length(features) < 2 {
         True -> ["Limited feature organization"]
         False -> []
       })
@@ -405,24 +405,24 @@ fn analyze_yet_complete(spec: Spec) -> DimensionScore {
   // +25 if all features have behaviors
   let features_complete =
     spec.features
-    |> list.all(fn(f) { list.length(f.behaviors) > 0 })
+    |> list.all(fn(f) { f.behaviors != [] })
 
-  let score = case features_complete && list.length(spec.features) > 0 {
+  let score = case features_complete && spec.features != [] {
     True -> mut_score + 25
     False -> mut_score
   }
 
   // +25 if rules defined
-  let score = case list.length(spec.rules) > 0 {
+  let score = case spec.rules != [] {
     True -> score + 25
     False -> score
   }
 
   // +25 if ai_hints complete (check multiple fields)
   let ai_hints_complete =
-    list.length(spec.ai_hints.implementation.suggested_stack) > 0
+    spec.ai_hints.implementation.suggested_stack != []
     || dict.size(spec.ai_hints.entities) > 0
-    || list.length(spec.ai_hints.pitfalls) > 0
+    || spec.ai_hints.pitfalls != []
 
   let score = case ai_hints_complete {
     True -> score + 25
@@ -451,7 +451,7 @@ fn analyze_yet_complete(spec: Spec) -> DimensionScore {
         False -> ["Features without behaviors"]
         True -> []
       })
-      |> list.append(case list.length(spec.rules) == 0 {
+      |> list.append(case spec.rules == [] {
         True -> ["No rules defined"]
         False -> []
       })

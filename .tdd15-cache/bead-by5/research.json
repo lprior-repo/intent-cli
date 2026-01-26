@@ -1,0 +1,60 @@
+{
+  "phase": "research",
+  "findings": {
+    "existing_patterns": {
+      "json_output": {
+        "file": "src/intent/json_output.gleam",
+        "provides": "JsonResponse, JsonError, NextAction, JsonMetadata",
+        "notes": "Already has correlation support via JsonResponse structure"
+      },
+      "parser": {
+        "file": "src/intent/parser.gleam",
+        "provides": "Dynamic parsing patterns using gleam/dynamic",
+        "notes": "Uses result.try with dynamic.field() for parsing"
+      },
+      "main_cli": {
+        "file": "src/intent.gleam",
+        "provides": "Glint command registration, 26+ commands",
+        "commands": [
+          "validate", "show", "export", "lint", "analyze", "improve", "doctor",
+          "interview", "beads", "bead-status", "history", "diff", "sessions",
+          "help", "quality", "invert", "coverage", "gaps", "ears", "parse",
+          "effects", "plan", "plan-approve", "beads-regenerate", "feedback", "prompt"
+        ],
+        "notes": "Uses glint.CommandInput with input.args and input.flags"
+      },
+      "ffi": {
+        "file": "src/intent_ffi.erl",
+        "provides": "UUID generation, timestamps, halt, env vars",
+        "notes": "Can extend for stdin reading if needed"
+      }
+    },
+    "dependencies_needed": [
+      "gleam/json - JSON parsing and encoding",
+      "gleam/dynamic - Dynamic type decoding",
+      "gleam/result - Result monad",
+      "gleam/list - List operations",
+      "gleam/string - String manipulation",
+      "gleam/io - stdin/stdout (for JSONL)",
+      "intent/json_output - Response formatting",
+      "intent/types - Spec types if needed"
+    ],
+    "architecture": {
+      "input_flow": "stdin JSONL → parse line → extract command → validate → route → execute → JSONL output",
+      "validation": "JSON structure → command field exists → command registry lookup",
+      "routing": "Command name string → handler function mapping",
+      "error_handling": "JsonError with code, message, fix_hint, fix_command"
+    },
+    "missing_pieces": [
+      "No existing JSONL stdin reader",
+      "No command registry/dispatcher",
+      "No schema validation integration (CUE)",
+      "No correlation ID tracking (but JsonResponse structure supports it)"
+    ],
+    "gleam_stdlib_for_stdin": {
+      "module": "gleam/io",
+      "note": "Gleam stdlib doesn't have readline, need Erlang FFI or file:read_line"
+    }
+  },
+  "completed_at": "2026-01-25T09:51:00Z"
+}

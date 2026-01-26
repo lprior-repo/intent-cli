@@ -1,0 +1,29 @@
+{
+  "bead_id": "intent-cli-cw1",
+  "title": "AI-08: Implement intent ai validate command",
+  "complexity": "MEDIUM",
+  "language": "gleam",
+  "phases": {
+    "0_triage": "complete",
+    "1_research": "pending",
+    "2_plan": "pending",
+    "3_verify": "skipped",
+    "4_red": "pending",
+    "5_green": "pending",
+    "6_refactor": "pending",
+    "7_mf1": "pending",
+    "8_implement": "skipped",
+    "9_verify_criteria": "pending",
+    "10_fp_gates": "skipped",
+    "11_qa": "pending",
+    "12_mf2": "skipped",
+    "13_consistency": "skipped",
+    "14_liability": "skipped",
+    "15_landing": "pending"
+  },
+  "current_phase": 1,
+  "phase_route": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "started_at": "2026-01-25T16:40:26Z",
+  "test_command": "gleam test",
+  "format_command": "gleam format"
+}

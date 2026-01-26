@@ -1,0 +1,143 @@
+{
+  "phase": 1,
+  "phase_name": "RESEARCH",
+  "bead_id": "intent-cli-dku",
+  "ears_insights": {
+    "pattern_types": [
+      "Ubiquitous: THE SYSTEM SHALL [behavior]",
+      "EventDriven: WHEN [trigger] THE SYSTEM SHALL [behavior]",
+      "StateDriven: WHILE [state] THE SYSTEM SHALL [behavior]",
+      "Optional: WHERE [condition] THE SYSTEM SHALL [behavior]",
+      "Unwanted: IF [condition] THEN THE SYSTEM SHALL NOT [behavior]",
+      "Complex: Combination patterns"
+    ],
+    "key_fields": [
+      "id: String - unique identifier",
+      "pattern: EarsPattern - one of 6 pattern types",
+      "trigger: Option(String) - for EventDriven patterns",
+      "state: Option(String) - for StateDriven patterns",
+      "condition: Option(String) - for Optional/Unwanted patterns",
+      "system_shall: String - the behavior specification",
+      "system_shall_not: Option(String) - for Unwanted patterns",
+      "raw_text: String - original requirement text"
+    ],
+    "parsing_approach": "Parse text line-by-line, match against regex patterns for each EARS type, extract components (trigger/state/condition/behavior), return EarsParseResult with requirements/errors/warnings",
+    "intent_behavior_type": {
+      "description": "IntentBehavior already has preconditions and postconditions as List(String)",
+      "fields": ["name", "intent", "method", "path", "status", "preconditions", "postconditions"],
+      "note": "This exists in ears_parser as a target type for conversion from EARS to Intent behaviors"
+    }
+  },
+  "contract_insights": {
+    "check_structure": "Check type has two fields: rule (String) - validation expression, why (String) - explanation. This is essentially a postcondition with rationale.",
+    "behavior_checks": "Behavior.response.checks is Dict(String, Check) - named validation rules that must pass after response",
+    "precondition_extraction": "Behavior.requires field (List(String)) represents dependencies/preconditions - behaviors that must complete first",
+    "postcondition_extraction": "Each Check in response.checks represents a postcondition. The 'rule' is the condition, 'why' is the contract rationale.",
+    "contract_relationship": "Check.rule + Check.why form a contract specification: 'response must satisfy [rule] because [why]'"
+  },
+  "bead_insights": {
+    "current_fields": [
+      "title: String",
+      "description: String",
+      "profile_type: String",
+      "priority: Int",
+      "issue_type: String",
+      "labels: List(String)",
+      "ai_hints: String - single string with implementation guidance",
+      "acceptance_criteria: List(String) - generic success conditions",
+      "dependencies: List(String) - other bead titles that must complete first"
+    ],
+    "current_generation_patterns": {
+      "api_beads": "Extract from answers containing 'endpoint'/'path', generic acceptance_criteria about status codes and schemas",
+      "cli_beads": "Extract from answers containing 'command'/'subcommand', generic criteria about parsing and help text",
+      "generic_hints": "ai_hints are template strings like 'Use interview response to build OpenAPI spec'"
+    },
+    "enhancement_opportunities": [
+      "Replace generic ai_hints string with structured EARS patterns",
+      "Replace generic acceptance_criteria with specific contract specifications (pre/post conditions)",
+      "Add type definitions needed for implementation",
+      "Add specific test cases derived from behavior checks",
+      "Link beads to specific Behavior definitions from specs"
+    ],
+    "limitation": "Current BeadRecord doesn't have structured fields for EARS/contracts/types/tests - currently all bundled in strings"
+  },
+  "integration_points": [
+    {
+      "point": "New EnhancedBeadRecord type",
+      "description": "Extend BeadRecord with structured fields: ears_patterns: List(EarsRequirement), contracts: BeadContracts, type_definitions: List(TypeDef), test_cases: List(TestCase)",
+      "rationale": "Keep existing BeadRecord for backward compatibility, add enhanced version for rich AI context"
+    },
+    {
+      "point": "Behavior-to-Bead conversion",
+      "description": "Create function that takes Behavior and generates EnhancedBeadRecord by extracting: (1) EARS from behavior.intent, (2) Contracts from response.checks, (3) Types from request/response schemas, (4) Tests from checks",
+      "rationale": "Specs contain all the information needed - just need extraction logic"
+    },
+    {
+      "point": "Integration with existing bead_templates",
+      "description": "Enhanced generator can coexist with existing generators. Add new command 'beads-enhanced' or flag '--enhanced' to beads command",
+      "rationale": "Non-breaking addition to existing workflow"
+    }
+  ],
+  "type_definitions_needed": [
+    {
+      "name": "EnhancedBeadRecord",
+      "purpose": "Extended bead with structured EARS, contracts, types, and tests",
+      "fields": [
+        "Base BeadRecord fields (title, description, etc.)",
+        "ears_patterns: List(EarsPattern) - structured requirements",
+        "contracts: BeadContracts - pre/post conditions",
+        "type_definitions: List(String) - type signatures needed",
+        "test_cases: List(TestCase) - specific test scenarios"
+      ]
+    },
+    {
+      "name": "BeadContracts",
+      "purpose": "Contract specifications for a bead",
+      "fields": [
+        "preconditions: List(String) - must be true before implementation",
+        "postconditions: List(String) - must be true after implementation",
+        "invariants: List(String) - must remain true throughout"
+      ]
+    },
+    {
+      "name": "TestCase",
+      "purpose": "Specific test scenario derived from behavior checks",
+      "fields": [
+        "name: String - test description",
+        "given: String - setup/precondition",
+        "when: String - action to test",
+        "then: String - expected outcome",
+        "check_rule: String - the validation rule from Check"
+      ]
+    }
+  ],
+  "recommended_approach": {
+    "step1": "Define new types: EnhancedBeadRecord, BeadContracts, TestCase",
+    "step2": "Create enhanced_bead_generator.gleam module with pure functions",
+    "step3": "Implement extract_contracts_from_behavior(behavior: Behavior) -> BeadContracts - parse behavior.response.checks into structured contracts",
+    "step4": "Implement extract_ears_from_intent(intent: String) -> List(EarsPattern) - parse behavior.intent using EARS parser patterns",
+    "step5": "Implement generate_type_definitions(behavior: Behavior) -> List(String) - infer types from request/response",
+    "step6": "Implement generate_test_cases(behavior: Behavior) -> List(TestCase) - convert checks to test scenarios",
+    "step7": "Implement generate_enhanced_bead(behavior: Behavior, profile: String) -> EnhancedBeadRecord - orchestrate all extractors",
+    "step8": "Add tests for each extractor function",
+    "functional_principles": [
+      "Pure functions - no I/O in extraction logic",
+      "Explicit error handling with Result types",
+      "Small focused functions composed with |>",
+      "Pattern matching over conditionals",
+      "Immutable data structures"
+    ]
+  },
+  "key_dependencies": {
+    "intent/kirk/ears_parser": "Use EarsRequirement and EarsPattern types, possibly reuse parsing functions",
+    "intent/types": "Use Behavior, Check, Response types as input",
+    "intent/bead_templates": "Reference BeadRecord, possibly extend or wrap",
+    "gleam/dict": "For parsing response.checks Dict",
+    "gleam/list": "For list operations on checks, patterns, test cases",
+    "gleam/string": "For text parsing and formatting",
+    "gleam/option": "For handling optional fields"
+  },
+  "gate_passed": true,
+  "sufficient_context": true,
+  "completed_at": "2026-01-25T09:05:00-06:00"
+}

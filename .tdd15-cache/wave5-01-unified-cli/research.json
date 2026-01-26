@@ -1,0 +1,64 @@
+{
+  "phase": 1,
+  "status": "complete",
+  "goal": "Research codebase to understand command handler patterns and JSONL router architecture",
+  "findings": {
+    "current_state": {
+      "glint_commands": 26,
+      "jsonl_commands": 3,
+      "missing_from_jsonl": 23
+    },
+    "command_categories": {
+      "core_spec": ["validate", "check", "analyze", "lint", "improve"],
+      "kirk": ["invert", "effects", "ears"],
+      "interview": ["interview", "sessions", "history", "diff", "export"],
+      "beads": ["beads", "beads-regenerate", "bead-status", "plan", "plan-approve", "prompt", "feedback"],
+      "parsing": ["parse"],
+      "utilities": ["doctor", "show"]
+    },
+    "glint_pattern": {
+      "steps": [
+        "Extract args from input.args (positional)",
+        "Extract flags using flag.get_*",
+        "Load spec using load_spec_for_mode(path, json_mode)",
+        "Call analyzer/processor module",
+        "Format response with json_output.success/failure",
+        "Call json_output.output() and halt(exit_code)"
+      ]
+    },
+    "jsonl_pattern": {
+      "steps": [
+        "Extract params from args Dynamic using dynamic.field()",
+        "Validate required params exist",
+        "Load spec using loader.load_spec_quiet() (no spinner)",
+        "Call same analyzer/processor module as glint",
+        "Return JsonResponse directly (no halt/output)"
+      ],
+      "example_param_extraction": "dynamic.field(\"spec_path\", dynamic.string)(args)"
+    },
+    "modules_to_import": [
+      "intent/loader (spec loading)",
+      "intent/quality_analyzer",
+      "intent/kirk/inversion_checker",
+      "intent/kirk/effects_analyzer",
+      "intent/kirk/ears_parser",
+      "intent/spec_linter",
+      "intent/improver",
+      "intent/doctor",
+      "intent/interview",
+      "intent/interview_storage",
+      "intent/spec_builder",
+      "intent/bead_templates",
+      "intent/plan_mode",
+      "intent/prompt_generator",
+      "intent/bead_from_failures"
+    ],
+    "critical_notes": [
+      "check command requires HTTP runner - currently doesn't exist",
+      "All JSONL handlers must use load_spec_quiet to avoid ANSI codes",
+      "Error responses must use json_output.detailed_error format",
+      "Success responses need next_actions suggestions",
+      "Parameters come as Dynamic - need proper decoding with error handling"
+    ]
+  }
+}

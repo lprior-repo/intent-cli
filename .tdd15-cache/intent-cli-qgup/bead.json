@@ -1,0 +1,11 @@
+{
+  "id": "intent-cli-qgup",
+  "title": "Add workflow state detection to commands",
+  "description": "Commands should detect missing prerequisites: 'beads' command should detect if no interview sessions exist and suggest 'intent interview'. 'check' should warn if spec not validated. Provide helpful guidance instead of cryptic errors.",
+  "status": "in_progress",
+  "priority": 2,
+  "issue_type": "task",
+  "created_at": "2026-01-23T23:14:54.234514638-06:00",
+  "created_by": "lewis",
+  "updated_at": "2026-01-25T16:41:05.746414959-06:00"
+}

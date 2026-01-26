@@ -517,7 +517,8 @@ pub fn to_kirk_health_detects_inversions_from_warnings_test() {
 }
 
 pub fn to_spec_section_creates_round1_spec_test() {
-  let input = "THE SYSTEM SHALL validate inputs\nWHEN user clicks THE SYSTEM SHALL save"
+  let input =
+    "THE SYSTEM SHALL validate inputs\nWHEN user clicks THE SYSTEM SHALL save"
   let result = ears_parser.parse(input)
   let spec_section = ears_parser.to_spec_section(result, "TestAPI")
 

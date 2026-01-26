@@ -1,0 +1,30 @@
+{
+  "phase": 0,
+  "phase_name": "TRIAGE",
+  "assessment": {
+    "complexity": "SIMPLE",
+    "rationale": "The json_output module is already well-designed with JsonResponse type, next_actions support, and helper functions. The infrastructure exists - we just need to ensure all commands use it consistently.",
+    "file_count": 2,
+    "primary_files": [
+      "src/intent.gleam",
+      "src/intent/json_output.gleam"
+    ],
+    "dependency_depth": 1,
+    "criteria_count": 5,
+    "estimated_time_minutes": 20
+  },
+  "success_criteria": [
+    "All commands support --json=true flag",
+    "Consistent ActionResult schema across all outputs",
+    "next_actions field populated with relevant workflow suggestions",
+    "Machine-readable error messages in JSON format",
+    "All KIRK commands return structured action metadata"
+  ],
+  "routing_decision": {
+    "complexity_level": "SIMPLE",
+    "phases_to_execute": [0, 4, 5, 6, 14, 15],
+    "phases_to_skip": [1, 2, 3, 7, 8, 9, 10, 11, 12, 13],
+    "savings_percent": 60
+  },
+  "notes": "The json_output module already has all necessary types (JsonResponse, NextAction, JsonError, JsonMetadata). Commands like quality, coverage, gaps, invert, effects already return json_output.JsonResponse. We just need to verify consistency and ensure next_actions are populated intelligently."
+}

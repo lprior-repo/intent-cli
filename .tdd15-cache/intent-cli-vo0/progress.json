@@ -1,0 +1,12 @@
+{
+  "bead_id": "intent-cli-vo0",
+  "title": "WAVE3-09: Spec Commands (quality, coverage, gaps, invert, effects, ears)",
+  "status": "complete",
+  "complexity": "TRIVIAL",
+  "language": "gleam",
+  "phases_completed": ["phase_0_triage"],
+  "current_phase": 0,
+  "started_at": "2026-01-25T16:07:19Z",
+  "completed_at": "2026-01-25T16:45:00Z",
+  "notes": "All 6 KIRK commands already implemented and wired up. Lines 155-164 in intent.gleam register: quality, invert, coverage, gaps, ears, effects. No work needed."
+}

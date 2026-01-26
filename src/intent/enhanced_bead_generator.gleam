@@ -139,24 +139,27 @@ pub fn extract_ears_patterns(intent: String) -> List(EarsPatternInfo) {
 /// Try to parse EventDriven pattern: WHEN [trigger] THE SYSTEM SHALL [behavior]
 fn try_event_driven_pattern(
   intent_upper: String,
-  original: String,
+  _original: String,
 ) -> Result(EarsPatternInfo, Nil) {
   case
     string.contains(intent_upper, "WHEN")
     && string.contains(intent_upper, "THE SYSTEM SHALL")
   {
-    True -> parse_ears_pattern(intent_upper, "WHEN", "THE SYSTEM SHALL", fn(
-      trigger,
-      behavior,
-    ) {
-      EarsPatternInfo(
-        pattern_type: "EventDriven",
-        trigger: Some(trigger),
-        state: None,
-        condition: None,
-        behavior: behavior,
+    True ->
+      parse_ears_pattern(
+        intent_upper,
+        "WHEN",
+        "THE SYSTEM SHALL",
+        fn(trigger, behavior) {
+          EarsPatternInfo(
+            pattern_type: "EventDriven",
+            trigger: Some(trigger),
+            state: None,
+            condition: None,
+            behavior: behavior,
+          )
+        },
       )
-    })
     False -> Error(Nil)
   }
 }
@@ -164,24 +167,27 @@ fn try_event_driven_pattern(
 /// Try to parse StateDriven pattern: WHILE [state] THE SYSTEM SHALL [behavior]
 fn try_state_driven_pattern(
   intent_upper: String,
-  original: String,
+  _original: String,
 ) -> Result(EarsPatternInfo, Nil) {
   case
     string.contains(intent_upper, "WHILE")
     && string.contains(intent_upper, "THE SYSTEM SHALL")
   {
-    True -> parse_ears_pattern(intent_upper, "WHILE", "THE SYSTEM SHALL", fn(
-      state,
-      behavior,
-    ) {
-      EarsPatternInfo(
-        pattern_type: "StateDriven",
-        trigger: None,
-        state: Some(state),
-        condition: None,
-        behavior: behavior,
+    True ->
+      parse_ears_pattern(
+        intent_upper,
+        "WHILE",
+        "THE SYSTEM SHALL",
+        fn(state, behavior) {
+          EarsPatternInfo(
+            pattern_type: "StateDriven",
+            trigger: None,
+            state: Some(state),
+            condition: None,
+            behavior: behavior,
+          )
+        },
       )
-    })
     False -> Error(Nil)
   }
 }
@@ -189,24 +195,27 @@ fn try_state_driven_pattern(
 /// Try to parse Optional pattern: WHERE [condition] THE SYSTEM SHALL [behavior]
 fn try_optional_pattern(
   intent_upper: String,
-  original: String,
+  _original: String,
 ) -> Result(EarsPatternInfo, Nil) {
   case
     string.contains(intent_upper, "WHERE")
     && string.contains(intent_upper, "THE SYSTEM SHALL")
   {
-    True -> parse_ears_pattern(intent_upper, "WHERE", "THE SYSTEM SHALL", fn(
-      condition,
-      behavior,
-    ) {
-      EarsPatternInfo(
-        pattern_type: "Optional",
-        trigger: None,
-        state: None,
-        condition: Some(condition),
-        behavior: behavior,
+    True ->
+      parse_ears_pattern(
+        intent_upper,
+        "WHERE",
+        "THE SYSTEM SHALL",
+        fn(condition, behavior) {
+          EarsPatternInfo(
+            pattern_type: "Optional",
+            trigger: None,
+            state: None,
+            condition: Some(condition),
+            behavior: behavior,
+          )
+        },
       )
-    })
     False -> Error(Nil)
   }
 }
@@ -214,7 +223,7 @@ fn try_optional_pattern(
 /// Try to parse Unwanted pattern: IF [condition] THEN THE SYSTEM SHALL NOT [behavior]
 fn try_unwanted_pattern(
   intent_upper: String,
-  original: String,
+  _original: String,
 ) -> Result(EarsPatternInfo, Nil) {
   case
     string.contains(intent_upper, "SHALL NOT")

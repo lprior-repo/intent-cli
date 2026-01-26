@@ -837,17 +837,6 @@ fn profile_to_string(profile: interview.Profile) -> String {
   }
 }
 
-fn profile_to_display_string(profile: interview.Profile) -> String {
-  case profile {
-    interview.Api -> "API"
-    interview.Cli -> "CLI"
-    interview.Event -> "Event System"
-    interview.Data -> "Data System"
-    interview.Workflow -> "Workflow"
-    interview.UI -> "User Interface"
-  }
-}
-
 // =============================================================================
 // CUE MODE INTERVIEW FUNCTIONS
 // =============================================================================
@@ -1676,7 +1665,7 @@ fn beads_command() -> glint.Command(Nil) {
             // Apply max-items limit for output (AI guardrail)
             let beads = list_limits.apply_limit(all_beads, max_items)
             let bead_count = list.length(beads)
-            let was_limited = total_count > bead_count
+            let _was_limited = total_count > bead_count
 
             // Export to .beads/issues.jsonl (all beads, not limited)
             let jsonl_output = bead_templates.beads_to_jsonl(all_beads)
@@ -2638,7 +2627,7 @@ fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
 fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let history_path = ".interview/history.jsonl"
-    let mode = output_mode.Interactive
+    let _mode = output_mode.Interactive
 
     let max_items =
       flag.get_int(input.flags, "max-items")
@@ -2743,7 +2732,7 @@ fn history_command() -> glint.Command(Nil) {
 fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let jsonl_path = ".interview/sessions.jsonl"
-    let mode = output_mode.Interactive
+    let _mode = output_mode.Interactive
 
     case input.args {
       [from_id, to_id, ..] -> {
@@ -2972,16 +2961,6 @@ fn sessions_command() -> glint.Command(Nil) {
         "Maximum number of sessions to return (default: 100, AI guardrail)",
       ),
   )
-}
-
-fn stage_to_display_string(stage: interview.InterviewStage) -> String {
-  case stage {
-    interview.Discovery -> "Discovery"
-    interview.Refinement -> "Refinement"
-    interview.Validation -> "Validation"
-    interview.Complete -> "Complete"
-    interview.Paused -> "Paused"
-  }
 }
 
 // =============================================================================
@@ -3426,120 +3405,10 @@ fn kirk_effects_command() -> glint.Command(Nil) {
 //   ...
 // }
 
-/// The `ready` command - READY framework assessment
-fn kirk_ready_command() -> glint.Command(Nil) {
-  glint.command(fn(input: glint.CommandInput) {
-    case input.args {
-      [spec_path, ..] -> {
-        case load_spec_for_mode(spec_path, True) {
-          Ok(spec) -> {
-            let report: ReadyReport = ready.analyze_ready(spec)
-            {
-              let data =
-                json.object([
-                  #("replacement", dimension_score_to_json(report.replacement)),
-                  #("empathy", dimension_score_to_json(report.empathy)),
-                  #("actionable", dimension_score_to_json(report.actionable)),
-                  #(
-                    "discoverable",
-                    dimension_score_to_json(report.discoverable),
-                  ),
-                  #(
-                    "yet_complete",
-                    dimension_score_to_json(report.yet_complete),
-                  ),
-                  #("overall_readiness", json.int(report.overall_readiness)),
-                  #("blockers", json.array(report.blockers, blocker_to_json)),
-                  #(
-                    "recommendations",
-                    json.array(report.recommendations, recommendation_to_json),
-                  ),
-                ])
-              let next_actions = [
-                json_output.next_action(
-                  "intent check " <> spec_path <> " --target=URL",
-                  "Run checks against live API",
-                ),
-                json_output.next_action(
-                  "intent quality " <> spec_path <> " --json",
-                  "Check overall quality",
-                ),
-              ]
-              let response =
-                json_output.success(
-                  "ready_result",
-                  "ready",
-                  data,
-                  Some(spec_path),
-                  next_actions,
-                )
-              json_output.output(response)
-            }
-            halt(exit_pass)
-          }
-          Error(e) -> {
-            {
-              let error_msg = loader.format_error(e)
-              let response =
-                json_output.failure(
-                  "ready_check_failed",
-                  "ready",
-                  json.null(),
-                  [json_output.error("load_error", error_msg)],
-                  Some(spec_path),
-                  [],
-                  exit_invalid,
-                )
-              json_output.output(response)
-            }
-            halt(exit_invalid)
-          }
-        }
-      }
-      [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent ready <spec.cue> [--json]")
-        halt(exit_error)
-      }
-    }
-  })
-  |> glint.description("KIRK: READY framework assessment (5 dimensions)")
-}
-
-fn dimension_score_to_json(dim: planning_types.DimensionScore) -> json.Json {
-  json.object([
-    #("score", json.int(dim.score)),
-    #("reasoning", json.string(dim.reasoning)),
-    #("issues", json.array(dim.issues, json.string)),
-  ])
-}
-
-fn blocker_to_json(b: planning_types.Blocker) -> json.Json {
-  let severity_str = case b.severity {
-    planning_types.Critical -> "critical"
-    planning_types.High -> "high"
-    planning_types.Medium -> "medium"
-    planning_types.Low -> "low"
-  }
-  json.object([
-    #("severity", json.string(severity_str)),
-    #("description", json.string(b.description)),
-    #("affected_areas", json.array(b.affected_areas, json.string)),
-  ])
-}
-
-fn recommendation_to_json(r: Recommendation) -> json.Json {
-  json.object([
-    #("priority", json.int(r.priority)),
-    #("description", json.string(r.description)),
-    #("rationale", json.string(r.rationale)),
-  ])
-}
-
 /// The `ears` command - KIRK EARS requirements parser
 fn kirk_ears_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let mode = output_mode.Interactive
+    let _mode = output_mode.Interactive
 
     let output_format =
       flag.get_string(input.flags, "output")

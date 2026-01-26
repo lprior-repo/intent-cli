@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-5fr",
+    "title": "AI-07: Implement intent ai schema command",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "feature",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:53:08.853633879-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T08:53:08.853633879-06:00"
+  }
+]

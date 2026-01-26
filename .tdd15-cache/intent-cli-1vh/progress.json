@@ -1,0 +1,35 @@
+{
+  "bead_id": "intent-cli-1vh",
+  "title": "WAVE2-02: Shape Storage (JSONL persistence)",
+  "language": "gleam",
+  "complexity": "MEDIUM",
+  "phases_route": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "current_phase": 15,
+  "phase_status": {
+    "0_triage": "complete",
+    "1_research": "complete",
+    "2_plan": "complete",
+    "4_red": "complete",
+    "5_green": "complete",
+    "6_refactor": "complete",
+    "7_mf1": "complete",
+    "9_verify_criteria": "complete",
+    "11_qa": "complete",
+    "15_landing": "complete"
+  },
+  "gates_passed": {
+    "complexity_assessed": true,
+    "sufficient_context": true,
+    "plan_verified": true,
+    "tests_fail": true,
+    "tests_pass": true,
+    "tests_green": true,
+    "martin_fowler_1": true,
+    "criteria_met": true,
+    "qa_pass": true,
+    "push_succeeded": true
+  },
+  "started_at": "2026-01-25T16:11:00Z",
+  "test_command": "gleam test",
+  "format_command": "gleam format"
+}

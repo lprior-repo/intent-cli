@@ -13,7 +13,7 @@ import gleam/json
 import gleam/list
 import gleam/string
 import intent/planning_types.{type DimensionScore, DimensionScore}
-import intent/types.{type Feature, type Spec}
+import intent/types.{type Spec}
 import intent/vision_types.{type Scenario, type VisionSection}
 
 // =============================================================================
@@ -72,7 +72,6 @@ pub fn check_persona_alignment(
   let vision_persona = string.lowercase(vision.persona)
   let spec_audience = string.lowercase(spec.audience)
 
-  // Exact match
   case vision_persona == spec_audience {
     True ->
       DimensionScore(
@@ -81,7 +80,6 @@ pub fn check_persona_alignment(
         issues: [],
       )
     False -> {
-      // Calculate similarity based on word overlap
       let similarity = calculate_similarity(vision_persona, spec_audience)
 
       case similarity {
@@ -128,14 +126,12 @@ pub fn check_north_star_alignment(
         issues: ["Add success criteria that align with: " <> vision.north_star],
       )
     _ -> {
-      // Extract key goals from north star and check if criteria cover them
       let north_star_lower = string.lowercase(vision.north_star)
       let criteria_text =
         spec.success_criteria
         |> list.map(string.lowercase)
         |> string.join(" ")
 
-      // Calculate coverage
       let coverage = calculate_goal_coverage(north_star_lower, criteria_text)
 
       case coverage {
@@ -174,7 +170,6 @@ pub fn check_scope_integrity(
   vision: VisionSection,
   spec: Spec,
 ) -> DimensionScore {
-  // Detect scope creep: features that aren't justified by scenarios
   let scenario_keywords = extract_scenario_keywords(vision.scenarios)
   let out_of_scope_lower =
     vision.out_of_scope
@@ -186,14 +181,12 @@ pub fn check_scope_integrity(
       let feature_name_lower = string.lowercase(feature.name)
       let feature_desc_lower = string.lowercase(feature.description)
 
-      // Check if feature matches out-of-scope items
       let is_out_of_scope =
         list.any(out_of_scope_lower, fn(oos) {
           string.contains(feature_name_lower, oos)
           || string.contains(feature_desc_lower, oos)
         })
 
-      // Check if feature is justified by scenarios
       let is_justified =
         list.any(scenario_keywords, fn(keyword) {
           string.contains(feature_name_lower, keyword)
@@ -203,7 +196,6 @@ pub fn check_scope_integrity(
       is_out_of_scope || !is_justified
     })
 
-  // Detect scope reduction: scenarios not covered by features
   let feature_names_lower =
     spec.features
     |> list.map(fn(f) { string.lowercase(f.name <> " " <> f.description) })
@@ -216,7 +208,6 @@ pub fn check_scope_integrity(
         string.lowercase(scenario.motivation <> " " <> scenario.outcome)
       let keywords = extract_keywords(scenario_text)
 
-      // Check if any keywords appear in feature names
       !list.any(keywords, fn(keyword) {
         string.contains(feature_names_lower, keyword)
       })
@@ -256,7 +247,6 @@ pub fn check_scope_integrity(
 pub fn check_vorp_delivery(vision: VisionSection, spec: Spec) -> DimensionScore {
   let vorp_keywords = extract_keywords(string.lowercase(vision.vorp))
 
-  // Search for VORP keywords in spec description, features, and AI hints
   let spec_text =
     string.lowercase(
       spec.description
@@ -264,7 +254,7 @@ pub fn check_vorp_delivery(vision: VisionSection, spec: Spec) -> DimensionScore 
       <> list.map(spec.features, fn(f) { f.name <> " " <> f.description })
       |> string.join(" ")
       <> " "
-      <> string.join(spec.ai_hints.implementation, " "),
+      <> string.join(spec.ai_hints.implementation.suggested_stack, " "),
     )
 
   let found_keywords =
@@ -277,7 +267,6 @@ pub fn check_vorp_delivery(vision: VisionSection, spec: Spec) -> DimensionScore 
 
   let score = case total_count {
     0 -> 50
-    // No clear VORP keywords to check
     _ -> { found_count * 100 } / total_count
   }
 
@@ -310,7 +299,6 @@ pub fn check_vorp_delivery(vision: VisionSection, spec: Spec) -> DimensionScore 
 // Helper Functions
 // =============================================================================
 
-/// Calculate string similarity based on word overlap (0-100)
 fn calculate_similarity(s1: String, s2: String) -> Int {
   let words1 = extract_keywords(s1)
   let words2 = extract_keywords(s2)
@@ -329,13 +317,11 @@ fn calculate_similarity(s1: String, s2: String) -> Int {
   }
 }
 
-/// Calculate how well criteria cover north star goals (0-100)
 fn calculate_goal_coverage(north_star: String, criteria: String) -> Int {
   let goal_keywords = extract_keywords(north_star)
 
   case list.length(goal_keywords) {
     0 -> 50
-    // No clear goals to check
     _ -> {
       let covered =
         list.filter(goal_keywords, fn(keyword) {
@@ -348,7 +334,6 @@ fn calculate_goal_coverage(north_star: String, criteria: String) -> Int {
   }
 }
 
-/// Extract meaningful keywords from text (lowercase, 3+ chars)
 fn extract_keywords(text: String) -> List(String) {
   let stopwords = [
     "the", "and", "for", "with", "that", "this", "from", "are", "can", "not",
@@ -368,7 +353,6 @@ fn extract_keywords(text: String) -> List(String) {
   |> list.unique
 }
 
-/// Extract keywords from scenarios (motivation + outcome)
 fn extract_scenario_keywords(scenarios: List(Scenario)) -> List(String) {
   scenarios
   |> list.flat_map(fn(scenario) {
@@ -378,7 +362,6 @@ fn extract_scenario_keywords(scenarios: List(Scenario)) -> List(String) {
   |> list.unique
 }
 
-/// Generate recommendations based on low-scoring dimensions
 fn generate_recommendations(
   persona: DimensionScore,
   north_star: DimensionScore,
@@ -387,51 +370,51 @@ fn generate_recommendations(
 ) -> List(String) {
   let threshold = 70
 
-  []
-  |> fn(recs) {
-    case persona.score < threshold {
-      True -> [
-        "Revise spec audience to better align with vision persona"
-        |> list.prepend(recs, _),
-      ]
-      False -> recs
-    }
+  let recs = []
+
+  let recs = case persona.score < threshold {
+    True ->
+      list.prepend(
+        recs,
+        "Revise spec audience to better align with vision persona",
+      )
+    False -> recs
   }
-  |> fn(recs) {
-    case north_star.score < threshold {
-      True -> [
-        "Update success criteria to better reflect north star goals"
-        |> list.prepend(recs, _),
-      ]
-      False -> recs
-    }
+
+  let recs = case north_star.score < threshold {
+    True ->
+      list.prepend(
+        recs,
+        "Update success criteria to better reflect north star goals",
+      )
+    False -> recs
   }
-  |> fn(recs) {
-    case scope.score < threshold {
-      True -> [
-        "Review features for scope creep or missing scenario coverage"
-        |> list.prepend(recs, _),
-      ]
-      False -> recs
-    }
+
+  let recs = case scope.score < threshold {
+    True ->
+      list.prepend(
+        recs,
+        "Review features for scope creep or missing scenario coverage",
+      )
+    False -> recs
   }
-  |> fn(recs) {
-    case vorp.score < threshold {
-      True -> [
-        "Strengthen differentiation points from VORP in spec implementation"
-        |> list.prepend(recs, _),
-      ]
-      False -> recs
-    }
+
+  let recs = case vorp.score < threshold {
+    True ->
+      list.prepend(
+        recs,
+        "Strengthen differentiation points from VORP in spec implementation",
+      )
+    False -> recs
   }
-  |> list.reverse
+
+  list.reverse(recs)
 }
 
 // =============================================================================
 // JSON Serialization
 // =============================================================================
 
-/// Convert dimension score to JSON
 fn dimension_score_to_json(score: DimensionScore) -> json.Json {
   json.object([
     #("score", json.int(score.score)),
@@ -440,7 +423,6 @@ fn dimension_score_to_json(score: DimensionScore) -> json.Json {
   ])
 }
 
-/// Convert alignment report to JSON
 pub fn alignment_report_to_json(report: AlignmentReport) -> json.Json {
   json.object([
     #("persona_alignment", dimension_score_to_json(report.persona_alignment)),

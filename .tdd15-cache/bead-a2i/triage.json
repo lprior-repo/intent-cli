@@ -1,0 +1,18 @@
+{
+  "phase": 0,
+  "name": "TRIAGE",
+  "complexity": "MEDIUM",
+  "reasoning": [
+    "Need to consolidate duplicate VisionSection types",
+    "Add missing Spec phase type to planning_types.gleam", 
+    "Create Plan container type unifying all 4 phases",
+    "Affects 3 files: planning_types.gleam (primary), vision_types.gleam (deprecate), create new plan.gleam",
+    "Success criteria: 5 core types (Plan, Vision, Shape, Spec, Ready) all defined and consistent",
+    "Medium risk: type changes may affect consumers"
+  ],
+  "route": "MEDIUM",
+  "phases_to_execute": [0, 1, 2, 4, 5, 6, 7, 9, 11, 15],
+  "estimated_files": 3,
+  "estimated_tests": 1,
+  "language": "gleam"
+}

@@ -1,0 +1,73 @@
+{
+  "phase": 1,
+  "phase_name": "RESEARCH",
+  "timestamp": "2026-01-25T09:52:00Z",
+  "findings": {
+    "existing_patterns": {
+      "json_validator": {
+        "file": "src/intent/json_validator.gleam",
+        "purpose": "DOS protection against JSON bombs",
+        "checks": ["size limits (10MB)", "nesting depth (1000 levels)"],
+        "pattern": "pre-parse validation before expensive operations"
+      },
+      "validator": {
+        "file": "src/intent/validator.gleam",
+        "purpose": "Pre-execution static validation of specs",
+        "checks": ["rule syntax", "variable references", "dependencies", "circular deps"],
+        "pattern": "validate structure before execution"
+      },
+      "loader": {
+        "file": "src/intent/loader.gleam",
+        "purpose": "CUE spec loading and validation",
+        "architecture": "Functional Core / Imperative Shell (FC/IS)",
+        "cue_commands": ["cue vet", "cue export"],
+        "pattern": "dependency injection for testability"
+      }
+    },
+    "cue_integration": {
+      "current_usage": "shellout to cue CLI",
+      "commands": {
+        "validate": "cue vet <path>",
+        "export": "cue export <path> -e spec"
+      },
+      "schema_location": "schema/intent.cue",
+      "validation_strategy": "Option 1: Shell out (current), Option 3 recommended for runtime"
+    },
+    "requirements": {
+      "input": "Request data (JSON) from behavior.request",
+      "schema": "CUE schema defining valid request shape",
+      "output": "Result with validation errors or success",
+      "use_case": "Validate request.body against CUE type definitions before HTTP execution"
+    },
+    "architecture_decisions": {
+      "error_type": "Railway-Oriented Programming with structured errors",
+      "testing": "FC/IS pattern - pure validation logic, injectable I/O",
+      "security": "Use security.validate_file_path for path validation",
+      "temp_files": "May need temp files for cue vet JSON data"
+    },
+    "gleam_conventions": {
+      "immutability": true,
+      "no_nulls": "use Option type",
+      "pipelines": "use |> for clarity",
+      "exhaustive_matching": true,
+      "labeled_args": "for clarity in public API",
+      "type_safety": "Result types for all fallible operations"
+    },
+    "dependencies": [
+      "gleam/dynamic",
+      "gleam/json",
+      "gleam/result",
+      "gleam/string",
+      "intent/types",
+      "intent/security",
+      "shellout"
+    ],
+    "test_strategy": {
+      "unit_tests": "Pure validation logic with mock executors",
+      "integration_tests": "Real CUE validation against schemas",
+      "edge_cases": ["empty body", "invalid JSON", "schema mismatch", "missing schema"]
+    }
+  },
+  "gate_status": "sufficient_context",
+  "next_phase": 2
+}

@@ -1,0 +1,17 @@
+{
+  "bead_id": "intent-cli-c60",
+  "title": "WAVE1-03: Vision Questions (8 core questions)",
+  "started_at": "2026-01-25T10:21:08Z",
+  "current_phase": 4,
+  "complexity": "SIMPLE",
+  "language": "gleam",
+  "route": [0, 4, 5, 6, 14, 15],
+  "phases": {
+    "0": {"name": "TRIAGE", "status": "complete", "gate": "complexity_assessed", "result": "SIMPLE"},
+    "4": {"name": "RED", "status": "pending", "gate": "tests_fail"},
+    "5": {"name": "GREEN", "status": "pending", "gate": "tests_pass"},
+    "6": {"name": "REFACTOR", "status": "pending", "gate": "tests_green"},
+    "14": {"name": "LIABILITY", "status": "pending", "gate": "minimized"},
+    "15": {"name": "LANDING", "status": "pending", "gate": "push_succeeded"}
+  }
+}

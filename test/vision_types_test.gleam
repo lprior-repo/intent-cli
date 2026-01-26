@@ -7,6 +7,7 @@
 //// - Invariants: All fields are accessible and type-safe
 
 import gleam/list
+import gleam/option
 import gleeunit
 import gleeunit/should
 import intent/vision_types
@@ -130,8 +131,10 @@ pub fn stakeholder_empty_lists_test() {
 pub fn vision_section_creation_test() {
   let section =
     vision_types.VisionSection(
-      title: "The Headless AI Kernel",
-      description: "Intent CLI is pivoting from human-centric to AI-native architecture",
+      press_release: "The Headless AI Kernel: Intent CLI pivots to AI-native architecture",
+      persona: "Autonomous AI Agents requiring deterministic, token-optimized responses",
+      non_personas: ["Human operators", "Interactive users"],
+      north_star: "AI agents can introspect specs with minimal token overhead",
       scenarios: [
         vision_types.Scenario(
           character: "Agent Smith",
@@ -141,59 +144,53 @@ pub fn vision_section_creation_test() {
           outcome: "Token-optimized response",
         ),
       ],
-      stakeholders: [
-        vision_types.Stakeholder(
-          name: "AI Agents",
-          role: "Primary User",
-          needs: ["Deterministic output"],
-          pain_points: ["Token waste"],
-        ),
-      ],
-      principles: [
-        "Token-Optimized: Zero chitchat",
-        "Stateless: Pure functions",
-        "Schema-First: CUE/JSON contracts",
-      ],
+      replaces: option.None,
+      vorp: "50% reduction in response size for quality command output",
+      out_of_scope: ["Interactive TUI", "Real-time streaming"],
     )
 
-  section.title
-  |> should.equal("The Headless AI Kernel")
-
-  section.description
+  section.press_release
   |> should.equal(
-    "Intent CLI is pivoting from human-centric to AI-native architecture",
+    "The Headless AI Kernel: Intent CLI pivots to AI-native architecture",
+  )
+
+  section.persona
+  |> should.equal(
+    "Autonomous AI Agents requiring deterministic, token-optimized responses",
   )
 
   section.scenarios
   |> list.length()
   |> should.equal(1)
 
-  section.stakeholders
+  section.non_personas
   |> list.length()
-  |> should.equal(1)
+  |> should.equal(2)
 
-  section.principles
-  |> list.length()
-  |> should.equal(3)
+  section.vorp
+  |> should.equal("50% reduction in response size for quality command output")
 }
 
 pub fn vision_section_empty_collections_test() {
   let section =
     vision_types.VisionSection(
-      title: "Minimal Section",
-      description: "A minimal vision section",
+      press_release: "Minimal Section",
+      persona: "Generic AI Agent",
+      non_personas: [],
+      north_star: "A minimal vision section",
       scenarios: [],
-      stakeholders: [],
-      principles: [],
+      replaces: option.None,
+      vorp: "Minimal vision",
+      out_of_scope: [],
     )
 
   section.scenarios
   |> should.equal([])
 
-  section.stakeholders
+  section.non_personas
   |> should.equal([])
 
-  section.principles
+  section.out_of_scope
   |> should.equal([])
 }
 
@@ -218,11 +215,14 @@ pub fn vision_section_multiple_scenarios_test() {
 
   let section =
     vision_types.VisionSection(
-      title: "Multi-Scenario Test",
-      description: "Testing multiple scenarios",
+      press_release: "Multi-Scenario Test: Testing multiple scenarios",
+      persona: "Multiple AI Agent types",
+      non_personas: [],
+      north_star: "Support both fast and deep reasoning LLMs",
       scenarios: [scenario1, scenario2],
-      stakeholders: [],
-      principles: [],
+      replaces: option.None,
+      vorp: "Multi-scenario support",
+      out_of_scope: [],
     )
 
   section.scenarios

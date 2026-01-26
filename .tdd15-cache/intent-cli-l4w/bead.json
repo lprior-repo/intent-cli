@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-l4w",
+    "title": "AI-04: Create jsonl_input.gleam for parsing JSONL stdin",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "priorlewis43@gmail.com",
+    "created_at": "2026-01-25T08:53:11.529620314-06:00",
+    "created_by": "Lewis Prior",
+    "updated_at": "2026-01-25T15:40:22.813996767-06:00"
+  }
+]

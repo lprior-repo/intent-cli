@@ -1,0 +1,147 @@
+{
+  "phase": 2,
+  "phase_name": "PLAN",
+  "timestamp": "2026-01-25T09:53:00Z",
+  "module_name": "input_validator.gleam",
+  "module_path": "src/intent/input_validator.gleam",
+  "purpose": "Validate request data (JSON) against CUE schemas before HTTP execution",
+  "architecture": {
+    "pattern": "Functional Core / Imperative Shell (FC/IS)",
+    "error_handling": "Railway-Oriented Programming with Result types",
+    "testability": "Dependency injection for command execution"
+  },
+  "public_api": [
+    {
+      "function": "validate_request_body",
+      "signature": "fn(body: Dynamic, schema_path: String) -> Result(Nil, ValidationError)",
+      "purpose": "Validate request body against CUE schema",
+      "uses": "default executor"
+    },
+    {
+      "function": "validate_request_body_with_executor",
+      "signature": "fn(body: Dynamic, schema_path: String, executor: CommandExecutor) -> Result(Nil, ValidationError)",
+      "purpose": "Validate with injected executor (testable)",
+      "uses": "provided executor"
+    },
+    {
+      "function": "format_validation_error",
+      "signature": "fn(error: ValidationError) -> String",
+      "purpose": "Human-readable error messages"
+    }
+  ],
+  "error_types": [
+    {
+      "variant": "SchemaNotFound",
+      "fields": ["path: String"],
+      "when": "CUE schema file doesn't exist"
+    },
+    {
+      "variant": "InvalidJson",
+      "fields": ["errors: List(DecodeError)"],
+      "when": "Body cannot be serialized to JSON"
+    },
+    {
+      "variant": "SchemaViolation",
+      "fields": ["schema_path: String", "violations: List(String)"],
+      "when": "Data doesn't match CUE schema"
+    },
+    {
+      "variant": "ValidationFailed",
+      "fields": ["exit_code: Int", "stderr: String"],
+      "when": "CUE vet command fails"
+    },
+    {
+      "variant": "SecurityError",
+      "fields": ["message: String"],
+      "when": "Path validation fails"
+    }
+  ],
+  "core_logic": {
+    "pure_functions": [
+      {
+        "name": "parse_cue_vet_result",
+        "purpose": "Interpret cue vet output",
+        "signature": "fn(Result(String, #(Int, String))) -> Result(Nil, ValidationError)",
+        "pure": true
+      },
+      {
+        "name": "dynamic_to_json_string",
+        "purpose": "Convert Dynamic to JSON string",
+        "signature": "fn(Dynamic) -> Result(String, ValidationError)",
+        "pure": true
+      }
+    ],
+    "io_functions": [
+      {
+        "name": "validate_with_cue_vet",
+        "purpose": "Execute cue vet command",
+        "signature": "fn(json_str: String, schema_path: String, executor: CommandExecutor) -> Result(Nil, ValidationError)",
+        "io": true
+      }
+    ]
+  },
+  "workflow": [
+    "1. Convert Dynamic body to JSON string",
+    "2. Validate schema path with security.validate_file_path",
+    "3. Write JSON to temp file",
+    "4. Execute: cue vet <schema_path> <temp_file>",
+    "5. Parse result (success = Ok(Nil), failure = Error with violations)",
+    "6. Clean up temp file",
+    "7. Return Result"
+  ],
+  "temp_file_strategy": {
+    "approach": "Use gleam_erlang temp file utilities",
+    "location": "System temp directory",
+    "cleanup": "Ensure cleanup even on error (use result.try pattern)",
+    "naming": "intent-validation-<random>.json"
+  },
+  "dependencies": [
+    "gleam/dynamic",
+    "gleam/json",
+    "gleam/result",
+    "gleam/list",
+    "gleam/string",
+    "gleam/io",
+    "intent/types",
+    "intent/security",
+    "shellout",
+    "simplifile (for temp files)"
+  ],
+  "test_plan": [
+    {
+      "test": "validate_valid_request_body",
+      "scenario": "Valid JSON against valid schema",
+      "expected": "Ok(Nil)"
+    },
+    {
+      "test": "validate_invalid_request_body",
+      "scenario": "Invalid JSON against schema",
+      "expected": "Error(SchemaViolation(...))"
+    },
+    {
+      "test": "validate_missing_schema",
+      "scenario": "Schema file doesn't exist",
+      "expected": "Error(SchemaNotFound(...))"
+    },
+    {
+      "test": "validate_with_security_error",
+      "scenario": "Invalid schema path (security)",
+      "expected": "Error(SecurityError(...))"
+    },
+    {
+      "test": "validate_with_mock_executor",
+      "scenario": "Test pure logic with mock",
+      "expected": "Success with injected executor"
+    }
+  ],
+  "implementation_order": [
+    "1. Define error types",
+    "2. Write pure parsing functions",
+    "3. Write I/O wrapper with executor injection",
+    "4. Write public API convenience functions",
+    "5. Write format_validation_error",
+    "6. Add comprehensive tests"
+  ],
+  "gate_status": "plan_verified",
+  "next_phase": 4
+}

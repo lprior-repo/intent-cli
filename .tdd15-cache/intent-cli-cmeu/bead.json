@@ -1,0 +1,13 @@
+[
+  {
+    "id": "intent-cli-cmeu",
+    "title": "Standardize error message formats",
+    "description": "Unify error message formats across CLI. Currently 6 different styles identified in Ralph Loop iteration 18. Standardize to consistent format with optional usage hints. Affects 10+ command handlers.",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-01-23T21:23:26.026002505-06:00",
+    "created_by": "lewis",
+    "updated_at": "2026-01-25T16:24:07.667087011-06:00"
+  }
+]

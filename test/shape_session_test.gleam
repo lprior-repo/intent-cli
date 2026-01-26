@@ -646,7 +646,6 @@ pub fn shape_status_in_progress_test() {
 
   case status {
     InProgress -> True
-    _ -> False
   }
   |> should.be_true()
 }
@@ -656,7 +655,6 @@ pub fn shape_status_ready_for_critique_test() {
 
   case status {
     ReadyForCritique -> True
-    _ -> False
   }
   |> should.be_true()
 }
@@ -666,7 +664,6 @@ pub fn shape_status_complete_test() {
 
   case status {
     Complete -> True
-    _ -> False
   }
   |> should.be_true()
 }

@@ -11,7 +11,9 @@ import intent/plan_mode.{
   type Effort, type PlanBead, Effort10min, Effort15min, Effort20min, Effort30min,
   Pending, PlanBead,
 }
-import intent/planning_types.{type KIRKHealth, type SpecSection, KIRKHealth, SpecSection}
+import intent/planning_types.{
+  type KIRKHealth, type SpecSection, KIRKHealth, SpecSection,
+}
 
 // =============================================================================
 // TYPES
@@ -531,7 +533,8 @@ pub fn to_kirk_health(result: EarsParseResult) -> KIRKHealth {
   let quality_score = calculate_quality_score(result)
   let gaps = detect_pattern_gaps(patterns)
   let inversions = extract_inversions_from_warnings(result.warnings)
-  let effects = []  // Effects are calculated in later rounds
+  let effects = []
+  // Effects are calculated in later rounds
 
   KIRKHealth(
     coverage_score: coverage_score,
@@ -566,13 +569,24 @@ pub fn calculate_pattern_coverage(patterns: List(EarsPattern)) -> Float {
 
   // Check which of the 5 base patterns are covered
   let has_ubiquitous = list.contains(unique_patterns, Ubiquitous)
-  let has_event = list.contains(unique_patterns, EventDriven) || list.contains(unique_patterns, Complex)
-  let has_state = list.contains(unique_patterns, StateDriven) || list.contains(unique_patterns, Complex)
+  let has_event =
+    list.contains(unique_patterns, EventDriven)
+    || list.contains(unique_patterns, Complex)
+  let has_state =
+    list.contains(unique_patterns, StateDriven)
+    || list.contains(unique_patterns, Complex)
   let has_optional = list.contains(unique_patterns, Optional)
   let has_unwanted = list.contains(unique_patterns, Unwanted)
 
   // Count covered patterns (5 base patterns)
-  let covered = count_true([has_ubiquitous, has_event, has_state, has_optional, has_unwanted])
+  let covered =
+    count_true([
+      has_ubiquitous,
+      has_event,
+      has_state,
+      has_optional,
+      has_unwanted,
+    ])
 
   // Calculate percentage
   { int.to_float(covered) /. 5.0 } *. 100.0
@@ -584,18 +598,37 @@ pub fn detect_pattern_gaps(patterns: List(EarsPattern)) -> List(String) {
 
   // Check which of the 5 base patterns are covered (Complex covers both state and event)
   let has_ubiquitous = list.contains(unique_patterns, Ubiquitous)
-  let has_event = list.contains(unique_patterns, EventDriven) || list.contains(unique_patterns, Complex)
-  let has_state = list.contains(unique_patterns, StateDriven) || list.contains(unique_patterns, Complex)
+  let has_event =
+    list.contains(unique_patterns, EventDriven)
+    || list.contains(unique_patterns, Complex)
+  let has_state =
+    list.contains(unique_patterns, StateDriven)
+    || list.contains(unique_patterns, Complex)
   let has_optional = list.contains(unique_patterns, Optional)
   let has_unwanted = list.contains(unique_patterns, Unwanted)
 
   // Build list of missing patterns
   []
-  |> add_gap_if_missing(has_ubiquitous, "Missing Ubiquitous pattern: consider adding 'THE SYSTEM SHALL [behavior]' requirements")
-  |> add_gap_if_missing(has_event, "Missing Event-Driven pattern: consider adding 'WHEN [trigger] THE SYSTEM SHALL [behavior]' requirements")
-  |> add_gap_if_missing(has_state, "Missing State-Driven pattern: consider adding 'WHILE [state] THE SYSTEM SHALL [behavior]' requirements")
-  |> add_gap_if_missing(has_optional, "Missing Optional pattern: consider adding 'WHERE [condition] THE SYSTEM SHALL [behavior]' requirements")
-  |> add_gap_if_missing(has_unwanted, "Missing Unwanted pattern: consider adding 'IF [condition] THEN THE SYSTEM SHALL NOT [behavior]' requirements")
+  |> add_gap_if_missing(
+    has_ubiquitous,
+    "Missing Ubiquitous pattern: consider adding 'THE SYSTEM SHALL [behavior]' requirements",
+  )
+  |> add_gap_if_missing(
+    has_event,
+    "Missing Event-Driven pattern: consider adding 'WHEN [trigger] THE SYSTEM SHALL [behavior]' requirements",
+  )
+  |> add_gap_if_missing(
+    has_state,
+    "Missing State-Driven pattern: consider adding 'WHILE [state] THE SYSTEM SHALL [behavior]' requirements",
+  )
+  |> add_gap_if_missing(
+    has_optional,
+    "Missing Optional pattern: consider adding 'WHERE [condition] THE SYSTEM SHALL [behavior]' requirements",
+  )
+  |> add_gap_if_missing(
+    has_unwanted,
+    "Missing Unwanted pattern: consider adding 'IF [condition] THEN THE SYSTEM SHALL NOT [behavior]' requirements",
+  )
 }
 
 /// Extract all patterns from requirements
@@ -612,7 +645,8 @@ fn calculate_quality_score(result: EarsParseResult) -> Float {
   let total = valid_count + error_count
 
   case total {
-    0 -> 100.0  // No input = no errors = 100% quality
+    0 -> 100.0
+    // No input = no errors = 100% quality
     _ -> { int.to_float(valid_count) /. int.to_float(total) } *. 100.0
   }
 }
@@ -631,7 +665,11 @@ fn count_true(bools: List(Bool)) -> Int {
 }
 
 /// Helper to conditionally add a gap to the list
-fn add_gap_if_missing(gaps: List(String), is_covered: Bool, gap_msg: String) -> List(String) {
+fn add_gap_if_missing(
+  gaps: List(String),
+  is_covered: Bool,
+  gap_msg: String,
+) -> List(String) {
   case is_covered {
     True -> gaps
     False -> [gap_msg, ..gaps]

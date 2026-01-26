@@ -1,0 +1,17 @@
+{
+  "bead_id": "intent-cli-imq",
+  "title": "WAVE0-03: Output Formatting (JSON + next_actions)",
+  "current_phase": "COMPLETE",
+  "complexity": "SIMPLE",
+  "phases_completed": [0, 4, 5, 6, 14, 15],
+  "phases_pending": [],
+  "started_at": "2026-01-25T10:21:14Z",
+  "completed_at": "2026-01-25T10:45:00Z",
+  "language": "gleam",
+  "test_command": "gleam test",
+  "format_command": "gleam format",
+  "routing": "SIMPLE path (phases 0→4→5→6→14→15)",
+  "commit": "0897ffa",
+  "bead_status": "closed",
+  "final_result": "SUCCESS - Tests added documenting existing next_actions infrastructure"
+}
