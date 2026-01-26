@@ -11,6 +11,7 @@ import gleam/result
 import gleam/string
 import glint
 import glint/flag
+import intent/ai_errors
 import intent/ai_schema
 import intent/bead_feedback
 import intent/bead_from_failures
@@ -350,14 +351,20 @@ fn export_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
-            halt(exit_error)
+            ai_errors.from_load_error(e, spec_path)
+            |> ai_errors.format_text()
+            |> io.println_error()
+            halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent export <spec.cue>")
+        ai_errors.cli_error_with_usage(
+          message: "spec file path required",
+          usage: "intent export <spec.cue>",
+        )
+        |> ai_errors.format_cli_error()
+        |> io.println_error()
         halt(exit_error)
       }
     }
@@ -544,14 +551,20 @@ fn analyze_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error(loader.format_error(e))
+            ai_errors.from_load_error(e, spec_path)
+            |> ai_errors.format_text()
+            |> io.println_error()
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent analyze <spec.cue> [--json]")
+        ai_errors.cli_error_with_usage(
+          message: "spec file path required",
+          usage: "intent analyze <spec.cue> [--json]",
+        )
+        |> ai_errors.format_cli_error()
+        |> io.println_error()
         halt(exit_error)
       }
     }
@@ -613,14 +626,20 @@ fn improve_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error(loader.format_error(e))
+            ai_errors.from_load_error(e, spec_path)
+            |> ai_errors.format_text()
+            |> io.println_error()
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent improve <spec.cue> [--json]")
+        ai_errors.cli_error_with_usage(
+          message: "spec file path required",
+          usage: "intent improve <spec.cue> [--json]",
+        )
+        |> ai_errors.format_cli_error()
+        |> io.println_error()
         halt(exit_error)
       }
     }
@@ -642,14 +661,34 @@ fn doctor_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(e) -> {
-            io.println_error("Error: " <> loader.format_error(e))
+            let error_msg = loader.format_error(e)
+            let response =
+              json_output.failure(
+                "doctor_failed",
+                "doctor",
+                json.null(),
+                [json_output.error("load_error", error_msg)],
+                Some(spec_path),
+                [],
+                exit_invalid,
+              )
+            json_output.output(response)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        io.println_error("Error: spec file path required")
-        io.println_error("Usage: intent doctor <spec.cue>")
+        let response =
+          json_output.failure(
+            "doctor_failed",
+            "doctor",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
