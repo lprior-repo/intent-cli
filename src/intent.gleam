@@ -16,8 +16,10 @@ import intent/ai_schema
 import intent/bead_feedback
 import intent/bead_from_failures
 import intent/bead_templates
+import intent/diff
 import intent/doctor
 import intent/ffi
+import intent/file_watcher
 import intent/improver
 import intent/interview
 import intent/interview_questions
@@ -45,6 +47,7 @@ import intent/spec_aggregator
 import intent/spec_builder
 import intent/spec_linter
 import intent/types
+import intent/watch_output
 import intent/workflow_detector
 import simplifile
 
@@ -205,46 +208,61 @@ pub fn main() {
 /// The `validate` command - validate CUE spec syntax AND structure
 fn validate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    let watch_mode = flag.get_bool(input.flags, "watch") |> result.unwrap(False)
+
     case input.args {
       [spec_path, ..] -> {
-        // Use load_spec_quiet to validate both CUE syntax AND spec structure
-        case loader.load_spec_quiet(spec_path) {
-          Ok(_) -> {
-            let next_actions = [
-              json_output.next_action(
-                "intent lint " <> spec_path,
-                "Check for quality issues",
-              ),
-              json_output.next_action(
-                "intent check " <> spec_path <> " --target=URL",
-                "Test against API",
-              ),
-            ]
-            let response =
-              json_output.success(
-                "validate_result",
-                "validate",
-                json.object([#("valid", json.bool(True))]),
-                Some(spec_path),
-                next_actions,
+        case watch_mode {
+          True -> {
+            // Watch mode: continuous validation
+            file_watcher.watch(spec_path, 1000, fn() {
+              watch_output.display_result(
+                spec_path,
+                loader.load_spec_quiet(spec_path),
               )
-            json_output.output(response)
-            halt(exit_pass)
+            })
           }
-          Error(e) -> {
-            let error_msg = loader.format_error(e)
-            let response =
-              json_output.failure(
-                "validate_failed",
-                "validate",
-                json.null(),
-                [json_output.error("validation_error", error_msg)],
-                Some(spec_path),
-                [],
-                exit_invalid,
-              )
-            json_output.output(response)
-            halt(exit_invalid)
+          False -> {
+            // Normal mode: single validation
+            case loader.load_spec_quiet(spec_path) {
+              Ok(_) -> {
+                let next_actions = [
+                  json_output.next_action(
+                    "intent lint " <> spec_path,
+                    "Check for quality issues",
+                  ),
+                  json_output.next_action(
+                    "intent check " <> spec_path <> " --target=URL",
+                    "Test against API",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "validate_result",
+                    "validate",
+                    json.object([#("valid", json.bool(True))]),
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
+                halt(exit_pass)
+              }
+              Error(e) -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "validate_failed",
+                    "validate",
+                    json.null(),
+                    [json_output.error("validation_error", error_msg)],
+                    Some(spec_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+                halt(exit_invalid)
+              }
+            }
           }
         }
       }
@@ -265,6 +283,12 @@ fn validate_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Validate a CUE spec file (syntax and structure)")
+  |> glint.flag(
+    "watch",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Watch file for changes and re-validate automatically"),
+  )
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -611,6 +635,10 @@ fn improve_command() -> glint.Command(Nil) {
                   #("suggestion_count", json.int(list.length(suggestions))),
                 ])
               let next_actions = [
+                json_output.next_action(
+                  "intent validate " <> spec_path,
+                  "Verify spec structure and syntax",
+                ),
                 json_output.next_action(
                   "intent doctor " <> spec_path <> " --json",
                   "Get prioritized recommendations",
@@ -2789,44 +2817,106 @@ fn history_command() -> glint.Command(Nil) {
   )
 }
 
-/// The `diff` command - compare two sessions
+/// The `diff` command - compare two specs
 fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let jsonl_path = ".interview/sessions.jsonl"
-    let _mode = output_mode.Interactive
+    let json_mode =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
 
     case input.args {
-      [from_id, to_id, ..] -> {
-        // Load both sessions
-        case interview_storage.get_session_from_jsonl(jsonl_path, from_id) {
-          Error(err) -> {
-            io.println_error("Failed to load 'from' session: " <> err)
+      [spec1_path, spec2_path] -> {
+        // Load both specs
+        case load_spec_for_mode(spec1_path, json_mode) {
+          Error(e) -> {
+            case json_mode {
+              True -> {
+                let error_msg = loader.format_error(e)
+                let response =
+                  json_output.failure(
+                    "diff_failed",
+                    "diff",
+                    json.null(),
+                    [json_output.error("load_error", error_msg)],
+                    Some(spec1_path),
+                    [],
+                    exit_invalid,
+                  )
+                json_output.output(response)
+              }
+              False -> {
+                io.println_error(
+                  "Failed to load first spec: " <> loader.format_error(e),
+                )
+              }
+            }
             halt(exit_invalid)
           }
-          Ok(from_session) -> {
-            case interview_storage.get_session_from_jsonl(jsonl_path, to_id) {
-              Error(err) -> {
-                io.println_error("Failed to load 'to' session: " <> err)
+          Ok(spec1) -> {
+            case load_spec_for_mode(spec2_path, json_mode) {
+              Error(e) -> {
+                case json_mode {
+                  True -> {
+                    let error_msg = loader.format_error(e)
+                    let response =
+                      json_output.failure(
+                        "diff_failed",
+                        "diff",
+                        json.null(),
+                        [json_output.error("load_error", error_msg)],
+                        Some(spec2_path),
+                        [],
+                        exit_invalid,
+                      )
+                    json_output.output(response)
+                  }
+                  False -> {
+                    io.println_error(
+                      "Failed to load second spec: " <> loader.format_error(e),
+                    )
+                  }
+                }
                 halt(exit_invalid)
               }
-              Ok(to_session) -> {
-                // Compute and display diff
-                let diff =
-                  interview_storage.diff_sessions(from_session, to_session)
-                io.println("Session Comparison")
-                io.println("")
-                io.println(interview_storage.format_diff(diff))
+              Ok(spec2) -> {
+                // Compute diff
+                let spec_diff = diff.compare_specs(spec1, spec2)
 
-                // Summary stats
-                io.println("")
-                let total_changes =
-                  list.length(diff.answers_added)
-                  + list.length(diff.answers_modified)
-                  + list.length(diff.answers_removed)
-
-                case total_changes {
-                  0 -> io.println("No answer changes between sessions")
-                  n -> io.println(string.inspect(n) <> " total answer changes")
+                case json_mode {
+                  True -> {
+                    // JSON output
+                    let data = diff.diff_to_json(spec_diff)
+                    let next_actions = case spec_diff.has_changes {
+                      True -> [
+                        json_output.next_action(
+                          "intent quality " <> spec2_path <> " --json",
+                          "Analyze quality of new spec",
+                        ),
+                      ]
+                      False -> []
+                    }
+                    let response =
+                      json_output.success(
+                        "diff_result",
+                        "diff",
+                        data,
+                        None,
+                        next_actions,
+                      )
+                    json_output.output(response)
+                  }
+                  False -> {
+                    // Human-readable output
+                    io.println("SPEC COMPARISON")
+                    io.println("===============")
+                    io.println("")
+                    io.println("Old: " <> spec1_path)
+                    io.println("New: " <> spec2_path)
+                    io.println("")
+                    io.println(diff.format_diff(spec_diff))
+                    io.println("")
+                    io.println("Summary: " <> diff.diff_summary(spec_diff))
+                  }
                 }
 
                 halt(exit_pass)
@@ -2835,31 +2925,26 @@ fn diff_command() -> glint.Command(Nil) {
           }
         }
       }
-      [single_id] -> {
-        // Compare session with its previous version (if exists)
-        io.println_error("Two session IDs required for comparison")
+      _ -> {
+        io.println_error("Two spec paths required")
         io.println("")
-        io.println("Usage: intent diff <from-session> <to-session>")
+        io.println("Usage: intent diff <spec1.cue> <spec2.cue> [--json]")
         io.println("")
-        io.println("Tip: Use 'intent sessions' to list available sessions")
-        io.println("     Session provided: " <> single_id)
-        halt(exit_error)
-      }
-      [] -> {
-        io.println_error("Session IDs required")
+        io.println("Compare two spec versions and show differences:")
+        io.println("  - Added/removed/changed features")
+        io.println("  - Added/removed/changed behaviors")
+        io.println("  - Modified response checks")
+        io.println("  - Config changes")
         io.println("")
-        io.println("Usage: intent diff <from-session> <to-session>")
-        io.println("")
-        io.println("Compare two interview sessions and show differences")
-        io.println("in answers, gaps, conflicts, and stage.")
-        io.println("")
-        io.println("Example:")
-        io.println("  intent diff interview-abc123 interview-def456")
+        io.println("Examples:")
+        io.println("  intent diff api-v1.cue api-v2.cue")
+        io.println("  intent diff api-v1.cue api-v2.cue --json")
         halt(exit_error)
       }
     }
   })
-  |> glint.description("Compare two interview sessions and show differences")
+  |> glint.description("Compare two spec versions and show differences")
+  |> glint.flag("json", flag.bool() |> flag.description("Output in JSON format"))
 }
 
 /// The `help` command - show detailed help for a specific command

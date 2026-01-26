@@ -1,0 +1,185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/check-response.json",
+  "title": "Intent CLI Check Response",
+  "description": "JSON response schema for 'intent check' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "check_result"
+        },
+        "command": {
+          "const": "check"
+        },
+        "data": {
+          "$ref": "#/definitions/CheckData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "CheckData": {
+      "type": "object",
+      "required": [
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "success",
+        "duration_ms",
+        "behaviors"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total behaviors tested"
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Passed behaviors"
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Failed behaviors"
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Skipped behaviors"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Overall test suite result"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total execution time in milliseconds"
+        },
+        "behaviors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BehaviorResult"
+          },
+          "description": "Individual behavior results"
+        }
+      }
+    },
+    "BehaviorResult": {
+      "type": "object",
+      "required": [
+        "name",
+        "feature",
+        "status",
+        "duration_ms",
+        "request",
+        "response",
+        "checks"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Behavior name"
+        },
+        "feature": {
+          "type": "string",
+          "description": "Feature name"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["passed", "failed", "skipped"],
+          "description": "Test result status"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Execution time in milliseconds"
+        },
+        "request": {
+          "type": "object",
+          "required": ["method", "path", "url"],
+          "properties": {
+            "method": {
+              "type": "string",
+              "description": "HTTP method"
+            },
+            "path": {
+              "type": "string",
+              "description": "Request path"
+            },
+            "url": {
+              "type": "string",
+              "description": "Full URL"
+            }
+          }
+        },
+        "response": {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code"
+            },
+            "body": {
+              "description": "Response body"
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CheckResult"
+          },
+          "description": "Validation check results"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if failed"
+        }
+      }
+    },
+    "CheckResult": {
+      "type": "object",
+      "required": [
+        "field",
+        "rule",
+        "expected",
+        "actual",
+        "passed",
+        "why"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Field being checked"
+        },
+        "rule": {
+          "type": "string",
+          "description": "Validation rule"
+        },
+        "expected": {
+          "description": "Expected value"
+        },
+        "actual": {
+          "description": "Actual value"
+        },
+        "passed": {
+          "type": "boolean",
+          "description": "Check result"
+        },
+        "why": {
+          "type": "string",
+          "description": "Check explanation"
+        }
+      }
+    }
+  }
+}

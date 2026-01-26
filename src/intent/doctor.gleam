@@ -257,6 +257,17 @@ pub fn json_output(report: DoctorReport, spec_path: String) -> Nil {
       #("suggestions", json.array(report.suggestions, suggestion_to_json)),
     ])
 
+  let next_actions = [
+    json_output.next_action(
+      "intent improve " <> spec_path <> " --json",
+      "Get detailed improvement suggestions",
+    ),
+    json_output.next_action(
+      "intent validate " <> spec_path,
+      "Verify spec structure and syntax",
+    ),
+  ]
+
   let response =
     json_output.create_response(
       "doctor_report",
@@ -265,6 +276,7 @@ pub fn json_output(report: DoctorReport, spec_path: String) -> Nil {
       Some(spec_path),
       0,
     )
+    |> json_output.with_next_actions(next_actions)
 
   json_output.output(response)
 }

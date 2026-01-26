@@ -15,14 +15,15 @@ Contract-driven API testing in Gleam. CUE specs → HTTP tests → verification.
 ```
 CRITICAL: Never bare `bv` - launches blocking TUI.
 
-## Commands (32 total)
+## Commands (33 total)
 
-**Core Spec Operations** (4):
+**Core Spec Operations** (5):
 ```jsonl
 {"cmd":"validate","args":"<spec>","desc":"CUE syntax check"}
 {"cmd":"analyze","args":"<spec>","desc":"quality scoring (alias for quality)"}
 {"cmd":"lint","args":"<spec>","desc":"anti-pattern detection"}
 {"cmd":"improve","args":"<spec>","desc":"improvement suggestions"}
+{"cmd":"diff","args":"<spec1> <spec2> [--json]","desc":"compare two spec versions"}
 ```
 
 **KIRK Analysis** (6):
@@ -35,12 +36,11 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 {"cmd":"ears","args":"<file> [--output=cue|json]","desc":"parse EARS requirements"}
 ```
 
-**Interview Workflow** (5):
+**Interview Workflow** (4):
 ```jsonl
 {"cmd":"interview","args":"<profile> [--resume=ID] [--export=spec.cue]","desc":"guided spec discovery"}
 {"cmd":"sessions","args":"[--profile=api|cli]","desc":"list interview sessions"}
 {"cmd":"history","args":"","desc":"show interview snapshots"}
-{"cmd":"diff","args":"<session-id1> <session-id2>","desc":"compare interview sessions"}
 {"cmd":"export","args":"<session-id> [--output=spec.cue]","desc":"export session to CUE spec"}
 ```
 

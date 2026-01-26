@@ -375,6 +375,37 @@ docs/
 - EARS Parser: Working
 - AI-CUE Protocol: In Progress (see beads)
 
+## Documentation
+
+### For AI Agents & Tool Builders
+
+- **[JSON Schema Documentation](docs/JSON_SCHEMA.md)** - Complete reference for machine-readable JSON output
+  - All command schemas (validate, check, quality, coverage, gaps, invert, effects, doctor, etc.)
+  - TypeScript interfaces for type-safe integration
+  - Error handling patterns
+  - CI/CD integration examples
+  - Python and Node.js usage examples
+
+- **[TypeScript Definitions](schema/intent-cli.d.ts)** - Type-safe interfaces for all JSON responses
+
+- **[JSON Schema Files](schema/json-schema/)** - Formal JSON Schema definitions for validation
+
+- **[Integration Examples](examples/)** - Practical code examples
+  - `json-integration.ts` - TypeScript/Node.js integration patterns
+  - `json-integration.py` - Python integration patterns
+
+### For Humans
+
+- **[User Guide](docs/USER_GUIDE.md)** - Getting started and common workflows
+- **[API Reference](docs/API_REFERENCE.md)** - Command-line interface reference
+- **[EARS Workflow](docs/EARS_KIRK_WORKFLOW.md)** - Requirements → Testing workflow
+- **[Spec Format](docs/SPEC_FORMAT.md)** - CUE specification structure
+
+### Architecture
+
+- **[Architecture Analysis](docs/ARCHITECTURE_ANALYSIS.md)** - System design overview
+- **[FFI Side Effects](docs/FFI_SIDE_EFFECTS.md)** - Foreign function interface documentation
+
 ## License
 
 Apache 2.0

@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/base-response.json",
+  "title": "Intent CLI Base Response",
+  "description": "Base JSON response structure for all Intent CLI commands",
+  "type": "object",
+  "required": [
+    "success",
+    "action",
+    "command",
+    "data",
+    "errors",
+    "next_actions",
+    "metadata",
+    "spec_path"
+  ],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the command achieved its goal"
+    },
+    "action": {
+      "type": "string",
+      "description": "Type of result (e.g., 'check_result', 'quality_report')"
+    },
+    "command": {
+      "type": "string",
+      "description": "Command that produced this output (e.g., 'check', 'quality')"
+    },
+    "data": {
+      "type": "object",
+      "description": "Command-specific output data"
+    },
+    "errors": {
+      "type": "array",
+      "description": "Structured errors (empty if success: true)",
+      "items": {
+        "$ref": "#/definitions/JsonError"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "description": "Suggested follow-up commands for workflow guidance",
+      "items": {
+        "$ref": "#/definitions/NextAction"
+      }
+    },
+    "metadata": {
+      "$ref": "#/definitions/JsonMetadata"
+    },
+    "spec_path": {
+      "type": ["string", "null"],
+      "description": "Path to spec file if applicable"
+    }
+  },
+  "definitions": {
+    "JsonError": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "location": {
+          "type": ["string", "null"],
+          "description": "File path and line number (e.g., 'spec.cue:42')"
+        },
+        "fix_hint": {
+          "type": ["string", "null"],
+          "description": "Suggestion for fixing the error"
+        },
+        "fix_command": {
+          "type": ["string", "null"],
+          "description": "Command to run for automated fix"
+        }
+      }
+    },
+    "NextAction": {
+      "type": "object",
+      "required": ["command", "reason"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Full command to execute"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this action is recommended"
+        }
+      }
+    },
+    "JsonMetadata": {
+      "type": "object",
+      "required": [
+        "timestamp",
+        "version",
+        "exit_code",
+        "correlation_id",
+        "duration_ms"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp"
+        },
+        "version": {
+          "type": "string",
+          "description": "Intent CLI version"
+        },
+        "exit_code": {
+          "type": "integer",
+          "description": "Unix exit code (0=success, 1=fail, 3=invalid, 4=error)",
+          "enum": [0, 1, 3, 4]
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUID v4 for request tracing"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Command execution time in milliseconds"
+        }
+      }
+    }
+  }
+}
