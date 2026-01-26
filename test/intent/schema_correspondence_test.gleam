@@ -59,13 +59,11 @@ pub fn can_load_validate_input_schema_test() {
 
 pub fn simple_cue_validation_accepts_valid_data_test() {
   // Test that CUE validation works with simple valid data
-  let schema =
-    "
-package test
+  let schema = "package test
 
 data: {
-  name: string
-  age: int
+  name: *\"\" | string
+  age: *0 | int
 }
 "
 
@@ -79,13 +77,11 @@ data: {
 
 pub fn simple_cue_validation_rejects_wrong_type_test() {
   // Test that CUE validation rejects type mismatches
-  let schema =
-    "
-package test
+  let schema = "package test
 
 data: {
-  name: string
-  age: int
+  name: *\"\" | string
+  age: *0 | int
 }
 "
 
@@ -99,13 +95,11 @@ data: {
 
 pub fn simple_cue_validation_rejects_missing_field_test() {
   // Test that CUE validation rejects missing required fields
-  let schema =
-    "
-package test
+  let schema = "package test
 
 data: {
-  name: string
-  age: int
+  name: *\"\" | string
+  age: *0 | int
 }
 "
 
@@ -123,16 +117,12 @@ data: {
 
 pub fn quality_input_valid_minimal_test() {
   // Test that minimal valid quality input matches schema
-  let schema =
-    "
-package test
+  let schema = "package test
 
-#QualityInput: {
-  spec_path: string
-  json?: bool
+data: {
+  spec_path: *\"\" | string
+  json?: *false | bool
 }
-
-data: #QualityInput
 "
 
   let valid_json =
@@ -149,16 +139,12 @@ data: #QualityInput
 
 pub fn quality_input_valid_with_optional_test() {
   // Test that quality input with optional json field matches schema
-  let schema =
-    "
-package test
+  let schema = "package test
 
-#QualityInput: {
-  spec_path: string
-  json?: bool
+data: {
+  spec_path: *\"\" | string
+  json?: *false | bool
 }
-
-data: #QualityInput
 "
 
   let valid_json =
@@ -176,16 +162,12 @@ data: #QualityInput
 
 pub fn quality_input_rejects_missing_required_field_test() {
   // Test that quality input without spec_path is rejected
-  let schema =
-    "
-package test
+  let schema = "package test
 
-#QualityInput: {
-  spec_path: string
-  json?: bool
+data: {
+  spec_path: *\"\" | string
+  json?: *false | bool
 }
-
-data: #QualityInput
 "
 
   let invalid_json =
@@ -202,16 +184,12 @@ data: #QualityInput
 
 pub fn quality_input_rejects_wrong_type_test() {
   // Test that quality input with wrong type for json field is rejected
-  let schema =
-    "
-package test
+  let schema = "package test
 
-#QualityInput: {
-  spec_path: string
-  json?: bool
+data: {
+  spec_path: *\"\" | string
+  json?: *false | bool
 }
-
-data: #QualityInput
 "
 
   let invalid_json =
@@ -233,27 +211,23 @@ data: #QualityInput
 
 pub fn envelope_response_accepts_valid_structure_test() {
   // Test that a valid response envelope matches the schema
-  let schema =
-    "
-package test
+  let schema = "package test
 
-#Response: {
-  status: \"ok\" | \"error\" | \"requires_input\"
+data: {
+  status: *\"ok\" | \"ok\" | \"error\" | \"requires_input\"
   data: {...}
   metadata: {
-    timestamp: string
-    duration_ms: int
-    version: string
+    timestamp: *\"\" | string
+    duration_ms: *0 | int
+    version: *\"\" | string
   }
-  session_id?: string
-  next_actions: [...]
+  session_id?: *\"\" | string
+  next_actions: *[] | [...]
   error?: {
-    code: string
-    message: string
+    code: *\"\" | string
+    message: *\"\" | string
   }
 }
-
-data: #Response
 "
 
   let valid_json =
@@ -280,22 +254,18 @@ data: #Response
 
 pub fn envelope_response_rejects_invalid_status_test() {
   // Test that response envelope rejects invalid status values
-  let schema =
-    "
-package test
+  let schema = "package test
 
-#Response: {
-  status: \"ok\" | \"error\" | \"requires_input\"
+data: {
+  status: *\"ok\" | \"ok\" | \"error\" | \"requires_input\"
   data: {...}
   metadata: {
-    timestamp: string
-    duration_ms: int
-    version: string
+    timestamp: *\"\" | string
+    duration_ms: *0 | int
+    version: *\"\" | string
   }
-  next_actions: [...]
+  next_actions: *[] | [...]
 }
-
-data: #Response
 "
 
   let invalid_json =

@@ -89,7 +89,11 @@ pub fn format_error_temp_file_error_test() {
 // ============================================================================
 
 pub fn validate_with_executor_success_test() {
-  let schema = "response: {name: string, age: int}"
+  let schema =
+    "data: {
+  name: string
+  age: int
+}"
   let data = "{\"name\": \"Alice\", \"age\": 30}"
 
   // Mock executor that always succeeds
@@ -101,12 +105,16 @@ pub fn validate_with_executor_success_test() {
 }
 
 pub fn validate_with_executor_validation_fails_test() {
-  let schema = "response: {name: string, age: int}"
+  let schema =
+    "data: {
+  name: string
+  age: int
+}"
   let data = "{\"name\": \"Alice\", \"age\": \"thirty\"}"
 
   // Mock executor that returns validation error
   let mock_executor = fn(_cmd, _args, _dir) {
-    Error(#(1, "response.age: conflicting values int and \"thirty\""))
+    Error(#(1, "data.age: conflicting values int and \"thirty\""))
   }
 
   output_validator.validate_with_executor(schema, data, mock_executor)
@@ -114,7 +122,7 @@ pub fn validate_with_executor_validation_fails_test() {
   |> fn(err) {
     case err {
       SchemaValidationFailed(msg) -> {
-        string.contains(msg, "response.age") |> should.be_true
+        string.contains(msg, "data.age") |> should.be_true
         string.contains(msg, "conflicting values") |> should.be_true
       }
       _ -> panic as "Expected SchemaValidationFailed"
@@ -123,7 +131,10 @@ pub fn validate_with_executor_validation_fails_test() {
 }
 
 pub fn validate_with_executor_cue_command_not_found_test() {
-  let schema = "response: {name: string}"
+  let schema =
+    "data: {
+  name: string
+}"
   let data = "{\"name\": \"test\"}"
 
   // Mock executor simulating command not found
@@ -147,7 +158,11 @@ pub fn validate_with_executor_cue_command_not_found_test() {
 // ============================================================================
 
 pub fn validate_against_schema_valid_simple_test() {
-  let schema = "response: {name: string, age: int}"
+  let schema =
+    "data: {
+  name: string
+  age: int
+}"
   let data = "{\"name\": \"Bob\", \"age\": 25}"
 
   output_validator.validate_against_schema(schema, data)
@@ -156,7 +171,11 @@ pub fn validate_against_schema_valid_simple_test() {
 }
 
 pub fn validate_against_schema_invalid_type_test() {
-  let schema = "response: {name: string, age: int}"
+  let schema =
+    "data: {
+  name: string
+  age: int
+}"
   let data = "{\"name\": \"Bob\", \"age\": \"twenty-five\"}"
 
   output_validator.validate_against_schema(schema, data)
@@ -172,7 +191,7 @@ pub fn validate_against_schema_invalid_type_test() {
 
 pub fn validate_against_schema_complex_nested_test() {
   let schema =
-    "response: {
+    "data: {
   user: {
     name: string
     email: string
@@ -203,7 +222,10 @@ pub fn validate_against_schema_complex_nested_test() {
 }
 
 pub fn validate_against_schema_constraint_violation_test() {
-  let schema = "response: {age: int & >0 & <120}"
+  let schema =
+    "data: {
+  age: int & >0 & <120
+}"
   let data = "{\"age\": -5}"
 
   output_validator.validate_against_schema(schema, data)
@@ -224,22 +246,25 @@ pub fn validate_against_schema_empty_schema_test() {
   |> should.be_error
   |> fn(err) {
     case err {
-      SchemaValidationFailed(_) | InvalidSchema(_) -> Nil
-      _ -> panic as "Expected SchemaValidationFailed or InvalidSchema"
+      InvalidSchema(_) -> Nil
+      _ -> panic as "Expected InvalidSchema"
     }
   }
 }
 
 pub fn validate_against_schema_empty_data_test() {
-  let schema = "response: {name: string}"
+  let schema =
+    "data: {
+  name: string
+}"
   let data = ""
 
   output_validator.validate_against_schema(schema, data)
   |> should.be_error
   |> fn(err) {
     case err {
-      SchemaValidationFailed(_) | InvalidJson(_) -> Nil
-      _ -> panic as "Expected SchemaValidationFailed or InvalidJson"
+      InvalidJson(_) -> Nil
+      _ -> panic as "Expected InvalidJson"
     }
   }
 }

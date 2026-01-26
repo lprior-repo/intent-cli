@@ -144,8 +144,8 @@ pub fn analyze_vorp_with_metrics_test() {
     types.Spec(
       ..base_spec,
       name: "Test",
-      description: "Testing metrics detection",
-      audience: "Developers seeking 10x improvement over manual processes",
+      description: "A deterministic contract testing framework with 10x faster feedback cycles than manual approaches",
+      audience: "Developers replacing manual API testing with contract-driven verification",
       success_criteria: [
         "10x faster execution",
         "50% cost reduction",
@@ -156,5 +156,6 @@ pub fn analyze_vorp_with_metrics_test() {
   let result = vorp_analyzer.analyze_vorp(spec)
 
   // Should score higher due to metrics
+  // Breakdown: audience(25) + differentiation(20) + criteria(25) + implementation(0) + antipattern(0) = 70
   { result.score >= 50 } |> should.be_true
 }

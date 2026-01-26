@@ -1,6 +1,7 @@
 import gleeunit/should
 import intent/question_loader
 import intent/question_types.{type Question}
+import gleam/string
 
 pub fn shape_questions_round_1_test() {
   let assert Ok(db) = question_loader.load_default_questions()
@@ -79,49 +80,8 @@ fn list_contains(list: List(a), item: a) -> Bool {
 }
 
 fn string_starts_with(string: String, prefix: String) -> Bool {
-  case string {
-    _ ->
-      case string_slice(string, 0, string_length(prefix)) {
-        s if s == prefix -> True
-        _ -> False
-      }
-  }
+  string.starts_with(string, prefix)
 }
-
-fn string_slice(string: String, start: Int, length: Int) -> String {
-  string
-  |> string_to_graphemes
-  |> list_drop(start)
-  |> list_take(length)
-  |> string_join("")
-}
-
-fn string_length(string: String) -> Int {
-  string
-  |> string_to_graphemes
-  |> list_length
-}
-
-fn string_to_graphemes(string: String) -> List(String) {
-  do_string_to_graphemes(string, [])
-}
-
-fn do_string_to_graphemes(string: String, acc: List(String)) -> List(String) {
-  case string {
-    "" -> list_reverse(acc)
-    _ -> {
-      let grapheme = string_first(string)
-      let rest = string_drop_left(string, 1)
-      do_string_to_graphemes(rest, [grapheme, ..acc])
-    }
-  }
-}
-
-@external(erlang, "string", "slice")
-fn string_first(string: String) -> String
-
-@external(erlang, "string", "slice")
-fn string_drop_left(string: String, n: Int) -> String
 
 fn list_reverse(list: List(a)) -> List(a) {
   do_reverse(list, [])
@@ -134,25 +94,6 @@ fn do_reverse(list: List(a), acc: List(a)) -> List(a) {
   }
 }
 
-fn list_drop(list: List(a), n: Int) -> List(a) {
-  case n, list {
-    0, _ -> list
-    _, [] -> []
-    n, [_, ..rest] -> list_drop(rest, n - 1)
-  }
-}
-
-fn list_take(list: List(a), n: Int) -> List(a) {
-  do_take(list, n, [])
-}
-
-fn do_take(list: List(a), n: Int, acc: List(a)) -> List(a) {
-  case n, list {
-    0, _ -> list_reverse(acc)
-    _, [] -> list_reverse(acc)
-    n, [head, ..rest] -> do_take(rest, n - 1, [head, ..acc])
-  }
-}
 
 fn list_flat_map(list: List(a), f: fn(a) -> List(b)) -> List(b) {
   case list {
@@ -168,10 +109,3 @@ fn list_append(a: List(a), b: List(a)) -> List(a) {
   }
 }
 
-fn string_join(strings: List(String), separator: String) -> String {
-  case strings {
-    [] -> ""
-    [first] -> first
-    [first, ..rest] -> first <> separator <> string_join(rest, separator)
-  }
-}
