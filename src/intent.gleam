@@ -41,9 +41,11 @@ import intent/prompt_generator
 import intent/quality_analyzer
 import intent/question_types.{type Question}
 import intent/ready_commands
+import intent/spec_aggregator
 import intent/spec_builder
 import intent/spec_linter
 import intent/types
+import intent/workflow_detector
 import simplifile
 
 /// Exit codes
@@ -172,6 +174,7 @@ pub fn main() {
     |> glint.add(at: ["prompt"], do: prompt_command())
     // AI commands
     |> glint.add(at: ["ai", "schema"], do: ai_schema_command())
+    |> glint.add(at: ["ai", "aggregate"], do: ai_aggregate_command())
     // Shape phase commands
     |> glint.add(at: ["shape", "start"], do: shape_start_command())
     |> glint.add(at: ["shape", "check"], do: shape_check_command())
@@ -1746,12 +1749,25 @@ fn beads_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error(
-          "Usage: intent beads <session_id> [--json] [--max-items N]",
-        )
-        io.println_error("")
-        io.println_error("Example: intent beads interview-abc123def456")
-        halt(exit_error)
+        // Check if sessions exist and provide helpful guidance
+        case workflow_detector.check_sessions_exist() {
+          Error(err) -> {
+            io.println_error(workflow_detector.format_error(err))
+            halt(exit_error)
+          }
+          Ok(_) -> {
+            // Sessions exist, user just forgot to provide session_id
+            io.println_error(
+              "Usage: intent beads <session_id> [--json] [--max-items N]",
+            )
+            io.println_error("")
+            io.println_error("Example: intent beads interview-abc123def456")
+            io.println_error("")
+            io.println_error("List available sessions:")
+            io.println_error("  intent sessions")
+            halt(exit_error)
+          }
+        }
       }
     }
   })
@@ -4190,6 +4206,105 @@ fn ai_schema_command() -> glint.Command(Nil) {
     flag.bool()
       |> flag.default(False)
       |> flag.description("List all available command names"),
+  )
+}
+
+/// The `ai aggregate` command - Aggregate analysis from multiple specs
+fn ai_aggregate_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [] -> {
+        let error =
+          json_output.error(
+            "missing_spec_paths",
+            "At least one spec file path is required",
+          )
+
+        let response =
+          json_output.failure(
+            "aggregate_error",
+            "ai aggregate",
+            json.object([]),
+            [error],
+            None,
+            [],
+            exit_error,
+          )
+
+        json_output.output(response)
+        halt(exit_error)
+      }
+      spec_paths -> {
+        // Load all specs
+        let loaded_specs =
+          spec_paths
+          |> list.map(fn(path) {
+            case loader.load_spec_quiet(path) {
+              Ok(spec) -> Ok(spec_aggregator.SpecWithPath(path: path, spec: spec))
+              Error(e) -> Error(#(path, e))
+            }
+          })
+
+        // Separate successes from failures
+        let #(specs, errors) =
+          loaded_specs
+          |> list.fold(#([], []), fn(acc, result) {
+            let #(specs_acc, errors_acc) = acc
+            case result {
+              Ok(spec_with_path) -> #([spec_with_path, ..specs_acc], errors_acc)
+              Error(#(path, err)) -> #(specs_acc, [#(path, err), ..errors_acc])
+            }
+          })
+
+        // If any specs failed to load, report errors
+        case list.length(errors) > 0 {
+          True -> {
+            let error_messages =
+              errors
+              |> list.map(fn(error_pair) {
+                let #(path, err) = error_pair
+                json_output.error(
+                  "spec_load_error",
+                  "Failed to load " <> path <> ": " <> loader.format_error(err),
+                )
+              })
+
+            let response =
+              json_output.failure(
+                "aggregate_error",
+                "ai aggregate",
+                json.object([]),
+                error_messages,
+                None,
+                [],
+                exit_error,
+              )
+
+            json_output.output(response)
+            halt(exit_error)
+          }
+          False -> {
+            // All specs loaded successfully, perform aggregation
+            let report = spec_aggregator.aggregate_specs(list.reverse(specs))
+
+            let response =
+              json_output.success(
+                "ai_aggregate_result",
+                "ai aggregate",
+                spec_aggregator.to_json(report),
+                None,
+                [],
+              )
+
+            json_output.output(response)
+            halt(exit_pass)
+          }
+        }
+      }
+    }
+  })
+  |> glint.description(
+    "Aggregate analysis from multiple specs to find common patterns, duplicates, and conflicts",
   )
 }
 
