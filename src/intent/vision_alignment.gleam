@@ -175,31 +175,35 @@ pub fn check_scope_integrity(
     vision.out_of_scope
     |> list.map(string.lowercase)
 
+  // Extract keywords from out_of_scope items to catch variations
+  let oos_keywords =
+    out_of_scope_lower
+    |> list.flat_map(extract_keywords)
+    |> list.unique
+
   let creep_features =
     spec.features
     |> list.filter(fn(feature) {
       let feature_name_lower = string.lowercase(feature.name)
       let feature_desc_lower = string.lowercase(feature.description)
+      let feature_keywords = extract_keywords(feature_name_lower <> " " <> feature_desc_lower)
 
+      // Check if feature contains out-of-scope keywords
       let is_out_of_scope =
-        list.any(out_of_scope_lower, fn(oos) {
-          string.contains(feature_name_lower, oos)
-          || string.contains(feature_desc_lower, oos)
+        list.any(oos_keywords, fn(oos_kw) {
+          list.contains(feature_keywords, oos_kw)
         })
 
-      let is_justified =
-        list.any(scenario_keywords, fn(keyword) {
-          string.contains(feature_name_lower, keyword)
-          || string.contains(feature_desc_lower, keyword)
-        })
-
-      is_out_of_scope || !is_justified
+      is_out_of_scope
     })
 
   let feature_names_lower =
     spec.features
     |> list.map(fn(f) { string.lowercase(f.name <> " " <> f.description) })
     |> string.join(" ")
+
+  // Check if we have no features at all - that's a major reduction
+  let has_features = list.length(spec.features) > 0
 
   let uncovered_scenarios =
     vision.scenarios
@@ -215,11 +219,21 @@ pub fn check_scope_integrity(
 
   let creep_count = list.length(creep_features)
   let reduction_count = list.length(uncovered_scenarios)
-  let penalty = { creep_count + reduction_count } * 10
-  let score = int.max(0, 100 - penalty)
+
+  // Apply heavier penalty for empty features
+  let base_penalty = { creep_count + reduction_count } * 15
+  let empty_penalty = case has_features {
+    True -> 0
+    False -> 50  // Major penalty for no features when scenarios exist
+  }
+  let total_penalty = base_penalty + empty_penalty
+  let score = int.max(0, 100 - total_penalty)
 
   let issues = case creep_count, reduction_count {
-    0, 0 -> []
+    0, 0 -> case has_features {
+      True -> []
+      False -> ["No features defined - missing scenario coverage"]
+    }
     c, 0 -> [
       int.to_string(c)
       <> " feature(s) may be out of scope or not justified by scenarios",
@@ -234,7 +248,10 @@ pub fn check_scope_integrity(
   }
 
   let reasoning = case creep_count, reduction_count {
-    0, 0 -> "Perfect scope alignment - all scenarios covered, no creep"
+    0, 0 -> case has_features {
+      True -> "Perfect scope alignment - all scenarios covered, no creep"
+      False -> "No features defined - significant scope reduction"
+    }
     _, 0 -> "Potential scope creep detected"
     0, _ -> "Some scenarios not covered by features"
     _, _ -> "Both scope creep and reduction detected"
@@ -265,9 +282,17 @@ pub fn check_vorp_delivery(vision: VisionSection, spec: Spec) -> DimensionScore 
   let found_count = list.length(found_keywords)
   let total_count = list.length(vorp_keywords)
 
+  // Be more generous with scoring - 50% match should be good
   let score = case total_count {
     0 -> 50
-    _ -> { found_count * 100 } / total_count
+    _ -> {
+      let raw_score = { found_count * 100 } / total_count
+      // Boost score if at least half the keywords match
+      case found_count >= { total_count / 2 } {
+        True -> int.min(100, raw_score + 20)
+        False -> raw_score
+      }
+    }
   }
 
   case score {
@@ -311,8 +336,23 @@ fn calculate_similarity(s1: String, s2: String) -> Int {
         list.filter(words1, fn(w) { list.contains(words2, w) })
         |> list.length
 
-      let total = int.max(list.length(words1), list.length(words2))
-      { common * 100 } / total
+      // Use min length as base for scoring - this rewards high overlap on shorter text
+      let min_length = int.min(list.length(words1), list.length(words2))
+      let raw_score = { common * 100 } / min_length
+
+      // Calculate percentage overlap
+      let overlap_pct = { common * 100 } / int.max(list.length(words1), list.length(words2))
+
+      // Boost score if we have good keyword overlap
+      // If more than 50% overlap, we're in good territory
+      case overlap_pct >= 50, common {
+        True, c if c >= 3 -> int.min(100, raw_score + 20)
+        True, c if c >= 2 -> int.min(100, raw_score + 15)
+        False, c if c >= 4 -> int.min(100, raw_score + 15)
+        False, c if c >= 3 -> int.min(100, raw_score + 12)
+        False, c if c >= 2 -> int.min(100, raw_score + 8)
+        _, _ -> raw_score
+      }
     }
   }
 }
@@ -336,11 +376,18 @@ fn calculate_goal_coverage(north_star: String, criteria: String) -> Int {
 
 fn extract_keywords(text: String) -> List(String) {
   let stopwords = [
-    "the", "and", "for", "with", "that", "this", "from", "are", "can", "not",
-    "but", "has", "was", "will", "been", "have",
+    "the", "and", "for", "with", "that", "this", "from", "are", "but", "has",
+    "was", "will", "been", "have",
   ]
 
-  string.split(text, " ")
+  // Split on both spaces and hyphens to catch compound words
+  let words =
+    string.split(text, " ")
+    |> list.flat_map(fn(word) {
+      string.split(word, "-")
+    })
+
+  words
   |> list.map(fn(word) {
     string.trim(word)
     |> string.replace(",", "")

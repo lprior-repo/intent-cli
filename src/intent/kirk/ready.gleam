@@ -166,9 +166,7 @@ fn analyze_replacement(spec: Spec) -> DimensionScore {
   }
 
   // +20 if ai_hints.implementation has content
-  let score = case
-    spec.ai_hints.implementation.suggested_stack != []
-  {
+  let score = case spec.ai_hints.implementation.suggested_stack != [] {
     True -> score + 20
     False -> score
   }
@@ -194,10 +192,14 @@ fn analyze_replacement(spec: Spec) -> DimensionScore {
         True -> ["Audience too vague"]
         False -> []
       })
-      |> list.append(case spec.success_criteria == [] || list.length(spec.success_criteria) < 2 {
-        True -> ["Insufficient success criteria"]
-        False -> []
-      })
+      |> list.append(
+        case
+          spec.success_criteria == [] || list.length(spec.success_criteria) < 2
+        {
+          True -> ["Insufficient success criteria"]
+          False -> []
+        },
+      )
       |> list.append(case string.length(spec.description) < 30 {
         True -> ["Description lacks detail"]
         False -> []

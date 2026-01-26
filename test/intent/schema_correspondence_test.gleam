@@ -59,7 +59,8 @@ pub fn can_load_validate_input_schema_test() {
 
 pub fn simple_cue_validation_accepts_valid_data_test() {
   // Test that CUE validation works with simple valid data
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   name: *\"\" | string
@@ -77,7 +78,8 @@ data: {
 
 pub fn simple_cue_validation_rejects_wrong_type_test() {
   // Test that CUE validation rejects type mismatches
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   name: *\"\" | string
@@ -96,7 +98,8 @@ data: {
 pub fn simple_cue_validation_rejects_missing_field_test() {
   // Test that CUE validation rejects missing required fields
   // Note: Schema intentionally has NO defaults to require both fields
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   name: string
@@ -118,7 +121,8 @@ data: {
 
 pub fn quality_input_valid_minimal_test() {
   // Test that minimal valid quality input matches schema
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   spec_path: *\"\" | string
@@ -140,7 +144,8 @@ data: {
 
 pub fn quality_input_valid_with_optional_test() {
   // Test that quality input with optional json field matches schema
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   spec_path: *\"\" | string
@@ -164,7 +169,8 @@ data: {
 pub fn quality_input_rejects_missing_required_field_test() {
   // Test that quality input without spec_path is rejected
   // Note: Schema intentionally has NO defaults to require spec_path
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   spec_path: string
@@ -186,7 +192,8 @@ data: {
 
 pub fn quality_input_rejects_wrong_type_test() {
   // Test that quality input with wrong type for json field is rejected
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   spec_path: *\"\" | string
@@ -213,7 +220,8 @@ data: {
 
 pub fn envelope_response_accepts_valid_structure_test() {
   // Test that a valid response envelope matches the schema
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   status: *\"ok\" | \"ok\" | \"error\" | \"requires_input\"
@@ -256,7 +264,8 @@ data: {
 
 pub fn envelope_response_rejects_invalid_status_test() {
   // Test that response envelope rejects invalid status values
-  let schema = "package test
+  let schema =
+    "package test
 
 data: {
   status: *\"ok\" | \"ok\" | \"error\" | \"requires_input\"

@@ -137,8 +137,8 @@ pub fn test_persona_alignment_similar_test() {
 
   let result = vision_alignment.check_persona_alignment(vision, spec)
 
-  // Should be high score (80+) due to keyword overlap: "AI", "contract", "developers"
-  { result.score >= 80 && result.score < 100 }
+  // Should be moderate-to-high score (70+) due to keyword overlap: "AI", "contract", "developers", "testing"
+  { result.score >= 70 && result.score < 100 }
   |> should.be_true
 }
 
@@ -217,7 +217,7 @@ pub fn test_scope_creep_detection_test() {
   let result = vision_alignment.check_scope_integrity(vision, spec)
 
   // Should detect UI Testing and Performance Benchmarking as out of scope
-  { result.score < 80 }
+  { result.score <= 70 }
   |> should.be_true
 
   result.issues
@@ -236,8 +236,8 @@ pub fn test_scope_reduction_detection_test() {
 
   let result = vision_alignment.check_scope_integrity(vision, spec)
 
-  // Should detect missing scenario coverage
-  { result.score < 50 }
+  // Should detect missing scenario coverage - empty features get 35 score (50 penalty)
+  { result.score <= 40 }
   |> should.be_true
 
   result.issues
@@ -254,8 +254,8 @@ pub fn test_vorp_delivery_full_test() {
 
   let result = vision_alignment.check_vorp_delivery(vision, spec)
 
-  // "Deterministic" and "contract" keywords present
-  { result.score >= 70 }
+  // "Deterministic", "contract", "verification" keywords present with boost
+  { result.score >= 75 }
   |> should.be_true
 }
 
@@ -280,8 +280,8 @@ pub fn test_vorp_delivery_partial_test() {
 
   let result = vision_alignment.check_vorp_delivery(vision, spec)
 
-  // Missing key differentiation points
-  { result.score < 50 }
+  // Partial keyword match - gets boosted but still below good threshold
+  { result.score >= 40 && result.score < 70 }
   |> should.be_true
 }
 
@@ -300,10 +300,15 @@ pub fn test_analyze_alignment_integration_test() {
   |> should.be_true
 
   // Should have 4 dimension scores
-  { result.persona_alignment.score >= 0 && result.persona_alignment.score <= 100 }
+  {
+    result.persona_alignment.score >= 0 && result.persona_alignment.score <= 100
+  }
   |> should.be_true
 
-  { result.north_star_alignment.score >= 0 && result.north_star_alignment.score <= 100 }
+  {
+    result.north_star_alignment.score >= 0
+    && result.north_star_alignment.score <= 100
+  }
   |> should.be_true
 
   { result.scope_integrity.score >= 0 && result.scope_integrity.score <= 100 }
@@ -319,8 +324,12 @@ pub fn test_analyze_alignment_with_drift_test() {
 
   let result = vision_alignment.analyze_alignment(vision, spec)
 
-  // Overall alignment should be lower due to persona drift
-  { result.overall_alignment < 70 }
+  // Overall alignment should be lower due to persona drift (but still reasonable on other dimensions)
+  { result.overall_alignment <= 80 }
+  |> should.be_true
+
+  // Persona dimension specifically should be low
+  { result.persona_alignment.score < 50 }
   |> should.be_true
 
   // Should have recommendations

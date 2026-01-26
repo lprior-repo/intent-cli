@@ -32,7 +32,7 @@ gleam_httpc = { version = ">= 2.1.0 and < 3.0.0" }
 gleam_json = { version = ">= 2.0.0 and < 3.0.0" }
 gleam_otp = { version = ">= 0.1.0 and < 1.0.0" }
 gleam_regexp = { version = ">= 1.1.1 and < 2.0.0" }
-gleam_stdlib = { version = ">= 0.36.0 and < 0.40.0" }
+gleam_stdlib = { version = ">= 0.39.0 and < 1.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
 glint = { version = ">= 0.14.0 and < 1.0.0" }
 repeatedly = { version = ">= 2.1.2 and < 3.0.0" }

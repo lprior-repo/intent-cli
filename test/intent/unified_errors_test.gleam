@@ -9,13 +9,13 @@ import intent/unified_errors.{
   type ErrorCode, type Severity, type UnifiedError, ConflictingFlags, Error,
   FileNotFound, FilePermissionDenied, InternalError, InvalidInput, LoadError,
   MissingInput, SessionNotFound, SpecParseError, ValidationFailed, Warning,
-  conflicting_flags, error_code_to_string, file_not_found,
-  file_permission_denied, format_error_brief, format_error_text,
+  conflicting_flags, error_code_to_string, exit_internal_error,
+  exit_runtime_error, exit_success, exit_user_input_error, exit_validation_error,
+  file_not_found, file_permission_denied, format_error_brief, format_error_text,
   get_exit_code_for_error, internal_error, invalid_input, load_error,
   missing_input, session_not_found, spec_parse_error, unified_error,
   unified_error_to_json, validation_failed, with_context, with_context_list,
-  with_severity, exit_internal_error, exit_runtime_error, exit_success,
-  exit_user_input_error, exit_validation_error,
+  with_severity,
 }
 
 pub fn main() {
@@ -274,8 +274,7 @@ pub fn test_file_not_found_builder() {
 }
 
 pub fn test_file_permission_denied_builder() {
-  let error =
-    file_permission_denied(path: "/etc/passwd", operation: "write")
+  let error = file_permission_denied(path: "/etc/passwd", operation: "write")
 
   error.code |> should.equal(FilePermissionDenied)
   error.message
@@ -295,9 +294,7 @@ pub fn test_invalid_input_builder() {
 
   error.code |> should.equal(InvalidInput)
   error.message
-  |> should.equal(
-    "Invalid input: invalid-json (Unexpected character)",
-  )
+  |> should.equal("Invalid input: invalid-json (Unexpected character)")
   dict.get(error.context, "input") |> should.equal(Ok("invalid-json"))
   dict.get(error.context, "reason") |> should.equal(Ok("Unexpected character"))
 }
@@ -318,11 +315,7 @@ pub fn test_spec_parse_error_builder() {
 }
 
 pub fn test_load_error_builder() {
-  let error =
-    load_error(
-      resource: "session.json",
-      reason: "File corrupted",
-    )
+  let error = load_error(resource: "session.json", reason: "File corrupted")
 
   error.code |> should.equal(LoadError)
   error.message

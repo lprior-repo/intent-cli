@@ -4,7 +4,7 @@
 /// with token limit control for AI consumption.
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, Some, None}
+import gleam/option.{type Option, None, Some}
 import gleam/string
 
 // =============================================================================
@@ -52,12 +52,13 @@ pub fn aggregate_responses(
     |> list.filter(fn(r) { r.success })
 
   case successful {
-    [] -> Ok(AggregatedResult(
-      response_count: 0,
-      combined_data: [],
-      truncated: False,
-      token_count: 0,
-    ))
+    [] ->
+      Ok(AggregatedResult(
+        response_count: 0,
+        combined_data: [],
+        truncated: False,
+        token_count: 0,
+      ))
     _ -> {
       // Combine data from all successful responses
       let combined =
@@ -154,7 +155,8 @@ fn take_up_to_tokens(
     |> list.fold(#([], max_tokens), fn(acc, item) {
       let #(collected, tokens_left) = acc
       let #(cmd, data) = item
-      let item_size = { string.length(cmd) + string.length(format_response_data(data)) } / 4
+      let item_size =
+        { string.length(cmd) + string.length(format_response_data(data)) } / 4
 
       case tokens_left >= item_size {
         True -> #(list.append(collected, [item]), tokens_left - item_size)

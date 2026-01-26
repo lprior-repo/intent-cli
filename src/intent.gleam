@@ -185,11 +185,26 @@ pub fn main() {
     |> glint.add(at: ["shape", "respond"], do: shape_respond_command())
     |> glint.add(at: ["shape", "agree"], do: shape_agree_command())
     // Ready phase commands
-    |> glint.add(at: ["ready", "start"], do: ready_commands.ready_start_command())
-    |> glint.add(at: ["ready", "check"], do: ready_commands.ready_check_command())
-    |> glint.add(at: ["ready", "critique"], do: ready_commands.ready_critique_command())
-    |> glint.add(at: ["ready", "respond"], do: ready_commands.ready_respond_command())
-    |> glint.add(at: ["ready", "agree"], do: ready_commands.ready_agree_command())
+    |> glint.add(
+      at: ["ready", "start"],
+      do: ready_commands.ready_start_command(),
+    )
+    |> glint.add(
+      at: ["ready", "check"],
+      do: ready_commands.ready_check_command(),
+    )
+    |> glint.add(
+      at: ["ready", "critique"],
+      do: ready_commands.ready_critique_command(),
+    )
+    |> glint.add(
+      at: ["ready", "respond"],
+      do: ready_commands.ready_respond_command(),
+    )
+    |> glint.add(
+      at: ["ready", "agree"],
+      do: ready_commands.ready_agree_command(),
+    )
 
   // Execute and handle flag parsing errors
   // Glint's .run() exits with 0 even on flag errors, so we use .execute()
@@ -287,7 +302,9 @@ fn validate_command() -> glint.Command(Nil) {
     "watch",
     flag.bool()
       |> flag.default(False)
-      |> flag.description("Watch file for changes and re-validate automatically"),
+      |> flag.description(
+        "Watch file for changes and re-validate automatically",
+      ),
   )
 }
 
@@ -2944,7 +2961,10 @@ fn diff_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Compare two spec versions and show differences")
-  |> glint.flag("json", flag.bool() |> flag.description("Output in JSON format"))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.description("Output in JSON format"),
+  )
 }
 
 /// The `help` command - show detailed help for a specific command
@@ -4325,7 +4345,8 @@ fn ai_aggregate_command() -> glint.Command(Nil) {
           spec_paths
           |> list.map(fn(path) {
             case loader.load_spec_quiet(path) {
-              Ok(spec) -> Ok(spec_aggregator.SpecWithPath(path: path, spec: spec))
+              Ok(spec) ->
+                Ok(spec_aggregator.SpecWithPath(path: path, spec: spec))
               Error(e) -> Error(#(path, e))
             }
           })

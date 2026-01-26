@@ -51,11 +51,7 @@ pub fn update_state(state: FileState) -> Result(FileState, WatchError) {
 }
 
 /// Watch a file and call callback when it changes
-pub fn watch(
-  path: String,
-  interval_ms: Int,
-  on_change: fn() -> Nil,
-) -> Nil {
+pub fn watch(path: String, interval_ms: Int, on_change: fn() -> Nil) -> Nil {
   case init_file_state(path) {
     Ok(initial_state) -> {
       on_change()

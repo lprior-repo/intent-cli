@@ -564,10 +564,10 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "beads",
       category: BeadsPlanning,
-      has_json_flag: True,
+      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
-      primary_flags: ["json", "max-items"],
+      primary_flags: ["max-items"],
       valid_exit_codes: [0, 4],
     ),
     CommandInfo(
@@ -609,19 +609,19 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "prompt",
       category: BeadsPlanning,
-      has_json_flag: True,
+      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
-      primary_flags: ["json", "max-items"],
+      primary_flags: ["max-items"],
       valid_exit_codes: [0, 4],
     ),
     CommandInfo(
       name: "feedback",
       category: BeadsPlanning,
-      has_json_flag: True,
+      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
-      primary_flags: ["results", "json"],
+      primary_flags: ["results"],
       valid_exit_codes: [0, 4],
     ),
     // Parsing (1)
@@ -662,7 +662,7 @@ pub fn get_all_command_info() -> List(CommandInfo) {
       primary_flags: [],
       valid_exit_codes: [0],
     ),
-    // AI Commands (2)
+    // AI Commands (1)
     CommandInfo(
       name: "ai schema",
       category: AICommands,
@@ -671,15 +671,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
       is_interactive: False,
       primary_flags: ["json", "command", "type"],
       valid_exit_codes: [0],
-    ),
-    CommandInfo(
-      name: "ai aggregate",
-      category: AICommands,
-      has_json_flag: False,
-      always_json_output: True,
-      is_interactive: False,
-      primary_flags: [],
-      valid_exit_codes: [0, 4],
     ),
     // Shape Phase (5)
     CommandInfo(
@@ -898,13 +889,12 @@ pub fn validate_all_commands() -> ConsistencyResult {
     list.append(specific_issues, check_doctor_command_consistency())
   let specific_issues =
     list.append(specific_issues, check_show_command_consistency())
-  let specific_issues = list.append(specific_issues, check_help_command_consistency())
+  let specific_issues =
+    list.append(specific_issues, check_help_command_consistency())
 
-  // AI Commands (2)
+  // AI Commands (1)
   let specific_issues =
     list.append(specific_issues, check_ai_schema_command_consistency())
-  let specific_issues =
-    list.append(specific_issues, check_ai_aggregate_command_consistency())
 
   // Shape Phase Commands (5)
   let specific_issues =
@@ -1118,12 +1108,6 @@ fn check_ai_schema_command_consistency() -> List(ConsistencyIssue) {
   []
 }
 
-fn check_ai_aggregate_command_consistency() -> List(ConsistencyIssue) {
-  // ai aggregate command: always outputs JSON
-  // Aggregates analysis from multiple specs
-  []
-}
-
 // Shape Phase validators
 fn check_shape_start_command_consistency() -> List(ConsistencyIssue) {
   // shape start command: always outputs JSON
@@ -1165,8 +1149,7 @@ fn validate_json_consistency(info: CommandInfo) -> List(ConsistencyIssue) {
     // If command always outputs JSON, it shouldn't need a --json flag
     True, True -> [
       MissingUsageMessage(
-        info.name
-        <> " always outputs JSON but has redundant --json flag",
+        info.name <> " always outputs JSON but has redundant --json flag",
       ),
     ]
     _, _ -> []
@@ -1199,8 +1182,7 @@ fn validate_command_info(info: CommandInfo) -> List(ConsistencyIssue) {
 // Validate all commands based on their metadata
 pub fn validate_command_metadata() -> ConsistencyResult {
   let all_commands = get_all_command_info()
-  let all_issues =
-    list.flat_map(all_commands, validate_command_info)
+  let all_issues = list.flat_map(all_commands, validate_command_info)
 
   case all_issues {
     [] -> Passed

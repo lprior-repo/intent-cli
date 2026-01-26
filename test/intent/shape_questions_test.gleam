@@ -1,7 +1,7 @@
+import gleam/string
 import gleeunit/should
 import intent/question_loader
 import intent/question_types.{type Question}
-import gleam/string
 
 pub fn shape_questions_round_1_test() {
   let assert Ok(db) = question_loader.load_default_questions()
@@ -94,7 +94,6 @@ fn do_reverse(list: List(a), acc: List(a)) -> List(a) {
   }
 }
 
-
 fn list_flat_map(list: List(a), f: fn(a) -> List(b)) -> List(b) {
   case list {
     [] -> []
@@ -108,4 +107,3 @@ fn list_append(a: List(a), b: List(a)) -> List(a) {
     [head, ..rest] -> [head, ..list_append(rest, b)]
   }
 }
-

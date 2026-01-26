@@ -81,19 +81,15 @@ pub fn validate_with_executor(
   executor: CommandExecutor,
 ) -> Result(Nil, ValidationError) {
   // Validate inputs
-  use _ <- result.try(
-    case string.is_empty(string.trim(schema_cue)) {
-      True -> Error(InvalidSchema("Schema cannot be empty"))
-      False -> Ok(Nil)
-    },
-  )
+  use _ <- result.try(case string.is_empty(string.trim(schema_cue)) {
+    True -> Error(InvalidSchema("Schema cannot be empty"))
+    False -> Ok(Nil)
+  })
 
-  use _ <- result.try(
-    case string.is_empty(string.trim(data_json)) {
-      True -> Error(InvalidJson("Data cannot be empty"))
-      False -> Ok(Nil)
-    },
-  )
+  use _ <- result.try(case string.is_empty(string.trim(data_json)) {
+    True -> Error(InvalidJson("Data cannot be empty"))
+    False -> Ok(Nil)
+  })
 
   // Generate unique temp file name
   let timestamp = int.to_string(erlang_system_time())
@@ -104,26 +100,27 @@ pub fn validate_with_executor(
   let has_package = string.contains(schema_cue, "package ")
   let data_cue = json_to_cue(data_json)
 
-  use _ <- result.try(
-    case data_cue {
-      Ok(cue_data) -> {
-        let combined_cue = case has_package {
-          True ->
-            // Schema already has package, just append data
-            schema_cue <> "\n\n// Instance data\n" <> cue_data
-          False ->
-            // Need to add package declaration
-            "package test\n\n" <> schema_cue <> "\n\n// Instance data\n" <> cue_data
-        }
-
-        simplifile.write(validation_file, combined_cue)
-        |> result.map_error(fn(_) {
-          TempFileError("Failed to write validation file")
-        })
+  use _ <- result.try(case data_cue {
+    Ok(cue_data) -> {
+      let combined_cue = case has_package {
+        True ->
+          // Schema already has package, just append data
+          schema_cue <> "\n\n// Instance data\n" <> cue_data
+        False ->
+          // Need to add package declaration
+          "package test\n\n"
+          <> schema_cue
+          <> "\n\n// Instance data\n"
+          <> cue_data
       }
-      Error(_) -> Error(InvalidJson("Failed to convert JSON to CUE format"))
-    },
-  )
+
+      simplifile.write(validation_file, combined_cue)
+      |> result.map_error(fn(_) {
+        TempFileError("Failed to write validation file")
+      })
+    }
+    Error(_) -> Error(InvalidJson("Failed to convert JSON to CUE format"))
+  })
 
   // Run CUE validation (vet without second argument validates the single file)
   let validation_result = executor("cue", ["vet", validation_file], ".")

@@ -10,7 +10,7 @@ links = [
 ]
 
 [dependencies]
-gleam_stdlib = ">= 0.36.0 and < 0.40.0"
+gleam_stdlib = ">= 0.39.0 and < 1.0.0"
 gleam_json = ">= 2.0.0 and < 3.0.0"
 gleam_http = ">= 3.5.0 and < 4.0.0"
 gleam_httpc = ">= 2.1.0 and < 3.0.0"

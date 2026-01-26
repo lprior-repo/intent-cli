@@ -12,7 +12,8 @@ pub fn clear_screen() -> Nil {
 
 /// Get current timestamp in readable format
 pub fn timestamp() -> String {
-  let #(#(year, month, day), #(hour, minute, second)) = erlang_calendar_local_time()
+  let #(#(year, month, day), #(hour, minute, second)) =
+    erlang_calendar_local_time()
   pad_zero(year, 4)
   <> "-"
   <> pad_zero(month, 2)

@@ -1,8 +1,8 @@
 //// Tests for kirk/vorp_analyzer.gleam
 //// Contract: VORP (Value Over Replacement) quality scoring
 
-import gleeunit/should
 import gleam/json
+import gleeunit/should
 import intent/kirk/vorp_analyzer
 import intent/types
 import test_helpers

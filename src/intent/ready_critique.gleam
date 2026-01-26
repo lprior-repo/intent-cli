@@ -344,7 +344,21 @@ pub fn critique_ready(ready: ReadyReport) -> CritiqueResult {
     False -> raw_score
   }
 
-  let passed = score >= pass_threshold
+  // Any Critical issue or critical blocker in the report means automatic failure
+  let has_critical_issues = critical_count > 0
+  let has_critical_blockers =
+    ready.blockers
+    |> list.any(fn(blocker) {
+      case blocker.severity {
+        BlockerCritical -> True
+        _ -> False
+      }
+    })
+
+  let passed = case has_critical_issues || has_critical_blockers {
+    True -> False
+    False -> score >= pass_threshold
+  }
 
   CritiqueResult(passed: passed, issues: all_issues, score: score)
 }

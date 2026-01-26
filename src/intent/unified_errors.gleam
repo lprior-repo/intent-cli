@@ -6,7 +6,6 @@
 /// - Structured context and recovery suggestions
 /// - JSON serialization for machine consumption
 /// - Human-friendly text formatting
-
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
@@ -198,10 +197,7 @@ pub fn with_context(
   key key: String,
   value value: String,
 ) -> UnifiedError {
-  UnifiedError(
-    ..error,
-    context: dict.insert(error.context, key, value),
-  )
+  UnifiedError(..error, context: dict.insert(error.context, key, value))
 }
 
 /// Add multiple context entries to an error
@@ -218,7 +214,10 @@ pub fn with_context_list(
 }
 
 /// Change the severity level of an error
-pub fn with_severity(error error: UnifiedError, sev sev: Severity) -> UnifiedError {
+pub fn with_severity(
+  error error: UnifiedError,
+  sev sev: Severity,
+) -> UnifiedError {
   UnifiedError(..error, severity: sev)
 }
 
@@ -245,13 +244,10 @@ pub fn unified_error_to_json(error: UnifiedError) -> Json {
         #("severity", json.string(severity_to_string(error.severity))),
         #("context", json.object(context_items)),
         #("suggestion", json.string(error.suggestion)),
-        #(
-          "fix_command",
-          case error.fix_command {
-            Some(cmd) -> json.string(cmd)
-            None -> json.null()
-          },
-        ),
+        #("fix_command", case error.fix_command {
+          Some(cmd) -> json.string(cmd)
+          None -> json.null()
+        }),
         #("exit_code", json.int(error.exit_code)),
       ]),
     ),
@@ -396,7 +392,10 @@ pub fn file_not_found(path path: String) -> UnifiedError {
 }
 
 /// Create a file permission denied error
-pub fn file_permission_denied(path path: String, operation operation: String) -> UnifiedError {
+pub fn file_permission_denied(
+  path path: String,
+  operation operation: String,
+) -> UnifiedError {
   unified_error(
     code: FilePermissionDenied,
     message: "Permission denied: cannot " <> operation <> " " <> path,
@@ -465,7 +464,10 @@ pub fn session_not_found(session_id session_id: String) -> UnifiedError {
 }
 
 /// Create a conflicting flags error
-pub fn conflicting_flags(flag1 flag1: String, flag2 flag2: String) -> UnifiedError {
+pub fn conflicting_flags(
+  flag1 flag1: String,
+  flag2 flag2: String,
+) -> UnifiedError {
   unified_error(
     code: ConflictingFlags,
     message: "Conflicting flags: --" <> flag1 <> " and --" <> flag2,
