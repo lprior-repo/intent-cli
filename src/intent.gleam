@@ -45,6 +45,7 @@ import intent/question_types.{type Question}
 import intent/ready_commands
 import intent/spec_aggregator
 import intent/spec_builder
+import intent/spec_commands
 import intent/spec_linter
 import intent/types
 import intent/vision_commands
@@ -200,6 +201,18 @@ pub fn main() {
       at: ["vision", "agree"],
       do: vision_commands.vision_agree_command(),
     )
+    // Spec phase commands
+    |> glint.add(at: ["spec", "start"], do: spec_commands.spec_start_command())
+    |> glint.add(at: ["spec", "check"], do: spec_commands.spec_check_command())
+    |> glint.add(
+      at: ["spec", "critique"],
+      do: spec_commands.spec_critique_command(),
+    )
+    |> glint.add(
+      at: ["spec", "respond"],
+      do: spec_commands.spec_respond_command(),
+    )
+    |> glint.add(at: ["spec", "agree"], do: spec_commands.spec_agree_command())
     // Shape phase commands
     |> glint.add(at: ["shape", "start"], do: shape_start_command())
     |> glint.add(at: ["shape", "check"], do: shape_check_command())
