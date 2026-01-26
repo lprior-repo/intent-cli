@@ -3,11 +3,16 @@
 
 import gleam/dict
 import gleam/json
+import gleam/option.{None, Some}
+import intent/planning_types.{
+  type Plan, FeatureShape, KIRKHealth, MVPSlice, Plan, ShapeSection, SpecSection,
+}
 import intent/types.{
   type Behavior, type Config, type Feature, type Request, type Spec, AIHints,
   Behavior, Config, Feature, ImplementationHints, Request, Response,
   SecurityHints, Spec,
 }
+import intent/vision_types.{Scenario, VisionSection}
 
 // ============================================================================
 // Behavior Factories
@@ -188,4 +193,120 @@ pub fn make_test_request(path: String) -> Request {
     query: dict.new(),
     body: json.null(),
   )
+}
+
+// ============================================================================
+// Plan Factories (for Plan schema testing)
+// ============================================================================
+
+/// Create a complete, well-formed plan with no inversions
+pub fn make_complete_plan() -> Plan {
+  let vision =
+    VisionSection(
+      press_release: "Revolutionary meal planning app that saves time and reduces food waste",
+      persona: "Busy professionals aged 25-45 with families",
+      non_personas: ["Students", "Single diners", "Meal prep services"],
+      north_star: "User plans weekly meals in under 5 minutes with zero food waste",
+      scenarios: [
+        Scenario(
+          character: "Sarah",
+          persona: "Working parent",
+          motivation: "Save time and reduce waste",
+          simulation: "Plans week in 3 minutes using smart suggestions",
+          outcome: "Zero food waste, saved $50/week",
+        ),
+      ],
+      replaces: Some("Manual meal planning and shopping lists"),
+      vorp: "Automated suggestions save 30 minutes/week vs manual planning",
+      out_of_scope: ["Recipe creation", "Grocery delivery", "Calorie tracking"],
+    )
+
+  let shape =
+    ShapeSection(
+      features: [
+        FeatureShape(
+          name: "Meal Planning",
+          description: "Quick weekly meal planning interface",
+        ),
+        FeatureShape(
+          name: "Shopping Lists",
+          description: "Auto-generated shopping lists",
+        ),
+      ],
+      critical_path: ["Meal Planning", "Shopping Lists"],
+      mvp_slice: MVPSlice(
+        description: "Basic meal planning with manual recipe selection",
+        features: ["Meal Planning", "Shopping Lists"],
+        shortcuts: [
+          "Hardcode 50 recipes",
+          "Skip personalization",
+          "Manual shopping list editing",
+        ],
+      ),
+      post_mvp: ["Recipe suggestions", "Dietary preferences", "Budget tracking"],
+      validation_moment: "User successfully plans a week of meals and generates shopping list",
+    )
+
+  Plan(
+    id: "test-plan-001",
+    created_at: "2026-01-25T16:00:00Z",
+    updated_at: "2026-01-25T16:00:00Z",
+    vision: vision,
+    shape: shape,
+    spec: None,
+    ready: None,
+  )
+}
+
+/// Create a plan with empty persona (should trigger inversion)
+pub fn make_plan_with_empty_persona() -> Plan {
+  let plan = make_complete_plan()
+  let vision = VisionSection(..plan.vision, persona: "")
+  Plan(..plan, vision: vision)
+}
+
+/// Create a plan with empty scenarios (should trigger inversion)
+pub fn make_plan_with_empty_scenarios() -> Plan {
+  let plan = make_complete_plan()
+  let vision = VisionSection(..plan.vision, scenarios: [])
+  Plan(..plan, vision: vision)
+}
+
+/// Create a plan with no shortcuts in MVP (should trigger inversion)
+pub fn make_plan_with_no_shortcuts() -> Plan {
+  let plan = make_complete_plan()
+  let mvp = MVPSlice(..plan.shape.mvp_slice, shortcuts: [])
+  let shape = ShapeSection(..plan.shape, mvp_slice: mvp)
+  Plan(..plan, shape: shape)
+}
+
+/// Create a plan with overly long critical path (should trigger inversion)
+pub fn make_plan_with_long_critical_path() -> Plan {
+  let plan = make_complete_plan()
+  let shape =
+    ShapeSection(..plan.shape, critical_path: [
+      "F1",
+      "F2",
+      "F3",
+      "F4",
+      "F5",
+      "F6",
+      "F7",
+    ])
+  Plan(..plan, shape: shape)
+}
+
+/// Create a plan with misaligned vision and shape (should trigger inversion)
+pub fn make_plan_with_misaligned_vision_shape() -> Plan {
+  let plan = make_complete_plan()
+  // Shape features don't appear in scenarios or critical path doesn't match MVP
+  let shape =
+    ShapeSection(
+      ..plan.shape,
+      critical_path: ["Unrelated Feature"],
+      mvp_slice: MVPSlice(..plan.shape.mvp_slice, features: [
+        "Different Feature",
+      ]),
+    )
+  Plan(..plan, shape: shape)
 }

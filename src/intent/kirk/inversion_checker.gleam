@@ -4,8 +4,11 @@
 
 import gleam/int
 import gleam/list
+import gleam/option
 import gleam/string
+import intent/planning_types.{type Plan, type ShapeSection}
 import intent/types.{type Behavior, type Method, type Spec, Get, Post}
+import intent/vision_types.{type VisionSection}
 
 // =============================================================================
 // TYPES
@@ -559,4 +562,172 @@ pub fn severity_to_string(s: GapSeverity) -> String {
     High -> "high"
     Critical -> "critical"
   }
+}
+
+// =============================================================================
+// PLAN SCHEMA SUPPORT
+// Analyze Plan documents for strategic/planning inversions
+// =============================================================================
+
+/// Analyze a Plan for strategic inversions (planning failure modes)
+/// Returns a list of inversion strings suitable for KIRKHealth.inversions
+pub fn analyze_plan_inversions(plan: Plan) -> List(String) {
+  let vision_inversions = check_vision_inversions(plan.vision)
+  let shape_inversions = check_shape_inversions(plan.shape)
+  let meta_inversions = check_meta_inversions(plan.vision, plan.shape)
+
+  list.concat([vision_inversions, shape_inversions, meta_inversions])
+}
+
+/// Check vision section for strategic inversions
+fn check_vision_inversions(vision: VisionSection) -> List(String) {
+  [
+    // Check persona
+    case string.is_empty(string.trim(vision.persona)) {
+      True -> ["No clear target user defined"]
+      False -> []
+    },
+    // Check VORP
+    case string.is_empty(string.trim(vision.vorp)) {
+      True -> ["Value over replacement not compelling"]
+      False -> []
+    },
+    // Check scenarios
+    case list.is_empty(vision.scenarios) {
+      True -> ["No concrete use cases to validate against"]
+      False -> []
+    },
+    // Check out_of_scope
+    case list.is_empty(vision.out_of_scope) {
+      True -> ["Scope creep risk: no explicit boundaries"]
+      False -> []
+    },
+    // Check non_personas
+    case list.is_empty(vision.non_personas) {
+      True -> ["Risk of building for wrong audience"]
+      False -> []
+    },
+    // Check replaces
+    case vision.replaces {
+      option.None -> ["No replacement strategy defined"]
+      option.Some(r) ->
+        case string.is_empty(string.trim(r)) {
+          True -> ["No replacement strategy defined"]
+          False -> []
+        }
+    },
+    // Check north_star
+    case string.length(string.trim(vision.north_star)) < 20 {
+      True -> ["North star not actionable or measurable"]
+      False -> []
+    },
+  ]
+  |> list.flatten()
+}
+
+/// Check shape section for MVP scoping inversions
+fn check_shape_inversions(shape: ShapeSection) -> List(String) {
+  [
+    // Check features
+    case list.is_empty(shape.features) {
+      True -> ["No features defined in MVP"]
+      False -> []
+    },
+    // Check critical_path
+    case list.is_empty(shape.critical_path) {
+      True -> ["Critical path not identified"]
+      False -> []
+    },
+    // Check shortcuts
+    case list.is_empty(shape.mvp_slice.shortcuts) {
+      True -> ["MVP may be over-engineered (no shortcuts defined)"]
+      False -> []
+    },
+    // Check critical path length
+    case list.length(shape.critical_path) > 5 {
+      True -> ["Critical path too long (>5 features)"]
+      False -> []
+    },
+    // Check validation_moment
+    case string.is_empty(string.trim(shape.validation_moment)) {
+      True -> ["Success criteria not measurable"]
+      False -> []
+    },
+    // Check post_mvp
+    case list.is_empty(shape.post_mvp) && !list.is_empty(shape.features) {
+      True -> ["No roadmap beyond MVP"]
+      False -> []
+    },
+  ]
+  |> list.flatten()
+}
+
+/// Check vision/shape alignment for meta inversions
+fn check_meta_inversions(
+  vision: VisionSection,
+  shape: ShapeSection,
+) -> List(String) {
+  [
+    // Check critical path vs MVP slice alignment
+    case
+      !list.is_empty(shape.critical_path)
+      && !list.is_empty(shape.mvp_slice.features)
+    {
+      True -> {
+        let cp_set = shape.critical_path
+        let mvp_set = shape.mvp_slice.features
+        // Check if critical path features are in MVP
+        let all_in_mvp =
+          list.all(cp_set, fn(cp_feat) { list.contains(mvp_set, cp_feat) })
+        case all_in_mvp {
+          False -> ["Critical path and MVP slice misaligned"]
+          True -> []
+        }
+      }
+      False -> []
+    },
+    // Check validation moment mentions MVP features
+    case
+      !list.is_empty(shape.mvp_slice.features)
+      && !string.is_empty(shape.validation_moment)
+    {
+      True -> {
+        let validation_lower = string.lowercase(shape.validation_moment)
+        let features_mentioned =
+          list.any(shape.mvp_slice.features, fn(feat) {
+            string.contains(validation_lower, string.lowercase(feat))
+          })
+        case features_mentioned {
+          False -> ["Validation moment disconnected from MVP"]
+          True -> []
+        }
+      }
+      False -> []
+    },
+    // Check features referenced in scenarios
+    case !list.is_empty(shape.features) && !list.is_empty(vision.scenarios) {
+      True -> {
+        let scenario_text =
+          vision.scenarios
+          |> list.map(fn(s) {
+            string.lowercase(
+              s.motivation <> " " <> s.simulation <> " " <> s.outcome,
+            )
+          })
+          |> string.join(" ")
+
+        let features_validated =
+          list.any(shape.features, fn(feat) {
+            string.contains(scenario_text, string.lowercase(feat.name))
+          })
+
+        case features_validated {
+          False -> ["Features not validated by scenarios"]
+          True -> []
+        }
+      }
+      False -> []
+    },
+  ]
+  |> list.flatten()
 }
