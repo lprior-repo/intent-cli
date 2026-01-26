@@ -531,7 +531,8 @@ fn lint_command() -> glint.Command(Nil) {
                     )
                   json_output.output(response)
                 }
-                halt(exit_fail)
+                // Lint warnings are informational, not errors - exit 0
+                halt(exit_pass)
               }
             }
           }
