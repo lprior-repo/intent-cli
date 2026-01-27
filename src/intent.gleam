@@ -2077,22 +2077,37 @@ fn bead_status_command() -> glint.Command(Nil) {
     // Check for unexpected arguments (common mistake: passing spec file)
     case input.args {
       [arg, ..] -> {
-        io.println_error(
-          "Error: bead-status updates individual bead execution status, not specs",
-        )
-        io.println_error("")
-        io.println_error("Got unexpected argument: " <> arg)
-        io.println_error("")
-        io.println_error("Did you mean:")
-        io.println_error(
-          "  • intent beads <session-id> --json=true  (generate beads from session)",
-        )
-        io.println_error(
-          "  • bd list --status=open                  (view bead statuses)",
-        )
-        io.println_error("")
-        io.println_error("Or to mark a bead complete, use flags not arguments:")
-        io.println_error("  intent bead-status --bead-id <id> --status success")
+        let response =
+          json_output.failure(
+            "bead_status_failed",
+            "bead_status",
+            json.object([
+              #("unexpected_argument", json.string(arg)),
+            ]),
+            [
+              json_output.error(
+                "usage_error",
+                "bead-status updates individual bead execution status, not specs",
+              ),
+            ],
+            None,
+            [
+              json_output.next_action(
+                "intent beads <session-id> --json=true",
+                "Generate beads from session",
+              ),
+              json_output.next_action(
+                "bd list --status=open",
+                "View bead statuses",
+              ),
+              json_output.next_action(
+                "intent bead-status --bead-id <id> --status success",
+                "Mark bead complete using flags",
+              ),
+            ],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
       [] -> {
@@ -2114,9 +2129,30 @@ fn bead_status_command() -> glint.Command(Nil) {
 
         case string.is_empty(bead_id) {
           True -> {
-            io.println_error(
-              "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
-            )
+            let response =
+              json_output.failure(
+                "bead_status_failed",
+                "bead_status",
+                json.object([
+                  #("provided_bead_id", json.string(bead_id)),
+                  #("provided_status", json.string(status)),
+                ]),
+                [
+                  json_output.error(
+                    "missing_bead_id",
+                    "Required flag --bead-id not provided",
+                  ),
+                ],
+                None,
+                [
+                  json_output.next_action(
+                    "intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+                    "Mark bead status with required flags",
+                  ),
+                ],
+                exit_error,
+              )
+            json_output.output(response)
             halt(exit_error)
           }
           False -> {
@@ -2132,14 +2168,63 @@ fn bead_status_command() -> glint.Command(Nil) {
                   )
                 {
                   Ok(Nil) -> {
-                    io.println("✓ Bead " <> bead_id <> " marked as success")
+                    let response =
+                      json_output.success(
+                        "bead_status_updated",
+                        "bead_status",
+                        json.object([
+                          #("bead_id", json.string(bead_id)),
+                          #("status", json.string("success")),
+                          #(
+                            "message",
+                            json.string("Bead " <> bead_id <> " marked as success"),
+                          ),
+                        ]),
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "bd list --status=open",
+                            "View remaining open beads",
+                          ),
+                          json_output.next_action(
+                            "intent beads " <> session_id,
+                            "View all beads for session",
+                          ),
+                        ],
+                      )
+                    json_output.output(response)
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error(
-                      "✗ Failed to mark bead: "
-                      <> bead_feedback_error_to_string(err),
-                    )
+                    let response =
+                      json_output.failure(
+                        "bead_status_failed",
+                        "bead_status",
+                        json.object([
+                          #("bead_id", json.string(bead_id)),
+                          #("status", json.string("success")),
+                          #(
+                            "error",
+                            json.string(bead_feedback_error_to_string(err)),
+                          ),
+                        ]),
+                        [
+                          json_output.error(
+                            "update_failed",
+                            "Failed to mark bead as success: "
+                            <> bead_feedback_error_to_string(err),
+                          ),
+                        ],
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "bd list --session=" <> session_id,
+                            "View bead status for session",
+                          ),
+                        ],
+                        exit_error,
+                      )
+                    json_output.output(response)
                     halt(exit_error)
                   }
                 }
@@ -2157,14 +2242,65 @@ fn bead_status_command() -> glint.Command(Nil) {
                   )
                 {
                   Ok(Nil) -> {
-                    io.println("✓ Bead " <> bead_id <> " marked as failed")
+                    let response =
+                      json_output.success(
+                        "bead_status_updated",
+                        "bead_status",
+                        json.object([
+                          #("bead_id", json.string(bead_id)),
+                          #("status", json.string("failed")),
+                          #("reason", json.string(reason)),
+                          #(
+                            "message",
+                            json.string("Bead " <> bead_id <> " marked as failed"),
+                          ),
+                        ]),
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "intent feedback --results <check-output.json>",
+                            "Generate fix beads from failures",
+                          ),
+                          json_output.next_action(
+                            "bd list --status=failed",
+                            "View all failed beads",
+                          ),
+                        ],
+                      )
+                    json_output.output(response)
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error(
-                      "✗ Failed to mark bead: "
-                      <> bead_feedback_error_to_string(err),
-                    )
+                    let response =
+                      json_output.failure(
+                        "bead_status_failed",
+                        "bead_status",
+                        json.object([
+                          #("bead_id", json.string(bead_id)),
+                          #("status", json.string("failed")),
+                          #("reason", json.string(reason)),
+                          #(
+                            "error",
+                            json.string(bead_feedback_error_to_string(err)),
+                          ),
+                        ]),
+                        [
+                          json_output.error(
+                            "update_failed",
+                            "Failed to mark bead as failed: "
+                            <> bead_feedback_error_to_string(err),
+                          ),
+                        ],
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "bd list --session=" <> session_id,
+                            "View bead status for session",
+                          ),
+                        ],
+                        exit_error,
+                      )
+                    json_output.output(response)
                     halt(exit_error)
                   }
                 }
@@ -2172,9 +2308,33 @@ fn bead_status_command() -> glint.Command(Nil) {
               "blocked" -> {
                 case string.is_empty(reason) {
                   True -> {
-                    io.println_error(
-                      "Error: --status blocked requires --reason",
-                    )
+                    let response =
+                      json_output.failure(
+                        "bead_status_failed",
+                        "bead_status",
+                        json.object([
+                          #("bead_id", json.string(bead_id)),
+                          #("status", json.string("blocked")),
+                          #("reason", json.string(reason)),
+                        ]),
+                        [
+                          json_output.error(
+                            "missing_reason",
+                            "The --status blocked requires --reason",
+                          ),
+                        ],
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "intent bead-status --bead-id "
+                            <> bead_id
+                            <> " --status blocked --reason 'explain why blocked'",
+                            "Provide reason for blocked status",
+                          ),
+                        ],
+                        exit_error,
+                      )
+                    json_output.output(response)
                     halt(exit_error)
                   }
                   False -> {
@@ -2190,19 +2350,63 @@ fn bead_status_command() -> glint.Command(Nil) {
                       )
                     {
                       Ok(Nil) -> {
-                        io.println(
-                          "✓ Bead "
-                          <> bead_id
-                          <> " marked as blocked: "
-                          <> reason,
-                        )
+                        let response =
+                          json_output.success(
+                            "bead_status_updated",
+                            "bead_status",
+                            json.object([
+                              #("bead_id", json.string(bead_id)),
+                              #("status", json.string("blocked")),
+                              #("reason", json.string(reason)),
+                              #(
+                                "message",
+                                json.string(
+                                  "Bead " <> bead_id <> " marked as blocked: " <> reason,
+                                ),
+                              ),
+                            ]),
+                            Some(session_id),
+                            [
+                              json_output.next_action(
+                                "bd list --status=blocked",
+                                "View all blocked beads",
+                              ),
+                            ],
+                          )
+                        json_output.output(response)
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error(
-                          "✗ Failed to mark bead: "
-                          <> bead_feedback_error_to_string(err),
-                        )
+                        let response =
+                          json_output.failure(
+                            "bead_status_failed",
+                            "bead_status",
+                            json.object([
+                              #("bead_id", json.string(bead_id)),
+                              #("status", json.string("blocked")),
+                              #("reason", json.string(reason)),
+                              #(
+                                "error",
+                                json.string(bead_feedback_error_to_string(err)),
+                              ),
+                            ]),
+                            [
+                              json_output.error(
+                                "update_failed",
+                                "Failed to mark bead as blocked: "
+                                <> bead_feedback_error_to_string(err),
+                              ),
+                            ],
+                            Some(session_id),
+                            [
+                              json_output.next_action(
+                                "bd list --session=" <> session_id,
+                                "View bead status for session",
+                              ),
+                            ],
+                            exit_error,
+                          )
+                        json_output.output(response)
                         halt(exit_error)
                       }
                     }
@@ -2210,8 +2414,32 @@ fn bead_status_command() -> glint.Command(Nil) {
                 }
               }
               _ -> {
-                io.println_error("Error: invalid status '" <> status <> "'")
-                io.println_error("Valid statuses: success, failed, blocked")
+                let response =
+                  json_output.failure(
+                    "bead_status_failed",
+                    "bead_status",
+                    json.object([
+                      #("bead_id", json.string(bead_id)),
+                      #("invalid_status", json.string(status)),
+                    ]),
+                    [
+                      json_output.error(
+                        "invalid_status",
+                        "Invalid status '" <> status <> "'. Valid statuses: success, failed, blocked",
+                      ),
+                    ],
+                    Some(session_id),
+                    [
+                      json_output.next_action(
+                        "intent bead-status --bead-id "
+                        <> bead_id
+                        <> " --status success|failed|blocked",
+                        "Use a valid status value",
+                      ),
+                    ],
+                    exit_error,
+                  )
+                json_output.output(response)
                 halt(exit_error)
               }
             }
@@ -2361,62 +2589,104 @@ fn plan_approve_command() -> glint.Command(Nil) {
         // First verify the session exists and has a valid plan
         case compute_plan_with_session(session_id) {
           Error(err) -> {
-            io.println_error(plan_mode.format_error(err))
+            let response =
+              json_output.failure(
+                "plan_approve_failed",
+                "plan_approve",
+                json.object([#("session_id", json.string(session_id))]),
+                [json_output.error("plan_error", plan_mode.format_error(err))],
+                Some(session_id),
+                [
+                  json_output.next_action(
+                    "intent plan " <> session_id,
+                    "Generate plan for session",
+                  ),
+                  json_output.next_action(
+                    "intent sessions",
+                    "List available sessions",
+                  ),
+                ],
+                exit_error,
+              )
+            json_output.output(response)
             halt(exit_error)
           }
           Ok(plan) -> {
-            // Show plan summary
-            io.println("")
-            io.println(
-              "═══════════════════════════════════════════════════════════════════",
-            )
-            io.println("                    PLAN APPROVAL")
-            io.println(
-              "═══════════════════════════════════════════════════════════════════",
-            )
-            io.println("")
-            io.println("Session: " <> plan.session_id)
-            io.println("Total Beads: " <> string.inspect(plan.total_beads))
-            io.println("Total Effort: " <> plan.total_effort)
-            io.println("Risk Level: " <> risk_level_to_string(plan.risk))
-            io.println("Phases: " <> string.inspect(list.length(plan.phases)))
-            io.println("")
-
-            case list.is_empty(plan.blockers) {
-              True -> Nil
-              False -> {
-                io.println("⚠ BLOCKERS:")
-                list.each(plan.blockers, fn(b) { io.println("  • " <> b) })
-                io.println("")
-              }
-            }
-
             // Auto-approve or prompt
             case auto_approve {
               True -> {
                 case approve_plan(session_id, "ci", notes) {
                   Ok(Nil) -> {
-                    io.println("✓ Plan approved automatically (CI mode)")
+                    let response =
+                      json_output.success(
+                        "plan_approved",
+                        "plan_approve",
+                        json.object([
+                          #("session_id", json.string(session_id)),
+                          #("total_beads", json.int(plan.total_beads)),
+                          #("total_effort", json.string(plan.total_effort)),
+                          #("risk_level", json.string(risk_level_to_string(plan.risk))),
+                          #("phases", json.int(list.length(plan.phases))),
+                          #("approved_by", json.string("ci")),
+                        ]),
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "bd list --status open",
+                            "Show work items to execute",
+                          ),
+                          json_output.next_action(
+                            "intent check <spec>",
+                            "Begin execution",
+                          ),
+                        ],
+                      )
+                    json_output.output(response)
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error("✗ Failed to approve plan: " <> err)
+                    let response =
+                      json_output.failure(
+                        "plan_approve_failed",
+                        "plan_approve",
+                        json.object([#("session_id", json.string(session_id))]),
+                        [json_output.error("approval_error", err)],
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "intent plan " <> session_id,
+                            "Review plan again",
+                          ),
+                        ],
+                        exit_error,
+                      )
+                    json_output.output(response)
                     halt(exit_error)
                   }
                 }
               }
               False -> {
                 // Interactive mode removed - AI-only mode requires --yes flag
-                io.println_error("Error: Interactive approval not available.")
-                io.println_error("")
-                io.println_error(
-                  "Intent CLI is AI-only. Use --yes flag to approve:",
-                )
-                io.println_error("")
-                io.println_error("  intent plan-approve <session_id> --yes")
-                io.println_error(
-                  "  intent plan-approve <session_id> --yes --notes='...'",
-                )
+                let response =
+                  json_output.failure(
+                    "plan_approve_failed",
+                    "plan_approve",
+                    json.null(),
+                    [json_output.error("interactive_not_available", "Interactive approval not available in AI-only mode")],
+                    None,
+                    [
+                      json_output.next_action(
+                        "intent plan-approve " <> session_id <> " --yes",
+                        "Approve plan for CI execution",
+                      ),
+                      json_output.next_action(
+                        "intent plan-approve " <> session_id <> " --yes --notes='...'",
+                        "Approve with notes",
+                      ),
+                    ],
+                    exit_error,
+                  )
+                json_output.output(response)
                 halt(exit_error)
               }
             }
@@ -2424,25 +2694,30 @@ fn plan_approve_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error(
-          "Usage: intent plan-approve <session_id> [--yes] [--notes 'text']",
-        )
-        io.println_error("")
-        io.println_error("Approve execution plan for a session.")
-        io.println_error("")
-        io.println_error("Flags:")
-        io.println_error(
-          "  --yes      Auto-approve for CI pipelines (non-interactive)",
-        )
-        io.println_error("  --notes    Optional approval notes")
-        io.println_error("")
-        io.println_error("Examples:")
-        io.println_error(
-          "  intent plan-approve abc123           # Interactive approval",
-        )
-        io.println_error(
-          "  intent plan-approve abc123 --yes     # CI auto-approval",
-        )
+        let response =
+          json_output.failure(
+            "plan_approve_failed",
+            "plan_approve",
+            json.null(),
+            [json_output.error("usage_error", "session ID required")],
+            None,
+            [
+              json_output.next_action(
+                "intent plan-approve <session_id> --yes",
+                "Approve execution plan for session",
+              ),
+              json_output.next_action(
+                "intent plan <session_id>",
+                "Generate plan first",
+              ),
+              json_output.next_action(
+                "intent sessions",
+                "List available sessions",
+              ),
+            ],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
@@ -2528,18 +2803,59 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         // Check session exists
         case simplifile.verify_is_file(session_path) {
           Error(_) -> {
-            io.println_error("Session not found: " <> session_id)
-            io.println_error("Expected file: " <> session_path)
-            halt(exit_error)
+            let response =
+              json_output.failure(
+                "beads_regenerate_failed",
+                "beads_regenerate",
+                json.object([
+                  #("session_id", json.string(session_id)),
+                  #("expected_path", json.string(session_path)),
+                ]),
+                [json_output.error("session_not_found", "Session not found: " <> session_id)],
+                Some(session_id),
+                [
+                  json_output.next_action(
+                    "intent sessions",
+                    "List available session IDs",
+                  ),
+                ],
+                exit_invalid,
+              )
+            json_output.output(response)
+            halt(exit_invalid)
           }
           Ok(_) -> {
             // Load feedback
             case bead_feedback.load_feedback_for_session(session_id) {
               Error(err) -> {
-                io.println_error(
-                  "Failed to load feedback: "
-                  <> bead_feedback_error_to_string(err),
-                )
+                let response =
+                  json_output.failure(
+                    "beads_regenerate_failed",
+                    "beads_regenerate",
+                    json.object([
+                      #("session_id", json.string(session_id)),
+                      #(
+                        "error",
+                        json.string(bead_feedback_error_to_string(err)),
+                      ),
+                    ]),
+                    [
+                      json_output.error(
+                        "feedback_load_error",
+                        "Failed to load feedback: "
+                        <> bead_feedback_error_to_string(err),
+                      ),
+                    ],
+                    Some(session_id),
+                    [
+                      json_output.next_action(
+                        "intent bead-status --bead-id <id> --status failed",
+                        "Mark a bead as failed first",
+                      ),
+                    ],
+                    exit_error,
+                  )
+                json_output.output(response)
                 halt(exit_error)
               }
               Ok(feedback) -> {
@@ -2554,53 +2870,39 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                     }
                   })
 
-                io.println("")
-                io.println(
-                  "═══════════════════════════════════════════════════════════════════",
-                )
-                io.println("                    BEAD REGENERATION")
-                io.println(
-                  "═══════════════════════════════════════════════════════════════════",
-                )
-                io.println("")
-                io.println("Session: " <> session_id)
-                io.println("Strategy: " <> strategy)
-                io.println(
-                  "Feedback entries: " <> string.inspect(list.length(feedback)),
-                )
-                io.println(
-                  "Beads needing regeneration: "
-                  <> string.inspect(list.length(needs_regen)),
-                )
-                io.println("")
-
                 case list.is_empty(needs_regen) {
                   True -> {
-                    io.println(
-                      "✓ No beads need regeneration - all passed or skipped",
-                    )
+                    let response =
+                      json_output.success(
+                        "beads_regenerate_skipped",
+                        "beads_regenerate",
+                        json.object([
+                          #("session_id", json.string(session_id)),
+                          #("strategy", json.string(strategy)),
+                          #(
+                            "message",
+                            json.string(
+                              "No beads need regeneration - all passed or skipped",
+                            ),
+                          ),
+                          #("feedback_count", json.int(list.length(feedback))),
+                        ]),
+                        Some(session_id),
+                        [
+                          json_output.next_action(
+                            "intent beads " <> session_id,
+                            "Generate new beads from session",
+                          ),
+                          json_output.next_action(
+                            "intent plan " <> session_id,
+                            "Create execution plan from session",
+                          ),
+                        ],
+                      )
+                    json_output.output(response)
                     halt(exit_pass)
                   }
                   False -> {
-                    // Display beads that need regeneration
-                    io.println("Beads to regenerate:")
-                    list.each(needs_regen, fn(fb) {
-                      let status_icon = case fb.result {
-                        bead_feedback.Failed -> "✗"
-                        bead_feedback.Blocked -> "⊘"
-                        _ -> "?"
-                      }
-                      io.println(
-                        "  "
-                        <> status_icon
-                        <> " "
-                        <> fb.bead_id
-                        <> ": "
-                        <> fb.reason,
-                      )
-                    })
-                    io.println("")
-
                     // Generate regeneration entries
                     let regen_entries =
                       generate_regeneration_entries(needs_regen, strategy)
@@ -2613,28 +2915,77 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                       )
                     {
                       Ok(Nil) -> {
-                        io.println("✓ Regeneration metadata added to session")
-                        io.println("  Strategy: " <> strategy)
-                        io.println(
-                          "  Beads marked for regeneration: "
-                          <> string.inspect(list.length(needs_regen)),
-                        )
-                        io.println("")
-                        io.println("Next steps:")
-                        io.println(
-                          "  1. Review regeneration suggestions in "
-                          <> session_path,
-                        )
-                        io.println(
-                          "  2. Run 'intent plan "
-                          <> session_id
-                          <> "' to see updated plan",
-                        )
-                        io.println("  3. Execute regenerated beads")
+                        // Build beads data for output
+                        let beads_json =
+                          json.array(
+                            needs_regen,
+                            fn(fb) {
+                              json.object([
+                                #("bead_id", json.string(fb.bead_id)),
+                                #("status", json.string(case fb.result {
+                                  bead_feedback.Failed -> "failed"
+                                  bead_feedback.Blocked -> "blocked"
+                                  _ -> "unknown"
+                                })),
+                                #("reason", json.string(fb.reason)),
+                              ])
+                            },
+                          )
+
+                        let response =
+                          json_output.success(
+                            "beads_regenerated",
+                            "beads_regenerate",
+                            json.object([
+                              #("session_id", json.string(session_id)),
+                              #("strategy", json.string(strategy)),
+                              #(
+                                "regenerated_count",
+                                json.int(list.length(needs_regen)),
+                              ),
+                              #("session_path", json.string(session_path)),
+                              #("beads", beads_json),
+                            ]),
+                            Some(session_id),
+                            [
+                              json_output.next_action(
+                                "intent plan " <> session_id,
+                                "See updated plan with regenerated beads",
+                              ),
+                              json_output.next_action(
+                                "bd list --session-id " <> session_id,
+                                "Show work items for this session",
+                              ),
+                            ],
+                          )
+                        json_output.output(response)
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error("✗ Failed to update session: " <> err)
+                        let response =
+                          json_output.failure(
+                            "beads_regenerate_failed",
+                            "beads_regenerate",
+                            json.object([
+                              #("session_id", json.string(session_id)),
+                              #("error", json.string(err)),
+                            ]),
+                            [
+                              json_output.error(
+                                "session_update_error",
+                                "Failed to update session: " <> err,
+                              ),
+                            ],
+                            Some(session_id),
+                            [
+                              json_output.next_action(
+                                "intent beads-regenerate " <> session_id,
+                                "Retry bead regeneration",
+                              ),
+                            ],
+                            exit_error,
+                          )
+                        json_output.output(response)
                         halt(exit_error)
                       }
                     }
@@ -2646,25 +2997,41 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error(
-          "Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
-        )
-        io.println_error("")
-        io.println_error(
-          "Regenerate failed/blocked beads with adjusted approach.",
-        )
-        io.println_error("")
-        io.println_error("Strategies:")
-        io.println_error("  hybrid     - Use all analysis methods (default)")
-        io.println_error("  inversion  - Focus on failure mode analysis")
-        io.println_error("  premortem  - Focus on what could go wrong")
-        io.println_error("")
-        io.println_error("Examples:")
-        io.println_error("  intent beads-regenerate abc123")
-        io.println_error(
-          "  intent beads-regenerate abc123 --strategy inversion",
-        )
-        halt(exit_error)
+        let response =
+          json_output.failure(
+            "beads_regenerate_failed",
+            "beads_regenerate",
+            json.object([
+              #(
+                "usage",
+                json.string(
+                  "intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
+                ),
+              ),
+              #("description", json.string("Regenerate failed/blocked beads with adjusted approach")),
+              #("strategies", json.object([
+                #("hybrid", json.string("Use all analysis methods (default)")),
+                #("inversion", json.string("Focus on failure mode analysis")),
+                #("premortem", json.string("Focus on what could go wrong")),
+              ])),
+            ]),
+            [
+              json_output.error(
+                "usage_error",
+                "Session ID is required. Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
+              ),
+            ],
+            None,
+            [
+              json_output.next_action(
+                "intent sessions",
+                "List available session IDs",
+              ),
+            ],
+            exit_invalid,
+          )
+        json_output.output(response)
+        halt(exit_invalid)
       }
     }
   })
@@ -3022,32 +3389,74 @@ fn history_command() -> glint.Command(Nil) {
       [session_id, ..] -> {
         case interview_storage.list_session_history(history_path, session_id) {
           Error(err) -> {
-            // Handle missing history file gracefully
+            // Handle missing history file gracefully with JSON
             case string.contains(err, "Enoent") {
               True -> {
-                io.println("No history snapshots exist yet")
-                io.println("")
-                io.println(
-                  "Session history is created when you use the --snapshot flag",
-                )
-                io.println("during an interview to save progress points.")
-                io.println("")
-                io.println("Example: intent interview myprofile --snapshot")
+                let response =
+                  json_output.failure(
+                    "history_not_found",
+                    "history",
+                    json.object([#("session_id", json.string(session_id))]),
+                    [json_output.error("not_found", "No history snapshots exist yet")],
+                    Some(session_id),
+                    [
+                      json_output.next_action(
+                        "interview --snapshot",
+                        "Create a new interview with snapshot history",
+                      ),
+                      json_output.next_action(
+                        "intent sessions",
+                        "List available sessions",
+                      ),
+                    ],
+                    exit_pass,
+                  )
+                json_output.output(response)
                 halt(exit_pass)
               }
               False -> {
-                io.println_error(err)
+                let response =
+                  json_output.failure(
+                    "history_error",
+                    "history",
+                    json.object([#("error", json.string(err))]),
+                    [json_output.error("file_error", err)],
+                    Some(session_id),
+                    [
+                      json_output.next_action(
+                        "interview --snapshot",
+                        "Create a new interview with snapshot history",
+                      ),
+                    ],
+                    exit_error,
+                  )
+                json_output.output(response)
                 halt(exit_error)
               }
             }
           }
           Ok([]) -> {
-            io.println("No history found for session: " <> session_id)
-            io.println("")
-            io.println(
-              "Tip: Session history is recorded when you save snapshots",
-            )
-            io.println("during an interview with --snapshot flag.")
+            let response =
+              json_output.success(
+                "history_empty",
+                "history",
+                json.object([
+                  #("session_id", json.string(session_id)),
+                  #("snapshots", json.array([], fn(_) { json.null() })),
+                ]),
+                Some(session_id),
+                [
+                  json_output.next_action(
+                    "interview --snapshot",
+                    "Create a new interview with snapshot history",
+                  ),
+                  json_output.next_action(
+                    "intent sessions",
+                    "List available sessions",
+                  ),
+                ],
+              )
+            json_output.output(response)
             halt(exit_pass)
           }
           Ok(all_snapshots) -> {
@@ -3057,37 +3466,30 @@ fn history_command() -> glint.Command(Nil) {
             let shown_count = list.length(snapshots)
             let was_limited = total_count > shown_count
 
-            io.println("Session History: " <> session_id)
-            io.println("")
-
-            case was_limited {
-              True ->
-                io.println(
-                  "(showing "
-                  <> string.inspect(shown_count)
-                  <> " of "
-                  <> string.inspect(total_count)
-                  <> " snapshots)",
-                )
-              False -> Nil
-            }
-
-            list.each(snapshots, fn(snapshot) {
-              io.println("┌─ " <> snapshot.snapshot_id)
-              io.println("│  Time: " <> snapshot.timestamp)
-              io.println("│  Stage: " <> snapshot.stage)
-              io.println("│  Description: " <> snapshot.description)
-              io.println(
-                "│  Answers: " <> string.inspect(dict.size(snapshot.answers)),
-              )
-              io.println("│  Gaps: " <> string.inspect(snapshot.gaps_count))
-              io.println(
-                "│  Conflicts: " <> string.inspect(snapshot.conflicts_count),
-              )
-              io.println("└─")
-              io.println("")
-            })
-
+            let data =
+              json.object([
+                #("session_id", json.string(session_id)),
+                #(
+                  "snapshots",
+                  json.array(snapshots, interview_storage.snapshot_to_json),
+                ),
+                #("total", json.int(total_count)),
+                #("shown", json.int(shown_count)),
+                #("truncated", json.bool(was_limited)),
+              ])
+            let next_actions = [
+              json_output.next_action(
+                "interview --resume=" <> session_id <> " --snapshot",
+                "Resume session with snapshot enabled",
+              ),
+              json_output.next_action(
+                "intent sessions",
+                "List all sessions",
+              ),
+            ]
+            let response =
+              json_output.success("history_result", "history", data, Some(session_id), next_actions)
+            json_output.output(response)
             halt(exit_pass)
           }
         }
@@ -3386,17 +3788,43 @@ fn sessions_command() -> glint.Command(Nil) {
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(_) -> {
         // File doesn't exist yet - treat as empty
-        io.println("No interview sessions found")
-        io.println("")
-        io.println("Start a new interview with:")
-        io.println("  intent interview --profile api")
+        let response =
+          json_output.success(
+            "sessions_empty",
+            "sessions",
+            json.object([
+              #("sessions", json.array([], fn(_) { json.null() })),
+              #("total", json.int(0)),
+            ]),
+            None,
+            [
+              json_output.next_action(
+                "interview --profile api",
+                "Start a new interview",
+              ),
+            ],
+          )
+        json_output.output(response)
         halt(exit_pass)
       }
       Ok([]) -> {
-        io.println("No interview sessions found")
-        io.println("")
-        io.println("Start a new interview with:")
-        io.println("  intent interview --profile api")
+        let response =
+          json_output.success(
+            "sessions_empty",
+            "sessions",
+            json.object([
+              #("sessions", json.array([], fn(_) { json.null() })),
+              #("total", json.int(0)),
+            ]),
+            None,
+            [
+              json_output.next_action(
+                "interview --profile api",
+                "Start a new interview",
+              ),
+            ],
+          )
+        json_output.output(response)
         halt(exit_pass)
       }
       Ok(sessions) -> {
@@ -3427,45 +3855,35 @@ fn sessions_command() -> glint.Command(Nil) {
         let shown_count = list.length(limited)
         let was_limited = total_count > shown_count
 
-        {
-          let data =
-            json.object([
-              #(
-                "sessions",
-                json.array(limited, interview_storage.session_to_json),
-              ),
-              #("total", json.int(total_count)),
-              #("shown", json.int(shown_count)),
-              #("truncated", json.bool(was_limited)),
-            ])
-          let next_actions = [
-            json_output.next_action(
-              "intent interview --resume <id>",
-              "Resume an incomplete session",
-            ),
-            json_output.next_action(
-              "intent beads <session_id>",
-              "Generate work items from session",
-            ),
-          ]
-          let response =
-            json_output.success(
-              "sessions_result",
+        let data =
+          json.object([
+            #(
               "sessions",
-              data,
-              None,
-              next_actions,
-            )
-          json_output.output(response)
-        }
-        io.println(
-          "(showing "
-          <> string.inspect(shown_count)
-          <> " of "
-          <> string.inspect(total_count)
-          <> " sessions)",
-        )
-
+              json.array(limited, interview_storage.session_to_json),
+            ),
+            #("total", json.int(total_count)),
+            #("shown", json.int(shown_count)),
+            #("truncated", json.bool(was_limited)),
+          ])
+        let next_actions = [
+          json_output.next_action(
+            "interview --resume <id>",
+            "Resume an incomplete session",
+          ),
+          json_output.next_action(
+            "intent beads <session_id>",
+            "Generate work items from session",
+          ),
+        ]
+        let response =
+          json_output.success(
+            "sessions_result",
+            "sessions",
+            data,
+            None,
+            next_actions,
+          )
+        json_output.output(response)
         halt(exit_pass)
       }
     }

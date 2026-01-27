@@ -286,6 +286,17 @@ pub fn vision_start_command() -> glint.Command(Nil) {
             "Spec file not found or invalid: invalid.cue",
           )
 
+        let next_actions = [
+          json_output.next_action(
+            "intent vision start <valid-spec.cue>",
+            "Start vision session with a valid spec file",
+          ),
+          json_output.next_action(
+            "intent validate <spec.cue>",
+            "Validate spec file syntax before starting vision",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "vision_start_error",
@@ -293,7 +304,7 @@ pub fn vision_start_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             spec_path,
-            [],
+            next_actions,
             exit_error,
           )
 
@@ -342,6 +353,21 @@ pub fn vision_start_command() -> glint.Command(Nil) {
             "Invalid profile. Valid values: api, cli, event, data, workflow, ui",
           )
 
+        let next_actions = [
+          json_output.next_action(
+            "intent vision start --profile=api <spec.cue>",
+            "Start vision session with API profile (REST/GraphQL APIs)",
+          ),
+          json_output.next_action(
+            "intent vision start --profile=cli <spec.cue>",
+            "Start vision session with CLI profile (command-line tools)",
+          ),
+          json_output.next_action(
+            "intent vision start --profile=event <spec.cue>",
+            "Start vision session with event profile (event-driven systems)",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "vision_start_error",
@@ -349,7 +375,7 @@ pub fn vision_start_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             exit_error,
           )
 
@@ -451,6 +477,17 @@ pub fn vision_check_command() -> glint.Command(Nil) {
                 "Session not found: " <> session_id,
               )
 
+            let next_actions = [
+              json_output.next_action(
+                "intent sessions --profile=api",
+                "List available sessions",
+              ),
+              json_output.next_action(
+                "intent vision start <spec.cue> --profile=api",
+                "Start new vision session",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "vision_check_error",
@@ -458,7 +495,7 @@ pub fn vision_check_command() -> glint.Command(Nil) {
                 json.object([]),
                 [error],
                 None,
-                [],
+                next_actions,
                 exit_error,
               )
 
@@ -531,6 +568,21 @@ pub fn vision_critique_command() -> glint.Command(Nil) {
             "session and vision file are required",
           )
 
+        let next_actions = [
+          json_output.next_action(
+            "intent vision critique --session=<id> --vision=<file.cue>",
+            "Run critique with both session and vision file",
+          ),
+          json_output.next_action(
+            "intent vision start --profile=api <spec.cue>",
+            "Start a new vision session",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "vision_critique_error",
@@ -538,7 +590,7 @@ pub fn vision_critique_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             exit_error,
           )
 
@@ -636,6 +688,21 @@ pub fn vision_respond_command() -> glint.Command(Nil) {
             "session, issue, and response are required",
           )
 
+        let next_actions = [
+          json_output.next_action(
+            "intent vision respond --session=<id> --issue=<issue_id> --response='your response text'",
+            "Provide all required fields to submit a response",
+          ),
+          json_output.next_action(
+            "intent vision critique --session=<id>",
+            "First generate critique issues if needed",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions to find session ID",
+          ),
+        ]
+
         let resp =
           json_output.failure(
             "vision_respond_error",
@@ -643,7 +710,7 @@ pub fn vision_respond_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             exit_error,
           )
 
