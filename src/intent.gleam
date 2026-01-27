@@ -47,7 +47,6 @@ import intent/spec_linter
 import intent/types
 import intent/vision_commands
 import intent/watch_output
-import intent/workflow_detector
 import simplifile
 
 /// Exit codes
@@ -1921,7 +1920,7 @@ fn beads_command() -> glint.Command(Nil) {
         case
           interview_storage.get_session_from_jsonl(sessions_jsonl, session_id)
         {
-          Error(err) -> {
+          Error(_) -> {
             let is_spec_file = string.ends_with(session_id, ".cue")
             let error_msg =
               "Session not found: " <> session_id
@@ -4901,13 +4900,24 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 #("count", json.int(list.length(schemas))),
               ])
 
+            let next_actions = [
+              json_output.next_action(
+                "intent validate <spec.cue>",
+                "Validate a spec using these schemas",
+              ),
+              json_output.next_action(
+                "intent ai schema --command=<cmd> --type=input",
+                "Get specific schema for a command",
+              ),
+            ]
+
             let response =
               json_output.success(
                 "schema_list_result",
                 "ai schema",
                 data,
                 None,
-                [],
+                next_actions,
               )
 
             json_output.output(response)
@@ -4920,6 +4930,17 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 "Schema directory not found: schema/ai/",
               )
 
+            let next_actions = [
+              json_output.next_action(
+                "intent help",
+                "Show available commands",
+              ),
+              json_output.next_action(
+                "intent interview --profile=api",
+                "Start a new interview session",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "schema_error",
@@ -4927,7 +4948,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 json.object([]),
                 [error],
                 None,
-                [],
+                next_actions,
                 1,
               )
 
@@ -4938,6 +4959,17 @@ fn ai_schema_command() -> glint.Command(Nil) {
             let error =
               json_output.error("unknown_error", "Failed to read schemas")
 
+            let next_actions = [
+              json_output.next_action(
+                "intent ai schema --list",
+                "List available commands",
+              ),
+              json_output.next_action(
+                "intent help",
+                "Show all available commands",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "schema_error",
@@ -4945,7 +4977,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 json.object([]),
                 [error],
                 None,
-                [],
+                next_actions,
                 1,
               )
 
@@ -4965,13 +4997,24 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 #("count", json.int(list.length(commands))),
               ])
 
+            let next_actions = [
+              json_output.next_action(
+                "intent ai schema --all",
+                "List all available schemas",
+              ),
+              json_output.next_action(
+                "intent ai schema --command=<cmd> --type=input",
+                "Get specific schema for a command",
+              ),
+            ]
+
             let response =
               json_output.success(
                 "schema_commands_result",
                 "ai schema",
                 data,
                 None,
-                [],
+                next_actions,
               )
 
             json_output.output(response)
@@ -4984,6 +5027,17 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 "Failed to list available commands",
               )
 
+            let next_actions = [
+              json_output.next_action(
+                "intent help",
+                "Show available commands",
+              ),
+              json_output.next_action(
+                "intent ai schema --all",
+                "Try listing all schemas",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "schema_error",
@@ -4991,7 +5045,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 json.object([]),
                 [error],
                 None,
-                [],
+                next_actions,
                 1,
               )
 
@@ -5012,8 +5066,19 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 #("content", json.string(content)),
               ])
 
+            let next_actions = [
+              json_output.next_action(
+                "intent validate <spec.cue>",
+                "Validate a spec using this schema",
+              ),
+              json_output.next_action(
+                "intent help " <> cmd,
+                "Get help for " <> cmd <> " command",
+              ),
+            ]
+
             let response =
-              json_output.success("schema_result", "ai schema", data, None, [])
+              json_output.success("schema_result", "ai schema", data, None, next_actions)
 
             json_output.output(response)
             halt(exit_pass)
@@ -5030,6 +5095,17 @@ fn ai_schema_command() -> glint.Command(Nil) {
 
             let data = json.object([#("command", json.string(command))])
 
+            let next_actions = [
+              json_output.next_action(
+                "intent ai schema --all",
+                "List all available schemas",
+              ),
+              json_output.next_action(
+                "intent ai schema --list",
+                "List available command names",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "schema_error",
@@ -5037,7 +5113,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 data,
                 [error],
                 None,
-                [],
+                next_actions,
                 1,
               )
 
@@ -5058,6 +5134,17 @@ fn ai_schema_command() -> glint.Command(Nil) {
 
             let data = json.object([#("schema_type", json.string(schema_type))])
 
+            let next_actions = [
+              json_output.next_action(
+                "intent ai schema --command=" <> cmd <> " --type=input",
+                "Try with input schema type",
+              ),
+              json_output.next_action(
+                "intent ai schema --command=" <> cmd <> " --type=output",
+                "Try with output schema type",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "schema_error",
@@ -5065,7 +5152,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 data,
                 [error],
                 None,
-                [],
+                next_actions,
                 1,
               )
 
@@ -5076,6 +5163,17 @@ fn ai_schema_command() -> glint.Command(Nil) {
             let error =
               json_output.error("unknown_error", "Failed to read schema")
 
+            let next_actions = [
+              json_output.next_action(
+                "intent ai schema --all",
+                "List all available schemas",
+              ),
+              json_output.next_action(
+                "intent ai schema --list",
+                "List available commands",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "schema_error",
@@ -5083,7 +5181,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 json.object([]),
                 [error],
                 None,
-                [],
+                next_actions,
                 1,
               )
 
@@ -5104,6 +5202,21 @@ fn ai_schema_command() -> glint.Command(Nil) {
             "intent ai schema --all",
           )
 
+        let next_actions = [
+          json_output.next_action(
+            "intent ai schema --all",
+            "List all available schemas",
+          ),
+          json_output.next_action(
+            "intent ai schema --list",
+            "List available command names",
+          ),
+          json_output.next_action(
+            "intent help",
+            "Show command help",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "schema_error",
@@ -5111,7 +5224,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             1,
           )
 
@@ -5156,6 +5269,17 @@ fn ai_aggregate_command() -> glint.Command(Nil) {
             "At least one spec file path is required",
           )
 
+        let next_actions = [
+          json_output.next_action(
+            "intent validate <spec.cue>",
+            "Validate a spec file first",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "aggregate_error",
@@ -5163,7 +5287,7 @@ fn ai_aggregate_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             exit_error,
           )
 
@@ -5206,6 +5330,17 @@ fn ai_aggregate_command() -> glint.Command(Nil) {
                 )
               })
 
+            let next_actions = [
+              json_output.next_action(
+                "intent validate <spec.cue>",
+                "Validate individual spec files",
+              ),
+              json_output.next_action(
+                "intent quality <spec.cue>",
+                "Analyze spec quality",
+              ),
+            ]
+
             let response =
               json_output.failure(
                 "aggregate_error",
@@ -5213,7 +5348,7 @@ fn ai_aggregate_command() -> glint.Command(Nil) {
                 json.object([]),
                 error_messages,
                 None,
-                [],
+                next_actions,
                 exit_error,
               )
 
@@ -5224,13 +5359,28 @@ fn ai_aggregate_command() -> glint.Command(Nil) {
             // All specs loaded successfully, perform aggregation
             let report = spec_aggregator.aggregate_specs(list.reverse(specs))
 
+            let next_actions = [
+              json_output.next_action(
+                "intent quality <merged-spec.cue>",
+                "Analyze quality of aggregated insights",
+              ),
+              json_output.next_action(
+                "intent gaps <merged-spec.cue>",
+                "Find coverage gaps",
+              ),
+              json_output.next_action(
+                "intent beads <session-id>",
+                "Generate implementation work items",
+              ),
+            ]
+
             let response =
               json_output.success(
                 "ai_aggregate_result",
                 "ai aggregate",
                 spec_aggregator.to_json(report),
                 None,
-                [],
+                next_actions,
               )
 
             json_output.output(response)
@@ -5263,8 +5413,19 @@ fn shape_start_command() -> glint.Command(Nil) {
         #("created_at", json.string(timestamp)),
       ])
 
+    let next_actions = [
+      json_output.next_action(
+        "intent shape check --session=" <> session_id,
+        "Check session status",
+      ),
+      json_output.next_action(
+        "intent shape critique --session=" <> session_id,
+        "Run critique on shape session",
+      ),
+    ]
+
     let response =
-      json_output.success("shape_start_result", "shape start", data, None, [])
+      json_output.success("shape_start_result", "shape start", data, None, next_actions)
 
     json_output.output(response)
     halt(exit_pass)
@@ -5283,6 +5444,17 @@ fn shape_check_command() -> glint.Command(Nil) {
         let error =
           json_output.error("missing_session_id", "Session ID is required")
 
+        let next_actions = [
+          json_output.next_action(
+            "intent shape start",
+            "Start a new shape session",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "shape_check_error",
@@ -5290,7 +5462,7 @@ fn shape_check_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             1,
           )
 
@@ -5306,13 +5478,20 @@ fn shape_check_command() -> glint.Command(Nil) {
             #("gaps", json.array([], fn(x) { json.string(x) })),
           ])
 
+        let next_actions = [
+          json_output.next_action(
+            "intent shape critique --session=" <> session_id,
+            "Run critique on shape session",
+          ),
+        ]
+
         let response =
           json_output.success(
             "shape_check_result",
             "shape check",
             data,
             None,
-            [],
+            next_actions,
           )
 
         json_output.output(response)
@@ -5338,6 +5517,17 @@ fn shape_critique_command() -> glint.Command(Nil) {
         let error =
           json_output.error("missing_session_id", "Session ID is required")
 
+        let next_actions = [
+          json_output.next_action(
+            "intent shape start",
+            "Start a new shape session",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "shape_critique_error",
@@ -5345,7 +5535,7 @@ fn shape_critique_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             1,
           )
 
@@ -5361,13 +5551,24 @@ fn shape_critique_command() -> glint.Command(Nil) {
             #("issues", json.array([], fn(x) { json.string(x) })),
           ])
 
+        let next_actions = [
+          json_output.next_action(
+            "intent shape respond --session=" <> session_id <> " --question=<qid> --answer='...'",
+            "Respond to critique issues",
+          ),
+          json_output.next_action(
+            "intent shape agree --session=" <> session_id,
+            "Finalize shape if critique passed",
+          ),
+        ]
+
         let response =
           json_output.success(
             "shape_critique_result",
             "shape critique",
             data,
             None,
-            [],
+            next_actions,
           )
 
         json_output.output(response)
@@ -5399,6 +5600,17 @@ fn shape_respond_command() -> glint.Command(Nil) {
             "session, question, and answer are required",
           )
 
+        let next_actions = [
+          json_output.next_action(
+            "intent shape start",
+            "Start a new shape session",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "shape_respond_error",
@@ -5406,7 +5618,7 @@ fn shape_respond_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             1,
           )
 
@@ -5424,13 +5636,20 @@ fn shape_respond_command() -> glint.Command(Nil) {
             #("timestamp", json.string(timestamp)),
           ])
 
+        let next_actions = [
+          json_output.next_action(
+            "intent shape critique --session=" <> session_id,
+            "Re-run critique to check progress",
+          ),
+        ]
+
         let response =
           json_output.success(
             "shape_respond_result",
             "shape respond",
             data,
             None,
-            [],
+            next_actions,
           )
 
         json_output.output(response)
@@ -5458,6 +5677,17 @@ fn shape_agree_command() -> glint.Command(Nil) {
         let error =
           json_output.error("missing_session_id", "Session ID is required")
 
+        let next_actions = [
+          json_output.next_action(
+            "intent shape start",
+            "Start a new shape session",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "shape_agree_error",
@@ -5465,7 +5695,7 @@ fn shape_agree_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             1,
           )
 
@@ -5482,13 +5712,24 @@ fn shape_agree_command() -> glint.Command(Nil) {
             #("finalized_at", json.string(timestamp)),
           ])
 
+        let next_actions = [
+          json_output.next_action(
+            "intent spec start --vision-session=<vision-id> --shape-session=" <> session_id,
+            "Start Spec phase with this shape session",
+          ),
+          json_output.next_action(
+            "intent beads <session-id>",
+            "Generate implementation beads",
+          ),
+        ]
+
         let response =
           json_output.success(
             "shape_agree_result",
             "shape agree",
             data,
             None,
-            [],
+            next_actions,
           )
 
         json_output.output(response)

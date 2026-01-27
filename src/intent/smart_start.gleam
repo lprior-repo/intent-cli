@@ -8,11 +8,9 @@
 //// 4. Only show help on explicit --help flag
 
 import gleam/list
-import gleam/result
-import intent/interview.{type InterviewSession, type InterviewStage, Api}
+import intent/interview.{type InterviewSession, type Profile, Api, Complete}
 import intent/interview_storage.{
-  type FileReader, list_sessions_from_jsonl_with_io, parse_sessions_content,
-  simplifile_reader,
+  type FileReader, list_sessions_from_jsonl_with_io,
 }
 
 /// Action to take when starting intent
@@ -21,7 +19,7 @@ pub type StartAction {
   Resume(session_id: String)
 
   /// Start a new interview with the given profile
-  StartNew(profile: interview.Profile)
+  StartNew(profile: Profile)
 }
 
 /// Determine what action to take when intent starts
@@ -52,7 +50,7 @@ pub fn determine_start_action(
 /// A session is complete if it's in the Complete stage OR has a completed_at timestamp
 pub fn is_session_complete(session: InterviewSession) -> Bool {
   case session.stage {
-    interview.Complete -> True
+    Complete -> True
     _ -> {
       case session.completed_at {
         "" -> False

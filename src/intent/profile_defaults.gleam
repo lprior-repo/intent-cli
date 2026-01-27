@@ -12,7 +12,7 @@
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import intent/interview.{type InterviewSession, type Profile}
+import intent/interview.{type Profile}
 import simplifile
 
 // =============================================================================

@@ -277,9 +277,9 @@ pub fn format_text(status: Status) -> String {
   let with_progress =
     append_progress(with_counts, status.bead_progress, status.progress_percent)
 
-  let with_separator = case list.length(with_progress) > 0 {
-    True -> list.append(with_progress, [""])
-    False -> with_progress
+  let with_separator = case with_progress {
+    [] -> with_progress
+    _ -> list.append(with_progress, [""])
   }
 
   let final_parts = append_next_steps(with_separator, status.next_steps)
@@ -453,14 +453,6 @@ fn append_progress(
       ]
     }
     _, _ -> parts
-  }
-}
-
-/// Append list separator
-fn append_list(parts: List(String), sep: String, val: String) -> List(String) {
-  case list.length(parts) > 0 {
-    True -> list.append(parts, [sep])
-    False -> parts
   }
 }
 

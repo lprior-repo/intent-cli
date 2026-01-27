@@ -22,8 +22,6 @@ const exit_pass = 0
 
 const exit_fail = 1
 
-const exit_blocked = 2
-
 const exit_invalid = 3
 
 const exit_error = 4

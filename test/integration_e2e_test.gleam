@@ -530,8 +530,8 @@ pub fn beads_regenerate_e2e_test() {
   // For this test, we verify the command exists and returns error when called without required argument
   let result = execute_cli("gleam run -- beads-regenerate")
 
-  // Should error (exit 4) when called without required session_id
-  result.exit_code |> should.equal(4)
+  // Should error (exit 3) when called without required session_id (invalid input)
+  result.exit_code |> should.equal(3)
 }
 
 /// Test: history shows command history

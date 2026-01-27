@@ -1,10 +1,9 @@
 //// Smart Profile Defaults Tests
 //// TDD: RED phase - tests will fail until implementation is complete
 
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import intent/interview
 import intent/profile_defaults
-import simplifile
 
 // =============================================================================
 // GIT REMOTE DETECTION TESTS
