@@ -411,6 +411,22 @@ pub fn add_answer(session: InterviewSession, answer: Answer) -> InterviewSession
   )
 }
 
+/// Set the stage of a session (for testing)
+pub fn set_stage(
+  session: InterviewSession,
+  stage: InterviewStage,
+) -> InterviewSession {
+  InterviewSession(..session, stage: stage)
+}
+
+/// Set the completed_at timestamp of a session (for testing)
+pub fn set_completed_at(
+  session: InterviewSession,
+  completed_at: String,
+) -> InterviewSession {
+  InterviewSession(..session, completed_at: completed_at)
+}
+
 // ============================================================================
 // SESSION ORCHESTRATION
 // ============================================================================

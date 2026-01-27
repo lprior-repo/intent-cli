@@ -156,14 +156,22 @@ pub fn with_errors(
   JsonResponse(..response, errors: errors, success: False)
 }
 
-/// Create a simple error
+/// Create a simple error with fix_command based on error code
 pub fn error(code: String, message: String) -> JsonError {
+  let fix_command = case code {
+    "usage_error" -> "intent validate <spec-file>"
+    "validation_error" -> "intent doctor <spec-file> --json"
+    "load_error" -> "intent validate <spec-file>"
+    "missing_session_id" -> "intent sessions [--profile=api|cli]"
+    "parse_error" -> "intent doctor <spec-file> --json"
+    _ -> ""
+  }
   JsonError(
     code: code,
     message: message,
     location: None,
     fix_hint: None,
-    fix_command: None,
+    fix_command: Some(fix_command),
   )
 }
 
@@ -209,7 +217,7 @@ fn errors_to_json(errors: List(JsonError)) -> Json {
 }
 
 /// Convert single error to JSON
-fn error_to_json(err: JsonError) -> Json {
+pub fn error_to_json(err: JsonError) -> Json {
   json.object([
     #("code", json.string(err.code)),
     #("message", json.string(err.message)),

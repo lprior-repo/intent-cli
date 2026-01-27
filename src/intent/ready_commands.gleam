@@ -96,6 +96,17 @@ pub fn ready_check_command() -> glint.Command(Nil) {
         let error =
           json_output.error("missing_session_id", "Session ID is required")
 
+        let next_actions = [
+          json_output.next_action(
+            "intent ready start <spec-path>",
+            "Start a new ready session",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "ready_check_error",
@@ -103,7 +114,7 @@ pub fn ready_check_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             exit_error,
           )
 
@@ -356,6 +367,17 @@ pub fn ready_agree_command() -> glint.Command(Nil) {
         let error =
           json_output.error("missing_session_id", "Session ID is required")
 
+        let next_actions = [
+          json_output.next_action(
+            "intent ready start <spec-path>",
+            "Start a new ready session",
+          ),
+          json_output.next_action(
+            "intent sessions --profile=api",
+            "List available sessions",
+          ),
+        ]
+
         let response =
           json_output.failure(
             "ready_agree_error",
@@ -363,7 +385,7 @@ pub fn ready_agree_command() -> glint.Command(Nil) {
             json.object([]),
             [error],
             None,
-            [],
+            next_actions,
             exit_error,
           )
 

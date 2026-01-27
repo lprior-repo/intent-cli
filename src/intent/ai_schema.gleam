@@ -55,6 +55,20 @@ pub fn get_all_schemas() -> Result(List(SchemaInfo), SchemaError) {
   }
 }
 
+/// List all available command names
+pub fn list_commands() -> Result(List(String), SchemaError) {
+  case get_all_schemas() {
+    Ok(schemas) -> {
+      let commands =
+        schemas
+        |> list.map(fn(schema) { schema.command })
+        |> list.unique
+      Ok(commands)
+    }
+    Error(e) -> Error(e)
+  }
+}
+
 /// Read schemas from a directory
 fn read_schemas_from_directory(
   directory: String,
@@ -75,19 +89,5 @@ fn read_schemas_from_directory(
       |> result.all
     }
     Error(_) -> Ok([])
-  }
-}
-
-/// List all commands that have schemas
-pub fn list_commands() -> Result(List(String), SchemaError) {
-  case get_all_schemas() {
-    Ok(schemas) -> {
-      let commands =
-        schemas
-        |> list.map(fn(schema) { schema.command })
-        |> list.unique
-      Ok(commands)
-    }
-    Error(e) -> Error(e)
   }
 }

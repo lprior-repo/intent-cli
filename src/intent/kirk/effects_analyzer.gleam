@@ -759,6 +759,21 @@ pub fn effects_report_to_action_json(
 ) -> Json {
   let data = effects_report_to_json(report)
 
+  let next_actions = [
+    json_output.next_action(
+      "intent gaps " <> spec_name,
+      "Find coverage and mental model gaps",
+    ),
+    json_output.next_action(
+      "intent invert " <> spec_name <> " --json",
+      "Analyze failure modes",
+    ),
+    json_output.next_action(
+      "intent quality " <> spec_name <> " --json",
+      "Check overall quality score",
+    ),
+  ]
+
   json_output.create_response(
     "effects_report",
     "effects",
@@ -766,6 +781,7 @@ pub fn effects_report_to_action_json(
     Some(spec_name),
     0,
   )
+  |> json_output.with_next_actions(next_actions)
   |> json_output.to_json
 }
 

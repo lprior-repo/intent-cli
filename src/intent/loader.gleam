@@ -303,9 +303,8 @@ fn format_single_decode_error(error: dynamic.DecodeError) -> String {
 pub fn format_error(error: LoadError) -> String {
   case error {
     FileNotFound(path) -> {
-      "File not found: "
-      <> path
-      <> "\n\nHint: Check the file path is correct and the file exists."
+      let guidance = suggest_spec_location_guidance(path)
+      "File not found: " <> path <> "\n\n" <> guidance
     }
     CueValidationFailed(path, exit_code, stderr) -> {
       let hint = suggest_fix_for_cue_error(stderr)
@@ -329,7 +328,10 @@ pub fn format_error(error: LoadError) -> String {
       "JSON decode error:\n" <> format_decode_errors(errors)
     SpecParseFailed(errors) ->
       "Spec parse error:\n" <> format_decode_errors(errors)
-    SecurityError(msg) -> msg
+    SecurityError(msg) -> {
+      let enhanced = enhance_security_error(msg)
+      enhanced
+    }
   }
 }
 
@@ -371,5 +373,38 @@ fn suggest_fix_for_cue_error(stderr: String) -> String {
       <> "  import \"github.com/intent-cli/intent/schema:intent\"\n"
     }
     _ -> ""
+  }
+}
+
+/// Suggest spec location guidance for missing files
+fn suggest_spec_location_guidance(_path: String) -> String {
+  let guidance =
+    "To get started with Intent CLI specs:\n"
+    <> "\n"
+    <> "1. Create a spec interactively:\n"
+    <> "   intent interview\n"
+    <> "\n"
+    <> "2. Or place specs in the examples/ directory:\n"
+    <> "   cp examples/user-api.cue my-api.cue\n"
+    <> "\n"
+    <> "3. Or create in specs/ directory:\n"
+    <> "   mkdir -p specs && cp examples/user-api.cue specs/my-api.cue\n"
+    <> "\n"
+    <> "See examples/ directory for reference specs."
+
+  guidance
+}
+
+/// Enhance security error messages with helpful guidance
+fn enhance_security_error(msg: String) -> String {
+  // Check if this is a "file not accessible" error
+  let is_file_not_accessible =
+    string.contains(msg, "is not accessible or does not exist")
+
+  case is_file_not_accessible {
+    True -> {
+      msg <> "\n\n" <> suggest_spec_location_guidance("")
+    }
+    False -> msg
   }
 }

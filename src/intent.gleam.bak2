@@ -35,11 +35,11 @@ import intent/loader
 import intent/output_mode
 import intent/parser
 import intent/plan_mode
+
 import intent/prompt_generator
 import intent/quality_analyzer
 import intent/question_types.{type Question}
 import intent/ready_commands
-import intent/smart_start
 import intent/spec_aggregator
 import intent/spec_builder
 import intent/spec_commands
@@ -209,58 +209,22 @@ pub fn main() {
 
   // Handle --help flag before glint processing for clean exit code 0
   case raw_args {
-    ["--help", ..] | ["-h", ..] -> {
+    ["--help", ..] | ["-h", ..] | [] -> {
       // Show help and exit cleanly
       let app = build_app()
       let _ = glint.run(app, ["--help=true"])
       exit_pass
     }
-    [] -> {
-      // No args: smart start - detect and resume sessions or start new interview
-      let sessions_path = ".intent/sessions.jsonl"
-      let action =
-        smart_start.determine_start_action(
-          sessions_path,
-          interview_storage.simplifile_reader(),
-        )
-
-      case action {
-        smart_start.Resume(session_id) -> {
-          // Auto-resume the session by running interview command with --resume flag
-          let app = build_app()
-          let _ = glint.run(app, ["interview", "--resume=" <> session_id])
-          exit_pass
-        }
-        smart_start.StartNew(profile) -> {
-          // Start new interview with default profile
-          let profile_str = interview.profile_to_string(profile)
-          let app = build_app()
-          let _ = glint.run(app, ["interview", "--profile=" <> profile_str])
-          exit_pass
-        }
-      }
-    }
     _ -> {
-      // Check if --help or -h appears anywhere in args (e.g., "show --help")
-      // This ensures all commands show help cleanly with exit code 0
-      case list.any(raw_args, fn(arg) { arg == "--help" || arg == "-h" }) {
-        True -> {
-          let normalized_args = normalize_flag_syntax(raw_args)
-          let app = build_app()
-          let _ = glint.run(app, normalized_args)
-          exit_pass
-        }
-        False -> {
-          let normalized_args = normalize_flag_syntax(raw_args)
-          let app = build_app()
-          let _ = glint.run(app, normalized_args)
-          exit_pass
-        }
-      }
+      let normalized_args = normalize_flag_syntax(raw_args)
+      let app = build_app()
+      let _ = glint.run(app, normalized_args)
+      exit_pass
     }
   }
 }
 
+/// Build the glint application with all commands
 fn build_app() {
   glint.new()
   |> glint.with_name("intent")

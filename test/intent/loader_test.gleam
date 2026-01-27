@@ -7,6 +7,7 @@
 //// export_cue_with_executor) require valid file paths due to security validation.
 //// Integration tests for those would need to use real CUE files from examples/.
 
+import gleam/string
 import gleeunit/should
 import intent/loader.{
   CueExportFailed, CueValidationFailed, FileNotFound, JsonDecodeFailed,
@@ -313,18 +314,42 @@ pub fn parse_json_to_spec_empty_string_test() {
 
 pub fn format_error_file_not_found_test() {
   let error = FileNotFound("missing.cue")
-  loader.format_error(error)
-  |> should.equal(
-    "File not found: missing.cue\n\nHint: Check the file path is correct and the file exists.",
-  )
+  let formatted = loader.format_error(error)
+
+  // Should contain file not found message
+  formatted
+  |> string.contains("File not found: missing.cue")
+  |> should.be_true
+
+  // Should contain helpful guidance
+  formatted
+  |> string.contains("intent interview")
+  |> should.be_true
+
+  // Should suggest examples directory
+  formatted
+  |> string.contains("examples/")
+  |> should.be_true
 }
 
 pub fn format_error_file_not_found_with_path_test() {
   let error = FileNotFound("examples/api/spec.cue")
-  loader.format_error(error)
-  |> should.equal(
-    "File not found: examples/api/spec.cue\n\nHint: Check the file path is correct and the file exists.",
-  )
+  let formatted = loader.format_error(error)
+
+  // Should contain file not found message
+  formatted
+  |> string.contains("File not found: examples/api/spec.cue")
+  |> should.be_true
+
+  // Should contain helpful guidance
+  formatted
+  |> string.contains("intent interview")
+  |> should.be_true
+
+  // Should suggest examples directory
+  formatted
+  |> string.contains("examples/")
+  |> should.be_true
 }
 
 pub fn format_error_validation_failed_test() {
@@ -371,6 +396,56 @@ pub fn format_error_export_failed_with_exit_code_test() {
 pub fn format_error_security_error_test() {
   let error = SecurityError("Path traversal detected")
   loader.format_error(error) |> should.equal("Path traversal detected")
+}
+
+pub fn format_error_security_error_file_not_accessible_test() {
+  // Test the actual error message when a file doesn't exist
+  let error =
+    SecurityError(
+      "Security error: File 'missing.cue' is not accessible or does not exist.",
+    )
+  let formatted = loader.format_error(error)
+
+  // Should contain the original error
+  formatted
+  |> string.contains("File 'missing.cue' is not accessible or does not exist")
+  |> should.be_true
+
+  // Should contain helpful guidance
+  formatted
+  |> string.contains("intent interview")
+  |> should.be_true
+
+  // Should suggest examples directory
+  formatted
+  |> string.contains("examples/")
+  |> should.be_true
+}
+
+pub fn format_error_security_error_with_examples_path_test() {
+  // Test error message for missing file in examples/
+  let error =
+    SecurityError(
+      "Security error: File 'examples/api.cue' is not accessible or does not exist.",
+    )
+  let formatted = loader.format_error(error)
+
+  // Should contain the original error
+  formatted
+  |> string.contains(
+    "File 'examples/api.cue' is not accessible or does not exist",
+  )
+  |> should.be_true
+
+  // Should contain helpful guidance
+  formatted
+  |> string.contains("intent interview")
+  |> should.be_true
+
+  // Should suggest specs directory
+  formatted
+  |> string.contains("specs/")
+  |> should.be_true
 }
 
 pub fn format_error_security_error_detailed_test() {
