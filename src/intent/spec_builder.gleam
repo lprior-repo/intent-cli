@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option.{Some}
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
 import intent/interview.{type Answer, type InterviewSession, type Profile}
@@ -266,7 +267,12 @@ pub fn create_test_spec(behavior_count: Int) -> Spec {
     audience: "test",
     version: "1.0.0",
     success_criteria: [],
-    config: Config("http://test", 1000, dict.new(), allow_localhost: False),
+    config: Config(
+      "http://test",
+      1000,
+      dict.new(),
+      allow_localhost: Some(False),
+    ),
     features: [Feature("test-feature", "test", behaviors)],
     rules: [],
     anti_patterns: [],

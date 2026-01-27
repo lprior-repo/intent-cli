@@ -4,6 +4,7 @@
 import gleam/dict
 import gleam/json
 import gleam/list
+import gleam/option.{Some}
 import gleam/string
 import gleeunit/should
 import intent/spec_linter.{
@@ -27,7 +28,7 @@ fn make_config() -> Config {
     base_url: "http://localhost",
     timeout_ms: 5000,
     headers: dict.new(),
-    allow_localhost: False,
+    allow_localhost: Some(False),
   )
 }
 

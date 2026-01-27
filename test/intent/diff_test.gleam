@@ -49,7 +49,7 @@ fn make_spec(features: List(types.Feature)) -> types.Spec {
       base_url: "http://localhost",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: False,
+      allow_localhost: Some(False),
     ),
     features: features,
     rules: [],

@@ -24,10 +24,11 @@
 import gleam/dynamic
 import gleam/json
 import gleam/list
+import gleam/option.{type Option}
 import gleam/string
 import intent/parser
 import intent/security
-import intent/types.{type Spec}
+import intent/types.{type Config, type Spec}
 import shellout
 
 // ============================================================================
@@ -117,6 +118,13 @@ pub fn parse_json_to_spec(json_str: String) -> Result(Spec, LoadError) {
       Error(JsonDecodeFailed(decode_errors))
     }
   }
+}
+
+/// Get allow_localhost value with shell-layer default (PURE - no I/O)
+/// Returns False as default if not specified in config
+/// Defaults are applied in shell layer, not core parser
+pub fn get_allow_localhost(config: Config) -> Bool {
+  option.unwrap(config.allow_localhost, False)
 }
 
 // ============================================================================

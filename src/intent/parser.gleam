@@ -6,10 +6,11 @@ import gleam/list
 import gleam/option
 import gleam/result
 import intent/planning_types.{
-  type DimensionScore, type FeatureShape, type KIRKHealth, type MVPSlice,
-  type Plan, type ReadyReport, type ShapeSection, type SpecSection, Critical,
-  DimensionScore, FeatureShape, High, KIRKHealth, Low, MVPSlice, Medium, Plan,
-  ReadyReport, ShapeSection, SpecSection,
+  type Blocker, type DimensionScore, type FeatureShape, type KIRKHealth,
+  type MVPSlice, type Plan, type ReadyReport, type Recommendation,
+  type ShapeSection, type SpecSection, Critical, DimensionScore, FeatureShape,
+  High, KIRKHealth, Low, MVPSlice, Medium, Plan, ReadyReport, Recommendation,
+  ShapeSection, SpecSection,
 }
 import intent/types.{
   type AIHints, type AntiPattern, type Behavior, type Check, type Config,
@@ -73,12 +74,7 @@ fn parse_config(data: Dynamic) -> Result(Config, List(DecodeError)) {
     "allow_localhost",
     dynamic.bool,
   )(data))
-  Ok(Config(
-    base_url,
-    timeout_ms,
-    headers,
-    allow_localhost: option.unwrap(allow_localhost, False),
-  ))
+  Ok(Config(base_url, timeout_ms, headers, allow_localhost))
 }
 
 fn parse_string_dict(
@@ -166,44 +162,61 @@ fn parse_json_value(data: Dynamic) -> Result(Json, List(DecodeError)) {
   Ok(dynamic_to_json(data))
 }
 
-/// Convert a Dynamic value to Json
+fn convert_bool(data: Dynamic) -> Json {
+  case dynamic.bool(data) {
+    Ok(b) -> json.bool(b)
+    Error(_) -> json.null()
+  }
+}
+
+fn convert_int(data: Dynamic) -> Json {
+  case dynamic.int(data) {
+    Ok(i) -> json.int(i)
+    Error(_) -> json.null()
+  }
+}
+
+fn convert_float(data: Dynamic) -> Json {
+  case dynamic.float(data) {
+    Ok(f) -> json.float(f)
+    Error(_) -> json.null()
+  }
+}
+
+fn convert_string(data: Dynamic) -> Json {
+  case dynamic.string(data) {
+    Ok(s) -> json.string(s)
+    Error(_) -> json.null()
+  }
+}
+
+fn convert_list(data: Dynamic) -> Json {
+  case dynamic.list(dynamic.dynamic)(data) {
+    Ok(items) -> json.array(items, dynamic_to_json)
+    Error(_) -> json.null()
+  }
+}
+
+fn convert_dict(data: Dynamic) -> Json {
+  case dynamic.dict(dynamic.string, dynamic.dynamic)(data) {
+    Ok(d) ->
+      d
+      |> dict.to_list
+      |> list.map(fn(pair) { #(pair.0, dynamic_to_json(pair.1)) })
+      |> json.object
+    Error(_) -> json.null()
+  }
+}
+
 pub fn dynamic_to_json(data: Dynamic) -> Json {
   case dynamic.classify(data) {
     "Nil" -> json.null()
-    "Bool" ->
-      case dynamic.bool(data) {
-        Ok(b) -> json.bool(b)
-        Error(_) -> json.null()
-      }
-    "Int" ->
-      case dynamic.int(data) {
-        Ok(i) -> json.int(i)
-        Error(_) -> json.null()
-      }
-    "Float" ->
-      case dynamic.float(data) {
-        Ok(f) -> json.float(f)
-        Error(_) -> json.null()
-      }
-    "String" | "BitArray" ->
-      case dynamic.string(data) {
-        Ok(s) -> json.string(s)
-        Error(_) -> json.null()
-      }
-    "List" | "Tuple" ->
-      case dynamic.list(dynamic.dynamic)(data) {
-        Ok(items) -> json.array(items, dynamic_to_json)
-        Error(_) -> json.null()
-      }
-    "Dict" | "Map" ->
-      case dynamic.dict(dynamic.string, dynamic.dynamic)(data) {
-        Ok(d) ->
-          d
-          |> dict.to_list
-          |> list.map(fn(pair) { #(pair.0, dynamic_to_json(pair.1)) })
-          |> json.object
-        Error(_) -> json.null()
-      }
+    "Bool" -> convert_bool(data)
+    "Int" -> convert_int(data)
+    "Float" -> convert_float(data)
+    "String" | "BitArray" -> convert_string(data)
+    "List" | "Tuple" -> convert_list(data)
+    "Dict" | "Map" -> convert_dict(data)
     _ -> json.null()
   }
 }
@@ -562,7 +575,18 @@ fn parse_kirk_health(data: Dynamic) -> Result(KIRKHealth, List(DecodeError)) {
   ))
 }
 
-fn parse_ready_report(data: Dynamic) -> Result(ReadyReport, List(DecodeError)) {
+fn parse_ready_report_data(
+  data: Dynamic,
+) -> Result(
+  #(
+    DimensionScore,
+    DimensionScore,
+    DimensionScore,
+    DimensionScore,
+    DimensionScore,
+  ),
+  List(DecodeError),
+) {
   use replacement <- result.try(dynamic.field(
     "replacement",
     parse_dimension_score,
@@ -582,6 +606,12 @@ fn parse_ready_report(data: Dynamic) -> Result(ReadyReport, List(DecodeError)) {
     "yet_complete",
     parse_dimension_score,
   )(data))
+  Ok(#(replacement, empathy, actionable, discoverable, yet_complete))
+}
+
+fn parse_ready_report_metadata(
+  data: Dynamic,
+) -> Result(#(Int, List(Blocker), List(Recommendation)), List(DecodeError)) {
   use overall_readiness <- result.try(dynamic.field(
     "overall_readiness",
     dynamic.int,
@@ -594,7 +624,16 @@ fn parse_ready_report(data: Dynamic) -> Result(ReadyReport, List(DecodeError)) {
     "recommendations",
     dynamic.list(parse_recommendation),
   )(data))
+  Ok(#(overall_readiness, blockers, recommendations))
+}
 
+fn parse_ready_report(data: Dynamic) -> Result(ReadyReport, List(DecodeError)) {
+  use #(replacement, empathy, actionable, discoverable, yet_complete) <- result.try(
+    parse_ready_report_data(data),
+  )
+  use #(overall_readiness, blockers, recommendations) <- result.try(
+    parse_ready_report_metadata(data),
+  )
   Ok(ReadyReport(
     replacement: replacement,
     empathy: empathy,

@@ -51,6 +51,60 @@ pub type ShapeSection {
 // PHASE 3: SPEC (KIRK)
 // =============================================================================
 
+/// Severity level for quality issues
+pub type Severity {
+  QualityInfo
+  QualityWarning
+  QualityError
+  QualityCritical
+}
+
+/// Quality issue with field, description, and severity
+pub type QualityIssue {
+  QualityIssue(field: String, issue: String, severity: Severity)
+}
+
+/// Quality score across multiple dimensions
+/// All scores are 0-100, issues list is optional
+pub type QualityScore {
+  QualityScore(
+    completeness: Float,
+    consistency: Float,
+    testability: Float,
+    clarity: Float,
+    security: Float,
+    overall: Float,
+    issues: List(QualityIssue),
+  )
+}
+
+/// Likelihood level for pre-mortem causes
+pub type Likelihood {
+  LikelihoodLow
+  LikelihoodMedium
+  LikelihoodHigh
+}
+
+/// Likely cause in pre-mortem analysis
+pub type LikelyCause {
+  LikelyCause(cause: String, probability: Likelihood, mitigation: String)
+}
+
+/// Pre-mortem analysis - "The project failed. What happened?"
+pub type PreMortem {
+  PreMortem(assumed_failure: String, likely_causes: List(LikelyCause))
+}
+
+/// Inversion analysis - "What would make this fail?"
+/// All failure lists are optional
+pub type Inversions {
+  Inversions(
+    security_failures: List(String),
+    usability_failures: List(String),
+    integration_failures: List(String),
+  )
+}
+
 /// KIRK health metrics from 5-round mental model analysis
 /// Tracks quality, coverage, and identified issues across all rounds
 pub type KIRKHealth {

@@ -54,7 +54,7 @@ fn build_spec_aligned() -> Spec {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: True,
+      allow_localhost: Some(True),
     ),
     features: [
       Feature(

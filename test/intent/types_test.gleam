@@ -210,12 +210,12 @@ pub fn config_construction_test() {
       base_url: "http://localhost:3000",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: False,
+      allow_localhost: Some(False),
     )
 
   config.base_url |> should.equal("http://localhost:3000")
   config.timeout_ms |> should.equal(5000)
-  config.allow_localhost |> should.equal(False)
+  config.allow_localhost |> should.equal(Some(False))
 }
 
 pub fn config_with_headers_test() {
@@ -231,7 +231,7 @@ pub fn config_with_headers_test() {
       base_url: "http://api.example.com",
       timeout_ms: 10_000,
       headers: headers,
-      allow_localhost: False,
+      allow_localhost: Some(False),
     )
 
   config.headers |> dict.size |> should.equal(2)
@@ -247,7 +247,7 @@ pub fn config_timeout_test() {
       base_url: "http://slow.api.com",
       timeout_ms: 30_000,
       headers: dict.new(),
-      allow_localhost: False,
+      allow_localhost: Some(False),
     )
 
   config.timeout_ms |> should.equal(30_000)
@@ -260,10 +260,10 @@ pub fn config_localhost_allowed_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: True,
+      allow_localhost: Some(True),
     )
 
-  config.allow_localhost |> should.equal(True)
+  config.allow_localhost |> should.equal(Some(True))
 }
 
 // =============================================================================

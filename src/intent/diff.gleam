@@ -213,7 +213,10 @@ fn compare_config(old: Config, new: Config) -> List(ConfigChange) {
   let changes = case old.allow_localhost == new.allow_localhost {
     True -> changes
     False -> [
-      AllowLocalhostChanged(old.allow_localhost, new.allow_localhost),
+      AllowLocalhostChanged(
+        option.unwrap(old.allow_localhost, False),
+        option.unwrap(new.allow_localhost, False),
+      ),
       ..changes
     ]
   }

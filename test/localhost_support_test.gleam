@@ -121,7 +121,7 @@ pub fn http_client_validates_localhost_with_config_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: False,
+      allow_localhost: Some(False),
     )
 
   let config_allowing =
@@ -129,7 +129,7 @@ pub fn http_client_validates_localhost_with_config_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: True,
+      allow_localhost: Some(True),
     )
 
   // We can't easily test the full HTTP client without mocking
@@ -137,10 +137,10 @@ pub fn http_client_validates_localhost_with_config_test() {
   // The integration is tested by the security tests above
 
   config_blocking.allow_localhost
-  |> should.equal(False)
+  |> should.equal(Some(False))
 
   config_allowing.allow_localhost
-  |> should.equal(True)
+  |> should.equal(Some(True))
 }
 
 pub fn http_client_config_type_has_allow_localhost_field_test() {
@@ -149,11 +149,11 @@ pub fn http_client_config_type_has_allow_localhost_field_test() {
       base_url: "https://api.example.com",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: False,
+      allow_localhost: Some(False),
     )
 
   config.allow_localhost
-  |> should.equal(False)
+  |> should.equal(Some(False))
 }
 
 // ============================================================================
@@ -238,11 +238,11 @@ pub fn config_defaults_to_secure_test() {
       base_url: "https://api.example.com",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: False,
+      allow_localhost: Some(False),
     )
 
   config.allow_localhost
-  |> should.equal(False)
+  |> should.equal(Some(False))
 }
 
 pub fn config_can_enable_localhost_test() {
@@ -251,11 +251,11 @@ pub fn config_can_enable_localhost_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: True,
+      allow_localhost: Some(True),
     )
 
   config.allow_localhost
-  |> should.equal(True)
+  |> should.equal(Some(True))
 }
 
 // ============================================================================
@@ -269,11 +269,15 @@ pub fn scenario_development_mode_test() {
       base_url: "http://localhost:8080",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: True,
+      allow_localhost: Some(True),
     )
 
   // Validate the base URL
-  let result = security.validate_url(config.base_url, config.allow_localhost)
+  let result =
+    security.validate_url(
+      config.base_url,
+      option.unwrap(config.allow_localhost, False),
+    )
 
   result
   |> should.be_ok
@@ -286,12 +290,15 @@ pub fn scenario_production_mode_test() {
       base_url: "https://api.production.com",
       timeout_ms: 5000,
       headers: dict.new(),
-      allow_localhost: False,
+      allow_localhost: Some(False),
     )
 
   // Attempting to use localhost should fail
   let result =
-    security.validate_url("http://localhost:8080", config.allow_localhost)
+    security.validate_url(
+      "http://localhost:8080",
+      option.unwrap(config.allow_localhost, False),
+    )
 
   case result {
     Error(security.SSRFAttempt(_, _)) -> True

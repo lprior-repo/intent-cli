@@ -26,7 +26,7 @@ pub type Config {
     base_url: String,
     timeout_ms: Int,
     headers: Dict(String, String),
-    allow_localhost: Bool,
+    allow_localhost: Option(Bool),
   )
 }
 
