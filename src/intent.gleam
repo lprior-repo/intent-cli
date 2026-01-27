@@ -60,6 +60,47 @@ const exit_invalid = 3
 const exit_error = 4
 
 // ============================================================================
+// Path Constants
+// ============================================================================
+
+/// Standard intent directory for all intent-managed files
+pub const intent_dir = ".intent"
+
+/// Path to sessions JSONL file
+pub const sessions_jsonl = ".intent/sessions.jsonl"
+
+/// Path to history JSONL file
+pub const history_jsonl = ".intent/history.jsonl"
+
+/// Path to custom questions CUE file
+pub const custom_questions_path = ".intent/custom-questions.cue"
+
+/// Generate session file path
+pub fn session_file_path(session_id: String) -> String {
+  ".intent/session-" <> session_id <> ".cue"
+}
+
+/// Generate spec file path for completed interview
+pub fn spec_file_path(session_id: String) -> String {
+  ".intent/spec-" <> session_id <> ".cue"
+}
+
+/// Generate feedback file path
+pub fn feedback_file_path(session_id: String) -> String {
+  ".intent/feedback-" <> session_id <> ".cue"
+}
+
+/// Generate claims file path
+pub fn claims_file_path(session_id: String) -> String {
+  ".intent/claims-" <> session_id <> ".cue"
+}
+
+/// Generate verification file path
+pub fn verification_file_path(session_id: String) -> String {
+  ".intent/verification-" <> session_id <> ".cue"
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -82,6 +123,8 @@ fn load_spec_for_mode(
 /// Normalize flag syntax to support both --flag=value and --flag value
 /// Glint only supports --flag=value, so we pre-process args to convert
 /// --flag value into --flag=value before passing to glint
+///
+/// Also handles short flags like -o by converting them to --output
 pub fn normalize_flag_syntax(args: List(String)) -> List(String) {
   do_normalize(args)
 }
@@ -91,44 +134,67 @@ fn do_normalize(args: List(String)) -> List(String) {
     // Empty list
     [] -> []
 
-    // Single argument
+    // Single argument - could be a bare --help flag or -o=file
     [arg] -> {
-      case string.starts_with(arg, "--") {
-        True -> [arg]
-        // Boolean flag or flag with equals
-        False -> [arg]
-        // Positional argument
+      case arg {
+        "--help" -> ["--help=true"]
+        "-h" -> ["--help=true"]
+        "-o" -> ["--output="]  // Short flag without value
+        _ -> {
+          // Handle -o=value format
+          case string.starts_with(arg, "-o=") {
+            True -> ["--output=" <> string.slice(arg, 3, string.length(arg))]
+            _ -> [arg]
+          }
+        }
       }
     }
 
     // Two or more arguments
     [first, second, ..rest] -> {
-      case string.starts_with(first, "--") {
-        True -> {
-          // First is a flag
-          case string.contains(first, "=") {
-            True -> {
-              // Flag already has equals (--flag=value)
-              [first, ..do_normalize([second, ..rest])]
-            }
-            False -> {
-              // Flag doesn't have equals, check if second is a value or flag
-              case string.starts_with(second, "--") {
+      case first {
+        "--help" -> ["--help=true", ..do_normalize([second, ..rest])]
+        "-h" -> ["--help=true", ..do_normalize([second, ..rest])]
+        "-o" -> ["--output=" <> second, ..do_normalize(rest)]
+        _ -> {
+          // Handle -o=value format
+          case string.starts_with(first, "-o=") {
+            True ->
+              [
+                "--output=" <> string.slice(first, 3, string.length(first)),
+                ..do_normalize([second, ..rest]),
+              ]
+            _ -> {
+              case string.starts_with(first, "--") {
                 True -> {
-                  // Second is also a flag (first is boolean)
-                  [first, ..do_normalize([second, ..rest])]
+                  // First is a flag
+                  case string.contains(first, "=") {
+                    True -> {
+                      // Flag already has equals (--flag=value)
+                      [first, ..do_normalize([second, ..rest])]
+                    }
+                    False -> {
+                      // Flag doesn't have equals, check if second is a value or flag
+                      case string.starts_with(second, "--") || string.starts_with(second, "-") {
+                        True -> {
+                          // Second is also a flag (first is boolean) - keep both unchanged
+                          [first, ..do_normalize([second, ..rest])]
+                        }
+                        False -> {
+                          // Second is a value, merge with first
+                          [first <> "=" <> second, ..do_normalize(rest)]
+                        }
+                      }
+                    }
+                  }
                 }
                 False -> {
-                  // Second is a value, merge with first
-                  [first <> "=" <> second, ..do_normalize(rest)]
+                  // First is not a flag (positional argument)
+                  [first, ..do_normalize([second, ..rest])]
                 }
               }
             }
           }
-        }
-        False -> {
-          // First is not a flag (positional argument)
-          [first, ..do_normalize([second, ..rest])]
         }
       }
     }
@@ -137,9 +203,26 @@ fn do_normalize(args: List(String)) -> List(String) {
 
 pub fn main() {
   let raw_args = argv.load().arguments
-  let normalized_args = normalize_flag_syntax(raw_args)
 
-  let app =
+  // Handle --help flag before glint processing for clean exit code 0
+  case raw_args {
+    ["--help", ..] | ["-h", ..] | [] -> {
+      // Show help and exit cleanly
+      let app = build_app()
+      let _ = glint.run(app, ["--help=true"])
+      exit_pass
+    }
+    _ -> {
+      let normalized_args = normalize_flag_syntax(raw_args)
+      let app = build_app()
+      let _ = glint.run(app, normalized_args)
+      exit_pass
+    }
+  }
+}
+
+/// Build the glint application with all commands
+fn build_app() {
     glint.new()
     |> glint.with_name("intent")
     |> glint.with_pretty_help(glint.default_pretty_help())
@@ -237,19 +320,6 @@ pub fn main() {
       at: ["ready", "agree"],
       do: ready_commands.ready_agree_command(),
     )
-
-  // Execute and handle flag parsing errors
-  // Glint's .run() exits with 0 even on flag errors, so we use .execute()
-  // to detect errors and set proper exit codes
-  case glint.execute(app, normalized_args) {
-    Ok(_) -> Nil
-    Error(err_msg) -> {
-      // Print error message (mimicking glint.run behavior)
-      io.println(err_msg)
-      // Exit with error code for CI/CD pipelines
-      halt(exit_error)
-    }
-  }
 }
 
 /// The `validate` command - validate CUE spec syntax AND structure
@@ -1115,7 +1185,7 @@ fn run_interview_batch(input_file: String, export_path: String) -> Nil {
           let save_result =
             interview_storage.append_session_to_jsonl(
               updated_session,
-              ".interview/sessions.jsonl",
+              sessions_jsonl,
             )
 
           case save_result {
@@ -1189,7 +1259,7 @@ fn run_interview_cue_start(profile: interview.Profile, dry_run: Bool) -> Nil {
     False ->
       interview_storage.append_session_to_jsonl(
         session,
-        ".interview/sessions.jsonl",
+        sessions_jsonl,
       )
   }
 
@@ -1217,7 +1287,7 @@ fn run_interview_cue_resume(session_id: String, dry_run: Bool) -> Nil {
 
   case
     interview_storage.get_session_from_jsonl(
-      ".interview/sessions.jsonl",
+      sessions_jsonl,
       session_id,
     )
   {
@@ -1325,7 +1395,7 @@ fn run_interview_cue_answer(
 
   case
     interview_storage.get_session_from_jsonl(
-      ".interview/sessions.jsonl",
+      sessions_jsonl,
       session_id,
     )
   {
@@ -1409,7 +1479,7 @@ fn run_interview_cue_answer(
                 False ->
                   interview_storage.append_session_to_jsonl(
                     sess_final,
-                    ".interview/sessions.jsonl",
+                    sessions_jsonl,
                   )
               }
 
@@ -1443,7 +1513,7 @@ fn run_interview_cue_answer(
                         False ->
                           interview_storage.append_session_to_jsonl(
                             sess_round_completed,
-                            ".interview/sessions.jsonl",
+                            sessions_jsonl,
                           )
                       }
 
@@ -1599,7 +1669,7 @@ fn output_cue_complete(session: interview.InterviewSession) -> Nil {
   // Generate and save the spec (skip in dry-run mode)
   let spec_path = case is_dry_run {
     True -> ""
-    False -> ".interview/spec-" <> session.id <> ".cue"
+    False -> spec_file_path(session.id)
   }
 
   case is_dry_run {
@@ -1757,7 +1827,7 @@ fn beads_command() -> glint.Command(Nil) {
         // Load session from JSONL
         case
           interview_storage.get_session_from_jsonl(
-            ".interview/sessions.jsonl",
+            sessions_jsonl,
             session_id,
           )
         {
@@ -2123,8 +2193,8 @@ fn plan_command() -> glint.Command(Nil) {
 fn compute_plan_with_session(
   session_id: String,
 ) -> Result(plan_mode.ExecutionPlan, plan_mode.PlanError) {
-  let jsonl_path = ".interview/sessions.jsonl"
-  let session_path = ".intent/session-" <> session_id <> ".cue"
+  let jsonl_path = sessions_jsonl
+  let session_path = session_file_path(session_id)
 
   // Try to load rounds_completed from session JSONL (default to 0 if not found)
   let rounds_completed =
@@ -2648,7 +2718,7 @@ fn prompt_command() -> glint.Command(Nil) {
         // Load session from JSONL
         case
           interview_storage.get_session_from_jsonl(
-            ".interview/sessions.jsonl",
+            sessions_jsonl,
             session_id,
           )
         {
@@ -2809,7 +2879,7 @@ fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
 /// The `history` command - view session snapshot history
 fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let history_path = ".interview/history.jsonl"
+    let history_path = "history_jsonl"
     let _mode = output_mode.Interactive
 
     let max_items =
@@ -3167,7 +3237,7 @@ fn help_command() -> glint.Command(Nil) {
 /// The `sessions` command - list all interview sessions
 fn sessions_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let jsonl_path = ".interview/sessions.jsonl"
+    let jsonl_path = sessions_jsonl
 
     let profile_filter =
       flag.get_string(input.flags, "profile")
@@ -3990,8 +4060,9 @@ fn kirk_ears_command() -> glint.Command(Nil) {
 /// The `parse` command - parse EARS requirements to spec
 fn parse_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
+    // Check --output flag (normalize_flag_syntax converts -o to --output)
     let output_file =
-      flag.get_string(input.flags, "o")
+      flag.get_string(input.flags, "output")
       |> result.unwrap("")
 
     case input.args {
@@ -4081,12 +4152,16 @@ fn parse_command() -> glint.Command(Nil) {
                   "parse_result",
                   "parse",
                   data,
-                  None,
+                  // Set spec_path if output file was specified
+                  case output_file {
+                    "" -> None
+                    path -> Some(path)
+                  },
                   next_actions,
                 )
               json_output.output(response)
 
-              // Write to output file if specified (JSON mode)
+              // Write to output file if specified
               case output_file {
                 "" -> Nil
                 path -> {
@@ -4104,8 +4179,14 @@ fn parse_command() -> glint.Command(Nil) {
                   }
                   let cue_output = ears_parser.to_cue(result, spec_name)
                   case simplifile.write(path, cue_output) {
-                    Ok(_) -> Nil
-                    Error(_) -> Nil
+                    Ok(_) -> {
+                      io.println("")
+                      io.println("✓ Wrote spec to: " <> path)
+                    }
+                    Error(err) -> {
+                      io.println_error("Failed to write spec: " <> path)
+                      io.println_error(string.inspect(err))
+                    }
                   }
                 }
               }
@@ -4205,10 +4286,10 @@ fn parse_command() -> glint.Command(Nil) {
   })
   |> glint.description("Parse EARS requirements to spec")
   |> glint.flag(
-    "o",
+    "output",
     flag.string()
       |> flag.default("")
-      |> flag.description("Output spec file path"),
+      |> flag.description("Output spec file path (-o is also supported)"),
   )
 }
 
