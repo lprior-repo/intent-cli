@@ -1,5 +1,5 @@
 name = "intent"
-version = "0.1.0"
+version = "0.1.1"
 description = "Contract-driven API testing CLI - human-writes, AI-verifies, AI-implements behavior specifications"
 licences = ["Apache-2.0"]
 repository = { type = "github", user = "lprior-repo", repo = "intent-cli" }
