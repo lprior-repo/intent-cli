@@ -24,7 +24,7 @@
 import gleam/dynamic
 import gleam/json
 import gleam/list
-import gleam/option.{type Option}
+import gleam/option
 import gleam/string
 import intent/parser
 import intent/security
