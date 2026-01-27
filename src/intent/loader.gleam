@@ -303,7 +303,8 @@ fn format_single_decode_error(error: dynamic.DecodeError) -> String {
 pub fn format_error(error: LoadError) -> String {
   case error {
     FileNotFound(path) -> {
-      "File not found: " <> path
+      "File not found: "
+      <> path
       <> "\n\nHint: Check the file path is correct and the file exists."
     }
     CueValidationFailed(path, exit_code, stderr) -> {
@@ -336,9 +337,11 @@ pub fn format_error(error: LoadError) -> String {
 fn suggest_fix_for_cue_error(stderr: String) -> String {
   let has_spec_error = string.contains(stderr, "reference.*spec.*not found")
   let has_type_error =
-    string.contains(stderr, "wrong type") || string.contains(stderr, "type mismatch")
+    string.contains(stderr, "wrong type")
+    || string.contains(stderr, "type mismatch")
   let has_undefined_error =
-    string.contains(stderr, "undefined") || string.contains(stderr, "not defined")
+    string.contains(stderr, "undefined")
+    || string.contains(stderr, "not defined")
 
   case True {
     _ if has_spec_error -> {

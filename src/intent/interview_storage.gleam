@@ -16,8 +16,7 @@ import gleam/result
 import gleam/string
 import intent/interview.{
   type Answer, type Conflict, type ConflictResolution, type Gap,
-  type InterviewSession, type InterviewStage, type Profile,
-  unresolved_conflict,
+  type InterviewSession, type InterviewStage, type Profile, unresolved_conflict,
 }
 import intent/question_types.{
   type Perspective, Business, Developer, Ops, Security, User,
@@ -329,7 +328,9 @@ pub fn diff_sessions(
 
   // Count conflict changes
   let from_unresolved_conflicts =
-    list.filter(from_session.conflicts, fn(c) { c.chosen == unresolved_conflict })
+    list.filter(from_session.conflicts, fn(c) {
+      c.chosen == unresolved_conflict
+    })
   let to_unresolved_conflicts =
     list.filter(to_session.conflicts, fn(c) { c.chosen == unresolved_conflict })
   let conflicts_added =
@@ -1161,15 +1162,15 @@ fn session_decoder(
 fn answer_decoder(
   json_value: dynamic.Dynamic,
 ) -> Result(Answer, dynamic.DecodeErrors) {
-  use question_id <- result.try(
-    dynamic.field("question_id", dynamic.string)(json_value),
-  )
-  use question_text <- result.try(
-    dynamic.field("question_text", dynamic.string)(json_value),
-  )
-  use perspective_str <- result.try(
-    dynamic.field("perspective", dynamic.string)(json_value),
-  )
+  use question_id <- result.try(dynamic.field("question_id", dynamic.string)(
+    json_value,
+  ))
+  use question_text <- result.try(dynamic.field("question_text", dynamic.string)(
+    json_value,
+  ))
+  use perspective_str <- result.try(dynamic.field("perspective", dynamic.string)(
+    json_value,
+  ))
   use perspective <- result.try(case perspective_str {
     "user" -> Ok(User)
     "developer" -> Ok(Developer)
@@ -1179,58 +1180,56 @@ fn answer_decoder(
     _ -> Error([dynamic.DecodeError("perspective", "invalid perspective", [])])
   })
   use round <- result.try(dynamic.field("round", dynamic.int)(json_value))
-  use response <- result.try(dynamic.field("response", dynamic.string)(json_value))
+  use response <- result.try(dynamic.field("response", dynamic.string)(
+    json_value,
+  ))
 
   // Decode extracted dict
-  use extracted_dict <- result.try(
-    dynamic.field("extracted", dynamic.dict(dynamic.string, dynamic.string))(
-      json_value,
-    ),
-  )
+  use extracted_dict <- result.try(dynamic.field(
+    "extracted",
+    dynamic.dict(dynamic.string, dynamic.string),
+  )(json_value))
   let extracted = extracted_dict
 
-  use confidence <- result.try(
-    dynamic.field("confidence", dynamic.float)(json_value),
-  )
+  use confidence <- result.try(dynamic.field("confidence", dynamic.float)(
+    json_value,
+  ))
   // notes is optional - use empty string if missing
   let notes =
     dynamic.field("notes", dynamic.string)(json_value)
     |> result.unwrap("")
-  use timestamp <- result.try(
-    dynamic.field("timestamp", dynamic.string)(json_value),
-  )
+  use timestamp <- result.try(dynamic.field("timestamp", dynamic.string)(
+    json_value,
+  ))
 
-  Ok(
-    interview.Answer(
-      question_id: question_id,
-      question_text: question_text,
-      perspective: perspective,
-      round: round,
-      response: response,
-      extracted: extracted,
-      confidence: confidence,
-      notes: notes,
-      timestamp: timestamp,
-    ),
-  )
+  Ok(interview.Answer(
+    question_id: question_id,
+    question_text: question_text,
+    perspective: perspective,
+    round: round,
+    response: response,
+    extracted: extracted,
+    confidence: confidence,
+    notes: notes,
+    timestamp: timestamp,
+  ))
 }
 
 /// Decode a Gap from JSON
-fn gap_decoder(
-  json_value: dynamic.Dynamic,
-) -> Result(Gap, dynamic.DecodeErrors) {
+fn gap_decoder(json_value: dynamic.Dynamic) -> Result(Gap, dynamic.DecodeErrors) {
   use id <- result.try(dynamic.field("id", dynamic.string)(json_value))
   use field <- result.try(dynamic.field("field", dynamic.string)(json_value))
-  use description <- result.try(
-    dynamic.field("description", dynamic.string)(json_value),
-  )
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    json_value,
+  ))
   use blocking <- result.try(dynamic.field("blocking", dynamic.bool)(json_value))
-  use suggested_default <- result.try(
-    dynamic.field("suggested_default", dynamic.string)(json_value),
-  )
-  use why_needed <- result.try(
-    dynamic.field("why_needed", dynamic.string)(json_value),
-  )
+  use suggested_default <- result.try(dynamic.field(
+    "suggested_default",
+    dynamic.string,
+  )(json_value))
+  use why_needed <- result.try(dynamic.field("why_needed", dynamic.string)(
+    json_value,
+  ))
   use round <- result.try(dynamic.field("round", dynamic.int)(json_value))
   use resolved <- result.try(dynamic.field("resolved", dynamic.bool)(json_value))
   // resolution is optional - use empty string if missing
@@ -1238,19 +1237,17 @@ fn gap_decoder(
     dynamic.field("resolution", dynamic.string)(json_value)
     |> result.unwrap("")
 
-  Ok(
-    interview.Gap(
-      id: id,
-      field: field,
-      description: description,
-      blocking: blocking,
-      suggested_default: suggested_default,
-      why_needed: why_needed,
-      round: round,
-      resolved: resolved,
-      resolution: resolution,
-    ),
-  )
+  Ok(interview.Gap(
+    id: id,
+    field: field,
+    description: description,
+    blocking: blocking,
+    suggested_default: suggested_default,
+    why_needed: why_needed,
+    round: round,
+    resolved: resolved,
+    resolution: resolution,
+  ))
 }
 
 /// Decode a Conflict from JSON
@@ -1258,32 +1255,32 @@ fn conflict_decoder(
   json_value: dynamic.Dynamic,
 ) -> Result(Conflict, dynamic.DecodeErrors) {
   use id <- result.try(dynamic.field("id", dynamic.string)(json_value))
-  use between_list <- result.try(
-    dynamic.field("between", dynamic.list(dynamic.string))(json_value),
-  )
+  use between_list <- result.try(dynamic.field(
+    "between",
+    dynamic.list(dynamic.string),
+  )(json_value))
   let between = case between_list {
     [first, second] -> #(first, second)
     _ -> #("", "")
   }
-  use description <- result.try(
-    dynamic.field("description", dynamic.string)(json_value),
-  )
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    json_value,
+  ))
   use impact <- result.try(dynamic.field("impact", dynamic.string)(json_value))
-  use options <- result.try(
-    dynamic.field("options", dynamic.list(conflict_resolution_decoder))(json_value),
-  )
+  use options <- result.try(dynamic.field(
+    "options",
+    dynamic.list(conflict_resolution_decoder),
+  )(json_value))
   use chosen <- result.try(dynamic.field("chosen", dynamic.int)(json_value))
 
-  Ok(
-    interview.Conflict(
-      id: id,
-      between: between,
-      description: description,
-      impact: impact,
-      options: options,
-      chosen: chosen,
-    ),
-  )
+  Ok(interview.Conflict(
+    id: id,
+    between: between,
+    description: description,
+    impact: impact,
+    options: options,
+    chosen: chosen,
+  ))
 }
 
 /// Decode a ConflictResolution from JSON
@@ -1291,22 +1288,21 @@ fn conflict_resolution_decoder(
   json_value: dynamic.Dynamic,
 ) -> Result(interview.ConflictResolution, dynamic.DecodeErrors) {
   use option <- result.try(dynamic.field("option", dynamic.string)(json_value))
-  use description <- result.try(
-    dynamic.field("description", dynamic.string)(json_value),
-  )
-  use tradeoffs <- result.try(
-    dynamic.field("tradeoffs", dynamic.string)(json_value),
-  )
-  use recommendation <- result.try(
-    dynamic.field("recommendation", dynamic.string)(json_value),
-  )
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    json_value,
+  ))
+  use tradeoffs <- result.try(dynamic.field("tradeoffs", dynamic.string)(
+    json_value,
+  ))
+  use recommendation <- result.try(dynamic.field(
+    "recommendation",
+    dynamic.string,
+  )(json_value))
 
-  Ok(
-    interview.ConflictResolution(
-      option: option,
-      description: description,
-      tradeoffs: tradeoffs,
-      recommendation: recommendation,
-    ),
-  )
+  Ok(interview.ConflictResolution(
+    option: option,
+    description: description,
+    tradeoffs: tradeoffs,
+    recommendation: recommendation,
+  ))
 }

@@ -139,7 +139,8 @@ fn do_normalize(args: List(String)) -> List(String) {
       case arg {
         "--help" -> ["--help=true"]
         "-h" -> ["--help=true"]
-        "-o" -> ["--output="]  // Short flag without value
+        "-o" -> ["--output="]
+        // Short flag without value
         _ -> {
           // Handle -o=value format
           case string.starts_with(arg, "-o=") {
@@ -159,11 +160,10 @@ fn do_normalize(args: List(String)) -> List(String) {
         _ -> {
           // Handle -o=value format
           case string.starts_with(first, "-o=") {
-            True ->
-              [
-                "--output=" <> string.slice(first, 3, string.length(first)),
-                ..do_normalize([second, ..rest]),
-              ]
+            True -> [
+              "--output=" <> string.slice(first, 3, string.length(first)),
+              ..do_normalize([second, ..rest])
+            ]
             _ -> {
               case string.starts_with(first, "--") {
                 True -> {
@@ -175,7 +175,10 @@ fn do_normalize(args: List(String)) -> List(String) {
                     }
                     False -> {
                       // Flag doesn't have equals, check if second is a value or flag
-                      case string.starts_with(second, "--") || string.starts_with(second, "-") {
+                      case
+                        string.starts_with(second, "--")
+                        || string.starts_with(second, "-")
+                      {
                         True -> {
                           // Second is also a flag (first is boolean) - keep both unchanged
                           [first, ..do_normalize([second, ..rest])]
@@ -223,103 +226,94 @@ pub fn main() {
 
 /// Build the glint application with all commands
 fn build_app() {
-    glint.new()
-    |> glint.with_name("intent")
-    |> glint.with_pretty_help(glint.default_pretty_help())
-    |> glint.add(at: ["validate"], do: validate_command())
-    |> glint.add(at: ["show"], do: show_command())
-    |> glint.add(at: ["export"], do: export_command())
-    |> glint.add(at: ["lint"], do: lint_command())
-    |> glint.add(at: ["analyze"], do: analyze_command())
-    |> glint.add(at: ["improve"], do: improve_command())
-    |> glint.add(at: ["doctor"], do: doctor_command())
-    |> glint.add(at: ["interview"], do: interview_command())
-    |> glint.add(at: ["beads"], do: beads_command())
-    |> glint.add(at: ["bead-status"], do: bead_status_command())
-    |> glint.add(at: ["history"], do: history_command())
-    |> glint.add(at: ["diff"], do: diff_command())
-    |> glint.add(at: ["sessions"], do: sessions_command())
-    |> glint.add(at: ["help"], do: help_command())
-    // KIRK commands
-    |> glint.add(at: ["quality"], do: kirk_quality_command())
-    |> glint.add(at: ["invert"], do: kirk_invert_command())
-    |> glint.add(at: ["coverage"], do: kirk_coverage_command())
-    |> glint.add(at: ["gaps"], do: kirk_gaps_command())
-    // DISABLED: compact_format module not available
-    // |> glint.add(at: ["compact"], do: kirk_compact_command())
-    // |> glint.add(at: ["prototext"], do: kirk_prototext_command())
-    |> glint.add(at: ["ears"], do: kirk_ears_command())
-    |> glint.add(at: ["parse"], do: parse_command())
-    |> glint.add(at: ["effects"], do: kirk_effects_command())
-    // Plan commands
-    |> glint.add(at: ["plan"], do: plan_command())
-    |> glint.add(at: ["plan-approve"], do: plan_approve_command())
-    |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
-    |> glint.add(at: ["feedback"], do: feedback_command())
-    |> glint.add(at: ["prompt"], do: prompt_command())
-    // AI commands
-    |> glint.add(at: ["ai", "schema"], do: ai_schema_command())
-    |> glint.add(at: ["ai", "aggregate"], do: ai_aggregate_command())
-    // Vision phase commands
-    |> glint.add(
-      at: ["vision", "start"],
-      do: vision_commands.vision_start_command(),
-    )
-    |> glint.add(
-      at: ["vision", "check"],
-      do: vision_commands.vision_check_command(),
-    )
-    |> glint.add(
-      at: ["vision", "critique"],
-      do: vision_commands.vision_critique_command(),
-    )
-    |> glint.add(
-      at: ["vision", "respond"],
-      do: vision_commands.vision_respond_command(),
-    )
-    |> glint.add(
-      at: ["vision", "agree"],
-      do: vision_commands.vision_agree_command(),
-    )
-    // Spec phase commands
-    |> glint.add(at: ["spec", "start"], do: spec_commands.spec_start_command())
-    |> glint.add(at: ["spec", "check"], do: spec_commands.spec_check_command())
-    |> glint.add(
-      at: ["spec", "critique"],
-      do: spec_commands.spec_critique_command(),
-    )
-    |> glint.add(
-      at: ["spec", "respond"],
-      do: spec_commands.spec_respond_command(),
-    )
-    |> glint.add(at: ["spec", "agree"], do: spec_commands.spec_agree_command())
-    // Shape phase commands
-    |> glint.add(at: ["shape", "start"], do: shape_start_command())
-    |> glint.add(at: ["shape", "check"], do: shape_check_command())
-    |> glint.add(at: ["shape", "critique"], do: shape_critique_command())
-    |> glint.add(at: ["shape", "respond"], do: shape_respond_command())
-    |> glint.add(at: ["shape", "agree"], do: shape_agree_command())
-    // Ready phase commands
-    |> glint.add(
-      at: ["ready", "start"],
-      do: ready_commands.ready_start_command(),
-    )
-    |> glint.add(
-      at: ["ready", "check"],
-      do: ready_commands.ready_check_command(),
-    )
-    |> glint.add(
-      at: ["ready", "critique"],
-      do: ready_commands.ready_critique_command(),
-    )
-    |> glint.add(
-      at: ["ready", "respond"],
-      do: ready_commands.ready_respond_command(),
-    )
-    |> glint.add(
-      at: ["ready", "agree"],
-      do: ready_commands.ready_agree_command(),
-    )
+  glint.new()
+  |> glint.with_name("intent")
+  |> glint.with_pretty_help(glint.default_pretty_help())
+  |> glint.add(at: ["validate"], do: validate_command())
+  |> glint.add(at: ["show"], do: show_command())
+  |> glint.add(at: ["export"], do: export_command())
+  |> glint.add(at: ["lint"], do: lint_command())
+  |> glint.add(at: ["analyze"], do: analyze_command())
+  |> glint.add(at: ["improve"], do: improve_command())
+  |> glint.add(at: ["doctor"], do: doctor_command())
+  |> glint.add(at: ["interview"], do: interview_command())
+  |> glint.add(at: ["beads"], do: beads_command())
+  |> glint.add(at: ["bead-status"], do: bead_status_command())
+  |> glint.add(at: ["history"], do: history_command())
+  |> glint.add(at: ["diff"], do: diff_command())
+  |> glint.add(at: ["sessions"], do: sessions_command())
+  |> glint.add(at: ["help"], do: help_command())
+  // KIRK commands
+  |> glint.add(at: ["quality"], do: kirk_quality_command())
+  |> glint.add(at: ["invert"], do: kirk_invert_command())
+  |> glint.add(at: ["coverage"], do: kirk_coverage_command())
+  |> glint.add(at: ["gaps"], do: kirk_gaps_command())
+  // DISABLED: compact_format module not available
+  // |> glint.add(at: ["compact"], do: kirk_compact_command())
+  // |> glint.add(at: ["prototext"], do: kirk_prototext_command())
+  |> glint.add(at: ["ears"], do: kirk_ears_command())
+  |> glint.add(at: ["parse"], do: parse_command())
+  |> glint.add(at: ["effects"], do: kirk_effects_command())
+  // Plan commands
+  |> glint.add(at: ["plan"], do: plan_command())
+  |> glint.add(at: ["plan-approve"], do: plan_approve_command())
+  |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
+  |> glint.add(at: ["feedback"], do: feedback_command())
+  |> glint.add(at: ["prompt"], do: prompt_command())
+  // AI commands
+  |> glint.add(at: ["ai", "schema"], do: ai_schema_command())
+  |> glint.add(at: ["ai", "aggregate"], do: ai_aggregate_command())
+  // Vision phase commands
+  |> glint.add(
+    at: ["vision", "start"],
+    do: vision_commands.vision_start_command(),
+  )
+  |> glint.add(
+    at: ["vision", "check"],
+    do: vision_commands.vision_check_command(),
+  )
+  |> glint.add(
+    at: ["vision", "critique"],
+    do: vision_commands.vision_critique_command(),
+  )
+  |> glint.add(
+    at: ["vision", "respond"],
+    do: vision_commands.vision_respond_command(),
+  )
+  |> glint.add(
+    at: ["vision", "agree"],
+    do: vision_commands.vision_agree_command(),
+  )
+  // Spec phase commands
+  |> glint.add(at: ["spec", "start"], do: spec_commands.spec_start_command())
+  |> glint.add(at: ["spec", "check"], do: spec_commands.spec_check_command())
+  |> glint.add(
+    at: ["spec", "critique"],
+    do: spec_commands.spec_critique_command(),
+  )
+  |> glint.add(
+    at: ["spec", "respond"],
+    do: spec_commands.spec_respond_command(),
+  )
+  |> glint.add(at: ["spec", "agree"], do: spec_commands.spec_agree_command())
+  // Shape phase commands
+  |> glint.add(at: ["shape", "start"], do: shape_start_command())
+  |> glint.add(at: ["shape", "check"], do: shape_check_command())
+  |> glint.add(at: ["shape", "critique"], do: shape_critique_command())
+  |> glint.add(at: ["shape", "respond"], do: shape_respond_command())
+  |> glint.add(at: ["shape", "agree"], do: shape_agree_command())
+  // Ready phase commands
+  |> glint.add(at: ["ready", "start"], do: ready_commands.ready_start_command())
+  |> glint.add(at: ["ready", "check"], do: ready_commands.ready_check_command())
+  |> glint.add(
+    at: ["ready", "critique"],
+    do: ready_commands.ready_critique_command(),
+  )
+  |> glint.add(
+    at: ["ready", "respond"],
+    do: ready_commands.ready_respond_command(),
+  )
+  |> glint.add(at: ["ready", "agree"], do: ready_commands.ready_agree_command())
 }
 
 /// The `validate` command - validate CUE spec syntax AND structure
@@ -1256,11 +1250,7 @@ fn run_interview_cue_start(profile: interview.Profile, dry_run: Bool) -> Nil {
   // Save session to JSONL (skip in dry-run mode)
   let save_result = case dry_run {
     True -> Ok(Nil)
-    False ->
-      interview_storage.append_session_to_jsonl(
-        session,
-        sessions_jsonl,
-      )
+    False -> interview_storage.append_session_to_jsonl(session, sessions_jsonl)
   }
 
   case save_result {
@@ -1285,12 +1275,7 @@ fn run_interview_cue_start(profile: interview.Profile, dry_run: Bool) -> Nil {
 fn run_interview_cue_resume(session_id: String, dry_run: Bool) -> Nil {
   let is_dry_run_session = string.starts_with(session_id, "dry-run-")
 
-  case
-    interview_storage.get_session_from_jsonl(
-      sessions_jsonl,
-      session_id,
-    )
-  {
+  case interview_storage.get_session_from_jsonl(sessions_jsonl, session_id) {
     Error(err) -> {
       case is_dry_run_session || dry_run {
         True -> {
@@ -1393,12 +1378,7 @@ fn run_interview_cue_answer(
 ) -> Nil {
   let is_dry_run_session = string.starts_with(session_id, "dry-run-")
 
-  case
-    interview_storage.get_session_from_jsonl(
-      sessions_jsonl,
-      session_id,
-    )
-  {
+  case interview_storage.get_session_from_jsonl(sessions_jsonl, session_id) {
     Error(err) -> {
       case is_dry_run_session || dry_run {
         True -> {
@@ -1826,10 +1806,7 @@ fn beads_command() -> glint.Command(Nil) {
       [session_id, ..] -> {
         // Load session from JSONL
         case
-          interview_storage.get_session_from_jsonl(
-            sessions_jsonl,
-            session_id,
-          )
+          interview_storage.get_session_from_jsonl(sessions_jsonl, session_id)
         {
           Error(err) -> {
             io.println_error("Error: " <> err)
@@ -2717,10 +2694,7 @@ fn prompt_command() -> glint.Command(Nil) {
       [session_id, ..] -> {
         // Load session from JSONL
         case
-          interview_storage.get_session_from_jsonl(
-            sessions_jsonl,
-            session_id,
-          )
+          interview_storage.get_session_from_jsonl(sessions_jsonl, session_id)
         {
           Error(err) -> {
             io.println_error("Error: " <> err)

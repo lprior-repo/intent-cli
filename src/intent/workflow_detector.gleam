@@ -31,7 +31,9 @@ pub type WorkflowError {
 
 /// Check if interview sessions exist
 /// Returns Ok if at least one session exists, Error with guidance otherwise
-pub fn check_sessions_exist(profile profile: String) -> Result(Nil, WorkflowError) {
+pub fn check_sessions_exist(
+  profile profile: String,
+) -> Result(Nil, WorkflowError) {
   let jsonl_path = ".intent/sessions.jsonl"
 
   case interview_storage.list_sessions_from_jsonl(jsonl_path) {

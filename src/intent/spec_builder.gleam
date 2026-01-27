@@ -108,10 +108,8 @@ commands: {
     _answers -> "// CLI commands from interview
 commands: {
 " <> {
-        list.map(cli_answers, fn(answer) {
-          "  // " <> answer.question_text <> "
-  // Answer: " <> string.trim(answer.response)
-        })
+        list.map(cli_answers, fn(answer) { "  // " <> answer.question_text <> "
+  // Answer: " <> string.trim(answer.response) })
         |> string.join("\n")
       } <> "\n}"
   }

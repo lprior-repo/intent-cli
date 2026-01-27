@@ -647,7 +647,9 @@ pub fn get_blocking_gaps(session: InterviewSession) -> List(Gap) {
 
 /// Get all unresolved conflicts
 pub fn get_unresolved_conflicts(session: InterviewSession) -> List(Conflict) {
-  list.filter(session.conflicts, fn(conflict) { conflict.chosen == unresolved_conflict })
+  list.filter(session.conflicts, fn(conflict) {
+    conflict.chosen == unresolved_conflict
+  })
 }
 
 /// Check if interview can proceed (no blocking gaps)

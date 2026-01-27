@@ -233,10 +233,7 @@ pub fn file_not_found(path: String) -> StructuredError {
     message: "File not found: " <> path,
     context: dict.from_list([
       #("path", path),
-      #(
-        "expected_location",
-        "Spec files should be in project root or .intent/",
-      ),
+      #("expected_location", "Spec files should be in project root or .intent/"),
     ]),
     suggestion: "Check that the file path is correct and the file exists",
     recovery: [
