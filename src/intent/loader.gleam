@@ -302,25 +302,71 @@ fn format_single_decode_error(error: dynamic.DecodeError) -> String {
 /// Format a LoadError as a human-readable string
 pub fn format_error(error: LoadError) -> String {
   case error {
-    FileNotFound(path) -> "File not found: " <> path
-    CueValidationFailed(path, exit_code, stderr) ->
+    FileNotFound(path) -> {
+      "File not found: " <> path
+      <> "\n\nHint: Check the file path is correct and the file exists."
+    }
+    CueValidationFailed(path, exit_code, stderr) -> {
+      let hint = suggest_fix_for_cue_error(stderr)
       "CUE validation failed for '"
       <> path
       <> "' (exit code "
       <> string.inspect(exit_code)
       <> "):\n"
       <> stderr
-    CueExportFailed(path, exit_code, stderr) ->
+      <> hint
+    }
+    CueExportFailed(path, exit_code, stderr) -> {
       "CUE export failed for '"
       <> path
       <> "' (exit code "
       <> string.inspect(exit_code)
       <> "):\n"
       <> stderr
+    }
     JsonDecodeFailed(errors) ->
       "JSON decode error:\n" <> format_decode_errors(errors)
     SpecParseFailed(errors) ->
       "Spec parse error:\n" <> format_decode_errors(errors)
     SecurityError(msg) -> msg
+  }
+}
+
+/// Suggest fixes based on common CUE validation errors
+fn suggest_fix_for_cue_error(stderr: String) -> String {
+  let has_spec_error = string.contains(stderr, "reference.*spec.*not found")
+  let has_type_error =
+    string.contains(stderr, "wrong type") || string.contains(stderr, "type mismatch")
+  let has_undefined_error =
+    string.contains(stderr, "undefined") || string.contains(stderr, "not defined")
+
+  case True {
+    _ if has_spec_error -> {
+      "\n\nHint: Your CUE file is missing a top-level 'spec:' field.\n"
+      <> "The file should have:\n\n"
+      <> "  import \"github.com/intent-cli/intent/schema:intent\"\n\n"
+      <> "  spec: intent.#Spec & {\n"
+      <> "    name: \"...\"\n"
+      <> "    description: \"...\"\n"
+      <> "    ...\n"
+      <> "  }\n\n"
+      <> "See examples/user-api.cue for a complete example."
+    }
+    _ if has_type_error -> {
+      "\n\nHint: There's a type mismatch in your CUE file.\n"
+      <> "Check that field types match the schema in schema/intent.cue.\n\n"
+      <> "Common issues:\n"
+      <> "  - Strings should be quoted: \"value\"\n"
+      <> "  - Integers should be unquoted: 42\n"
+      <> "  - Lists use brackets: [\"item1\", \"item2\"]\n"
+      <> "  - Objects use braces: { field: value }"
+    }
+    _ if has_undefined_error -> {
+      "\n\nHint: An undefined field was referenced.\n"
+      <> "Check for typos in field names or missing import statements.\n\n"
+      <> "For spec: intent.#Spec, add:\n"
+      <> "  import \"github.com/intent-cli/intent/schema:intent\"\n"
+    }
+    _ -> ""
   }
 }

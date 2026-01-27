@@ -313,13 +313,18 @@ pub fn parse_json_to_spec_empty_string_test() {
 
 pub fn format_error_file_not_found_test() {
   let error = FileNotFound("missing.cue")
-  loader.format_error(error) |> should.equal("File not found: missing.cue")
+  loader.format_error(error)
+  |> should.equal(
+    "File not found: missing.cue\n\nHint: Check the file path is correct and the file exists.",
+  )
 }
 
 pub fn format_error_file_not_found_with_path_test() {
   let error = FileNotFound("examples/api/spec.cue")
   loader.format_error(error)
-  |> should.equal("File not found: examples/api/spec.cue")
+  |> should.equal(
+    "File not found: examples/api/spec.cue\n\nHint: Check the file path is correct and the file exists.",
+  )
 }
 
 pub fn format_error_validation_failed_test() {

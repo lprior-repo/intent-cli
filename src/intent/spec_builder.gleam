@@ -26,12 +26,23 @@ pub fn build_spec_from_session(session: InterviewSession) -> String {
   let security = extract_security_requirements(session.answers)
   let non_functional = extract_non_functional_requirements(session.answers)
 
+  // Determine package name based on profile
+  let package_name = case session.profile {
+    interview.Api -> "package api"
+    interview.Cli -> "package cli"
+    interview.Event -> "package event"
+    interview.Data -> "package data"
+    interview.Workflow -> "package workflow"
+    interview.UI -> "package ui"
+  }
+
   // Build a minimal Spec type for CUE generation
   let spec =
     GeneratedCUE(
-      package: "package api",
+      package: package_name,
       imports: [],
       body: build_spec_body(
+        session.profile,
         features,
         behaviors,
         constraints,
@@ -59,11 +70,55 @@ pub fn extract_features_from_answers(answers: List(Answer)) -> List(String) {
   |> list.filter(fn(s) { s != "" })
 }
 
-/// Extract API behaviors (methods, paths, status codes)
+/// Extract behaviors (API endpoints or CLI commands) based on profile
 pub fn extract_behaviors_from_answers(
   answers: List(Answer),
-  _profile: Profile,
+  profile: Profile,
 ) -> String {
+  case profile {
+    interview.Cli -> extract_cli_behaviors(answers)
+    _ -> extract_api_behaviors(answers)
+  }
+}
+
+/// Extract CLI-specific behaviors (commands, flags, exit codes)
+fn extract_cli_behaviors(answers: List(Answer)) -> String {
+  // Filter for CLI-related answers
+  let cli_answers =
+    list.filter(answers, fn(answer) {
+      contains_any_ignore_case(answer.question_text, [
+        "command",
+        "sub-command",
+        "flag",
+        "exit code",
+      ])
+    })
+
+  case cli_answers {
+    [] ->
+      "// Define CLI commands here
+commands: {
+  // Add command definitions
+  // command_name: {
+  //   description: \"...\"
+  //   flags: [\"--flag\", \"-f\"]
+  //   exit_code: 0
+  // }
+}"
+    answers -> "// CLI commands from interview
+commands: {
+" <> {
+        list.map(cli_answers, fn(answer) {
+          "  // " <> answer.question_text <> "
+  // Answer: " <> string.trim(answer.response)
+        })
+        |> string.join("\n")
+      } <> "\n}"
+  }
+}
+
+/// Extract API behaviors (methods, paths, status codes)
+fn extract_api_behaviors(answers: List(Answer)) -> String {
   let api_answers =
     list.filter(answers, fn(answer) {
       contains_any_ignore_case(answer.question_text, [
@@ -152,6 +207,7 @@ pub fn extract_non_functional_requirements(
 
 /// Build the main body of the spec
 fn build_spec_body(
+  profile: Profile,
   features: List(String),
   behaviors: String,
   constraints: List(String),
