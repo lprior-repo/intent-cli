@@ -2,13 +2,13 @@ import gleam/list
 import gleeunit
 import gleeunit/should
 import intent/planning_types.{
-  Blocker, Critical as BlockerCritical, DimensionScore, High, ReadyReport,
-  type ReadyReport,
+  type ReadyReport, Blocker, Critical as BlockerCritical, DimensionScore, High,
+  ReadyReport,
 }
 import intent/ready_critique.{
-  Critical, CritiqueIssue, RollbackPlan, SuccessCriteria,
-  VisionAlignment, critique_ready, validate_rollback_plan,
-  validate_success_criteria, validate_vision_alignment,
+  Critical, CritiqueIssue, RollbackPlan, SuccessCriteria, VisionAlignment,
+  critique_ready, validate_rollback_plan, validate_success_criteria,
+  validate_vision_alignment,
 }
 
 pub fn main() {

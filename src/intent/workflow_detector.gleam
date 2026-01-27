@@ -32,7 +32,7 @@ pub type WorkflowError {
 /// Check if interview sessions exist
 /// Returns Ok if at least one session exists, Error with guidance otherwise
 pub fn check_sessions_exist() -> Result(Nil, WorkflowError) {
-  let jsonl_path = ".interview/sessions.jsonl"
+  let jsonl_path = ".intent/sessions.jsonl"
 
   case interview_storage.list_sessions_from_jsonl(jsonl_path) {
     Error(_) -> Error(NoInterviewSessions("api"))
@@ -44,7 +44,7 @@ pub fn check_sessions_exist() -> Result(Nil, WorkflowError) {
 /// Check if a specific session exists
 /// Returns Ok if session found, Error with guidance otherwise
 pub fn check_session_exists(session_id: String) -> Result(Nil, WorkflowError) {
-  let jsonl_path = ".interview/sessions.jsonl"
+  let jsonl_path = ".intent/sessions.jsonl"
 
   case interview_storage.get_session_from_jsonl(jsonl_path, session_id) {
     Error(_) -> Error(SessionNotFound(session_id))

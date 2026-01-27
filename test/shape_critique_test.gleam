@@ -1,6 +1,8 @@
 import gleeunit
 import gleeunit/should
-import intent/planning_types.{FeatureShape, MVPSlice, ShapeSection, type ShapeSection}
+import intent/planning_types.{
+  type ShapeSection, FeatureShape, MVPSlice, ShapeSection,
+}
 import intent/shape_critique.{
   critique_shape, validate_achievability, validate_concept_validation,
   validate_mvp_minimalism,

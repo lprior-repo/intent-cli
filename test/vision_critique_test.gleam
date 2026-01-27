@@ -7,7 +7,7 @@ import intent/vision_critique.{
   Critical, CritiqueIssue, ProblemReality, Warning, critique_vision,
   validate_persona, validate_problem_reality, validate_vorp_strength,
 }
-import intent/vision_types.{Scenario, VisionSection, type VisionSection}
+import intent/vision_types.{type VisionSection, Scenario, VisionSection}
 
 pub fn main() {
   gleeunit.main()

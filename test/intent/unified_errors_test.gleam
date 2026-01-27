@@ -6,15 +6,15 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/unified_errors.{
-  ConflictingFlags, Error, FileNotFound, FilePermissionDenied, InternalError, InvalidInput, LoadError,
-  MissingInput, SessionNotFound, SpecParseError, ValidationFailed, Warning,
-  conflicting_flags, error_code_to_string, exit_internal_error,
-  exit_runtime_error, exit_success, exit_user_input_error, exit_validation_error,
-  file_not_found, file_permission_denied, format_error_brief, format_error_text,
-  get_exit_code_for_error, internal_error, invalid_input, load_error,
-  missing_input, session_not_found, spec_parse_error, unified_error,
-  unified_error_to_json, validation_failed, with_context, with_context_list,
-  with_severity,
+  ConflictingFlags, Error, FileNotFound, FilePermissionDenied, InternalError,
+  InvalidInput, LoadError, MissingInput, SessionNotFound, SpecParseError,
+  ValidationFailed, Warning, conflicting_flags, error_code_to_string,
+  exit_internal_error, exit_runtime_error, exit_success, exit_user_input_error,
+  exit_validation_error, file_not_found, file_permission_denied,
+  format_error_brief, format_error_text, get_exit_code_for_error, internal_error,
+  invalid_input, load_error, missing_input, session_not_found, spec_parse_error,
+  unified_error, unified_error_to_json, validation_failed, with_context,
+  with_context_list, with_severity,
 }
 
 pub fn main() {

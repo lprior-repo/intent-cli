@@ -16,7 +16,7 @@ import gleeunit/should
 import intent/kirk/ready
 import intent/phase_state
 import intent/planning_types.{
-  Blocker, Critical, DimensionScore, ReadyReport, type ReadyReport,
+  type ReadyReport, Blocker, Critical, DimensionScore, ReadyReport,
 }
 import intent/ready_critique
 import intent/ready_session.{Approved, Complete, InProgress, ReadyForCritique}

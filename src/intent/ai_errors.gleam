@@ -234,7 +234,7 @@ pub fn file_not_found(path: String) -> StructuredError {
       #("path", path),
       #(
         "expected_location",
-        "Spec files should be in project root or .interview/",
+        "Spec files should be in project root or .intent/",
       ),
     ]),
     suggestion: "Check that the file path is correct and the file exists",
@@ -325,14 +325,14 @@ pub fn session_not_found(session_id: String) -> StructuredError {
     message: "Session not found: " <> session_id,
     context: dict.from_list([
       #("session_id", session_id),
-      #("sessions_path", ".interview/sessions.jsonl"),
+      #("sessions_path", ".intent/sessions.jsonl"),
     ]),
     suggestion: "List available sessions or start a new one",
     recovery: [
       "List sessions: intent sessions",
       "Start new session: intent interview --cue",
       "Check session ID spelling",
-      "Verify .interview/ directory exists",
+      "Verify .intent/ directory exists",
     ],
     retry_allowed: True,
     exit_code: 4,
