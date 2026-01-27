@@ -14,13 +14,35 @@ import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/option
 import gleam/string
 import intent/planning_types.{
   type Blocker, type BlockerSeverity, type DimensionScore, type ReadyReport,
   type Recommendation, Blocker, Critical, DimensionScore, High, Low, Medium,
   ReadyReport, Recommendation,
 }
-import intent/types.{type Behavior, type Spec}
+import intent/types.{
+  type AIHints, type Behavior, type Spec, AIHints, ImplementationHints,
+  SecurityHints,
+}
+
+/// Get AI hints with default (empty hints if not provided)
+fn get_ai_hints(spec: Spec) -> AIHints {
+  option.unwrap(
+    spec.ai_hints,
+    AIHints(
+      implementation: ImplementationHints(suggested_stack: []),
+      entities: dict.new(),
+      security: SecurityHints(
+        password_hashing: "",
+        jwt_algorithm: "",
+        jwt_expiry: "",
+        rate_limiting: "",
+      ),
+      pitfalls: [],
+    ),
+  )
+}
 
 // =============================================================================
 // PUBLIC API
@@ -166,7 +188,7 @@ fn analyze_replacement(spec: Spec) -> DimensionScore {
   }
 
   // +20 if ai_hints.implementation has content
-  let score = case spec.ai_hints.implementation.suggested_stack != [] {
+  let score = case get_ai_hints(spec).implementation.suggested_stack != [] {
     True -> score + 20
     False -> score
   }
@@ -422,9 +444,9 @@ fn analyze_yet_complete(spec: Spec) -> DimensionScore {
 
   // +25 if ai_hints complete (check multiple fields)
   let ai_hints_complete =
-    spec.ai_hints.implementation.suggested_stack != []
-    || dict.size(spec.ai_hints.entities) > 0
-    || spec.ai_hints.pitfalls != []
+    get_ai_hints(spec).implementation.suggested_stack != []
+    || dict.size(get_ai_hints(spec).entities) > 0
+    || get_ai_hints(spec).pitfalls != []
 
   let score = case ai_hints_complete {
     True -> score + 25

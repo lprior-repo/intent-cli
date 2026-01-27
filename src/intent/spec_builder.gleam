@@ -4,7 +4,7 @@ import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
 import intent/interview.{type Answer, type InterviewSession, type Profile}
@@ -276,11 +276,13 @@ pub fn create_test_spec(behavior_count: Int) -> Spec {
     features: [Feature("test-feature", "test", behaviors)],
     rules: [],
     anti_patterns: [],
-    ai_hints: AIHints(
-      ImplementationHints([]),
-      dict.new(),
-      SecurityHints("", "", "", ""),
-      [],
+    ai_hints: Some(
+      AIHints(
+        ImplementationHints([]),
+        dict.new(),
+        SecurityHints("", "", "", ""),
+        [],
+      ),
     ),
   )
 }
@@ -293,7 +295,7 @@ fn make_behavior(name: String) -> Behavior {
     requires: [],
     tags: [],
     request: Request(Get, "/", dict.new(), dict.new(), json.null()),
-    response: Response(200, json.null(), dict.new(), dict.new()),
+    response: Response(200, json.null(), dict.new(), None),
     captures: dict.new(),
   )
 }

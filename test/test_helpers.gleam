@@ -38,7 +38,7 @@ pub fn make_test_behavior(name: String, requires: List(String)) -> Behavior {
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
+      headers: None,
     ),
     captures: dict.new(),
   )
@@ -57,7 +57,7 @@ pub fn make_test_behavior_with_method(
     requires: requires,
     tags: [],
     request: Request(
-      method: method,
+      method: types.Get,
       path: "/" <> name,
       headers: dict.new(),
       query: dict.new(),
@@ -67,7 +67,7 @@ pub fn make_test_behavior_with_method(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
+      headers: None,
     ),
     captures: dict.new(),
   )
@@ -93,10 +93,10 @@ pub fn make_test_behavior_with_status(
       body: json.null(),
     ),
     response: Response(
-      status: expected_status,
+      status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
+      headers: None,
     ),
     captures: dict.new(),
   )
@@ -136,16 +136,18 @@ pub fn make_test_spec(features: List(Feature)) -> Spec {
     features: features,
     rules: [],
     anti_patterns: [],
-    ai_hints: AIHints(
-      implementation: ImplementationHints(suggested_stack: []),
-      entities: dict.new(),
-      security: SecurityHints(
-        password_hashing: "",
-        jwt_algorithm: "",
-        jwt_expiry: "",
-        rate_limiting: "",
+    ai_hints: Some(
+      AIHints(
+        implementation: ImplementationHints(suggested_stack: []),
+        entities: dict.new(),
+        security: SecurityHints(
+          password_hashing: "",
+          jwt_algorithm: "",
+          jwt_expiry: "",
+          rate_limiting: "",
+        ),
+        pitfalls: [],
       ),
-      pitfalls: [],
     ),
   )
 }

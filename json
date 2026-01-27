@@ -1,0 +1,488 @@
+// Generated from EARS requirements
+// Source of truth: requirements.md
+package json
+
+import "github.com/intent-cli/intent/schema:intent"
+
+spec: intent.#Spec & {
+  name: "json"
+  description: "Generated from EARS requirements"
+  audience: "API consumers"
+  version: "1.0.0"
+
+  success_criteria: [
+    "All EARS requirements are satisfied",
+  ]
+
+  config: {
+    base_url: "http://localhost:8080"
+    timeout_ms: 5000
+  }
+
+  features: [
+    {
+      name: "EARS Requirements"
+      description: "Behaviors derived from EARS requirements"
+
+      behaviors: [
+        {
+          name: "req-5-validate"
+          intent: "validate all API inputs against schema"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-6-handle"
+          intent: "log all API requests with timestamps"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-7-return"
+          intent: "return JSON responses with consistent structure"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/resource/{id}"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-10-validate-on-user-submits-registr"
+          intent: "validate email format"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-11-handle-on-user-requests-passwo"
+          intent: "send reset email within 30 seconds"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-12-return-on-authentication-succe"
+          intent: "return JWT token with 24-hour expiry"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/resource/{id}"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-13-handle-on-user-updates-profile"
+          intent: "record change in audit log"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-16-handle-while-user-is-authenticate"
+          intent: "allow access to protected endpoints"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-17-return-while-rate-limit-is-exceed"
+          intent: "return 429 status code"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/resource/{id}"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-18-return-while-system-is-in-mainten"
+          intent: "return 503 status code"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/resource/{id}"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-21-handle-if-user-has-admin-role"
+          intent: "allow access to admin endpoints"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-22-handle-if-request-includes-api"
+          intent: "bypass rate limiting"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-23-handle-if-two-factor-is-enable"
+          intent: "require OTP verification"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-26-handle-prevented-when-user-is-banned"
+          intent: ""
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-27-handle-prevented-when-token-is-expired"
+          intent: ""
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-28-handle-prevented-when-password-has-been-co"
+          intent: ""
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-31-handle"
+          intent: "redirect to login"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        },
+        {
+          name: "req-32-handle"
+          intent: "rollback all changes"
+          notes: ""
+          requires: []
+          tags: []
+
+          request: {
+            method: "GET"
+            path: "/endpoint"
+            headers: {}
+            query: {}
+            body: {}
+          }
+
+          response: {
+            status: 200
+            example: {}
+            checks: {}
+            headers: {}
+          }
+
+          captures: {}
+        }
+      ]
+    },
+  ]
+
+  rules: []
+  anti_patterns: []
+
+  ai_hints: {
+    implementation: {
+      suggested_stack: ["Any modern backend framework"]
+    }
+
+    entities: {}
+
+    security: {
+      password_hashing: "bcrypt with salt rounds >= 12"
+      jwt_algorithm:    "RS256 or ES256 (asymmetric preferred)"
+      jwt_expiry:       "15 minutes for access, 7 days for refresh"
+      rate_limiting:    "100 requests per minute per IP"
+    }
+
+    pitfalls: [
+      "Review generated spec - EARS captures intent, not complete API design",
+      "Add validation rules for request/response schemas",
+      "Define entity relationships and data constraints",
+      "Specify error handling and edge cases",
+    ]
+  }
+}

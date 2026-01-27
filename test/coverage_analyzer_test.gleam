@@ -4,6 +4,7 @@
 import gleam/dict
 import gleam/json
 import gleam/list
+import gleam/option.{None}
 import gleam/string
 import gleeunit/should
 import intent/kirk/coverage_analyzer
@@ -93,7 +94,7 @@ pub fn analyze_coverage_path_normalization_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     )
@@ -133,7 +134,7 @@ pub fn analyze_coverage_owasp_keywords_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     ),
@@ -154,7 +155,7 @@ pub fn analyze_coverage_owasp_keywords_test() {
         status: 401,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     ),
@@ -199,7 +200,7 @@ pub fn analyze_coverage_edge_cases_test() {
         status: 200,
         example: json.array([], fn(x) { x }),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     ),
@@ -223,7 +224,7 @@ pub fn analyze_coverage_edge_cases_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     ),

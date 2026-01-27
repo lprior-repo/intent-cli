@@ -10,8 +10,11 @@ import gleam/float
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option
 import gleam/string
-import intent/types.{type Behavior, type Spec}
+import intent/types.{
+  type Behavior, type Spec, AIHints, ImplementationHints, SecurityHints,
+}
 
 // =============================================================================
 // TYPES
@@ -509,8 +512,25 @@ fn analyze_expertise_assumptions(
     }
   }
 
+  // Get AI hints with default (empty hints if not provided)
+  let ai_hints =
+    option.unwrap(
+      spec.ai_hints,
+      AIHints(
+        implementation: ImplementationHints(suggested_stack: []),
+        entities: dict.new(),
+        security: SecurityHints(
+          password_hashing: "",
+          jwt_algorithm: "",
+          jwt_expiry: "",
+          rate_limiting: "",
+        ),
+        pitfalls: [],
+      ),
+    )
+
   // Check AI hints for assumed expertise
-  let pitfalls = spec.ai_hints.pitfalls
+  let pitfalls = ai_hints.pitfalls
   let mut_issues = case list.length(pitfalls) {
     0 -> [
       CognitiveIssue(

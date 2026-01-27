@@ -21,6 +21,7 @@
 /// - load_spec_quiet: Loads using shellout (alias for load_spec)
 ///
 /// Refactored to address beads: intent-cli-3lom, intent-cli-27i7, intent-cli-qc44
+import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/json
 import gleam/list
@@ -28,7 +29,10 @@ import gleam/option
 import gleam/string
 import intent/parser
 import intent/security
-import intent/types.{type Config, type Spec}
+import intent/types.{
+  type AIHints, type Config, type Response, type RuleCheck, type Spec, AIHints,
+  Config, ImplementationHints, Response, RuleCheck, SecurityHints, Spec,
+}
 import shellout
 
 // ============================================================================
@@ -125,6 +129,70 @@ pub fn parse_json_to_spec(json_str: String) -> Result(Spec, LoadError) {
 /// Defaults are applied in shell layer, not core parser
 pub fn get_allow_localhost(config: Config) -> Bool {
   option.unwrap(config.allow_localhost, False)
+}
+
+/// Get ai_hints with shell-layer default (PURE - no I/O)
+/// Returns empty AIHints as default if not specified
+/// Defaults are applied in shell layer, not core parser
+pub fn get_ai_hints(spec: Spec) -> AIHints {
+  option.unwrap(
+    spec.ai_hints,
+    types.AIHints(
+      implementation: ImplementationHints(suggested_stack: []),
+      entities: dict.new(),
+      security: SecurityHints(
+        password_hashing: "",
+        jwt_algorithm: "",
+        jwt_expiry: "",
+        rate_limiting: "",
+      ),
+      pitfalls: [],
+    ),
+  )
+}
+
+/// Get response headers with shell-layer default (PURE - no I/O)
+/// Returns empty dict as default if not specified
+/// Defaults are applied in shell layer, not core parser
+pub fn get_response_headers(response: types.Response) -> Dict(String, String) {
+  option.unwrap(response.headers, dict.new())
+}
+
+/// Get rule check field with shell-layer default (PURE - no I/O)
+/// Returns empty list as default for list fields
+/// Defaults are applied in shell layer, not core parser
+pub fn get_rule_check_body_must_not_contain(
+  rule_check: types.RuleCheck,
+) -> List(String) {
+  option.unwrap(rule_check.body_must_not_contain, [])
+}
+
+pub fn get_rule_check_body_must_contain(
+  rule_check: types.RuleCheck,
+) -> List(String) {
+  option.unwrap(rule_check.body_must_contain, [])
+}
+
+pub fn get_rule_check_fields_must_exist(
+  rule_check: types.RuleCheck,
+) -> List(String) {
+  option.unwrap(rule_check.fields_must_exist, [])
+}
+
+pub fn get_rule_check_fields_must_not_exist(
+  rule_check: types.RuleCheck,
+) -> List(String) {
+  option.unwrap(rule_check.fields_must_not_exist, [])
+}
+
+pub fn get_rule_check_header_must_exist(rule_check: types.RuleCheck) -> String {
+  option.unwrap(rule_check.header_must_exist, "")
+}
+
+pub fn get_rule_check_header_must_not_exist(
+  rule_check: types.RuleCheck,
+) -> String {
+  option.unwrap(rule_check.header_must_not_exist, "")
 }
 
 // ============================================================================

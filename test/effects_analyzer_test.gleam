@@ -4,6 +4,7 @@
 import gleam/dict
 import gleam/json
 import gleam/list
+import gleam/option.{None}
 import gleam/string
 import gleeunit/should
 import intent/kirk/effects_analyzer
@@ -91,7 +92,7 @@ pub fn analyze_effects_user_delete_test() {
         status: 204,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     )
@@ -133,7 +134,7 @@ pub fn analyze_effects_create_behavior_test() {
         status: 201,
         example: json.object([#("id", json.int(123))]),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.from_list([#("user_id", "response.body.id")]),
     )
@@ -196,7 +197,7 @@ pub fn analyze_effects_cascade_detection_test() {
         status: 204,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     )

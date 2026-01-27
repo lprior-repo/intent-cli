@@ -4,6 +4,7 @@
 import gleam/dict
 import gleam/json
 import gleam/list
+import gleam/option.{None}
 import gleam/string
 import gleeunit/should
 import intent/kirk/gap_detector
@@ -93,7 +94,7 @@ pub fn detect_gaps_delete_no_verification_test() {
         status: 204,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     ),
@@ -130,7 +131,7 @@ pub fn detect_gaps_with_auth_coverage_test() {
         status: 200,
         example: json.object([#("token", json.string("jwt..."))]),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.from_list([#("auth_token", "response.body.token")]),
     ),
@@ -151,7 +152,7 @@ pub fn detect_gaps_with_auth_coverage_test() {
         status: 401,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+        headers: None,
       ),
       captures: dict.new(),
     ),

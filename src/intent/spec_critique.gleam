@@ -1,12 +1,14 @@
 /// Spec Critique Protocol - Adversarial QA Persona
 ///
-/// This module implements validation logic for the Spec phase following
-/// the "Adversarial QA" critique protocol from INTENT_4_PLAN.md
+/// This module implements validation logic for Spec phase following
+/// "Adversarial QA" critique protocol from INTENT_4_PLAN.md
+import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/option
 import gleam/string
-import intent/types.{type Spec}
+import intent/types.{type Spec, AIHints, ImplementationHints, SecurityHints}
 
 // =============================================================================
 // Types - Spec Phase Specific
@@ -297,8 +299,25 @@ pub fn validate_failure_blast_radius(spec: Spec) -> List(CritiqueIssue) {
     _ -> issues
   }
 
+  // Get AI hints with default
+  let ai_hints =
+    option.unwrap(
+      spec.ai_hints,
+      AIHints(
+        implementation: ImplementationHints(suggested_stack: []),
+        entities: dict.new(),
+        security: SecurityHints(
+          password_hashing: "",
+          jwt_algorithm: "",
+          jwt_expiry: "",
+          rate_limiting: "",
+        ),
+        pitfalls: [],
+      ),
+    )
+
   // Check for AI hints about pitfalls
-  let issues = case spec.ai_hints.pitfalls {
+  let issues = case ai_hints.pitfalls {
     [] ->
       add_issue(
         issues,

@@ -5,6 +5,7 @@
 import gleam/dict
 import gleam/json
 import gleam/list
+import gleam/option.{None}
 import gleam/string
 import gleeunit/should
 import intent/kirk/empathy_simulator
@@ -97,7 +98,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/users",
-        headers: dict.new(),
+      headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -105,7 +106,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+      headers: None,
       ),
       captures: dict.new(),
     ),
@@ -118,7 +119,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/user",
-        headers: dict.new(),
+      headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -126,7 +127,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+      headers: None,
       ),
       captures: dict.new(),
     ),
@@ -139,7 +140,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/users/${id}",
-        headers: dict.new(),
+      headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -147,7 +148,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+      headers: None,
       ),
       captures: dict.new(),
     ),
@@ -160,7 +161,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/user/${id}",
-        headers: dict.new(),
+      headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
@@ -168,7 +169,7 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+      headers: None,
       ),
       captures: dict.new(),
     ),
@@ -215,7 +216,7 @@ pub fn analyze_empathy_expertise_technical_jargon_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+      headers: None,
       ),
       captures: dict.new(),
     ),
@@ -243,7 +244,7 @@ pub fn analyze_empathy_many_required_fields_test() {
       request: Request(
         method: Post,
         path: "/resources",
-        headers: dict.new(),
+      headers: dict.new(),
         query: dict.new(),
         body: json.object([
           #("field1", json.string("value1")),
@@ -262,7 +263,7 @@ pub fn analyze_empathy_many_required_fields_test() {
         status: 201,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
+      headers: None,
       ),
       captures: dict.new(),
     ),

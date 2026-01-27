@@ -520,8 +520,8 @@ fn compare_response(old: Response, new: Response) -> List(ResponseChange) {
   }
 
   // Check headers
-  let old_headers = dict.keys(old.headers)
-  let new_headers = dict.keys(new.headers)
+  let old_headers = dict.keys(option.unwrap(old.headers, dict.new()))
+  let new_headers = dict.keys(option.unwrap(new.headers, dict.new()))
   let headers_change = compare_string_lists(old_headers, new_headers)
   let changes = case
     list.is_empty(headers_change.added) && list.is_empty(headers_change.removed)

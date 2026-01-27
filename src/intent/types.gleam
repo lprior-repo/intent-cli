@@ -4,7 +4,7 @@ import gleam/dict.{type Dict}
 import gleam/json.{type Json}
 import gleam/option.{type Option}
 
-/// The main specification type - all fields required
+/// The main specification type - ai_hints is optional
 pub type Spec {
   Spec(
     name: String,
@@ -16,7 +16,7 @@ pub type Spec {
     features: List(Feature),
     rules: List(Rule),
     anti_patterns: List(AntiPattern),
-    ai_hints: AIHints,
+    ai_hints: Option(AIHints),
   )
 }
 
@@ -98,13 +98,13 @@ pub type Request {
   )
 }
 
-/// Expected response - all fields required
+/// Expected response - headers is optional
 pub type Response {
   Response(
     status: Int,
     example: Json,
     checks: Dict(String, Check),
-    headers: Dict(String, String),
+    headers: Option(Dict(String, String)),
   )
 }
 
@@ -131,15 +131,15 @@ pub type When {
   When(status: Option(String), method: Option(Method), path: Option(String))
 }
 
-/// Rule checks for global rules - all fields required
+/// Rule checks for global rules - all fields optional
 pub type RuleCheck {
   RuleCheck(
-    body_must_not_contain: List(String),
-    body_must_contain: List(String),
-    fields_must_exist: List(String),
-    fields_must_not_exist: List(String),
-    header_must_exist: String,
-    header_must_not_exist: String,
+    body_must_not_contain: Option(List(String)),
+    body_must_contain: Option(List(String)),
+    fields_must_exist: Option(List(String)),
+    fields_must_not_exist: Option(List(String)),
+    header_must_exist: Option(String),
+    header_must_not_exist: Option(String),
   )
 }
 

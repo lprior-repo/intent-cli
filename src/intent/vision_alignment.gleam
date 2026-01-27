@@ -1,19 +1,21 @@
 /// Vision Alignment Checker - Detects drift from Phase 1 (Vision) to Phase 4 (Spec)
 ///
-/// This module compares the original vision (persona, north star, VORP, scope)
-/// against the final spec to detect alignment issues and drift.
+/// This module compares original vision (persona, north star, VORP, scope)
+/// against final spec to detect alignment issues and drift.
 ///
-/// Part of the 4-phase planning system:
+/// Part of 4-phase planning system:
 /// - Phase 1: Vision (DDD) - What & Why
 /// - Phase 2: Shape (MVP) - Minimum viable scope
 /// - Phase 3: Spec (KIRK) - Detailed specification
 /// - Phase 4: Ready (Ship) - Readiness assessment <- Vision alignment check happens here
+import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option
 import gleam/string
 import intent/planning_types.{type DimensionScore, DimensionScore}
-import intent/types.{type Spec}
+import intent/types.{type Spec, AIHints, ImplementationHints, SecurityHints}
 import intent/vision_types.{type Scenario, type VisionSection}
 
 // =============================================================================
@@ -264,6 +266,24 @@ pub fn check_scope_integrity(
   DimensionScore(score: score, reasoning: reasoning, issues: issues)
 }
 
+/// Get AI hints with default (empty hints if not provided)
+fn get_ai_hints(spec: Spec) -> AIHints {
+  option.unwrap(
+    spec.ai_hints,
+    AIHints(
+      implementation: ImplementationHints(suggested_stack: []),
+      entities: dict.new(),
+      security: SecurityHints(
+        password_hashing: "",
+        jwt_algorithm: "",
+        jwt_expiry: "",
+        rate_limiting: "",
+      ),
+      pitfalls: [],
+    ),
+  )
+}
+
 /// Check if spec delivers on the vision VORP (Value Over Replacement)
 pub fn check_vorp_delivery(vision: VisionSection, spec: Spec) -> DimensionScore {
   let vorp_keywords = extract_keywords(string.lowercase(vision.vorp))
@@ -275,7 +295,7 @@ pub fn check_vorp_delivery(vision: VisionSection, spec: Spec) -> DimensionScore 
       <> list.map(spec.features, fn(f) { f.name <> " " <> f.description })
       |> string.join(" ")
       <> " "
-      <> string.join(spec.ai_hints.implementation.suggested_stack, " "),
+      <> string.join(get_ai_hints(spec).implementation.suggested_stack, " "),
     )
 
   let found_keywords =

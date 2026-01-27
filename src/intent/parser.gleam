@@ -46,10 +46,9 @@ pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
     "anti_patterns",
     dynamic.list(parse_anti_pattern),
   )(data))
-  // ai_hints is optional in schema - provide default if missing
-  let ai_hints =
-    dynamic.field("ai_hints", parse_ai_hints)(data)
-    |> result.unwrap(default_ai_hints())
+  use ai_hints <- result.try(dynamic.optional_field("ai_hints", parse_ai_hints)(
+    data,
+  ))
 
   Ok(Spec(
     name: name,
@@ -224,10 +223,9 @@ fn parse_response(data: Dynamic) -> Result(Response, List(DecodeError)) {
   use status <- result.try(dynamic.field("status", dynamic.int)(data))
   use example <- result.try(dynamic.field("example", parse_json_value)(data))
   use checks <- result.try(dynamic.field("checks", parse_checks)(data))
-  // Headers are optional - use empty dict if not present
-  let headers =
-    dynamic.field("headers", parse_string_dict)(data)
-    |> result.unwrap(dict.new())
+  use headers <- result.try(dynamic.optional_field("headers", parse_string_dict)(
+    data,
+  ))
   Ok(Response(status, example, checks, headers))
 }
 
@@ -265,24 +263,30 @@ fn parse_when(data: Dynamic) -> Result(When, List(DecodeError)) {
 }
 
 fn parse_rule_check(data: Dynamic) -> Result(RuleCheck, List(DecodeError)) {
-  let body_must_not_contain =
-    dynamic.field("body_must_not_contain", dynamic.list(dynamic.string))(data)
-    |> result.unwrap([])
-  let body_must_contain =
-    dynamic.field("body_must_contain", dynamic.list(dynamic.string))(data)
-    |> result.unwrap([])
-  let fields_must_exist =
-    dynamic.field("fields_must_exist", dynamic.list(dynamic.string))(data)
-    |> result.unwrap([])
-  let fields_must_not_exist =
-    dynamic.field("fields_must_not_exist", dynamic.list(dynamic.string))(data)
-    |> result.unwrap([])
-  let header_must_exist =
-    dynamic.field("header_must_exist", dynamic.string)(data)
-    |> result.unwrap("")
-  let header_must_not_exist =
-    dynamic.field("header_must_not_exist", dynamic.string)(data)
-    |> result.unwrap("")
+  use body_must_not_contain <- result.try(dynamic.optional_field(
+    "body_must_not_contain",
+    dynamic.list(dynamic.string),
+  )(data))
+  use body_must_contain <- result.try(dynamic.optional_field(
+    "body_must_contain",
+    dynamic.list(dynamic.string),
+  )(data))
+  use fields_must_exist <- result.try(dynamic.optional_field(
+    "fields_must_exist",
+    dynamic.list(dynamic.string),
+  )(data))
+  use fields_must_not_exist <- result.try(dynamic.optional_field(
+    "fields_must_not_exist",
+    dynamic.list(dynamic.string),
+  )(data))
+  use header_must_exist <- result.try(dynamic.optional_field(
+    "header_must_exist",
+    dynamic.string,
+  )(data))
+  use header_must_not_exist <- result.try(dynamic.optional_field(
+    "header_must_not_exist",
+    dynamic.string,
+  )(data))
   Ok(RuleCheck(
     body_must_not_contain,
     body_must_contain,
@@ -313,21 +317,6 @@ fn parse_anti_pattern(data: Dynamic) -> Result(AntiPattern, List(DecodeError)) {
     good_example: good_example,
     why: why,
   ))
-}
-
-/// Default empty AI hints when not provided in spec
-fn default_ai_hints() -> AIHints {
-  AIHints(
-    implementation: ImplementationHints(suggested_stack: []),
-    entities: dict.new(),
-    security: SecurityHints(
-      password_hashing: "",
-      jwt_algorithm: "",
-      jwt_expiry: "",
-      rate_limiting: "",
-    ),
-    pitfalls: [],
-  )
 }
 
 fn parse_ai_hints(data: Dynamic) -> Result(AIHints, List(DecodeError)) {

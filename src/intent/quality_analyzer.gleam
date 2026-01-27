@@ -4,9 +4,13 @@ import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/types.{type Behavior, type Rule, type Spec}
+import intent/types.{
+  type AIHints, type Behavior, type Rule, type Spec, AIHints,
+  ImplementationHints, SecurityHints,
+}
 
 /// Quality metrics for a spec
 pub type QualityReport {
@@ -207,15 +211,34 @@ fn calculate_testability_score(behaviors: List(Behavior)) -> Int {
   int.min(100, testability_total)
 }
 
+/// Get AI hints with default (empty hints if not provided)
+fn get_ai_hints(spec: Spec) -> AIHints {
+  option.unwrap(
+    spec.ai_hints,
+    AIHints(
+      implementation: ImplementationHints(suggested_stack: []),
+      entities: dict.new(),
+      security: SecurityHints(
+        password_hashing: "",
+        jwt_algorithm: "",
+        jwt_expiry: "",
+        rate_limiting: "",
+      ),
+      pitfalls: [],
+    ),
+  )
+}
+
 /// Calculate AI readiness score (0-100)
 /// Measures how much guidance is available for AI
 fn calculate_ai_readiness_score(spec: Spec, behaviors: List(Behavior)) -> Int {
   let base = 50
 
   // Check for AI hints (has any non-empty implementation suggestions or pitfalls)
+  let ai_hints_value = get_ai_hints(spec)
   let has_ai_hints =
-    !list.is_empty(spec.ai_hints.implementation.suggested_stack)
-    || !list.is_empty(spec.ai_hints.pitfalls)
+    !list.is_empty(ai_hints_value.implementation.suggested_stack)
+    || !list.is_empty(ai_hints_value.pitfalls)
 
   let hints_bonus = case has_ai_hints {
     True -> 20
