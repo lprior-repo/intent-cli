@@ -523,24 +523,101 @@ fn export_command() -> glint.Command(Nil) {
       [spec_path, ..] -> {
         case loader.export_spec_json(spec_path, loader.default_cue_exporter) {
           Ok(json_str) -> {
-            io.println(json_str)
-            halt(exit_pass)
+            // Wrap in proper JSON response with next_actions
+            case json.decode(json_str, dynamic.dynamic) {
+              Ok(spec_json) -> {
+                let next_actions = [
+                  json_output.next_action(
+                    "intent check " <> spec_path <> " --target=URL",
+                    "Test spec against API",
+                  ),
+                  json_output.next_action(
+                    "intent quality " <> spec_path,
+                    "Analyze spec quality",
+                  ),
+                  json_output.next_action(
+                    "intent validate " <> spec_path,
+                    "Validate spec structure",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "export_result",
+                    "export",
+                    parser.dynamic_to_json(spec_json),
+                    Some(spec_path),
+                    next_actions,
+                  )
+                json_output.output(response)
+                halt(exit_pass)
+              }
+              Error(_) -> {
+                // Fallback: raw JSON output if parse fails
+                let response =
+                  json_output.success(
+                    "export_result",
+                    "export",
+                    json.object([#("raw_json", json.string(json_str))]),
+                    Some(spec_path),
+                    [
+                      json_output.next_action(
+                        "intent check " <> spec_path <> " --target=URL",
+                        "Test spec against API",
+                      ),
+                    ],
+                  )
+                json_output.output(response)
+                halt(exit_pass)
+              }
+            }
           }
           Error(e) -> {
-            ai_errors.from_load_error(e, spec_path)
-            |> ai_errors.format_text()
-            |> io.println_error()
+            let error_msg = loader.format_error(e)
+            let response =
+              json_output.failure(
+                "export_failed",
+                "export",
+                json.null(),
+                [json_output.error("load_error", error_msg)],
+                Some(spec_path),
+                [
+                  json_output.next_action(
+                    "intent interview",
+                    "Create a new spec",
+                  ),
+                  json_output.next_action(
+                    "intent validate " <> spec_path,
+                    "Validate spec path",
+                  ),
+                ],
+                exit_invalid,
+              )
+            json_output.output(response)
             halt(exit_invalid)
           }
         }
       }
       [] -> {
-        ai_errors.cli_error_with_usage(
-          message: "spec file path required",
-          usage: "intent export <spec.cue>",
-        )
-        |> ai_errors.format_cli_error()
-        |> io.println_error()
+        let response =
+          json_output.failure(
+            "export_failed",
+            "export",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [
+              json_output.next_action(
+                "intent export <spec.cue>",
+                "Export spec to JSON",
+              ),
+              json_output.next_action(
+                "intent interview",
+                "Create a new spec",
+              ),
+            ],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
@@ -1845,26 +1922,40 @@ fn beads_command() -> glint.Command(Nil) {
           interview_storage.get_session_from_jsonl(sessions_jsonl, session_id)
         {
           Error(err) -> {
-            io.println_error("Error: " <> err)
-            io.println_error("")
-            // Detect common usage mistake: passing a spec file instead of session ID
-            case string.ends_with(session_id, ".cue") {
-              True -> {
-                io.println_error(
-                  "Hint: The beads command expects a session ID, not a spec file.",
-                )
-                io.println_error(
-                  "      Run 'intent sessions' to see available session IDs.",
-                )
-                halt(exit_error)
+            let is_spec_file = string.ends_with(session_id, ".cue")
+            let error_msg =
+              "Session not found: " <> session_id
+              <> case is_spec_file {
+                True -> "\nNote: The beads command expects a session ID, not a spec file."
+                False -> ""
               }
-              False -> {
-                io.println_error(
-                  "Hint: Run 'intent sessions' to see available session IDs.",
-                )
-                halt(exit_invalid)
-              }
-            }
+            let response =
+              json_output.failure(
+                "beads_failed",
+                "beads",
+                json.null(),
+                [json_output.error("session_not_found", error_msg)],
+                Some(session_id),
+                [
+                  json_output.next_action(
+                    "intent sessions",
+                    "List available session IDs",
+                  ),
+                  json_output.next_action(
+                    "interview",
+                    "Start a new interview session",
+                  ),
+                ],
+                case is_spec_file {
+                  True -> exit_error
+                  False -> exit_invalid
+                },
+              )
+            json_output.output(response)
+            halt(case is_spec_file {
+              True -> exit_error
+              False -> exit_invalid
+            })
           }
           Ok(session) -> {
             // Generate beads from session
@@ -1883,26 +1974,50 @@ fn beads_command() -> glint.Command(Nil) {
               simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
             {
               Ok(Nil) -> {
-                {
-                  // Output JSON for AI agents (limited)
-                  let json_output =
-                    bead_templates.beads_to_action_json(beads, session_id)
-                  io.println(json.to_string(json_output))
-                }
-                io.println(
-                  "(showing first "
-                  <> string.inspect(bead_count)
-                  <> " of "
-                  <> string.inspect(total_count)
-                  <> ")",
-                )
-
+                // Output consistent JSON response with next_actions
+                let beads_json = bead_templates.beads_to_action_json(beads, session_id)
+                let next_actions = [
+                  json_output.next_action(
+                    "intent plan " <> session_id,
+                    "Create execution plan from beads",
+                  ),
+                  json_output.next_action(
+                    "bd list --status open",
+                    "Show open work items",
+                  ),
+                  json_output.next_action(
+                    "intent sessions",
+                    "List available sessions",
+                  ),
+                ]
+                let response =
+                  json_output.success(
+                    "beads_generated",
+                    "beads",
+                    beads_json,
+                    Some(session_id),
+                    next_actions,
+                  )
+                json_output.output(response)
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error(
-                  "✗ Failed to write beads: " <> string.inspect(err),
-                )
+                let response =
+                  json_output.failure(
+                    "beads_export_failed",
+                    "beads",
+                    json.object([#("error", json.string(string.inspect(err)))]),
+                    [json_output.error("file_error", "Failed to write beads file")],
+                    Some(session_id),
+                    [
+                      json_output.next_action(
+                        "intent beads " <> session_id,
+                        "Retry beads generation",
+                      ),
+                    ],
+                    exit_error,
+                  )
+                json_output.output(response)
                 halt(exit_error)
               }
             }
@@ -1910,25 +2025,32 @@ fn beads_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        // Check if sessions exist and provide helpful guidance
-        case workflow_detector.check_sessions_exist(profile: "api") {
-          Error(err) -> {
-            io.println_error(workflow_detector.format_error(err))
-            halt(exit_error)
-          }
-          Ok(_) -> {
-            // Sessions exist, user just forgot to provide session_id
-            io.println_error(
-              "Usage: intent beads <session_id> [--json] [--max-items N]",
-            )
-            io.println_error("")
-            io.println_error("Example: intent beads interview-abc123def456")
-            io.println_error("")
-            io.println_error("List available sessions:")
-            io.println_error("  intent sessions")
-            halt(exit_error)
-          }
-        }
+        // No session ID provided - return error with next_actions
+        let response =
+          json_output.failure(
+            "beads_failed",
+            "beads",
+            json.null(),
+            [json_output.error("usage_error", "session ID required")],
+            None,
+            [
+              json_output.next_action(
+                "intent beads <session_id>",
+                "Generate beads from a session",
+              ),
+              json_output.next_action(
+                "intent sessions",
+                "List available session IDs",
+              ),
+              json_output.next_action(
+                "interview",
+                "Start a new interview session",
+              ),
+            ],
+            exit_error,
+          )
+        json_output.output(response)
+        halt(exit_error)
       }
     }
   })
