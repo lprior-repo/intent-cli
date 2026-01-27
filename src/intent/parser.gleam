@@ -3,6 +3,7 @@ import gleam/dict.{type Dict}
 import gleam/dynamic.{type DecodeError, type Dynamic}
 import gleam/json.{type Json}
 import gleam/list
+import gleam/option
 import gleam/result
 import intent/planning_types.{
   type DimensionScore, type FeatureShape, type KIRKHealth, type MVPSlice,
@@ -68,7 +69,16 @@ fn parse_config(data: Dynamic) -> Result(Config, List(DecodeError)) {
   use base_url <- result.try(dynamic.field("base_url", dynamic.string)(data))
   use timeout_ms <- result.try(dynamic.field("timeout_ms", dynamic.int)(data))
   use headers <- result.try(dynamic.field("headers", parse_string_dict)(data))
-  Ok(Config(base_url, timeout_ms, headers, allow_localhost: False))
+  use allow_localhost <- result.try(dynamic.optional_field(
+    "allow_localhost",
+    dynamic.bool,
+  )(data))
+  Ok(Config(
+    base_url,
+    timeout_ms,
+    headers,
+    allow_localhost: option.unwrap(allow_localhost, False),
+  ))
 }
 
 fn parse_string_dict(

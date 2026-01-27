@@ -23,9 +23,10 @@ package intent
 
 // Configuration for the spec
 #Config: {
-	base_url:   string | *""
-	timeout_ms: int | *5000
-	headers:    #Headers | *{}
+	base_url:        string | *""
+	timeout_ms:      int | *5000
+	headers:         #Headers | *{}
+	allow_localhost: bool | *false
 }
 
 #DefaultConfig: #Config & {}
