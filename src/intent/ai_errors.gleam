@@ -7,6 +7,7 @@
 /// - Retry guidance
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type DecodeError}
+import gleam/int
 import gleam/io
 import gleam/json.{type Json}
 import gleam/list
@@ -504,6 +505,3 @@ pub fn format_cli_error(error: CliError) -> String {
     lines -> with_usage <> "\n\n" <> string.join(lines, "\n")
   }
 }
-
-// Required imports
-import gleam/int

@@ -81,6 +81,9 @@ pub type ConflictResolution {
   )
 }
 
+/// Value for Conflict.chosen when no resolution has been selected
+pub const unresolved_conflict = -1
+
 /// Interview session - persistent state machine
 pub type InterviewSession {
   InterviewSession(
@@ -644,7 +647,7 @@ pub fn get_blocking_gaps(session: InterviewSession) -> List(Gap) {
 
 /// Get all unresolved conflicts
 pub fn get_unresolved_conflicts(session: InterviewSession) -> List(Conflict) {
-  list.filter(session.conflicts, fn(conflict) { conflict.chosen == -1 })
+  list.filter(session.conflicts, fn(conflict) { conflict.chosen == unresolved_conflict })
 }
 
 /// Check if interview can proceed (no blocking gaps)

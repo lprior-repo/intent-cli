@@ -17,6 +17,7 @@ import gleam/string
 import intent/interview.{
   type Answer, type Conflict, type ConflictResolution, type Gap,
   type InterviewSession, type InterviewStage, type Profile,
+  unresolved_conflict,
 }
 import intent/question_types.{
   type Perspective, Business, Developer, Ops, Security, User,
@@ -189,6 +190,10 @@ pub type AnswerChangeType {
 // History Operations (Pure Functions)
 // =============================================================================
 
+/// Maximum number of history snapshots to retain per session
+/// Prevents unbounded growth of the history JSONL file
+pub const max_history_size = 100
+
 /// Create an AnswerVersion from an Answer
 pub fn answer_to_version(
   answer: Answer,
@@ -217,7 +222,7 @@ pub fn create_snapshot(
 
   let unresolved_gaps = list.filter(session.gaps, fn(g) { !g.resolved })
   let unresolved_conflicts =
-    list.filter(session.conflicts, fn(c) { c.chosen < 0 })
+    list.filter(session.conflicts, fn(c) { c.chosen == unresolved_conflict })
 
   SessionSnapshot(
     session_id: session.id,
@@ -324,9 +329,9 @@ pub fn diff_sessions(
 
   // Count conflict changes
   let from_unresolved_conflicts =
-    list.filter(from_session.conflicts, fn(c) { c.chosen < 0 })
+    list.filter(from_session.conflicts, fn(c) { c.chosen == unresolved_conflict })
   let to_unresolved_conflicts =
-    list.filter(to_session.conflicts, fn(c) { c.chosen < 0 })
+    list.filter(to_session.conflicts, fn(c) { c.chosen == unresolved_conflict })
   let conflicts_added =
     list.length(to_unresolved_conflicts)
     - list.length(from_unresolved_conflicts)
@@ -504,6 +509,8 @@ pub fn append_history_content(
 }
 
 /// Parse history content and filter by session ID (pure)
+/// Note: Malformed lines are silently skipped for resilience
+/// TODO: Consider returning errors for logging/debugging
 pub fn parse_history_content(
   content: String,
   session_id: String,
@@ -517,6 +524,7 @@ pub fn parse_history_content(
           0 -> Error(Nil)
           _ ->
             json.decode(line, snapshot_decoder)
+            // Skip malformed lines - TODO: log errors for debugging
             |> result.map_error(fn(_) { Nil })
         }
       })
@@ -526,6 +534,9 @@ pub fn parse_history_content(
 }
 
 /// Parse all history content without session filtering (pure)
+/// Returns at most max_history_size most recent snapshots
+/// Note: Malformed lines are silently skipped for resilience
+/// TODO: Consider returning errors for logging/debugging
 pub fn parse_all_history_content(content: String) -> List(SessionSnapshot) {
   case string.length(string.trim(content)) {
     0 -> []
@@ -536,9 +547,11 @@ pub fn parse_all_history_content(content: String) -> List(SessionSnapshot) {
           0 -> Error(Nil)
           _ ->
             json.decode(line, snapshot_decoder)
+            // Skip malformed lines - TODO: log errors for debugging
             |> result.map_error(fn(_) { Nil })
         }
       })
+      |> list.take(max_history_size)
     }
   }
 }
@@ -824,6 +837,8 @@ pub fn update_sessions_content(
 
 /// Parse sessions content (pure)
 /// Returns list of successfully parsed sessions
+/// Note: Malformed lines are silently skipped for resilience
+/// TODO: Consider returning errors for logging/debugging
 pub fn parse_sessions_content(content: String) -> List(InterviewSession) {
   case string.length(string.trim(content)) {
     0 -> []
@@ -834,6 +849,7 @@ pub fn parse_sessions_content(content: String) -> List(InterviewSession) {
           0 -> Error(Nil)
           _ ->
             json.decode(line, session_decoder)
+            // Skip malformed lines - TODO: log errors for debugging
             |> result.map_error(fn(_) { Nil })
         }
       })
@@ -1095,10 +1111,10 @@ fn session_decoder(
   use updated_at <- result.try(dynamic.field("updated_at", dynamic.string)(
     json_value,
   ))
-  use completed_at <- result.try(
+  // completed_at is optional - use empty string if missing
+  let completed_at =
     dynamic.field("completed_at", dynamic.string)(json_value)
-    |> result.map_error(fn(_) { [] }),
-  )
+    |> result.unwrap("")
   use stage_str <- result.try(dynamic.field("stage", dynamic.string)(json_value))
   use stage <- result.try(case stage_str {
     "discovery" -> Ok(interview.Discovery)
@@ -1112,22 +1128,19 @@ fn session_decoder(
     "rounds_completed",
     dynamic.int,
   )(json_value))
-  use answers <- result.try(
+  // answers, gaps, conflicts, raw_notes are optional - use defaults if missing
+  let answers =
     dynamic.field("answers", dynamic.list(answer_decoder))(json_value)
-    |> result.map_error(fn(_) { [] }),
-  )
-  use gaps <- result.try(
+    |> result.unwrap([])
+  let gaps =
     dynamic.field("gaps", dynamic.list(gap_decoder))(json_value)
-    |> result.map_error(fn(_) { [] }),
-  )
-  use conflicts <- result.try(
+    |> result.unwrap([])
+  let conflicts =
     dynamic.field("conflicts", dynamic.list(conflict_decoder))(json_value)
-    |> result.map_error(fn(_) { [] }),
-  )
-  use raw_notes <- result.try(
+    |> result.unwrap([])
+  let raw_notes =
     dynamic.field("raw_notes", dynamic.string)(json_value)
-    |> result.map_error(fn(_) { [] }),
-  )
+    |> result.unwrap("")
 
   Ok(interview.InterviewSession(
     id: id,
@@ -1179,10 +1192,10 @@ fn answer_decoder(
   use confidence <- result.try(
     dynamic.field("confidence", dynamic.float)(json_value),
   )
-  use notes <- result.try(
+  // notes is optional - use empty string if missing
+  let notes =
     dynamic.field("notes", dynamic.string)(json_value)
-    |> result.map_error(fn(_) { [] }),
-  )
+    |> result.unwrap("")
   use timestamp <- result.try(
     dynamic.field("timestamp", dynamic.string)(json_value),
   )
@@ -1220,10 +1233,10 @@ fn gap_decoder(
   )
   use round <- result.try(dynamic.field("round", dynamic.int)(json_value))
   use resolved <- result.try(dynamic.field("resolved", dynamic.bool)(json_value))
-  use resolution <- result.try(
+  // resolution is optional - use empty string if missing
+  let resolution =
     dynamic.field("resolution", dynamic.string)(json_value)
-    |> result.map_error(fn(_) { [] }),
-  )
+    |> result.unwrap("")
 
   Ok(
     interview.Gap(

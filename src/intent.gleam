@@ -1898,7 +1898,7 @@ fn beads_command() -> glint.Command(Nil) {
       }
       [] -> {
         // Check if sessions exist and provide helpful guidance
-        case workflow_detector.check_sessions_exist() {
+        case workflow_detector.check_sessions_exist(profile: "api") {
           Error(err) -> {
             io.println_error(workflow_detector.format_error(err))
             halt(exit_error)

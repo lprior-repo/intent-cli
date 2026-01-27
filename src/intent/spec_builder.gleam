@@ -105,7 +105,7 @@ commands: {
   //   exit_code: 0
   // }
 }"
-    answers -> "// CLI commands from interview
+    _answers -> "// CLI commands from interview
 commands: {
 " <> {
         list.map(cli_answers, fn(answer) {
@@ -207,7 +207,7 @@ pub fn extract_non_functional_requirements(
 
 /// Build the main body of the spec
 fn build_spec_body(
-  profile: Profile,
+  _profile: Profile,
   features: List(String),
   behaviors: String,
   constraints: List(String),
