@@ -1,6 +1,6 @@
 import gleam/dict
-import gleam/io
 import gleam/int
+import gleam/io
 import gleam/list
 import intent/kirk/ready
 import intent/ready_critique
