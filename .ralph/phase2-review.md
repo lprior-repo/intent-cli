@@ -2,18 +2,20 @@
 
 You are reviewing intent-cli, an AI-native specification and planning system in Gleam. It has 33 commands covering spec operations, KIRK analysis (quality, coverage, gaps, inversion, effects), interview workflow, bead/planning generation, parsing, Shape phase, and AI schema output.
 
-## First: Load Skills
+## Red Queen Protocol
 
+Attack relentlessly. Fix surgically. Regress never.
+
+Every finding uses EARS format:
 ```
-skill({ name: "red-queen" })
-skill({ name: "bitter-truth" })
+WHEN <trigger condition>
+THE SYSTEM SHALL <expected behavior>
+BUT INSTEAD <actual behavior>
 ```
 
-Red Queen enforces adversarial evolutionary QA — attack, document, fix, regress. Every generation must defeat all previous generations.
+Severity: P0=crash/data-loss, P1=wrong-output/broken-contract, P2=UX-issue, P3=cosmetic
 
-## Step 1: Red Queen Adversarial QA
-
-Attack every command systematically. For each attack category:
+## Step 1: Adversarial QA — Attack Every Command
 
 ### Attack 1: JSON Output Contract
 Every command (except help) must produce valid JSON matching the Action JSON Schema.
@@ -58,7 +60,7 @@ From a user perspective:
 
 ## Step 3: Generate Beads
 
-For EVERY finding, create a bead with EARS format:
+For EVERY finding:
 ```bash
 bd create --title="[Review] <title>" --type=bug --priority=<0-4> --description="WHEN <trigger> THE SYSTEM SHALL <expected> BUT INSTEAD <actual>. Severity: P<0-3>. Reproduction: <command>. Where to look: <file:line>"
 ```
