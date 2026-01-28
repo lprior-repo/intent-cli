@@ -1,0 +1,116 @@
+{
+  "bead_id": "intent-cli-56y",
+  "phase": "PLAN",
+  "strategy": "Enhance common/envelope.cue with AI features, keep backward compatibility",
+  "design_principles": [
+    "Keep common/envelope.cue as primary source (used by protocol.cue)",
+    "Add AI features as optional fields to common types",
+    "Maintain backward compatibility for existing common envelope usage",
+    "Support both error handling approaches (array and optional object)",
+    "Unified next_actions that supports both simple and rich formats"
+  ],
+  "consolidation_plan": {
+    "step_1": {
+      "action": "Enhance common/envelope.cue",
+      "changes": [
+        {
+          "type": "#Request enhancement",
+          "additions": [
+            "id?: string - correlation ID for request/response matching",
+            "options?: {timeout_ms?: int & >0, dry_run?: bool} - execution options",
+            "rename 'params' to 'args' for consistency (keep 'params' as alias)"
+          ]
+        },
+        {
+          "type": "#Response enhancement",
+          "changes": [
+            "Add id?: string - echo correlation ID from request",
+            "Add success?: bool - boolean success indicator (complements status)",
+            "Add errors?: [...#Error] - error array for AI self-repair",
+            "Keep error?: #Error - for single error case",
+            "Add next_actions_rich?: [...#NextAction] - rich next actions with priority/reason",
+            "Add exit_code?: int to metadata - process exit code"
+          ]
+        },
+        {
+          "type": "#NextAction new type",
+          "definition": {
+            "command": "string - JSONL request as string or full #Request",
+            "reason": "string - explanation",
+            "priority": "int & >=1 & <=5 - priority level",
+            "blocks": "[...string]? - request IDs that must complete first"
+          }
+        },
+        {
+          "type": "#Error enhancement",
+          "changes": [
+            "Add location?: string (alias for path)",
+            "Add fix_hint?: string - human-readable fix suggestion",
+            "Keep fix?: #ErrorFix - structured fix object"
+          ]
+        }
+      ]
+    },
+    "step_2": {
+      "action": "Update test/schema/envelope_validation.cue",
+      "changes": [
+        "Add tests for new optional fields (id, options, success, errors[])",
+        "Add tests for #NextAction type",
+        "Add tests for enhanced metadata with exit_code",
+        "Keep all existing tests for backward compatibility"
+      ]
+    },
+    "step_3": {
+      "action": "Handle ai/envelope_test.cue",
+      "options": [
+        {
+          "option": "Keep as compatibility layer",
+          "approach": "ai/envelope.cue imports and re-exports from common",
+          "pros": "Zero breaking changes, tests continue to work",
+          "cons": "Maintains duplicate files (minimal cost)"
+        },
+        {
+          "option": "Migrate tests to common",
+          "approach": "Update all ai/envelope_test.cue tests to use common types",
+          "pros": "Single source of truth, cleaner codebase",
+          "cons": "More test changes needed"
+        }
+      ],
+      "recommendation": "Option 1 - Keep compatibility layer for now",
+      "rationale": "Low maintenance cost, zero breaking changes, can migrate later"
+    }
+  },
+  "implementation_order": [
+    "1. Enhance schema/common/envelope.cue with new fields",
+    "2. Add new type definitions (#NextAction, enhanced #Error)",
+    "3. Update test/schema/envelope_validation.cue with new tests",
+    "4. Update schema/ai/envelope.cue to re-export from common",
+    "5. Verify all tests pass",
+    "6. Update documentation if needed"
+  ],
+  "validation_criteria": [
+    "All existing envelope_validation.cue tests pass",
+    "All existing ai/envelope_test.cue tests pass",
+    "New tests for AI features work correctly",
+    "schema/protocol.cue re-exports work as before",
+    "No breaking changes to existing consumers"
+  ],
+  "rollback_plan": {
+    "if_fails": "Revert envelope.cue changes, restore original ai/envelope.cue",
+    "data_backup": "Git commit before making changes"
+  },
+  "risk_assessment": {
+    "risk_level": "LOW",
+    "reasons": [
+      "AI envelope not used in production code (only tests)",
+      "All changes are additive (optional fields)",
+      "Backward compatibility maintained via re-exports"
+    ]
+  },
+  "estimated_effort": {
+    "time": "30-45 minutes",
+    "files_changed": 3,
+    "tests_added": "~8-10",
+    "complexity": "Low to Medium"
+  }
+}

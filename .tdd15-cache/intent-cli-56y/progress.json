@@ -1,0 +1,35 @@
+{
+  "bead_id": "intent-cli-56y",
+  "phase": "QA",
+  "status": "completed",
+  "test_results": {
+    "schema_validation": {
+      "common/envelope.cue": "PASS",
+      "ai/envelope.cue": "PASS",
+      "protocol.cue": "PASS"
+    },
+    "test_validation": {
+      "test/schema/envelope_validation.cue": "PASS (24 tests)",
+      "test/schema/ai/envelope_test.cue": "PASS (13 tests)"
+    },
+    "code_formatting": {
+      "common/envelope.cue": "PASS (formatted)",
+      "ai/envelope.cue": "PASS (formatted)",
+      "test/schema/envelope_validation.cue": "PASS (formatted)"
+    }
+  },
+  "qa_summary": {
+    "total_tests": 37,
+    "all_tests_pass": true,
+    "all_schemas_validate": true,
+    "code_formatted": true,
+    "no_regressions": true
+  },
+  "edge_cases_tested": [
+    "Minimal valid envelopes",
+    "Maximal valid envelopes (all optional fields)",
+    "Backward compatibility (old-style usage)",
+    "New AI features (id, options, success, errors[], next_actions_rich)"
+  ],
+  "result": "PASS - Ready for landing"
+}

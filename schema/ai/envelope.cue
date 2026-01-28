@@ -1,98 +1,29 @@
-// AI-Only Request/Response Envelope
-// For JSONL-based command protocol with Claude Code
+// AI Envelope (Compatibility Layer)
+// This file re-exports from common/envelope.cue for backward compatibility
+// All envelope definitions are now consolidated in schema/common/envelope.cue
 package ai
 
-// Request envelope for AI agents
+import "github.com/intent-cli/intent/schema/common"
+
+// Request envelope for AI agents (re-exported from common)
 // Sent as JSONL to stdin
-#Request: {
-	// Correlation ID for request/response matching
-	id: string
+#Request: common.#Request
 
-	// Command in "domain.action" format (e.g., "vision.start", "spec.quality")
-	command: string
-
-	// Command-specific arguments
-	args: {...}
-
-	// Optional execution options
-	options?: {
-		// Timeout in milliseconds (must be positive)
-		timeout_ms?: int & >0
-
-		// If true, validates but doesn't execute
-		dry_run?: bool
-	}
-}
-
-// Response envelope from CLI
+// Response envelope from CLI (re-exported from common)
 // Written as JSONL to stdout
-#Response: {
-	// Echo correlation ID from request
-	id: string
+#Response: common.#Response
 
-	// Whether the command succeeded
-	success: bool
+// Structured error for AI self-repair (re-exported from common)
+#Error: common.#Error
 
-	// Echo command from request
-	command: string
+// Next action suggestion for AI agents (re-exported from common)
+#NextAction: common.#NextAction
 
-	// Command-specific payload
-	data: {...}
-
-	// Errors if any occurred
-	errors: [...#Error]
-
-	// Suggested next actions for AI workflow
-	next_actions: [...#NextAction]
-
-	// Execution metadata
-	metadata: #Metadata
-}
-
-// Structured error for AI self-repair
-#Error: {
-	// Machine-readable error code (e.g., "SESSION_NOT_FOUND")
-	code: string
-
-	// Human-readable message
-	message: string
-
-	// Path to the file/field causing the error
-	location?: string
-
-	// Suggestion for fixing the error
-	fix_hint?: string
-
-	// JSONL command that can fix this error
-	fix_command?: string
-}
-
-// Next action suggestion for AI agents
-#NextAction: {
-	// Full JSONL request as a string
-	command: string
-
-	// Explanation of why this action makes sense
-	reason: string
-
-	// Priority level (1=highest, 5=lowest)
-	priority: int & >=1 & <=5
-
-	// Request IDs that must complete before this action
-	blocks?: [...string]
-}
-
-// Metadata about command execution
+// Metadata about command execution (re-exported from common)
+// Note: Use common.#Response.metadata which now includes exit_code
 #Metadata: {
-	// ISO 8601 timestamp
-	timestamp: string
-
-	// CLI version
-	version: string
-
-	// Execution duration in milliseconds
+	timestamp:   string
 	duration_ms: int
-
-	// Exit code (0=success)
-	exit_code: int
+	version:     string
+	exit_code?:  int
 }
