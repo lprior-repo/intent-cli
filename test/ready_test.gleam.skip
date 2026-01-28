@@ -621,6 +621,9 @@ pub fn empty_spec_ready_analysis_test() {
         ),
         pitfalls: [],
       ),
+      inversions: None,
+      pre_mortem: None,
+      quality_score: None,
     )
 
   let report = ready.analyze_ready(spec)

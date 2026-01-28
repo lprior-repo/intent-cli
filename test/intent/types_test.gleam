@@ -322,12 +322,7 @@ pub fn behavior_with_checks_test() {
   let behavior =
     Behavior(
       ..test_helpers.make_test_behavior("get-user", []),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: checks,
-        headers: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: checks),
     )
 
   behavior.response.checks |> dict.size |> should.equal(2)
@@ -440,13 +435,7 @@ pub fn request_with_body_test() {
 
 pub fn response_construction_test() {
   // Contract: Response can be constructed with all fields
-  let response =
-    Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.new(),
-    )
+  let response = Response(status: 200, example: json.null(), checks: dict.new())
 
   response.status |> should.equal(200)
 }
@@ -456,30 +445,9 @@ pub fn response_with_checks_test() {
   let checks =
     dict.from_list([#("id", Check(rule: "integer", why: "ID must be numeric"))])
 
-  let response =
-    Response(
-      status: 200,
-      example: json.null(),
-      checks: checks,
-      headers: dict.new(),
-    )
+  let response = Response(status: 200, example: json.null(), checks: checks)
 
   response.checks |> dict.size |> should.equal(1)
-}
-
-pub fn response_with_headers_test() {
-  // Contract: Response can specify expected headers
-  let headers = dict.from_list([#("Content-Type", "application/json")])
-
-  let response =
-    Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: headers,
-    )
-
-  response.headers |> dict.size |> should.equal(1)
 }
 
 pub fn response_with_example_test() {
@@ -487,13 +455,7 @@ pub fn response_with_example_test() {
   let example =
     json.object([#("id", json.int(123)), #("name", json.string("Test User"))])
 
-  let response =
-    Response(
-      status: 200,
-      example: example,
-      checks: dict.new(),
-      headers: dict.new(),
-    )
+  let response = Response(status: 200, example: example, checks: dict.new())
 
   // Example is present
   case response.example {
@@ -621,12 +583,7 @@ pub fn spec_traversal_test() {
   let behavior =
     Behavior(
       ..test_helpers.make_test_behavior("get-user", []),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: checks,
-        headers: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: checks),
     )
 
   let feature = test_helpers.make_test_feature("users", [behavior])
@@ -803,12 +760,12 @@ pub fn rule_construction_test() {
       description: "Responses must never be null",
       when: None,
       check: RuleCheck(
-        body_must_not_contain: ["null"],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
+        body_must_not_contain: Some(["null"]),
+        body_must_contain: Some([]),
+        fields_must_exist: Some([]),
+        fields_must_not_exist: Some([]),
+        header_must_exist: Some(""),
+        header_must_not_exist: Some(""),
       ),
       example: None,
     )
@@ -826,12 +783,12 @@ pub fn rule_with_when_condition_test() {
       description: "GET requests must return 200",
       when: Some(when_clause),
       check: RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
+        body_must_not_contain: Some([]),
+        body_must_contain: Some([]),
+        fields_must_exist: Some([]),
+        fields_must_not_exist: Some([]),
+        header_must_exist: Some(""),
+        header_must_not_exist: Some(""),
       ),
       example: None,
     )
@@ -849,23 +806,28 @@ pub fn rule_check_construction_test() {
   // Contract: RuleCheck can specify validation constraints
   let check =
     RuleCheck(
-      body_must_not_contain: ["error", "null"],
-      body_must_contain: ["data"],
-      fields_must_exist: ["id", "created_at"],
-      fields_must_not_exist: ["password"],
-      header_must_exist: "Content-Type",
-      header_must_not_exist: "X-Debug",
+      body_must_not_contain: Some(["error", "null"]),
+      body_must_contain: Some(["data"]),
+      fields_must_exist: Some(["id", "created_at"]),
+      fields_must_not_exist: Some(["password"]),
+      header_must_exist: Some("Content-Type"),
+      header_must_not_exist: Some("X-Debug"),
     )
 
-  check.body_must_not_contain
-  |> list.length
-  |> should.equal(2)
+  case check.body_must_not_contain {
+    Some(lst) -> lst |> list.length |> should.equal(2)
+    None -> should.fail()
+  }
 
-  check.fields_must_exist
-  |> list.length
-  |> should.equal(2)
+  case check.fields_must_exist {
+    Some(lst) -> lst |> list.length |> should.equal(2)
+    None -> should.fail()
+  }
 
-  check.header_must_exist |> should.equal("Content-Type")
+  case check.header_must_exist {
+    Some(val) -> val |> should.equal("Content-Type")
+    None -> should.fail()
+  }
 }
 
 pub fn when_construction_test() {

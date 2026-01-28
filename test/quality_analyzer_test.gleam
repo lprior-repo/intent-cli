@@ -52,7 +52,6 @@ pub fn analyze_quality_missing_why_test() {
           #("id", Check(rule: "integer", why: "")),
           // Empty why
         ]),
-        headers: dict.new(),
       ),
       captures: dict.new(),
     )
@@ -93,7 +92,6 @@ pub fn analyze_quality_short_intent_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
       ),
       captures: dict.new(),
     )
@@ -126,7 +124,6 @@ pub fn analyze_quality_no_checks_test() {
         example: json.object([#("id", json.int(1))]),
         checks: dict.new(),
         // No checks
-        headers: dict.new(),
       ),
       captures: dict.new(),
     )
@@ -173,7 +170,6 @@ pub fn analyze_quality_security_keywords_test() {
         status: 200,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
       ),
       captures: dict.new(),
     ),
@@ -194,7 +190,6 @@ pub fn analyze_quality_security_keywords_test() {
         status: 401,
         example: json.null(),
         checks: dict.new(),
-        headers: dict.new(),
       ),
       captures: dict.new(),
     ),

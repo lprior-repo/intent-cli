@@ -4,7 +4,7 @@
 import gleam/dict
 import gleam/json
 import gleam/list
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
 import intent/spec_linter.{
@@ -60,12 +60,7 @@ fn make_request(method: types.Method, path: String) -> Request {
 
 /// Create a minimal Response with no checks
 fn make_response(example: json.Json) -> Response {
-  Response(
-    status: 200,
-    example: example,
-    checks: dict.new(),
-    headers: dict.new(),
-  )
+  Response(status: 200, example: example, checks: dict.new())
 }
 
 /// Create a Response with checks
@@ -73,12 +68,7 @@ fn make_response_with_checks(
   example: json.Json,
   checks: List(#(String, Check)),
 ) -> Response {
-  Response(
-    status: 200,
-    example: example,
-    checks: dict.from_list(checks),
-    headers: dict.new(),
-  )
+  Response(status: 200, example: example, checks: dict.from_list(checks))
 }
 
 /// Create a minimal Behavior
@@ -97,10 +87,11 @@ fn make_behavior(name: String, request: Request, response: Response) -> Behavior
 
 /// Create a minimal Spec with given behaviors
 fn make_spec(
+  name: String,
   behaviors: List(Behavior),
   anti_patterns: List(AntiPattern),
 ) -> Spec {
-  let feature = Feature(name: "Test", description: "Test", behaviors: behaviors)
+  let feature = Feature("Test", "Test", behaviors)
   Spec(
     name: "Test Spec",
     description: "Test",
@@ -111,7 +102,10 @@ fn make_spec(
     features: [feature],
     rules: [],
     anti_patterns: anti_patterns,
-    ai_hints: make_ai_hints(),
+    ai_hints: Some(make_ai_hints()),
+    inversions: None,
+    pre_mortem: None,
+    quality_score: None,
   )
 }
 
@@ -138,7 +132,7 @@ pub fn lint_detects_anti_pattern_in_example_test() {
       make_response(behavior_example),
     )
 
-  let spec = make_spec([behavior], [anti_pattern])
+  let spec = make_spec("Test Spec", [behavior], [anti_pattern])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -177,7 +171,7 @@ pub fn lint_no_anti_pattern_when_keys_differ_test() {
       make_response(behavior_example),
     )
 
-  let spec = make_spec([behavior], [anti_pattern])
+  let spec = make_spec("Test Spec", [behavior], [anti_pattern])
   let result = spec_linter.lint_spec(spec)
 
   // Should have UnusedAntiPattern warning (since the pattern doesn't match)
@@ -217,7 +211,7 @@ pub fn lint_no_anti_pattern_when_example_is_null_test() {
       make_response(json.null()),
     )
 
-  let spec = make_spec([behavior], [anti_pattern])
+  let spec = make_spec("Test Spec", [behavior], [anti_pattern])
   let result = spec_linter.lint_spec(spec)
 
   // Should have missing example warning but not anti-pattern warning
@@ -263,7 +257,7 @@ pub fn lint_multiple_behaviors_with_anti_patterns_test() {
       make_response(behavior2_example),
     )
 
-  let spec = make_spec([behavior1, behavior2], [anti_pattern])
+  let spec = make_spec("Test Spec", [behavior1, behavior2], [anti_pattern])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -293,7 +287,7 @@ pub fn lint_detects_vague_valid_rule_test() {
   let behavior =
     make_behavior("check-email", make_request(Post, "/email"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -317,7 +311,7 @@ pub fn lint_allows_valid_email_rule_test() {
   let behavior =
     make_behavior("check-email", make_request(Post, "/email"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -341,7 +335,7 @@ pub fn lint_detects_correct_format_rule_test() {
   let behavior =
     make_behavior("check-date", make_request(Get, "/date"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -366,7 +360,7 @@ pub fn lint_detects_proper_format_rule_test() {
   let behavior =
     make_behavior("check-time", make_request(Get, "/time"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -390,7 +384,7 @@ pub fn lint_allows_valid_uuid_rule_test() {
   let behavior =
     make_behavior("get-resource", make_request(Get, "/resource"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -413,7 +407,7 @@ pub fn lint_allows_valid_iso_date_rule_test() {
   let response = make_response_with_checks(json.null(), checks)
   let behavior = make_behavior("get-item", make_request(Get, "/item"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -436,7 +430,7 @@ pub fn lint_allows_jwt_rule_test() {
   let response = make_response_with_checks(json.null(), checks)
   let behavior = make_behavior("auth", make_request(Post, "/auth"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -459,7 +453,7 @@ pub fn lint_allows_uri_rule_test() {
   let response = make_response_with_checks(json.null(), checks)
   let behavior = make_behavior("get-link", make_request(Get, "/link"), response)
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -489,7 +483,7 @@ pub fn lint_detects_missing_example_test() {
       make_response(json.null()),
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -523,7 +517,7 @@ pub fn lint_allows_behavior_with_example_test() {
       make_response(example),
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -555,7 +549,7 @@ pub fn lint_multiple_missing_examples_test() {
       make_response(json.null()),
     )
 
-  let spec = make_spec([behavior1, behavior2], [])
+  let spec = make_spec("Test Spec", [behavior1, behavior2], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -587,7 +581,7 @@ pub fn lint_allows_kebab_case_names_test() {
       make_response(json.object([#("id", json.int(1))])),
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -613,7 +607,7 @@ pub fn lint_allows_snake_case_names_test() {
       make_response(json.object([#("id", json.int(1))])),
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -639,7 +633,7 @@ pub fn lint_detects_space_in_name_test() {
       make_response(json.object([#("id", json.int(1))])),
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -665,7 +659,7 @@ pub fn lint_detects_uppercase_in_name_test() {
       make_response(json.object([#("id", json.int(1))])),
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -691,7 +685,7 @@ pub fn lint_detects_special_chars_in_name_test() {
       make_response(json.object([#("id", json.int(1))])),
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -727,7 +721,7 @@ pub fn lint_detects_exact_duplicate_behaviors_test() {
       make_response(json.object([#("id", json.int(2))])),
     )
 
-  let spec = make_spec([behavior1, behavior2], [])
+  let spec = make_spec("Test Spec", [behavior1, behavior2], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -759,7 +753,7 @@ pub fn lint_allows_different_methods_test() {
       make_response(json.object([#("id", json.int(2))])),
     )
 
-  let spec = make_spec([behavior1, behavior2], [])
+  let spec = make_spec("Test Spec", [behavior1, behavior2], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -791,7 +785,7 @@ pub fn lint_allows_different_paths_test() {
       make_response(json.object([#("id", json.int(2))])),
     )
 
-  let spec = make_spec([behavior1, behavior2], [])
+  let spec = make_spec("Test Spec", [behavior1, behavior2], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -823,7 +817,7 @@ pub fn lint_detects_similar_paths_test() {
       make_response(json.object([#("id", json.int(2))])),
     )
 
-  let spec = make_spec([behavior1, behavior2], [])
+  let spec = make_spec("Test Spec", [behavior1, behavior2], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -863,7 +857,7 @@ pub fn lint_detects_unused_anti_pattern_test() {
       make_response(json.object([#("other_key", json.string("value"))])),
     )
 
-  let spec = make_spec([behavior], [anti_pattern])
+  let spec = make_spec("Test Spec", [behavior], [anti_pattern])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -905,7 +899,7 @@ pub fn lint_no_unused_warning_when_pattern_used_test() {
       make_response(json.object([#("internal_id", json.int(123))])),
     )
 
-  let spec = make_spec([behavior], [anti_pattern])
+  let spec = make_spec("Test Spec", [behavior], [anti_pattern])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -949,7 +943,7 @@ pub fn lint_multiple_unused_anti_patterns_test() {
       make_response(json.object([#("other", json.string("value"))])),
     )
 
-  let spec = make_spec([behavior], [anti_pattern1, anti_pattern2])
+  let spec = make_spec("Test Spec", [behavior], [anti_pattern1, anti_pattern2])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -984,7 +978,7 @@ pub fn lint_valid_spec_returns_lint_valid_test() {
       response,
     )
 
-  let spec = make_spec([behavior], [])
+  let spec = make_spec("Test Spec", [behavior], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -994,7 +988,7 @@ pub fn lint_valid_spec_returns_lint_valid_test() {
 }
 
 pub fn lint_empty_spec_returns_lint_valid_test() {
-  let spec = make_spec([], [])
+  let spec = make_spec("Test Spec", [], [])
   let result = spec_linter.lint_spec(spec)
 
   case result {
@@ -1132,7 +1126,11 @@ pub fn lint_multiple_warning_types_test() {
       why: "Test",
     )
 
-  let spec = make_spec([behavior1, behavior2], [anti_pattern, unused_pattern])
+  let spec =
+    make_spec("Test Spec", [behavior1, behavior2], [
+      anti_pattern,
+      unused_pattern,
+    ])
   let result = spec_linter.lint_spec(spec)
 
   case result {

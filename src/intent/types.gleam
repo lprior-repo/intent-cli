@@ -103,14 +103,9 @@ pub type Request {
   )
 }
 
-/// Expected response - headers is optional
+/// Expected response
 pub type Response {
-  Response(
-    status: Int,
-    example: Json,
-    checks: Dict(String, Check),
-    headers: Option(Dict(String, String)),
-  )
+  Response(status: Int, example: Json, checks: Dict(String, Check))
 }
 
 /// A single check with rule and explanation

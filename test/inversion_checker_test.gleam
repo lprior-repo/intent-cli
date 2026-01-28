@@ -40,12 +40,7 @@ pub fn analyze_inversions_auth_bypass_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 401,
-        example: json.null(),
-        checks: dict.new(),
-        headers: dict.new(),
-      ),
+      response: Response(status: 401, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]
@@ -75,12 +70,7 @@ pub fn analyze_inversions_sql_injection_test() {
           #("name", json.string("'; DROP TABLE users; --")),
         ]),
       ),
-      response: Response(
-        status: 400,
-        example: json.null(),
-        checks: dict.new(),
-        headers: dict.new(),
-      ),
+      response: Response(status: 400, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]

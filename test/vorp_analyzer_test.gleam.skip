@@ -1,7 +1,8 @@
 //// Tests for kirk/vorp_analyzer.gleam
 //// Contract: VORP (Value Over Replacement) quality scoring
 
-import gleam/dict
+import gleam/json
+import gleam/option
 import gleeunit/should
 import intent/kirk/vorp_analyzer
 import intent/types
@@ -66,7 +67,20 @@ pub fn analyze_vorp_strong_vorp_test() {
         "Zero ambiguity in contracts",
       ],
       ai_hints: types.AIHints(
-        ..base_spec.ai_hints,
+        ..option.unwrap(
+          base_spec.ai_hints,
+          types.AIHints(
+            implementation: types.ImplementationHints(suggested_stack: []),
+            entities: dict.new(),
+            security: types.SecurityHints(
+              password_hashing: "",
+              jwt_algorithm: "",
+              jwt_expiry: "",
+              rate_limiting: "",
+            ),
+            pitfalls: [],
+          ),
+        ),
         implementation: types.ImplementationHints(suggested_stack: [
           "Gleam for determinism",
           "CUE for schema validation",
@@ -74,14 +88,18 @@ pub fn analyze_vorp_strong_vorp_test() {
       ),
       anti_patterns: [
         types.AntiPattern(
-          pattern: "Manual testing",
-          why_bad: "Slow and error-prone",
-          better_approach: "Contract verification",
+          name: "Manual testing",
+          description: "Slow and error-prone",
+          why: "Contract verification is superior",
+          bad_example: json.object([]),
+          good_example: json.object([]),
         ),
         types.AntiPattern(
-          pattern: "Postman collections without validation",
-          why_bad: "No determinism",
-          better_approach: "CUE specs",
+          name: "Postman collections without validation",
+          description: "No determinism",
+          why: "CUE specs provide deterministic contracts",
+          bad_example: json.object([]),
+          good_example: json.object([]),
         ),
       ],
     )
@@ -110,14 +128,29 @@ pub fn analyze_vorp_no_audience_test() {
       // Empty
       success_criteria: ["Metric 1", "Metric 2"],
       ai_hints: types.AIHints(
-        ..base_spec.ai_hints,
+        ..option.unwrap(
+          base_spec.ai_hints,
+          types.AIHints(
+            implementation: types.ImplementationHints(suggested_stack: []),
+            entities: dict.new(),
+            security: types.SecurityHints(
+              password_hashing: "",
+              jwt_algorithm: "",
+              jwt_expiry: "",
+              rate_limiting: "",
+            ),
+            pitfalls: [],
+          ),
+        ),
         implementation: types.ImplementationHints(suggested_stack: ["Tech 1"]),
       ),
       anti_patterns: [
         types.AntiPattern(
-          pattern: "Bad pattern",
-          why_bad: "It's bad",
-          better_approach: "Good pattern",
+          name: "Bad pattern",
+          description: "It's bad",
+          why: "Good pattern is better",
+          bad_example: json.object([]),
+          good_example: json.object([]),
         ),
       ],
     )
@@ -138,8 +171,8 @@ pub fn analyze_vorp_with_metrics_test() {
     types.Spec(
       ..base_spec,
       name: "Test",
-      description: "Testing metrics detection",
-      audience: "Developers seeking 10x improvement over manual processes",
+      description: "A deterministic contract testing framework with 10x faster feedback cycles than manual approaches",
+      audience: "Developers replacing manual API testing with contract-driven verification",
       success_criteria: [
         "10x faster execution",
         "50% cost reduction",
@@ -150,5 +183,6 @@ pub fn analyze_vorp_with_metrics_test() {
   let result = vorp_analyzer.analyze_vorp(spec)
 
   // Should score higher due to metrics
+  // Breakdown: audience(25) + differentiation(20) + criteria(25) + implementation(0) + antipattern(0) = 70
   { result.score >= 50 } |> should.be_true
 }

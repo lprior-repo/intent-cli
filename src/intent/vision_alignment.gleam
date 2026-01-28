@@ -15,7 +15,10 @@ import gleam/list
 import gleam/option
 import gleam/string
 import intent/planning_types.{type DimensionScore, DimensionScore}
-import intent/types.{type Spec, AIHints, ImplementationHints, SecurityHints}
+import intent/types.{
+  type AIHints, type ImplementationHints, type SecurityHints, type Spec, AIHints,
+  ImplementationHints, SecurityHints,
+}
 import intent/vision_types.{type Scenario, type VisionSection}
 
 // =============================================================================

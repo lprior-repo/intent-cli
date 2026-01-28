@@ -34,7 +34,6 @@ fn make_simple_behavior() -> types.Behavior {
       status: 201,
       example: json.object([#("id", json.string("123"))]),
       checks: dict.new(),
-      headers: None,
     ),
     captures: dict.new(),
   )
@@ -88,7 +87,6 @@ fn make_behavior_with_checks() -> types.Behavior {
         #("email", json.string("test@example.com")),
       ]),
       checks: checks,
-      headers: None,
     ),
     captures: dict.new(),
   )
@@ -112,7 +110,6 @@ fn make_behavior_with_ears_event_driven() -> types.Behavior {
       status: 200,
       example: json.object([#("valid", json.bool(True))]),
       checks: dict.new(),
-      headers: None,
     ),
     captures: dict.new(),
   )
@@ -136,7 +133,6 @@ fn make_behavior_with_ears_state_driven() -> types.Behavior {
       status: 200,
       example: json.object([#("dashboard", json.string("data"))]),
       checks: dict.new(),
-      headers: None,
     ),
     captures: dict.new(),
   )

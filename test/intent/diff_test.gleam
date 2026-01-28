@@ -28,7 +28,6 @@ fn make_behavior(name: String, intent: String) -> types.Behavior {
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
     ),
     captures: dict.new(),
   )
@@ -54,17 +53,22 @@ fn make_spec(features: List(types.Feature)) -> types.Spec {
     features: features,
     rules: [],
     anti_patterns: [],
-    ai_hints: types.AIHints(
-      implementation: types.ImplementationHints(suggested_stack: []),
-      entities: dict.new(),
-      security: types.SecurityHints(
-        password_hashing: "",
-        jwt_algorithm: "",
-        jwt_expiry: "",
-        rate_limiting: "",
+    ai_hints: Some(
+      types.AIHints(
+        implementation: types.ImplementationHints(suggested_stack: []),
+        entities: dict.new(),
+        security: types.SecurityHints(
+          password_hashing: "",
+          jwt_algorithm: "",
+          jwt_expiry: "",
+          rate_limiting: "",
+        ),
+        pitfalls: [],
       ),
-      pitfalls: [],
     ),
+    inversions: None,
+    pre_mortem: None,
+    quality_score: None,
   )
 }
 
@@ -74,12 +78,12 @@ fn make_rule(name: String, description: String) -> types.Rule {
     description: description,
     when: None,
     check: types.RuleCheck(
-      body_must_not_contain: [],
-      body_must_contain: [],
-      fields_must_exist: [],
-      fields_must_not_exist: [],
-      header_must_exist: "",
-      header_must_not_exist: "",
+      body_must_not_contain: Some([]),
+      body_must_contain: Some([]),
+      fields_must_exist: Some([]),
+      fields_must_not_exist: Some([]),
+      header_must_exist: Some(""),
+      header_must_not_exist: Some(""),
     ),
     example: None,
   )

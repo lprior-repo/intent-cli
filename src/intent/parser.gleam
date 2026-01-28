@@ -239,10 +239,7 @@ fn parse_response(data: Dynamic) -> Result(Response, List(DecodeError)) {
   use status <- result.try(dynamic.field("status", dynamic.int)(data))
   use example <- result.try(dynamic.field("example", parse_json_value)(data))
   use checks <- result.try(dynamic.field("checks", parse_checks)(data))
-  use headers <- result.try(dynamic.optional_field("headers", parse_string_dict)(
-    data,
-  ))
-  Ok(Response(status, example, checks, headers))
+  Ok(Response(status, example, checks))
 }
 
 fn parse_checks(data: Dynamic) -> Result(Dict(String, Check), List(DecodeError)) {
@@ -574,16 +571,40 @@ fn parse_likely_cause(
   data: Dynamic,
 ) -> Result(planning_types.LikelyCause, List(DecodeError)) {
   use cause <- result.try(dynamic.field("cause", dynamic.string)(data))
-  use probability <- result.try(dynamic.field("probability", dynamic.string)(
-    data,
-  ))
+  use probability_string <- result.try(dynamic.field(
+    "probability",
+    dynamic.string,
+  )(data))
   use mitigation <- result.try(dynamic.field("mitigation", dynamic.string)(data))
 
-  Ok(planning_types.LikelyCause(
-    cause: cause,
-    probability: probability,
-    mitigation: mitigation,
-  ))
+  case probability_string {
+    "low" ->
+      Ok(planning_types.LikelyCause(
+        cause: cause,
+        probability: planning_types.LikelihoodLow,
+        mitigation: mitigation,
+      ))
+    "medium" ->
+      Ok(planning_types.LikelyCause(
+        cause: cause,
+        probability: planning_types.LikelihoodMedium,
+        mitigation: mitigation,
+      ))
+    "high" ->
+      Ok(planning_types.LikelyCause(
+        cause: cause,
+        probability: planning_types.LikelihoodHigh,
+        mitigation: mitigation,
+      ))
+    _ ->
+      Error([
+        dynamic.DecodeError(
+          expected: "likelihood (low|medium|high)",
+          found: probability_string,
+          path: [],
+        ),
+      ])
+  }
 }
 
 fn parse_quality_score(
@@ -649,7 +670,7 @@ fn parse_quality_issue_severity(
             ),
           ])
       }
-    Error(e) -> Error([e])
+    Error(e) -> Error(e)
   }
 }
 

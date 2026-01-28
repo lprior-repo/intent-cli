@@ -5,6 +5,7 @@ import gleam/float
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import intent/types.{type Spec}
 
@@ -107,12 +108,13 @@ fn calculate_completeness(spec: Spec, behaviors: List(types.Behavior)) -> Float 
   }
 
   // Has AI hints
-  let has_ai_hints = case
-    spec.ai_hints.implementation.suggested_stack,
-    spec.ai_hints.pitfalls
-  {
-    [], [] -> 0.0
-    _, _ -> 5.0
+  let has_ai_hints = case spec.ai_hints {
+    Some(hints) ->
+      case hints.implementation.suggested_stack, hints.pitfalls {
+        [], [] -> 0.0
+        _, _ -> 5.0
+      }
+    None -> 0.0
   }
 
   float.min(
@@ -291,12 +293,16 @@ fn calculate_security(spec: Spec, behaviors: List(types.Behavior)) -> Float {
   }
 
   // Security hints provided
-  let security_hints_bonus = case
-    string.length(spec.ai_hints.security.password_hashing),
-    string.length(spec.ai_hints.security.jwt_algorithm)
-  {
-    0, 0 -> 0.0
-    _, _ -> 5.0
+  let security_hints_bonus = case spec.ai_hints {
+    Some(hints) ->
+      case
+        string.length(hints.security.password_hashing),
+        string.length(hints.security.jwt_algorithm)
+      {
+        0, 0 -> 0.0
+        _, _ -> 5.0
+      }
+    None -> 0.0
   }
 
   float.min(

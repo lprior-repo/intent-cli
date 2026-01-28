@@ -38,7 +38,6 @@ pub fn make_test_behavior(name: String, requires: List(String)) -> Behavior {
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: None,
     ),
     captures: dict.new(),
   )
@@ -67,7 +66,6 @@ pub fn make_test_behavior_with_method(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: None,
     ),
     captures: dict.new(),
   )
@@ -96,7 +94,6 @@ pub fn make_test_behavior_with_status(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: None,
     ),
     captures: dict.new(),
   )
@@ -149,6 +146,9 @@ pub fn make_test_spec(features: List(Feature)) -> Spec {
         pitfalls: [],
       ),
     ),
+    inversions: None,
+    pre_mortem: None,
+    quality_score: None,
   )
 }
 

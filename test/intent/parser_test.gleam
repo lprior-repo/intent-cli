@@ -5,6 +5,7 @@ import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleeunit/should
 import intent/parser
@@ -377,9 +378,13 @@ pub fn parse_spec_anti_pattern_name_test() {
 pub fn parse_spec_ai_hints_stack_length_test() {
   case parser.parse_spec(dynamic.from(minimal_spec_data("GET"))) {
     Ok(spec) ->
-      spec.ai_hints.implementation.suggested_stack
-      |> list.length
-      |> should.equal(2)
+      case spec.ai_hints {
+        Some(hints) ->
+          hints.implementation.suggested_stack
+          |> list.length
+          |> should.equal(2)
+        None -> should.fail()
+      }
     Error(_) -> should.fail()
   }
 }

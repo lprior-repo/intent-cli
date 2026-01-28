@@ -842,7 +842,6 @@ fn make_behavior_with_path(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
     ),
     captures: dict.new(),
   )
@@ -872,7 +871,6 @@ fn make_behavior_with_capture(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
     ),
     captures: dict.from_list([#(capture_name, capture_path)]),
   )
@@ -901,7 +899,6 @@ fn make_behavior_with_captures(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
     ),
     captures: dict.from_list(captures),
   )
@@ -931,7 +928,6 @@ fn make_behavior_with_header(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
     ),
     captures: dict.new(),
   )
@@ -960,7 +956,6 @@ fn make_behavior_with_checks(
       status: 200,
       example: json.null(),
       checks: checks,
-      headers: dict.new(),
     ),
     captures: dict.new(),
   )
@@ -991,7 +986,6 @@ fn make_behavior_with_path_and_header(
       status: 200,
       example: json.null(),
       checks: dict.new(),
-      headers: dict.new(),
     ),
     captures: dict.new(),
   )

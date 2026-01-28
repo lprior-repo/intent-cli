@@ -9,6 +9,7 @@
 //// - Anti-pattern awareness (0-10): Does it document pitfalls of old solutions?
 
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import intent/planning_types.{type DimensionScore, DimensionScore}
 import intent/types.{type Spec}
@@ -138,16 +139,24 @@ fn calculate_criteria_score(spec: Spec) -> Int {
 /// Calculate implementation edge score (0-15)
 /// Checks if AI hints show technical advantages
 fn calculate_implementation_edge(spec: Spec) -> Int {
-  let stack_score = case spec.ai_hints.implementation.suggested_stack {
-    [] -> 0
-    [_] -> 5
-    _ -> 8
+  let stack_score = case spec.ai_hints {
+    Some(hints) ->
+      case hints.implementation.suggested_stack {
+        [] -> 0
+        [_] -> 5
+        _ -> 8
+      }
+    None -> 0
   }
 
-  let pitfalls_score = case spec.ai_hints.pitfalls {
-    [] -> 0
-    [_] -> 3
-    _ -> 7
+  let pitfalls_score = case spec.ai_hints {
+    Some(hints) ->
+      case hints.pitfalls {
+        [] -> 0
+        [_] -> 3
+        _ -> 7
+      }
+    None -> 0
   }
 
   stack_score + pitfalls_score
@@ -240,9 +249,13 @@ fn generate_issues(score: Int, spec: Spec) -> List(String) {
   }
 
   // Check AI hints
-  let issues = case spec.ai_hints.implementation.suggested_stack {
-    [] -> ["AI hints empty - specify technical advantages", ..issues]
-    _ -> issues
+  let issues = case spec.ai_hints {
+    Some(hints) ->
+      case hints.implementation.suggested_stack {
+        [] -> ["AI hints empty - specify technical advantages", ..issues]
+        _ -> issues
+      }
+    None -> ["AI hints empty - specify technical advantages", ..issues]
   }
 
   // Check anti-patterns

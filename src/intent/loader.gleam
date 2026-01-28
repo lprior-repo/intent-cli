@@ -151,13 +151,6 @@ pub fn get_ai_hints(spec: Spec) -> AIHints {
   )
 }
 
-/// Get response headers with shell-layer default (PURE - no I/O)
-/// Returns empty dict as default if not specified
-/// Defaults are applied in shell layer, not core parser
-pub fn get_response_headers(response: types.Response) -> Dict(String, String) {
-  option.unwrap(response.headers, dict.new())
-}
-
 /// Get rule check field with shell-layer default (PURE - no I/O)
 /// Returns empty list as default for list fields
 /// Defaults are applied in shell layer, not core parser

@@ -519,20 +519,6 @@ fn compare_response(old: Response, new: Response) -> List(ResponseChange) {
     False -> [ChecksModified(modified_checks), ..changes]
   }
 
-  // Check headers
-  let old_headers = dict.keys(option.unwrap(old.headers, dict.new()))
-  let new_headers = dict.keys(option.unwrap(new.headers, dict.new()))
-  let headers_change = compare_string_lists(old_headers, new_headers)
-  let changes = case
-    list.is_empty(headers_change.added) && list.is_empty(headers_change.removed)
-  {
-    True -> changes
-    False -> [
-      ResponseHeadersChanged(headers_change.added, headers_change.removed),
-      ..changes
-    ]
-  }
-
   // Check example (simplified - just detect if changed)
   let old_example_str = json.to_string(old.example)
   let new_example_str = json.to_string(new.example)

@@ -284,6 +284,9 @@ pub fn create_test_spec(behavior_count: Int) -> Spec {
         [],
       ),
     ),
+    inversions: None,
+    pre_mortem: None,
+    quality_score: None,
   )
 }
 
@@ -295,7 +298,7 @@ fn make_behavior(name: String) -> Behavior {
     requires: [],
     tags: [],
     request: Request(Get, "/", dict.new(), dict.new(), json.null()),
-    response: Response(200, json.null(), dict.new(), None),
+    response: Response(200, json.null(), dict.new()),
     captures: dict.new(),
   )
 }
