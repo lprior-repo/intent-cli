@@ -9,7 +9,7 @@
 //// - Anti-pattern awareness (0-10): Does it document pitfalls of old solutions?
 
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/string
 import intent/planning_types.{type DimensionScore, DimensionScore}
 import intent/types.{type Spec}

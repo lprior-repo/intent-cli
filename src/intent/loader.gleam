@@ -21,7 +21,7 @@
 /// - load_spec_quiet: Loads using shellout (alias for load_spec)
 ///
 /// Refactored to address beads: intent-cli-3lom, intent-cli-27i7, intent-cli-qc44
-import gleam/dict.{type Dict}
+import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
@@ -30,8 +30,8 @@ import gleam/string
 import intent/parser
 import intent/security
 import intent/types.{
-  type AIHints, type Config, type Response, type RuleCheck, type Spec, AIHints,
-  Config, ImplementationHints, Response, RuleCheck, SecurityHints, Spec,
+  type AIHints, type Config, type Spec, ImplementationHints,
+  SecurityHints,
 }
 import shellout
 

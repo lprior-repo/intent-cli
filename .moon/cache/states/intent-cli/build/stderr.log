@@ -62,22 +62,6 @@ Hint: You can safely remove it.
 
 Hint: You can safely remove it.
 
-[0m[1m[38;5;11mwarning[0m[1m: Unused function argument[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/test_helpers.gleam:49:3
-   [0m[34m│[0m
-[0m[34m49[0m [0m[34m│[0m   [0m[33mmethod[0m: types.Method,
-   [0m[34m│[0m   [0m[33m^^^^^^[0m [0m[33mThis argument is never used[0m
-
-Hint: You can ignore it with an underscore: `_method`.
-
-[0m[1m[38;5;11mwarning[0m[1m: Unused function argument[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/test_helpers.gleam:77:3
-   [0m[34m│[0m
-[0m[34m77[0m [0m[34m│[0m   [0m[33mexpected_status[0m: Int,
-   [0m[34m│[0m   [0m[33m^^^^^^^^^^^^^^^[0m [0m[33mThis argument is never used[0m
-
-Hint: You can ignore it with an underscore: `_expected_status`.
-
 [0m[1m[38;5;11mwarning[0m[1m: Unused imported item[0m
   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/coverage_analyzer_test.gleam:7:22
   [0m[34m│[0m
@@ -158,4 +142,4 @@ Hint: You can safely remove it.
 
 Hint: You can safely remove it.
 
-[0m[38;5;13m   Compiled[0m in 0.06s
+[0m[38;5;13m   Compiled[0m in 0.05s

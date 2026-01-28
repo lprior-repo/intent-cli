@@ -5087,7 +5087,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 [error],
                 None,
                 next_actions,
-                1,
+                exit_error,
               )
 
             json_output.output(response)
@@ -5116,7 +5116,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 [error],
                 None,
                 next_actions,
-                1,
+                exit_error,
               )
 
             json_output.output(response)
@@ -5181,7 +5181,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 [error],
                 None,
                 next_actions,
-                1,
+                exit_error,
               )
 
             json_output.output(response)
@@ -5255,7 +5255,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 [error],
                 None,
                 next_actions,
-                1,
+                exit_error,
               )
 
             json_output.output(response)
@@ -5294,7 +5294,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 [error],
                 None,
                 next_actions,
-                1,
+                exit_error,
               )
 
             json_output.output(response)
@@ -5323,7 +5323,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
                 [error],
                 None,
                 next_actions,
-                1,
+                exit_error,
               )
 
             json_output.output(response)
@@ -5363,7 +5363,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
             [error],
             None,
             next_actions,
-            1,
+            exit_error,
           )
 
         json_output.output(response)

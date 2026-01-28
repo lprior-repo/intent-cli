@@ -5,7 +5,7 @@ import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
 import intent/parser

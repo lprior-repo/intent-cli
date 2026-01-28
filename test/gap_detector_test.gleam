@@ -4,7 +4,6 @@
 import gleam/dict
 import gleam/json
 import gleam/list
-import gleam/option.{None}
 import gleam/string
 import gleeunit/should
 import intent/kirk/gap_detector

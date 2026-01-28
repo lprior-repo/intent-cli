@@ -87,7 +87,7 @@ fn make_behavior(name: String, request: Request, response: Response) -> Behavior
 
 /// Create a minimal Spec with given behaviors
 fn make_spec(
-  name: String,
+  _name: String,
   behaviors: List(Behavior),
   anti_patterns: List(AntiPattern),
 ) -> Spec {
