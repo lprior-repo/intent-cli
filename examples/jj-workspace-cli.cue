@@ -18,7 +18,7 @@ spec: intent.#Spec & {
 		"Users can focus specific workspace tabs in Zellij",
 		"Exit codes indicate success/failure states clearly",
 		"Error messages provide actionable guidance",
-	]
+	}
 
 	config: {
 		base_url:   ""  // CLI tools don't have base_url
@@ -42,11 +42,11 @@ spec: intent.#Spec & {
 
 					usage: "jj workspace add <name> [--no-hooks] [--template]"
 
-					flags: [
+					flags: {
 						"--no-hooks":    "Skip running post-create hooks",
 						"--template":    "Use a template directory",
 						"--no-open":     "Create workspace without opening Zellij",
-					]
+					}
 
 					exit_code: 0
 
@@ -66,7 +66,7 @@ spec: intent.#Spec & {
 							exit_code: 2
 							error: "Invalid workspace name: contains invalid characters"
 						},
-					]
+					}
 				},
 				{
 					name:   "workspace-list"
@@ -95,7 +95,7 @@ spec: intent.#Spec & {
 						error: "Workspace 'nonexistent' not found"
 					}
 				},
-			]
+			}
 		},
 		{
 			name: "Tab Management"
@@ -128,7 +128,7 @@ spec: intent.#Spec & {
 
 					exit_code: 0
 				},
-			]
+			}
 		},
 		{
 			name: "Synchronization"
@@ -158,7 +158,7 @@ spec: intent.#Spec & {
 						error: "No remote configured for this workspace"
 					}
 				},
-			]
+			}
 		},
 		{
 			name: "Diagnostics"
@@ -196,9 +196,9 @@ spec: intent.#Spec & {
 
 					exit_code: 0
 				},
-			]
+			}
 		},
-	]
+	}
 
 	rules: [
 		{
@@ -227,7 +227,7 @@ spec: intent.#Spec & {
 				success_output_format: "JSON (with --json flag) or human-readable"
 			}
 		},
-	]
+	}
 
 	anti_patterns: [
 		{
@@ -262,7 +262,7 @@ spec: intent.#Spec & {
 				exit_code: 1  // Always 1 for "workspace exists"
 			}
 		},
-	]
+	}
 
 	ai_hints: {
 		implementation: {
@@ -291,6 +291,6 @@ spec: intent.#Spec & {
 			"Don't assume Zellij is always running - check with doctor command",
 			"Don't mix JSON and human-readable output in same response",
 			"Don't use exit code 0 for errors with --json flag (use JSON error response)",
-		]
+		}
 	}
 }
