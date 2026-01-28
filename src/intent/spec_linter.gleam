@@ -228,7 +228,7 @@ fn check_for_duplicate_behaviors(behaviors: List(Behavior)) -> List(LintWarning)
     |> list.drop(idx + 1)
     |> list.filter_map(fn(other) {
       let similarity = calculate_behavior_similarity(behavior, other)
-      case similarity >. 0.7 {
+      case similarity >. 0.9 {
         True ->
           Ok(DuplicateBehavior(
             behavior.name,

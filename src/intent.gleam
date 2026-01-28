@@ -208,6 +208,10 @@ pub fn main() {
 
   // Handle --help flag before glint processing for clean exit code 0
   case raw_args {
+    ["--version"] | ["-V"] -> {
+      io.println("intent 0.1.1")
+      exit_pass
+    }
     ["--help", ..] | ["-h", ..] -> {
       // Show help and exit cleanly
       let app = build_app()
@@ -3839,15 +3843,47 @@ fn help_command() -> glint.Command(Nil) {
         halt(exit_pass)
       }
       [] -> {
-        io.println("Intent CLI - AI-Only Mode")
+        io.println("Intent CLI - Contract-driven API testing")
         io.println("")
-        io.println("Usage: intent <command> --help")
+        io.println("Usage: intent <command> [args] [flags]")
+        io.println("       intent <command> --help")
         io.println("")
-        io.println("Available commands:")
-        io.println("  validate, show, export, lint, analyze, improve, doctor,")
-        io.println("  interview, beads, bead-status, history, diff, sessions,")
-        io.println("  quality, invert, coverage, gaps, ears, parse, effects,")
-        io.println("  plan, plan-approve, beads-regenerate, prompt, feedback")
+        io.println("Core Spec Operations:")
+        io.println("  validate <spec>          Validate CUE spec syntax and structure")
+        io.println("  show <spec>              Display spec details")
+        io.println("  diff <spec1> <spec2>     Compare two spec versions")
+        io.println("  lint <spec>              Detect anti-patterns")
+        io.println("  improve <spec>           Suggest improvements")
+        io.println("")
+        io.println("Analysis (KIRK):")
+        io.println("  quality <spec>           Quality scoring (5 dimensions)")
+        io.println("  coverage <spec>          OWASP + edge case coverage")
+        io.println("  gaps <spec>              Mental model gap detection")
+        io.println("  invert <spec>            Failure mode analysis")
+        io.println("  effects <spec>           Second-order effects")
+        io.println("  ears <file>              Parse EARS requirements")
+        io.println("  doctor <spec>            Prioritized health report")
+        io.println("")
+        io.println("Interview Workflow:")
+        io.println("  interview <profile>      Guided spec discovery")
+        io.println("  sessions                 List interview sessions")
+        io.println("  history                  Show interview snapshots")
+        io.println("  export <session-id>      Export session to CUE spec")
+        io.println("")
+        io.println("Planning:")
+        io.println("  beads <session-id>       Generate work items from session")
+        io.println("  plan <session-id>        Health + waves + beads")
+        io.println("  plan-approve <session>   Approve execution plan")
+        io.println("  beads-regenerate <spec>  Regenerate beads from spec")
+        io.println("  bead-status              Update bead execution status")
+        io.println("  prompt <session-id>      Generate AI implementation prompts")
+        io.println("  feedback --results <f>   Generate fix beads from failures")
+        io.println("")
+        io.println("Utilities:")
+        io.println("  parse <file>             Quick EARS validation")
+        io.println("  analyze <spec>           Alias for quality")
+        io.println("  ai schema                Generate action JSON schema docs")
+        io.println("  help [command]           Show help for a command")
         halt(exit_pass)
       }
       _ -> {
@@ -3867,6 +3903,90 @@ fn help_command() -> glint.Command(Nil) {
 fn sessions_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let jsonl_path = sessions_jsonl
+
+    let delete_id =
+      flag.get_string(input.flags, "delete")
+      |> result.unwrap("")
+
+    // Handle delete mode
+    case delete_id {
+      "" -> Nil
+      session_id -> {
+        case simplifile.read(jsonl_path) {
+          Error(_) -> {
+            let response =
+              json_output.failure(
+                "session_not_found",
+                "sessions",
+                json.object([]),
+                [json_output.error("NOT_FOUND", "No sessions file found")],
+                None,
+                [],
+                exit_error,
+              )
+            json_output.output(response)
+            halt(exit_error)
+          }
+          Ok(content) -> {
+            let sessions =
+              interview_storage.parse_sessions_content(content)
+            case
+              interview_storage.find_session_by_id(sessions, session_id)
+            {
+              Error(_) -> {
+                let response =
+                  json_output.failure(
+                    "session_not_found",
+                    "sessions",
+                    json.object([]),
+                    [
+                      json_output.error(
+                        "NOT_FOUND",
+                        "Session not found: " <> session_id,
+                      ),
+                    ],
+                    None,
+                    [],
+                    exit_error,
+                  )
+                json_output.output(response)
+                halt(exit_error)
+              }
+              Ok(_) -> {
+                let new_content =
+                  interview_storage.remove_session_from_content(
+                    content,
+                    session_id,
+                  )
+                let _ = simplifile.write(jsonl_path, new_content)
+                // Clean up related files
+                let _ =
+                  simplifile.delete(
+                    ".intent/spec-" <> session_id <> ".cue",
+                  )
+                let response =
+                  json_output.success(
+                    "session_deleted",
+                    "sessions",
+                    json.object([
+                      #("deleted_id", json.string(session_id)),
+                    ]),
+                    None,
+                    [
+                      json_output.next_action(
+                        "intent sessions",
+                        "List remaining sessions",
+                      ),
+                    ],
+                  )
+                json_output.output(response)
+                halt(exit_pass)
+              }
+            }
+          }
+        }
+      }
+    }
 
     let profile_filter =
       flag.get_string(input.flags, "profile")
@@ -3984,6 +4104,12 @@ fn sessions_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("List all interview sessions")
+  |> glint.flag(
+    "delete",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Delete a session by ID"),
+  )
   |> glint.flag(
     "profile",
     flag.string()

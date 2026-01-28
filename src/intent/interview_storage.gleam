@@ -867,6 +867,31 @@ pub fn find_session_by_id(
   |> result.map_error(fn(_) { "Session not found: " <> session_id })
 }
 
+/// Remove a session from JSONL content by ID (pure)
+/// Returns the new content with the session removed
+pub fn remove_session_from_content(
+  content: String,
+  session_id: String,
+) -> String {
+  case string.length(string.trim(content)) {
+    0 -> ""
+    _ -> {
+      string.split(content, "\n")
+      |> list.filter(fn(line) {
+        case string.length(string.trim(line)) {
+          0 -> False
+          _ ->
+            case json.decode(line, session_id_decoder) {
+              Ok(id) -> id != session_id
+              Error(_) -> True
+            }
+        }
+      })
+      |> string.join("\n")
+    }
+  }
+}
+
 /// Extract parent directory path from a file path (pure)
 pub fn get_parent_directory(file_path: String) -> Option(String) {
   let parts = string.split(file_path, "/")
