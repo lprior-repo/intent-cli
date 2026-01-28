@@ -13,9 +13,11 @@ Core workflow: Interview → CUE Spec → KIRK Analysis (quality, coverage, gaps
 - **Mental Lattices**: Inversion, second-order effects, coverage, gap detection, quality scoring
 - **Interview**: Stateful multi-round engine that builds specs through structured questioning
 
-## Skills to Use
-- **tdd15**: 15-phase TDD workflow (RED-GREEN-REFACTOR)
-- **gleam-tdd-architect**: Gleam TDD with strict quality gates
+## Skills to Invoke
+Load these skills at the start of each phase:
+- `skill({ name: "coding-rigor" })` — TDD-first, TCR, ATDD, functional core / imperative shell, ≤25 line functions
+- `skill({ name: "bitter-truth" })` — Velocity-first, contract-driven, disposable code, regenerate > maintain
+- `skill({ name: "red-queen" })` — Adversarial QA, regression gates, attack-fix-regress loop
 
 ## Key Constraints
 - Gleam style: Result types, exhaustive matching, pipelines, small functions

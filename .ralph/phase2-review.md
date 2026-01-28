@@ -2,11 +2,20 @@
 
 You are reviewing intent-cli, an AI-native specification and planning system in Gleam. It has 33 commands covering spec operations, KIRK analysis (quality, coverage, gaps, inversion, effects), interview workflow, bead/planning generation, parsing, Shape phase, and AI schema output.
 
-## Step 1: Red Queen Review
+## First: Load Skills
 
-Adversarial QA against all commands. Test:
+```
+skill({ name: "red-queen" })
+skill({ name: "bitter-truth" })
+```
 
-### JSON Output Validity
+Red Queen enforces adversarial evolutionary QA — attack, document, fix, regress. Every generation must defeat all previous generations.
+
+## Step 1: Red Queen Adversarial QA
+
+Attack every command systematically. For each attack category:
+
+### Attack 1: JSON Output Contract
 Every command (except help) must produce valid JSON matching the Action JSON Schema.
 ```bash
 gleam build
@@ -17,7 +26,7 @@ done
 gleam run -- diff examples/user-api.cue examples/meal-planner-api.cue 2>/dev/null | python3 -c 'import sys,json; json.load(sys.stdin)' && echo "diff: PASS" || echo "diff: FAIL"
 ```
 
-### Exit Code Consistency
+### Attack 2: Exit Code Consistency
 Missing files → exit 3. Unknown commands → exit 4. Success → exit 0.
 ```bash
 for cmd in validate quality show ears parse lint; do
@@ -28,10 +37,16 @@ gleam run -- help 2>/dev/null; echo "help: $?"
 gleam run -- nonexistent 2>/dev/null; echo "unknown: $?"
 ```
 
-### Edge Cases
+### Attack 3: Input Boundary
 - Empty input files, malformed CUE, missing required args
 - Interview/session commands with invalid session IDs
 - Bead generation from nonexistent sessions
+- Special characters in spec paths
+
+### Attack 4: Cross-Command Consistency
+- Same error type → same exit code across all commands?
+- JSON schema consistent across all commands?
+- Error messages actionable?
 
 ## Step 2: Product Owner Review
 
@@ -43,12 +58,12 @@ From a user perspective:
 
 ## Step 3: Generate Beads
 
-For every issue found:
+For EVERY finding, create a bead with EARS format:
 ```bash
-bd create --title="[Review] <title>" --type=bug --priority=<0-4> --description="<EARS requirement + findings + where to look>"
+bd create --title="[Review] <title>" --type=bug --priority=<0-4> --description="WHEN <trigger> THE SYSTEM SHALL <expected> BUT INSTEAD <actual>. Severity: P<0-3>. Reproduction: <command>. Where to look: <file:line>"
 ```
 
 ## Completion Signal
 
-When all reviews are done and beads are created:
+When all attacks are exhausted and beads are created:
 COMPLETE

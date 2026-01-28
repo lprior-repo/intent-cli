@@ -16,9 +16,7 @@ import intent/ai_schema
 import intent/bead_feedback
 import intent/bead_from_failures
 import intent/bead_templates
-import intent/diff
 import intent/doctor
-import intent/ffi
 import intent/file_watcher
 import intent/improver
 import intent/interview
@@ -31,13 +29,9 @@ import intent/kirk/effects_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
 import intent/list_limits
-import intent/loader
-import intent/output_mode
 import intent/parser
-import intent/plan_mode
 import intent/prompt_generator
 import intent/quality_analyzer
-import intent/question_types.{type Question}
 import intent/ready_commands
 import intent/smart_start
 import intent/spec_aggregator
@@ -45,39 +39,51 @@ import intent/spec_builder
 import intent/spec_commands
 import intent/spec_linter
 import intent/types
+import intent/unified_errors
 import intent/vision_commands
 import intent/watch_output
-import simplifile
 
-/// Exit codes
-const exit_pass = 0
-
-const exit_fail = 1
-
-const exit_invalid = 3
-
-const exit_error = 4
-
-// ============================================================================
-// Path Constants
-// ============================================================================
-
-/// Standard intent directory for all intent-managed files
-pub const intent_dir = ".intent"
-
-/// Path to sessions JSONL file
-pub const sessions_jsonl = ".intent/sessions.jsonl"
-
-/// Path to history JSONL file
-pub const history_jsonl = ".intent/history.jsonl"
-
-/// Path to custom questions CUE file
-pub const custom_questions_path = ".intent/custom-questions.cue"
-
-/// Generate session file path
-pub fn session_file_path(session_id: String) -> String {
-  ".intent/session-" <> session_id <> ".cue"
-}
+/// Check for unexpected arguments (common mistake: profile as arg instead of flag)
+    case input.args {
+      [arg, ..] -> {
+        io.println_error("Error: Unexpected argument '" <> arg <> "'")
+        io.println_error("")
+        io.println_error(
+          "Did you mean: intent interview --profile=" <> arg <> " ?",
+        )
+        io.println_error("")
+        io.println_error("Valid profiles: api, cli, event, data, workflow, ui")
+        halt(exit_error)
+      }
+      [] -> {
+        // Require at least one flag or argument (prevent creating sessions without explicit user intent)
+        let has_resume = !string.is_empty(resume_id)
+        let has_session = !string.is_empty(session_flag)
+        let has_answer = !string.is_empty(answer_text)
+        let has_required_flag = has_resume || has_session || has_answer
+        case has_required_flag {
+          False -> {
+            let response =
+              json_output.failure(
+                "interview_failed",
+                "interview",
+                json.null(),
+                [
+                  json_output.error("usage_error", "Required flag missing"),
+                  json_output.error(
+                    "usage_hint",
+                    "Use --profile <profile> to start, or --session <id> --resume, or --answer <text> to continue",
+                  ),
+                ],
+                None,
+                [],
+                exit_error,
+              )
+            json_output.output(response)
+          }
+          True -> Nil
+        }
+      }
 
 /// Generate spec file path for completed interview
 pub fn spec_file_path(session_id: String) -> String {
@@ -1063,7 +1069,32 @@ fn interview_command() -> glint.Command(Nil) {
         io.println_error("Valid profiles: api, cli, event, data, workflow, ui")
         halt(exit_error)
       }
-      [] -> Nil
+      [] -> {
+        // Require at least one flag or argument (prevent creating sessions without explicit user intent)
+        let has_required_flag = has_resume || has_session || has_answer
+        case has_required_flag {
+          False -> {
+            let response =
+              json_output.failure(
+                "interview_failed",
+                "interview",
+                json.null(),
+                [
+                  json_output.error("usage_error", "Required flag missing"),
+                  json_output.error(
+                    "usage_hint",
+                    "Use --profile <profile> to start, or --session <id> --resume, or --answer <text> to continue",
+                  ),
+                ],
+                None,
+                [],
+                exit_error,
+              )
+            json_output.output(response)
+          }
+          True -> Nil
+        }
+      }
     }
 
     let profile_str =
@@ -1117,6 +1148,12 @@ fn interview_command() -> glint.Command(Nil) {
         Nil
       }
     }
+
+    // Check for required flags to prevent creating sessions without explicit user intent
+    let has_resume = !string.is_empty(resume_id)
+    let has_session = !string.is_empty(session_flag)
+    let has_answer = !string.is_empty(answer_text)
+    let has_required_flag = has_resume || has_session || has_answer
 
     // CUE mode: output CUE directives for AI agents (AI-only, always enabled)
     let has_resume = !string.is_empty(resume_id)
