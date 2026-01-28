@@ -1,4 +1,11 @@
-[0m[38;5;13m  Compiling[0m intent
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported type[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/loader.gleam:24:20
+   [0m[34m│[0m
+[0m[34m24[0m [0m[34m│[0m import gleam/dict.{[0m[33mtype Dict[0m}
+   [0m[34m│[0m                    [0m[33m^^^^^^^^^[0m [0m[33mThis imported type is never used[0m
+
+Hint: You can safely remove it.
+
 [0m[1m[38;5;11mwarning[0m[1m: Unused imported type[0m
    [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/loader.gleam:33:30
    [0m[34m│[0m
@@ -56,136 +63,99 @@ Hint: You can safely remove it.
 Hint: You can safely remove it.
 
 [0m[1m[38;5;11mwarning[0m[1m: Unused function argument[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/test_helpers.gleam:50:3
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/test_helpers.gleam:49:3
    [0m[34m│[0m
-[0m[34m50[0m [0m[34m│[0m   [0m[33mmethod[0m: types.Method,
+[0m[34m49[0m [0m[34m│[0m   [0m[33mmethod[0m: types.Method,
    [0m[34m│[0m   [0m[33m^^^^^^[0m [0m[33mThis argument is never used[0m
 
 Hint: You can ignore it with an underscore: `_method`.
 
 [0m[1m[38;5;11mwarning[0m[1m: Unused function argument[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/test_helpers.gleam:79:3
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/test_helpers.gleam:77:3
    [0m[34m│[0m
-[0m[34m79[0m [0m[34m│[0m   [0m[33mexpected_status[0m: Int,
+[0m[34m77[0m [0m[34m│[0m   [0m[33mexpected_status[0m: Int,
    [0m[34m│[0m   [0m[33m^^^^^^^^^^^^^^^[0m [0m[33mThis argument is never used[0m
 
 Hint: You can ignore it with an underscore: `_expected_status`.
 
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:31:16
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported item[0m
+  [0m[34m┌─[0m /home/lewis/src/intent-cli/test/coverage_analyzer_test.gleam:7:22
+  [0m[34m│[0m
+[0m[34m7[0m [0m[34m│[0m import gleam/option.{[0m[33mNone[0m}
+  [0m[34m│[0m                      [0m[33m^^^^[0m [0m[33mThis imported constructor is never used[0m
+
+Hint: You can safely remove it.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported item[0m
+  [0m[34m┌─[0m /home/lewis/src/intent-cli/test/effects_analyzer_test.gleam:7:22
+  [0m[34m│[0m
+[0m[34m7[0m [0m[34m│[0m import gleam/option.{[0m[33mNone[0m}
+  [0m[34m│[0m                      [0m[33m^^^^[0m [0m[33mThis imported constructor is never used[0m
+
+Hint: You can safely remove it.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported item[0m
+  [0m[34m┌─[0m /home/lewis/src/intent-cli/test/empathy_simulator_test.gleam:8:22
+  [0m[34m│[0m
+[0m[34m8[0m [0m[34m│[0m import gleam/option.{[0m[33mNone[0m}
+  [0m[34m│[0m                      [0m[33m^^^^[0m [0m[33mThis imported constructor is never used[0m
+
+Hint: You can safely remove it.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported item[0m
+  [0m[34m┌─[0m /home/lewis/src/intent-cli/test/gap_detector_test.gleam:7:22
+  [0m[34m│[0m
+[0m[34m7[0m [0m[34m│[0m import gleam/option.{[0m[33mNone[0m}
+  [0m[34m│[0m                      [0m[33m^^^^[0m [0m[33mThis imported constructor is never used[0m
+
+Hint: You can safely remove it.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported type[0m
+  [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/kirk/quality_analyzer.gleam:8:22
+  [0m[34m│[0m
+[0m[34m8[0m [0m[34m│[0m import gleam/option.{[0m[33mtype Option[0m, None, Some}
+  [0m[34m│[0m                      [0m[33m^^^^^^^^^^^[0m [0m[33mThis imported type is never used[0m
+
+Hint: You can safely remove it.
+
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported type[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/kirk/vorp_analyzer.gleam:12:22
    [0m[34m│[0m
-[0m[34m31[0m [0m[34m│[0m       headers: [0m[31mdict.new()[0m,
-   [0m[34m│[0m                [0m[31m^^^^^^^^^^[0m
+[0m[34m12[0m [0m[34m│[0m import gleam/option.{[0m[33mtype Option[0m, None, Some}
+   [0m[34m│[0m                      [0m[33m^^^^^^^^^^^[0m [0m[33mThis imported type is never used[0m
 
-Expected type:
+Hint: You can safely remove it.
 
-    option.Option(dict.Dict(String, String))
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported type[0m
+  [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/parser_test.gleam:8:22
+  [0m[34m│[0m
+[0m[34m8[0m [0m[34m│[0m import gleam/option.{[0m[33mtype Option[0m, None, Some}
+  [0m[34m│[0m                      [0m[33m^^^^^^^^^^^[0m [0m[33mThis imported type is never used[0m
 
-Found type:
+Hint: You can safely remove it.
 
-    dict.Dict(a, b)
-
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:57:15
-   [0m[34m│[0m  
-[0m[34m57[0m [0m[34m│[0m       ai_hints: [0m[31mtypes.AIHints([0m
-   [0m[34m│[0m [0m[31m╭[0m[0m[31m───────────────^[0m
-[0m[34m58[0m [0m[34m│[0m [0m[31m│[0m [0m[31m      implementation: types.ImplementationHints(suggested_stack: []),[0m
-[0m[34m59[0m [0m[34m│[0m [0m[31m│[0m [0m[31m      entities: dict.new(),[0m
-[0m[34m60[0m [0m[34m│[0m [0m[31m│[0m [0m[31m      security: types.SecurityHints([0m
-   [0m[34m·[0m [0m[31m│[0m
-[0m[34m66[0m [0m[34m│[0m [0m[31m│[0m [0m[31m      pitfalls: [],[0m
-[0m[34m67[0m [0m[34m│[0m [0m[31m│[0m [0m[31m    )[0m,
-   [0m[34m│[0m [0m[31m╰[0m[0m[31m─────^[0m
-
-Expected type:
-
-    option.Option(types.AIHints)
-
-Found type:
-
-    types.AIHints
-
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:77:30
+[0m[1m[38;5;11mwarning[0m[1m: Unused function argument[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/spec_linter_test.gleam:90:3
    [0m[34m│[0m
-[0m[34m77[0m [0m[34m│[0m       body_must_not_contain: [0m[31m[][0m,
-   [0m[34m│[0m                              [0m[31m^^[0m
+[0m[34m90[0m [0m[34m│[0m   [0m[33mname[0m: String,
+   [0m[34m│[0m   [0m[33m^^^^[0m [0m[33mThis argument is never used[0m
 
-Expected type:
+Hint: You can ignore it with an underscore: `_name`.
 
-    option.Option(List(String))
-
-Found type:
-
-    List(a)
-
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:78:26
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported type[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/vision_alignment.gleam:19:17
    [0m[34m│[0m
-[0m[34m78[0m [0m[34m│[0m       body_must_contain: [0m[31m[][0m,
-   [0m[34m│[0m                          [0m[31m^^[0m
+[0m[34m19[0m [0m[34m│[0m   type AIHints, [0m[33mtype ImplementationHints[0m, type SecurityHints, type Spec, AIHints,
+   [0m[34m│[0m                 [0m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m [0m[33mThis imported type is never used[0m
 
-Expected type:
+Hint: You can safely remove it.
 
-    option.Option(List(String))
-
-Found type:
-
-    List(a)
-
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:79:26
+[0m[1m[38;5;11mwarning[0m[1m: Unused imported type[0m
+   [0m[34m┌─[0m /home/lewis/src/intent-cli/src/intent/vision_alignment.gleam:19:43
    [0m[34m│[0m
-[0m[34m79[0m [0m[34m│[0m       fields_must_exist: [0m[31m[][0m,
-   [0m[34m│[0m                          [0m[31m^^[0m
+[0m[34m19[0m [0m[34m│[0m   type AIHints, type ImplementationHints, [0m[33mtype SecurityHints[0m, type Spec, AIHints,
+   [0m[34m│[0m                                           [0m[33m^^^^^^^^^^^^^^^^^^[0m [0m[33mThis imported type is never used[0m
 
-Expected type:
+Hint: You can safely remove it.
 
-    option.Option(List(String))
-
-Found type:
-
-    List(a)
-
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:80:30
-   [0m[34m│[0m
-[0m[34m80[0m [0m[34m│[0m       fields_must_not_exist: [0m[31m[][0m,
-   [0m[34m│[0m                              [0m[31m^^[0m
-
-Expected type:
-
-    option.Option(List(String))
-
-Found type:
-
-    List(a)
-
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:81:26
-   [0m[34m│[0m
-[0m[34m81[0m [0m[34m│[0m       header_must_exist: [0m[31m""[0m,
-   [0m[34m│[0m                          [0m[31m^^[0m
-
-Expected type:
-
-    option.Option(String)
-
-Found type:
-
-    String
-
-[0m[1m[38;5;9merror[0m[1m: Type mismatch[0m
-   [0m[34m┌─[0m /home/lewis/src/intent-cli/test/intent/diff_test.gleam:82:30
-   [0m[34m│[0m
-[0m[34m82[0m [0m[34m│[0m       header_must_not_exist: [0m[31m""[0m,
-   [0m[34m│[0m                              [0m[31m^^[0m
-
-Expected type:
-
-    option.Option(String)
-
-Found type:
-
-    String
+[0m[38;5;13m   Compiled[0m in 0.06s

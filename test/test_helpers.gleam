@@ -34,11 +34,7 @@ pub fn make_test_behavior(name: String, requires: List(String)) -> Behavior {
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-    ),
+    response: Response(status: 200, example: json.null(), checks: dict.new()),
     captures: dict.new(),
   )
 }
@@ -56,17 +52,13 @@ pub fn make_test_behavior_with_method(
     requires: requires,
     tags: [],
     request: Request(
-      method: types.Get,
+      method: method,
       path: "/" <> name,
       headers: dict.new(),
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-    ),
+    response: Response(status: 200, example: json.null(), checks: dict.new()),
     captures: dict.new(),
   )
 }
@@ -91,7 +83,7 @@ pub fn make_test_behavior_with_status(
       body: json.null(),
     ),
     response: Response(
-      status: 200,
+      status: expected_status,
       example: json.null(),
       checks: dict.new(),
     ),
