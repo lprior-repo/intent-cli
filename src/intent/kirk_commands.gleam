@@ -113,8 +113,17 @@ pub fn kirk_quality_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent quality <spec.cue> [--json]")
+        let response =
+          json_output.failure(
+            "quality_check_failed",
+            "quality",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
@@ -200,8 +209,17 @@ pub fn kirk_invert_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent invert <spec.cue> [--json]")
+        let response =
+          json_output.failure(
+            "invert_check_failed",
+            "invert",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
@@ -299,8 +317,17 @@ pub fn kirk_coverage_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent coverage <spec.cue> [--json]")
+        let response =
+          json_output.failure(
+            "coverage_check_failed",
+            "coverage",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
@@ -395,8 +422,17 @@ pub fn kirk_gaps_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent gaps <spec.cue> [--json]")
+        let response =
+          json_output.failure(
+            "gaps_check_failed",
+            "gaps",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }
@@ -454,8 +490,17 @@ pub fn kirk_effects_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("spec file path required")
-        io.println("Usage: intent effects <spec.cue> [--json]")
+        let response =
+          json_output.failure(
+            "effects_check_failed",
+            "effects",
+            json.null(),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }

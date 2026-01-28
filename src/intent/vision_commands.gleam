@@ -24,6 +24,45 @@ import intent/vision_types.{type VisionSection, Scenario, VisionSection}
 // Exit codes (duplicated to avoid circular dependency)
 const exit_pass = 0
 
+/// Parent command for vision phase - shows available subcommands
+pub fn vision_group_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    let data =
+      json.object([
+        #("phase", json.string("vision")),
+        #("description", json.string("Phase 1: Shape the product vision before building")),
+        #(
+          "subcommands",
+          json.array(
+            [
+              #("start", "Initialize a new vision session from spec"),
+              #("check", "Validate vision session completeness"),
+              #("critique", "Run Skeptical PM critique on vision"),
+              #("respond", "Submit responses to critique issues"),
+              #("agree", "Finalize vision phase agreement"),
+            ],
+            fn(pair) {
+              let #(cmd, desc) = pair
+              json.object([
+                #("command", json.string("intent vision " <> cmd)),
+                #("description", json.string(desc)),
+              ])
+            },
+          ),
+        ),
+      ])
+    let response =
+      json_output.success("vision_help", "vision", data, None, [
+        json_output.next_action(
+          "intent vision start <spec.cue>",
+          "Start a new vision session",
+        ),
+      ])
+    json_output.output(response)
+  })
+  |> glint.description("Vision phase: Shape product vision before building")
+}
+
 const exit_fail = 1
 
 const exit_error = 4

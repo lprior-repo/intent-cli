@@ -20,6 +20,45 @@ import intent/spec_critique
 // Exit codes (duplicated to avoid circular dependency)
 const exit_pass = 0
 
+/// Parent command for spec phase - shows available subcommands
+pub fn spec_group_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    let data =
+      json.object([
+        #("phase", json.string("spec")),
+        #("description", json.string("Phase 2: Define precise specifications")),
+        #(
+          "subcommands",
+          json.array(
+            [
+              #("start", "Initialize a new spec session from spec file"),
+              #("check", "Validate spec session completeness"),
+              #("critique", "Run Spec Reviewer critique"),
+              #("respond", "Submit responses to critique issues"),
+              #("agree", "Finalize spec phase agreement"),
+            ],
+            fn(pair) {
+              let #(cmd, desc) = pair
+              json.object([
+                #("command", json.string("intent spec " <> cmd)),
+                #("description", json.string(desc)),
+              ])
+            },
+          ),
+        ),
+      ])
+    let response =
+      json_output.success("spec_help", "spec", data, None, [
+        json_output.next_action(
+          "intent spec start <spec.cue>",
+          "Start a new spec session",
+        ),
+      ])
+    json_output.output(response)
+  })
+  |> glint.description("Spec phase: Define precise specifications")
+}
+
 const exit_fail = 1
 
 const exit_invalid = 3

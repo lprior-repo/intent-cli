@@ -22,6 +22,45 @@ import intent/ready_critique
 // Exit codes (duplicated to avoid circular dependency)
 const exit_pass = 0
 
+/// Parent command for ready phase - shows available subcommands
+pub fn ready_group_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    let data =
+      json.object([
+        #("phase", json.string("ready")),
+        #("description", json.string("Phase 4: Pre-launch readiness check")),
+        #(
+          "subcommands",
+          json.array(
+            [
+              #("start", "Initialize a new ready session"),
+              #("check", "Validate ready session completeness"),
+              #("critique", "Run Pre-Launch Auditor critique"),
+              #("respond", "Submit responses to critique issues"),
+              #("agree", "Finalize ready phase and approve launch"),
+            ],
+            fn(pair) {
+              let #(cmd, desc) = pair
+              json.object([
+                #("command", json.string("intent ready " <> cmd)),
+                #("description", json.string(desc)),
+              ])
+            },
+          ),
+        ),
+      ])
+    let response =
+      json_output.success("ready_help", "ready", data, None, [
+        json_output.next_action(
+          "intent ready start <spec.cue>",
+          "Start a new ready session",
+        ),
+      ])
+    json_output.output(response)
+  })
+  |> glint.description("Ready phase: Pre-launch readiness check")
+}
+
 const exit_fail = 1
 
 const exit_error = 2

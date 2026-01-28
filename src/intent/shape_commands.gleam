@@ -17,6 +17,45 @@ import intent/json_output
 
 const exit_pass = 0
 
+/// Parent command for shape phase - shows available subcommands
+pub fn shape_group_command() -> glint.Command(Nil) {
+  glint.command(fn(_input: glint.CommandInput) {
+    let data =
+      json.object([
+        #("phase", json.string("shape")),
+        #("description", json.string("Phase 3: Shape implementation approach")),
+        #(
+          "subcommands",
+          json.array(
+            [
+              #("start", "Initialize a new shape session"),
+              #("check", "Validate shape session completeness"),
+              #("critique", "Run Shape critique"),
+              #("respond", "Submit responses to critique issues"),
+              #("agree", "Finalize shape phase agreement"),
+            ],
+            fn(pair) {
+              let #(cmd, desc) = pair
+              json.object([
+                #("command", json.string("intent shape " <> cmd)),
+                #("description", json.string(desc)),
+              ])
+            },
+          ),
+        ),
+      ])
+    let response =
+      json_output.success("shape_help", "shape", data, None, [
+        json_output.next_action(
+          "intent shape start <spec.cue>",
+          "Start a new shape session",
+        ),
+      ])
+    json_output.output(response)
+  })
+  |> glint.description("Shape phase: Shape implementation approach")
+}
+
 const exit_error = 4
 
 @external(erlang, "intent_ffi", "halt")

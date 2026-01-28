@@ -302,6 +302,7 @@ fn build_app() {
     do: plan_commands.plan_approve_command(),
   )
   // Vision phase commands
+  |> glint.add(at: ["vision"], do: vision_commands.vision_group_command())
   |> glint.add(
     at: ["vision", "start"],
     do: vision_commands.vision_start_command(),
@@ -323,6 +324,7 @@ fn build_app() {
     do: vision_commands.vision_agree_command(),
   )
   // Spec phase commands
+  |> glint.add(at: ["spec"], do: spec_commands.spec_group_command())
   |> glint.add(at: ["spec", "start"], do: spec_commands.spec_start_command())
   |> glint.add(at: ["spec", "check"], do: spec_commands.spec_check_command())
   |> glint.add(
@@ -335,6 +337,7 @@ fn build_app() {
   )
   |> glint.add(at: ["spec", "agree"], do: spec_commands.spec_agree_command())
   // Shape phase commands
+  |> glint.add(at: ["shape"], do: shape_commands.shape_group_command())
   |> glint.add(
     at: ["shape", "start"],
     do: shape_commands.shape_start_command(),
@@ -356,6 +359,7 @@ fn build_app() {
     do: shape_commands.shape_agree_command(),
   )
   // Ready phase commands
+  |> glint.add(at: ["ready"], do: ready_commands.ready_group_command())
   |> glint.add(
     at: ["ready", "start"],
     do: ready_commands.ready_start_command(),
