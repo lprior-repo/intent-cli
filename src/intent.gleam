@@ -268,6 +268,7 @@ fn build_app() {
   |> glint.add(at: ["show"], do: show_command())
   |> glint.add(at: ["export"], do: export_command())
   |> glint.add(at: ["lint"], do: lint_command())
+  |> glint.add(at: ["check"], do: check_command())
   |> glint.add(at: ["analyze"], do: analyze_command())
   |> glint.add(at: ["improve"], do: improve_command())
   |> glint.add(at: ["doctor"], do: doctor_command())
@@ -487,10 +488,10 @@ fn show_command() -> glint.Command(Nil) {
                 [json_output.error("load_error", error_msg)],
                 Some(spec_path),
                 [],
-                exit_error,
+                exit_invalid,
               )
             json_output.output(response)
-            halt(exit_error)
+            halt(exit_invalid)
           }
         }
       }
@@ -609,10 +610,7 @@ fn export_command() -> glint.Command(Nil) {
                 "intent export <spec.cue>",
                 "Export spec to JSON",
               ),
-              json_output.next_action(
-                "intent interview",
-                "Create a new spec",
-              ),
+              json_output.next_action("intent interview", "Create a new spec"),
             ],
             exit_error,
           )
@@ -750,6 +748,101 @@ fn lint_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Check spec for anti-patterns and quality issues")
+}
+
+/// The `check` command - run spec against API (placeholder)
+fn check_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let target_url =
+      flag.get_string(input.flags, "target")
+      |> result.unwrap("")
+
+    let spec_path = case input.args {
+      [path, ..] -> Ok(path)
+      [] -> Error("spec file path required")
+    }
+
+    case spec_path {
+      Ok(path) -> {
+        case loader.load_spec(path) {
+          Ok(spec) -> {
+            let next_actions = [
+              json_output.next_action(
+                "intent validate " <> path,
+                "Validate spec structure",
+              ),
+              json_output.next_action(
+                "intent lint " <> path,
+                "Check for anti-patterns",
+              ),
+            ]
+            let data =
+              json.object([
+                #("spec_name", json.string(spec.name)),
+                #("target_url", case string.is_empty(target_url) {
+                  True -> json.string(spec.config.base_url)
+                  False -> json.string(target_url)
+                }),
+                #(
+                  "message",
+                  json.string(
+                    "Check command is under development. The full API testing implementation is not yet available.",
+                  ),
+                ),
+              ])
+            let response =
+              json_output.success(
+                "check_result",
+                "check",
+                data,
+                Some(path),
+                next_actions,
+              )
+            json_output.output(response)
+            halt(exit_pass)
+          }
+          Error(e) -> {
+            let error_msg = loader.format_error(e)
+            let response =
+              json_output.failure(
+                "check_failed",
+                "check",
+                json.null(),
+                [json_output.error("load_error", error_msg)],
+                Some(path),
+                [],
+                exit_invalid,
+              )
+            json_output.output(response)
+            halt(exit_invalid)
+          }
+        }
+      }
+      Error(msg) -> {
+        let response =
+          json_output.failure(
+            "check_failed",
+            "check",
+            json.null(),
+            [json_output.error("usage_error", msg)],
+            None,
+            [],
+            exit_error,
+          )
+        json_output.output(response)
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Run spec against API (under development)")
+  |> glint.flag(
+    "target",
+    flag.string()
+      |> flag.default("")
+      |> flag.description(
+        "Target API URL (uses config.base_url if not specified)",
+      ),
+  )
 }
 
 /// The `analyze` command - analyze spec quality
@@ -1923,9 +2016,11 @@ fn beads_command() -> glint.Command(Nil) {
           Error(_) -> {
             let is_spec_file = string.ends_with(session_id, ".cue")
             let error_msg =
-              "Session not found: " <> session_id
+              "Session not found: "
+              <> session_id
               <> case is_spec_file {
-                True -> "\nNote: The beads command expects a session ID, not a spec file."
+                True ->
+                  "\nNote: The beads command expects a session ID, not a spec file."
                 False -> ""
               }
             let response =
@@ -1974,7 +2069,8 @@ fn beads_command() -> glint.Command(Nil) {
             {
               Ok(Nil) -> {
                 // Output consistent JSON response with next_actions
-                let beads_json = bead_templates.beads_to_action_json(beads, session_id)
+                let beads_json =
+                  bead_templates.beads_to_action_json(beads, session_id)
                 let next_actions = [
                   json_output.next_action(
                     "intent plan " <> session_id,
@@ -2006,7 +2102,12 @@ fn beads_command() -> glint.Command(Nil) {
                     "beads_export_failed",
                     "beads",
                     json.object([#("error", json.string(string.inspect(err)))]),
-                    [json_output.error("file_error", "Failed to write beads file")],
+                    [
+                      json_output.error(
+                        "file_error",
+                        "Failed to write beads file",
+                      ),
+                    ],
                     Some(session_id),
                     [
                       json_output.next_action(
@@ -2176,7 +2277,9 @@ fn bead_status_command() -> glint.Command(Nil) {
                           #("status", json.string("success")),
                           #(
                             "message",
-                            json.string("Bead " <> bead_id <> " marked as success"),
+                            json.string(
+                              "Bead " <> bead_id <> " marked as success",
+                            ),
                           ),
                         ]),
                         Some(session_id),
@@ -2211,7 +2314,7 @@ fn bead_status_command() -> glint.Command(Nil) {
                           json_output.error(
                             "update_failed",
                             "Failed to mark bead as success: "
-                            <> bead_feedback_error_to_string(err),
+                              <> bead_feedback_error_to_string(err),
                           ),
                         ],
                         Some(session_id),
@@ -2251,7 +2354,9 @@ fn bead_status_command() -> glint.Command(Nil) {
                           #("reason", json.string(reason)),
                           #(
                             "message",
-                            json.string("Bead " <> bead_id <> " marked as failed"),
+                            json.string(
+                              "Bead " <> bead_id <> " marked as failed",
+                            ),
                           ),
                         ]),
                         Some(session_id),
@@ -2287,7 +2392,7 @@ fn bead_status_command() -> glint.Command(Nil) {
                           json_output.error(
                             "update_failed",
                             "Failed to mark bead as failed: "
-                            <> bead_feedback_error_to_string(err),
+                              <> bead_feedback_error_to_string(err),
                           ),
                         ],
                         Some(session_id),
@@ -2326,8 +2431,8 @@ fn bead_status_command() -> glint.Command(Nil) {
                         [
                           json_output.next_action(
                             "intent bead-status --bead-id "
-                            <> bead_id
-                            <> " --status blocked --reason 'explain why blocked'",
+                              <> bead_id
+                              <> " --status blocked --reason 'explain why blocked'",
                             "Provide reason for blocked status",
                           ),
                         ],
@@ -2360,7 +2465,10 @@ fn bead_status_command() -> glint.Command(Nil) {
                               #(
                                 "message",
                                 json.string(
-                                  "Bead " <> bead_id <> " marked as blocked: " <> reason,
+                                  "Bead "
+                                  <> bead_id
+                                  <> " marked as blocked: "
+                                  <> reason,
                                 ),
                               ),
                             ]),
@@ -2393,7 +2501,7 @@ fn bead_status_command() -> glint.Command(Nil) {
                               json_output.error(
                                 "update_failed",
                                 "Failed to mark bead as blocked: "
-                                <> bead_feedback_error_to_string(err),
+                                  <> bead_feedback_error_to_string(err),
                               ),
                             ],
                             Some(session_id),
@@ -2424,15 +2532,17 @@ fn bead_status_command() -> glint.Command(Nil) {
                     [
                       json_output.error(
                         "invalid_status",
-                        "Invalid status '" <> status <> "'. Valid statuses: success, failed, blocked",
+                        "Invalid status '"
+                          <> status
+                          <> "'. Valid statuses: success, failed, blocked",
                       ),
                     ],
                     Some(session_id),
                     [
                       json_output.next_action(
                         "intent bead-status --bead-id "
-                        <> bead_id
-                        <> " --status success|failed|blocked",
+                          <> bead_id
+                          <> " --status success|failed|blocked",
                         "Use a valid status value",
                       ),
                     ],
@@ -2624,7 +2734,10 @@ fn plan_approve_command() -> glint.Command(Nil) {
                           #("session_id", json.string(session_id)),
                           #("total_beads", json.int(plan.total_beads)),
                           #("total_effort", json.string(plan.total_effort)),
-                          #("risk_level", json.string(risk_level_to_string(plan.risk))),
+                          #(
+                            "risk_level",
+                            json.string(risk_level_to_string(plan.risk)),
+                          ),
                           #("phases", json.int(list.length(plan.phases))),
                           #("approved_by", json.string("ci")),
                         ]),
@@ -2671,7 +2784,12 @@ fn plan_approve_command() -> glint.Command(Nil) {
                     "plan_approve_failed",
                     "plan_approve",
                     json.null(),
-                    [json_output.error("interactive_not_available", "Interactive approval not available in AI-only mode")],
+                    [
+                      json_output.error(
+                        "interactive_not_available",
+                        "Interactive approval not available in AI-only mode",
+                      ),
+                    ],
                     None,
                     [
                       json_output.next_action(
@@ -2679,7 +2797,9 @@ fn plan_approve_command() -> glint.Command(Nil) {
                         "Approve plan for CI execution",
                       ),
                       json_output.next_action(
-                        "intent plan-approve " <> session_id <> " --yes --notes='...'",
+                        "intent plan-approve "
+                          <> session_id
+                          <> " --yes --notes='...'",
                         "Approve with notes",
                       ),
                     ],
@@ -2810,7 +2930,12 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                   #("session_id", json.string(session_id)),
                   #("expected_path", json.string(session_path)),
                 ]),
-                [json_output.error("session_not_found", "Session not found: " <> session_id)],
+                [
+                  json_output.error(
+                    "session_not_found",
+                    "Session not found: " <> session_id,
+                  ),
+                ],
                 Some(session_id),
                 [
                   json_output.next_action(
@@ -2842,7 +2967,7 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                       json_output.error(
                         "feedback_load_error",
                         "Failed to load feedback: "
-                        <> bead_feedback_error_to_string(err),
+                          <> bead_feedback_error_to_string(err),
                       ),
                     ],
                     Some(session_id),
@@ -2916,20 +3041,20 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                       Ok(Nil) -> {
                         // Build beads data for output
                         let beads_json =
-                          json.array(
-                            needs_regen,
-                            fn(fb) {
-                              json.object([
-                                #("bead_id", json.string(fb.bead_id)),
-                                #("status", json.string(case fb.result {
+                          json.array(needs_regen, fn(fb) {
+                            json.object([
+                              #("bead_id", json.string(fb.bead_id)),
+                              #(
+                                "status",
+                                json.string(case fb.result {
                                   bead_feedback.Failed -> "failed"
                                   bead_feedback.Blocked -> "blocked"
                                   _ -> "unknown"
-                                })),
-                                #("reason", json.string(fb.reason)),
-                              ])
-                            },
-                          )
+                                }),
+                              ),
+                              #("reason", json.string(fb.reason)),
+                            ])
+                          })
 
                         let response =
                           json_output.success(
@@ -3007,12 +3132,20 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                   "intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
                 ),
               ),
-              #("description", json.string("Regenerate failed/blocked beads with adjusted approach")),
-              #("strategies", json.object([
-                #("hybrid", json.string("Use all analysis methods (default)")),
-                #("inversion", json.string("Focus on failure mode analysis")),
-                #("premortem", json.string("Focus on what could go wrong")),
-              ])),
+              #(
+                "description",
+                json.string(
+                  "Regenerate failed/blocked beads with adjusted approach",
+                ),
+              ),
+              #(
+                "strategies",
+                json.object([
+                  #("hybrid", json.string("Use all analysis methods (default)")),
+                  #("inversion", json.string("Focus on failure mode analysis")),
+                  #("premortem", json.string("Focus on what could go wrong")),
+                ]),
+              ),
             ]),
             [
               json_output.error(
@@ -3396,7 +3529,12 @@ fn history_command() -> glint.Command(Nil) {
                     "history_not_found",
                     "history",
                     json.object([#("session_id", json.string(session_id))]),
-                    [json_output.error("not_found", "No history snapshots exist yet")],
+                    [
+                      json_output.error(
+                        "not_found",
+                        "No history snapshots exist yet",
+                      ),
+                    ],
                     Some(session_id),
                     [
                       json_output.next_action(
@@ -3481,13 +3619,16 @@ fn history_command() -> glint.Command(Nil) {
                 "interview --resume=" <> session_id <> " --snapshot",
                 "Resume session with snapshot enabled",
               ),
-              json_output.next_action(
-                "intent sessions",
-                "List all sessions",
-              ),
+              json_output.next_action("intent sessions", "List all sessions"),
             ]
             let response =
-              json_output.success("history_result", "history", data, Some(session_id), next_actions)
+              json_output.success(
+                "history_result",
+                "history",
+                data,
+                Some(session_id),
+                next_actions,
+              )
             json_output.output(response)
             halt(exit_pass)
           }
@@ -4513,7 +4654,7 @@ fn kirk_ears_command() -> glint.Command(Nil) {
           }
           Error(_) -> {
             io.println_error("Failed to read: " <> requirements_path)
-            halt(exit_error)
+            halt(exit_invalid)
           }
         }
       }
@@ -4793,7 +4934,7 @@ fn parse_command() -> glint.Command(Nil) {
           }
           Error(_) -> {
             io.println_error("Failed to read: " <> requirements_path)
-            halt(exit_error)
+            halt(exit_invalid)
           }
         }
       }
@@ -4931,10 +5072,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
               )
 
             let next_actions = [
-              json_output.next_action(
-                "intent help",
-                "Show available commands",
-              ),
+              json_output.next_action("intent help", "Show available commands"),
               json_output.next_action(
                 "intent interview --profile=api",
                 "Start a new interview session",
@@ -5028,10 +5166,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
               )
 
             let next_actions = [
-              json_output.next_action(
-                "intent help",
-                "Show available commands",
-              ),
+              json_output.next_action("intent help", "Show available commands"),
               json_output.next_action(
                 "intent ai schema --all",
                 "Try listing all schemas",
@@ -5078,7 +5213,13 @@ fn ai_schema_command() -> glint.Command(Nil) {
             ]
 
             let response =
-              json_output.success("schema_result", "ai schema", data, None, next_actions)
+              json_output.success(
+                "schema_result",
+                "ai schema",
+                data,
+                None,
+                next_actions,
+              )
 
             json_output.output(response)
             halt(exit_pass)
@@ -5211,10 +5352,7 @@ fn ai_schema_command() -> glint.Command(Nil) {
             "intent ai schema --list",
             "List available command names",
           ),
-          json_output.next_action(
-            "intent help",
-            "Show command help",
-          ),
+          json_output.next_action("intent help", "Show command help"),
         ]
 
         let response =
@@ -5425,7 +5563,13 @@ fn shape_start_command() -> glint.Command(Nil) {
     ]
 
     let response =
-      json_output.success("shape_start_result", "shape start", data, None, next_actions)
+      json_output.success(
+        "shape_start_result",
+        "shape start",
+        data,
+        None,
+        next_actions,
+      )
 
     json_output.output(response)
     halt(exit_pass)
@@ -5553,7 +5697,9 @@ fn shape_critique_command() -> glint.Command(Nil) {
 
         let next_actions = [
           json_output.next_action(
-            "intent shape respond --session=" <> session_id <> " --question=<qid> --answer='...'",
+            "intent shape respond --session="
+              <> session_id
+              <> " --question=<qid> --answer='...'",
             "Respond to critique issues",
           ),
           json_output.next_action(
@@ -5714,7 +5860,8 @@ fn shape_agree_command() -> glint.Command(Nil) {
 
         let next_actions = [
           json_output.next_action(
-            "intent spec start --vision-session=<vision-id> --shape-session=" <> session_id,
+            "intent spec start --vision-session=<vision-id> --shape-session="
+              <> session_id,
             "Start Spec phase with this shape session",
           ),
           json_output.next_action(
