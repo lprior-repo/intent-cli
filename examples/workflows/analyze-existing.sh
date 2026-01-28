@@ -109,7 +109,7 @@ fi
 # Step 2: Quality Analysis
 header "2. Quality Analysis"
 
-QUALITY_JSON=$(gleam run -- quality "$SPEC_FILE" --json=true)
+QUALITY_JSON=$(gleam run -- quality "$SPEC_FILE")
 echo "$QUALITY_JSON" | jq -r '
     "Overall Score: \(.data.overall_score)/100\n" +
     "\nDimensions:" +
@@ -160,7 +160,7 @@ echo "$TMP_REPORT" > "$REPORT_FILE"
 # Step 4: Coverage Analysis
 header "4. Coverage Analysis (OWASP + Edge Cases)"
 
-COVERAGE_JSON=$(gleam run -- coverage "$SPEC_FILE" --json=true)
+COVERAGE_JSON=$(gleam run -- coverage "$SPEC_FILE")
 echo "$COVERAGE_JSON" | jq -r '
     "Coverage Score: \(.data.score)/100\n" +
     "\nOWASP Top 10 Coverage:" +
@@ -193,7 +193,7 @@ echo "$TMP_REPORT" > "$REPORT_FILE"
 # Step 5: Gap Detection
 header "5. Gap Detection"
 
-GAPS_JSON=$(gleam run -- gaps "$SPEC_FILE" --json=true)
+GAPS_JSON=$(gleam run -- gaps "$SPEC_FILE")
 GAP_COUNT=$(echo "$GAPS_JSON" | jq -r '.data.gap_count // 0')
 
 echo "Found $GAP_COUNT gaps"
@@ -230,7 +230,7 @@ echo "$TMP_REPORT" > "$REPORT_FILE"
 # Step 6: Inversion Analysis (Failure Modes)
 header "6. Failure Mode Analysis"
 
-INVERT_JSON=$(gleam run -- invert "$SPEC_FILE" --json=true)
+INVERT_JSON=$(gleam run -- invert "$SPEC_FILE")
 FAILURE_COUNT=$(echo "$INVERT_JSON" | jq -r '.data.failure_count // 0')
 
 echo "Identified $FAILURE_COUNT potential failure modes"
@@ -261,7 +261,7 @@ echo "$TMP_REPORT" > "$REPORT_FILE"
 # Step 7: Effects Analysis
 header "7. Second-Order Effects Analysis"
 
-EFFECTS_JSON=$(gleam run -- effects "$SPEC_FILE" --json=true)
+EFFECTS_JSON=$(gleam run -- effects "$SPEC_FILE")
 echo "$EFFECTS_JSON" | jq -r '
     if .data.effects then
         "Second-Order Effects:\n" +
@@ -285,7 +285,7 @@ header "8. Health Report & Recommendations"
 
 gleam run -- doctor "$SPEC_FILE"
 
-DOCTOR_JSON=$(gleam run -- doctor "$SPEC_FILE" --json=true)
+DOCTOR_JSON=$(gleam run -- doctor "$SPEC_FILE")
 
 # Update report
 TMP_REPORT=$(jq --argjson doctor "$(echo "$DOCTOR_JSON" | jq '.data')" \

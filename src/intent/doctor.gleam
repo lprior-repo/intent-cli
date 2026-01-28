@@ -259,7 +259,7 @@ pub fn json_output(report: DoctorReport, spec_path: String) -> Nil {
 
   let next_actions = [
     json_output.next_action(
-      "intent improve " <> spec_path <> " --json",
+      "intent improve " <> spec_path,
       "Get detailed improvement suggestions",
     ),
     json_output.next_action(

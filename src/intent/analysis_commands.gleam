@@ -65,11 +65,11 @@ pub fn analyze_command() -> glint.Command(Nil) {
                 ])
               let next_actions = [
                 json_output.next_action(
-                  "intent gaps " <> spec_path <> " --json",
+                  "intent gaps " <> spec_path,
                   "Find coverage gaps",
                 ),
                 json_output.next_action(
-                  "intent invert " <> spec_path <> " --json",
+                  "intent invert " <> spec_path,
                   "Analyze failure modes",
                 ),
               ]
@@ -96,7 +96,7 @@ pub fn analyze_command() -> glint.Command(Nil) {
       [] -> {
         ai_errors.cli_error_with_usage(
           message: "spec file path required",
-          usage: "intent analyze <spec.cue> [--json]",
+          usage: "intent analyze <spec.cue>",
         )
         |> ai_errors.format_cli_error()
         |> io.println_error()
@@ -148,7 +148,7 @@ pub fn improve_command() -> glint.Command(Nil) {
                   "Verify spec structure and syntax",
                 ),
                 json_output.next_action(
-                  "intent doctor " <> spec_path <> " --json",
+                  "intent doctor " <> spec_path,
                   "Get prioritized recommendations",
                 ),
               ]
@@ -175,7 +175,7 @@ pub fn improve_command() -> glint.Command(Nil) {
       [] -> {
         ai_errors.cli_error_with_usage(
           message: "spec file path required",
-          usage: "intent improve <spec.cue> [--json]",
+          usage: "intent improve <spec.cue>",
         )
         |> ai_errors.format_cli_error()
         |> io.println_error()

@@ -5,8 +5,8 @@ Fast reference for developers integrating Intent CLI JSON output.
 ## Basic Usage
 
 ```bash
-# Any command with --json=true returns structured JSON
-intent <command> <spec> --json=true
+# All analysis commands return structured JSON by default
+intent <command> <spec>
 ```
 
 ## Response Structure
@@ -120,7 +120,7 @@ correlation_id = response.metadata.correlation_id
 
 ```typescript
 {
-  command: string           // e.g., "intent gaps spec.cue --json=true"
+  command: string           // e.g., "intent gaps spec.cue"
   reason: string            // e.g., "Find coverage gaps"
 }
 ```
@@ -179,19 +179,19 @@ correlation_id = response.metadata.correlation_id
 
 ```bash
 # Get quality score
-intent quality spec.cue --json=true | jq '.data.overall_score'
+intent quality spec.cue | jq '.data.overall_score'
 
 # Check if tests passed
-intent check spec.cue --json=true | jq '.data.success'
+intent check spec.cue | jq '.data.success'
 
 # Count critical gaps
-intent gaps spec.cue --json=true | jq '.data.severity_breakdown.critical'
+intent gaps spec.cue | jq '.data.severity_breakdown.critical'
 
 # List next actions
-intent quality spec.cue --json=true | jq -r '.next_actions[].command'
+intent quality spec.cue | jq -r '.next_actions[].command'
 
 # Extract all errors
-intent validate spec.cue --json=true | jq -r '.errors[].message'
+intent validate spec.cue | jq -r '.errors[].message'
 ```
 
 ### Node.js
@@ -226,7 +226,7 @@ actions = [a["command"] for a in json.loads(stdout)["next_actions"]]
 #!/bin/bash
 set -e
 
-RESPONSE=$(intent quality spec.cue --json=true)
+RESPONSE=$(intent quality spec.cue)
 SCORE=$(echo "$RESPONSE" | jq -r '.data.overall_score')
 
 if [ "$SCORE" -lt 80 ]; then
@@ -285,7 +285,7 @@ validate(instance=response, schema=schema)
 ```yaml
 - name: Quality Gate
   run: |
-    RESPONSE=$(intent quality spec.cue --json=true)
+    RESPONSE=$(intent quality spec.cue)
     echo "$RESPONSE" | jq -e '.success and (.data.overall_score >= 80)'
 ```
 
@@ -294,7 +294,7 @@ validate(instance=response, schema=schema)
 ```yaml
 quality_gate:
   script:
-    - SCORE=$(intent quality spec.cue --json=true | jq -r '.data.overall_score')
+    - SCORE=$(intent quality spec.cue | jq -r '.data.overall_score')
     - test $SCORE -ge 80
 ```
 
@@ -303,27 +303,27 @@ quality_gate:
 ### 1. Complete KIRK Analysis
 
 ```bash
-intent quality spec.cue --json=true   > quality.json
-intent coverage spec.cue --json=true  > coverage.json
-intent gaps spec.cue --json=true      > gaps.json
-intent invert spec.cue --json=true    > invert.json
-intent effects spec.cue --json=true   > effects.json
+intent quality spec.cue   > quality.json
+intent coverage spec.cue  > coverage.json
+intent gaps spec.cue      > gaps.json
+intent invert spec.cue    > invert.json
+intent effects spec.cue   > effects.json
 ```
 
 ### 2. Test → Feedback → Fix
 
 ```bash
-intent check spec.cue --json=true > results.json
-intent feedback --results results.json --json=true > fixes.json
+intent check spec.cue > results.json
+intent feedback --results results.json > fixes.json
 # Apply fixes from fixes.json
-intent check spec.cue --json=true  # Verify
+intent check spec.cue  # Verify
 ```
 
 ### 3. Automated Workflow
 
 ```bash
 # Start with quality
-RESPONSE=$(intent quality spec.cue --json=true)
+RESPONSE=$(intent quality spec.cue)
 
 # Extract next action
 NEXT=$(echo "$RESPONSE" | jq -r '.next_actions[0].command')

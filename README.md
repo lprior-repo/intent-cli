@@ -136,16 +136,16 @@ When analyzing a spec (either for initial review or continuous improvement), fol
 intent validate api.cue
 
 # 2. Quality Baseline (get overall scores)
-intent quality api.cue --json=true
+intent quality api.cue
 
 # 3. Coverage Analysis (OWASP Top 10 + edge cases)
-intent coverage api.cue --json=true
+intent coverage api.cue
 
 # 4. Gap Detection (mental model gaps)
-intent gaps api.cue --json=true
+intent gaps api.cue
 
 # 5. Prioritized Fixes (actionable improvements)
-intent doctor api.cue --json=true
+intent doctor api.cue
 
 # 6. Detailed Suggestions (specific fixes)
 intent improve api.cue
@@ -160,19 +160,12 @@ intent improve api.cue
 5. **doctor**: Prioritizes all findings by impact
 6. **improve**: Provides specific, actionable suggestions
 
-**Machine-Readable Mode**:
+**Machine-Readable Output**:
 
-All commands support `--json=true` for programmatic processing. JSON output includes:
+All analysis commands output structured JSON by default for programmatic processing. JSON output includes:
 - Structured data (scores, findings, gaps)
 - `next_actions` array with suggested follow-up commands
 - Consistent exit codes for CI/CD integration
-
-**Human-Readable Mode**:
-
-Omit `--json` flag for formatted text output with:
-- Color-coded sections
-- Next-step suggestions
-- Related command hints
 
 **Example: Full Analysis Script**
 
@@ -182,10 +175,10 @@ SPEC="api.cue"
 
 # Run analysis pipeline
 intent validate $SPEC || exit 3
-intent quality $SPEC --json=true > quality.json
-intent coverage $SPEC --json=true > coverage.json
-intent gaps $SPEC --json=true > gaps.json
-intent doctor $SPEC --json=true > doctor.json
+intent quality $SPEC > quality.json
+intent coverage $SPEC > coverage.json
+intent gaps $SPEC > gaps.json
+intent doctor $SPEC > doctor.json
 
 # Parse results (example with jq)
 jq '.data.overall_score' quality.json
@@ -242,19 +235,16 @@ gleam run -- check examples/user-api.cue --target=http://localhost:8080
 # ✅ CORRECT
 intent check api.cue --target=https://api.com
 intent interview --profile=api --cue=true
-intent quality api.cue --json=true
 
 # ❌ WRONG
 intent check api.cue --target https://api.com
 intent interview --profile api
-intent quality api.cue --json
 ```
 
 **Why**: The CLI uses Glint which only supports the `=` syntax. Using spaces will cause "flag has no assigned value" errors.
 
 **Tip**: Boolean flags can omit the value if true:
 ```bash
-intent check api.cue --json           # Same as --json=true
 intent interview --cue                # Same as --cue=true
 ```
 
@@ -277,15 +267,14 @@ intent ears requirements.md --output=json # Machine-readable output
 - `parse`: Quick validation during editing, see pattern distribution
 - `ears`: Full analysis, generating specs, or detailed requirement review
 
-**analyze vs quality** - Identical output, different flags:
+**analyze vs quality** - Identical output:
 
 ```bash
-# analyze: Text output only (alias for quality)
+# analyze: Alias for quality
 intent analyze api.cue
 
-# quality: Supports JSON output
-intent quality api.cue        # Same text output as analyze
-intent quality api.cue --json # Machine-readable scores
+# quality: Standard command
+intent quality api.cue
 ```
 
 ## Exit Codes

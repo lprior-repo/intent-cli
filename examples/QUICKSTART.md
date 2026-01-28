@@ -21,7 +21,7 @@ gleam run -- validate examples/user-api.cue
 gleam run -- quality examples/user-api.cue
 
 # Find gaps
-gleam run -- gaps examples/user-api.cue --json=true | jq
+gleam run -- gaps examples/user-api.cue | jq
 ```
 
 ## Create Your First Spec (5 minutes)
@@ -52,22 +52,22 @@ gleam run -- validate my-api.cue
 gleam run -- validate <spec.cue>
 
 # Quality score (4 dimensions)
-gleam run -- quality <spec.cue> [--json=true]
+gleam run -- quality <spec.cue>
 
 # OWASP coverage
-gleam run -- coverage <spec.cue> [--json=true]
+gleam run -- coverage <spec.cue>
 
 # Find missing requirements
-gleam run -- gaps <spec.cue> [--json=true]
+gleam run -- gaps <spec.cue>
 
 # Failure mode analysis
-gleam run -- invert <spec.cue> [--json=true]
+gleam run -- invert <spec.cue>
 
 # Get improvement suggestions
 gleam run -- improve <spec.cue>
 
 # Health report with fixes
-gleam run -- doctor <spec.cue> [--json=true]
+gleam run -- doctor <spec.cue>
 ```
 
 ### Interview & Planning
@@ -82,13 +82,13 @@ gleam run -- sessions --profile=api
 gleam run -- export <session-id> --output=spec.cue
 
 # Generate work items
-gleam run -- beads <session-id> --json=true
+gleam run -- beads <session-id>
 
 # Generate AI prompts
-gleam run -- prompt <session-id> --json=true
+gleam run -- prompt <session-id>
 
 # Create execution plan
-gleam run -- plan <session-id> --json=true
+gleam run -- plan <session-id>
 ```
 
 ### Workflow Scripts
@@ -178,7 +178,7 @@ gleam run -- quality my-api.cue
 ./examples/workflows/analyze-existing.sh spec.cue
 
 # Check score
-gleam run -- quality spec.cue --json=true | jq '.data.overall_score'
+gleam run -- quality spec.cue | jq '.data.overall_score'
 
 # Get improvements
 gleam run -- doctor spec.cue
@@ -198,11 +198,11 @@ cat ai-output/ai_context.json | ai-tool analyze
 
 ## JSON Output
 
-All analysis commands support `--json=true` for machine-readable output:
+All analysis commands output structured JSON by default for machine-readable output:
 
 ```bash
 # Get JSON output
-gleam run -- quality spec.cue --json=true > quality.json
+gleam run -- quality spec.cue > quality.json
 
 # Extract specific data
 jq '.data.overall_score' quality.json
@@ -216,16 +216,16 @@ Commands suggest logical next steps:
 
 ```bash
 # Get next actions from quality check
-gleam run -- quality spec.cue --json=true | jq '.next_actions'
+gleam run -- quality spec.cue | jq '.next_actions'
 
 # Output:
 # [
 #   {
-#     "command": "intent gaps spec.cue --json",
+#     "command": "intent gaps spec.cue",
 #     "reason": "Find coverage gaps"
 #   },
 #   {
-#     "command": "intent invert spec.cue --json",
+#     "command": "intent invert spec.cue",
 #     "reason": "Analyze failure modes"
 #   }
 # ]
@@ -244,7 +244,7 @@ cat examples/meal-planner-api.cue
 
 # Run analysis on examples
 gleam run -- quality examples/user-api.cue
-gleam run -- gaps examples/meal-planner-api.cue --json=true
+gleam run -- gaps examples/meal-planner-api.cue
 ```
 
 ## Troubleshooting

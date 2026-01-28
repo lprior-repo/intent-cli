@@ -4,9 +4,9 @@ Contract-driven API testing in Gleam. CUE specs → HTTP tests → verification.
 
 ## Beads Workflow
 ```jsonl
-{"cmd":"bd ready --json","desc":"find work"}
-{"cmd":"bd update <id> --status in_progress --json","desc":"claim"}
-{"cmd":"bd close <id> --reason '...' --json","desc":"complete"}
+{"cmd":"bd ready","desc":"find work"}
+{"cmd":"bd update <id> --status in_progress","desc":"claim"}
+{"cmd":"bd close <id> --reason '...'","desc":"complete"}
 {"cmd":"bv --robot-triage","desc":"AI triage"}
 {"cmd":"bv --robot-next","desc":"top pick"}
 {"cmd":"bv --robot-plan","desc":"parallel tracks"}
@@ -176,7 +176,7 @@ Intent owns Plan phase. All work decomposition flows from CUE specs.
 All commands output JSON by default (except `help` which outputs plain text).
 ```jsonl
 {"commands":"quality, coverage, gaps, invert, effects, doctor, check, validate, lint, sessions","status":"implemented"}
-{"usage":"intent quality api.cue | jq '.data.overall_score'"}
+{"usage":"intent quality api.cue"}
 ```
 
 ### Implemented AI-Native Features

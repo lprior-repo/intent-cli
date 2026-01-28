@@ -69,7 +69,7 @@ Comprehensive JSON output schema documentation for Intent CLI, enabling AI agent
 
 ## Commands Documented
 
-All commands with `--json=true` support:
+All commands support structured JSON output:
 
 ### Core Operations (4)
 - `validate` - CUE syntax validation
@@ -209,7 +209,7 @@ else:
 ```yaml
 - name: Quality Gate
   run: |
-    RESPONSE=$(intent quality spec.cue --json=true)
+    RESPONSE=$(intent quality spec.cue)
     SCORE=$(echo "$RESPONSE" | jq -r '.data.overall_score')
     if [ "$SCORE" -lt 80 ]; then
       echo "❌ Quality gate failed: $SCORE < 80"
@@ -221,7 +221,7 @@ else:
 
 ```bash
 #!/bin/bash
-intent quality spec.cue --json=true | jq '
+intent quality spec.cue | jq '
   if .success and (.data.overall_score >= 80) then
     "✅ Quality gate passed: \(.data.overall_score)/100"
   else

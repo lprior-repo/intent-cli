@@ -49,9 +49,6 @@ intent check spec.cue --target http://localhost:8080 --feature "User Management"
 # Run only a specific behavior
 intent check spec.cue --target http://localhost:8080 --only "create-user"
 
-# JSON output for CI/CD pipelines
-intent check spec.cue --target http://localhost:8080 --json
-
 # Allow localhost for local development
 intent check spec.cue --target http://localhost:3000 --allow-localhost
 
@@ -61,7 +58,6 @@ intent check spec.cue --target http://localhost:8080 --quiet
 
 **Flags:**
 - `--target <url>` - Target base URL to test against (required)
-- `--json` - Output results as JSON
 - `--feature <name>` - Filter to a specific feature
 - `--only <name>` - Run only a specific behavior
 - `--verbose` - Verbose output with detailed information
@@ -134,15 +130,9 @@ intent improve examples/api.cue
 Comprehensive health report with prioritized improvements.
 
 ```bash
-# Human-readable output
+# Basic usage
 intent doctor <spec.cue>
-
-# JSON output for tooling integration
-intent doctor <spec.cue> --json
 ```
-
-**Flags:**
-- `--json` - Output as JSON
 
 ---
 
@@ -210,21 +200,14 @@ List all interview sessions.
 # List all sessions
 intent sessions
 
-# JSON output
-intent sessions --json
-
 # Filter by profile
 intent sessions --profile api
 
 # Show only incomplete sessions
 intent sessions --incomplete
-
-# Combined filters
-intent sessions --profile api --incomplete --json
 ```
 
 **Flags:**
-- `--json` - Output as JSON
 - `--profile <type>` - Filter by profile (api, cli, event, etc.)
 - `--incomplete` - Show only incomplete sessions
 
@@ -257,15 +240,9 @@ intent diff interview-abc123 interview-def456
 Generate work items (beads) from an interview session.
 
 ```bash
-# Generate beads (human-readable)
+# Generate beads (JSON output)
 intent beads <session-id>
-
-# JSON output for machine consumption
-intent beads <session-id> --json
 ```
-
-**Flags:**
-- `--json` - Output JSON for machine consumption
 
 ### bead-status
 
@@ -302,10 +279,10 @@ Commands for execution planning and workflow management.
 Display execution plan for a session.
 
 ```bash
-# Human-readable plan
+# Basic usage
 intent plan <session-id>
 
-# JSON output
+# JSON output (if format flag is supported, otherwise default)
 intent plan <session-id> --format json
 ```
 
@@ -363,15 +340,9 @@ KIRK (Knowledge-Informed Requirements Kernel) commands for deep specification an
 Analyze spec quality across multiple dimensions.
 
 ```bash
-# Human-readable report
+# Basic usage (JSON output)
 intent quality <spec.cue>
-
-# JSON output
-intent quality <spec.cue> --json
 ```
-
-**Flags:**
-- `--json` - Output as JSON
 
 **Quality Dimensions:**
 - Completeness - How complete is the specification?
@@ -385,60 +356,36 @@ intent quality <spec.cue> --json
 Inversion analysis - identify missing failure cases.
 
 ```bash
-# Human-readable report
+# Basic usage
 intent invert <spec.cue>
-
-# JSON output
-intent invert <spec.cue> --json
 ```
-
-**Flags:**
-- `--json` - Output as JSON
 
 ### coverage
 
 Coverage analysis including OWASP Top 10 security coverage.
 
 ```bash
-# Human-readable report
+# Basic usage
 intent coverage <spec.cue>
-
-# JSON output
-intent coverage <spec.cue> --json
 ```
-
-**Flags:**
-- `--json` - Output as JSON
 
 ### gaps
 
 Detect specification gaps using mental models.
 
 ```bash
-# Human-readable report
+# Basic usage
 intent gaps <spec.cue>
-
-# JSON output
-intent gaps <spec.cue> --json
 ```
-
-**Flags:**
-- `--json` - Output as JSON
 
 ### effects
 
 Analyze second-order effects (consequence tracing).
 
 ```bash
-# Human-readable report
+# Basic usage
 intent effects <spec.cue>
-
-# JSON output
-intent effects <spec.cue> --json
 ```
-
-**Flags:**
-- `--json` - Output as JSON
 
 ### ears
 
@@ -485,15 +432,9 @@ Commands for data transformation and display.
 Pretty print a parsed spec.
 
 ```bash
-# Human-readable display
+# Basic usage
 intent show <spec.cue>
-
-# JSON output
-intent show <spec.cue> --json
 ```
-
-**Flags:**
-- `--json` - Output as JSON
 
 ### export
 
@@ -512,19 +453,15 @@ intent export spec.cue > spec.json
 Parse EARS requirements and output structured CUE spec.
 
 ```bash
-# Parse requirements (shows progress)
+# Parse requirements
 intent parse <requirements.md>
 
 # Output to CUE file
 intent parse <requirements.md> -o <output.cue>
-
-# JSON output
-intent parse <requirements.md> --json
 ```
 
 **Flags:**
 - `-o <path>` - Output spec file path
-- `--json` - Output as JSON
 
 ---
 
@@ -532,12 +469,9 @@ intent parse <requirements.md> --json
 
 ### Output Format Flags
 
-Most commands support JSON output for machine consumption:
+Most commands output JSON by default for machine consumption. Some support specific formats:
 
 ```bash
-# Boolean flag (most common)
-intent <command> <args> --json
-
 # Format selection (for commands with multiple formats)
 intent <command> <args> --format json
 intent <command> <args> --output json
@@ -590,10 +524,10 @@ intent check spec.cue --target url --quiet
 # Auto-approve
 intent plan-approve session-id --yes
 
-# JSON output for parsing
-intent check spec.cue --target url --json
-intent doctor spec.cue --json
-intent sessions --json
+# JSON output for parsing (default)
+intent check spec.cue --target url
+intent doctor spec.cue
+intent sessions
 ```
 
 ---

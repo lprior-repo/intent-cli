@@ -133,7 +133,7 @@ header "2. Quality Analysis"
 QUALITY_FILE="$OUTPUT_DIR/01_quality.json"
 info "Running quality analysis..."
 
-gleam run -- quality "$SPEC_FILE" --json=true > "$QUALITY_FILE"
+gleam run -- quality "$SPEC_FILE" > "$QUALITY_FILE"
 QUALITY_SCORE=$(jq -r '.data.overall_score // 0' "$QUALITY_FILE")
 
 success "Quality score: $QUALITY_SCORE/100"
@@ -150,7 +150,7 @@ header "3. Coverage Analysis (OWASP + Edge Cases)"
 COVERAGE_FILE="$OUTPUT_DIR/02_coverage.json"
 info "Analyzing coverage..."
 
-gleam run -- coverage "$SPEC_FILE" --json=true > "$COVERAGE_FILE"
+gleam run -- coverage "$SPEC_FILE" > "$COVERAGE_FILE"
 COVERAGE_SCORE=$(jq -r '.data.score // 0' "$COVERAGE_FILE")
 
 success "Coverage score: $COVERAGE_SCORE/100"
@@ -167,7 +167,7 @@ header "4. Gap Detection"
 GAPS_FILE="$OUTPUT_DIR/03_gaps.json"
 info "Detecting gaps..."
 
-gleam run -- gaps "$SPEC_FILE" --json=true > "$GAPS_FILE"
+gleam run -- gaps "$SPEC_FILE" > "$GAPS_FILE"
 GAP_COUNT=$(jq -r '.data.gap_count // 0' "$GAPS_FILE")
 
 if [ "$GAP_COUNT" -gt 0 ]; then
@@ -188,7 +188,7 @@ header "5. Failure Mode Analysis"
 INVERT_FILE="$OUTPUT_DIR/04_inversion.json"
 info "Analyzing failure modes..."
 
-gleam run -- invert "$SPEC_FILE" --json=true > "$INVERT_FILE"
+gleam run -- invert "$SPEC_FILE" > "$INVERT_FILE"
 FAILURE_COUNT=$(jq -r '.data.failure_count // 0' "$INVERT_FILE")
 
 success "Identified $FAILURE_COUNT failure modes"
@@ -205,7 +205,7 @@ header "6. Second-Order Effects"
 EFFECTS_FILE="$OUTPUT_DIR/05_effects.json"
 info "Analyzing second-order effects..."
 
-gleam run -- effects "$SPEC_FILE" --json=true > "$EFFECTS_FILE"
+gleam run -- effects "$SPEC_FILE" > "$EFFECTS_FILE"
 success "Effects analysis complete"
 info "Output: $EFFECTS_FILE"
 
@@ -220,7 +220,7 @@ header "7. Health Report"
 DOCTOR_FILE="$OUTPUT_DIR/06_doctor.json"
 info "Generating health report..."
 
-gleam run -- doctor "$SPEC_FILE" --json=true > "$DOCTOR_FILE"
+gleam run -- doctor "$SPEC_FILE" > "$DOCTOR_FILE"
 ISSUE_COUNT=$(jq '[.data.issues] | length' "$DOCTOR_FILE")
 
 success "Found $ISSUE_COUNT improvement opportunities"
@@ -244,7 +244,7 @@ if [ -n "$SESSION_ID" ]; then
     BEADS_FILE="$OUTPUT_DIR/07_beads.json"
     info "Generating work beads..."
 
-    gleam run -- beads "$SESSION_ID" --json=true > "$BEADS_FILE"
+    gleam run -- beads "$SESSION_ID" > "$BEADS_FILE"
     BEAD_COUNT=$(jq -r '.data.bead_count // 0' "$BEADS_FILE")
 
     success "Generated $BEAD_COUNT work items"
@@ -259,7 +259,7 @@ if [ -n "$SESSION_ID" ]; then
     PROMPTS_FILE="$OUTPUT_DIR/08_prompts.json"
     info "Generating AI prompts..."
 
-    gleam run -- prompt "$SESSION_ID" --json=true > "$PROMPTS_FILE"
+    gleam run -- prompt "$SESSION_ID" > "$PROMPTS_FILE"
     PROMPT_COUNT=$(jq '.data.prompts | length' "$PROMPTS_FILE")
 
     success "Generated $PROMPT_COUNT AI prompts"
@@ -295,7 +295,7 @@ header "9. AI Action Schema"
 SCHEMA_FILE="$OUTPUT_DIR/09_ai_schema.json"
 info "Generating AI action schema..."
 
-gleam run -- ai schema --json=true > "$SCHEMA_FILE"
+gleam run -- ai schema > "$SCHEMA_FILE"
 success "AI schema generated"
 info "Output: $SCHEMA_FILE"
 

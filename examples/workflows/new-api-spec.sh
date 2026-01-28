@@ -81,7 +81,7 @@ echo ""
 
 # Step 4: Quality analysis
 info "Step 4: Analyzing spec quality"
-QUALITY_JSON=$(gleam run -- quality "$OUTPUT_FILE" --json=true)
+QUALITY_JSON=$(gleam run -- quality "$OUTPUT_FILE")
 QUALITY_SCORE=$(echo "$QUALITY_JSON" | jq -r '.data.overall_score // 0')
 
 echo "Quality Score: $QUALITY_SCORE/100"
@@ -97,7 +97,7 @@ echo ""
 
 # Step 5: Find gaps
 info "Step 5: Identifying coverage gaps"
-GAPS_JSON=$(gleam run -- gaps "$OUTPUT_FILE" --json=true)
+GAPS_JSON=$(gleam run -- gaps "$OUTPUT_FILE")
 GAP_COUNT=$(echo "$GAPS_JSON" | jq -r '.data.gap_count // 0')
 
 if [ "$GAP_COUNT" -eq 0 ]; then
@@ -110,7 +110,7 @@ echo ""
 
 # Step 6: OWASP coverage check
 info "Step 6: Checking OWASP Top 10 coverage"
-COVERAGE_JSON=$(gleam run -- coverage "$OUTPUT_FILE" --json=true)
+COVERAGE_JSON=$(gleam run -- coverage "$OUTPUT_FILE")
 COVERAGE_SCORE=$(echo "$COVERAGE_JSON" | jq -r '.data.score // 0')
 
 echo "OWASP Coverage Score: $COVERAGE_SCORE/100"
@@ -124,7 +124,7 @@ echo ""
 
 # Step 7: Inversion analysis (failure modes)
 info "Step 7: Analyzing failure modes"
-INVERT_JSON=$(gleam run -- invert "$OUTPUT_FILE" --json=true)
+INVERT_JSON=$(gleam run -- invert "$OUTPUT_FILE")
 FAILURE_COUNT=$(echo "$INVERT_JSON" | jq -r '.data.failure_count // 0')
 
 echo "Identified $FAILURE_COUNT potential failure modes"
@@ -140,7 +140,7 @@ echo ""
 
 # Step 9: Generate work beads
 info "Step 9: Generating work items (beads)"
-BEADS_JSON=$(gleam run -- beads "$SESSION_ID" --json=true)
+BEADS_JSON=$(gleam run -- beads "$SESSION_ID")
 BEAD_COUNT=$(echo "$BEADS_JSON" | jq -r '.data.bead_count // 0')
 TOTAL_MINUTES=$(echo "$BEADS_JSON" | jq -r '.data.total_minutes // 0')
 
@@ -154,7 +154,7 @@ echo ""
 
 # Step 10: Generate AI prompts
 info "Step 10: Generating AI implementation prompts"
-PROMPTS_JSON=$(gleam run -- prompt "$SESSION_ID" --json=true)
+PROMPTS_JSON=$(gleam run -- prompt "$SESSION_ID")
 PROMPT_COUNT=$(echo "$PROMPTS_JSON" | jq -r '.data.prompts | length')
 
 # Save prompts to file
@@ -191,7 +191,7 @@ echo "  1. Review improvements:"
 echo "     gleam run -- doctor $OUTPUT_FILE"
 echo ""
 echo "  2. View work plan:"
-echo "     gleam run -- plan $SESSION_ID --json=true | jq"
+echo "     gleam run -- plan $SESSION_ID | jq"
 echo ""
 echo "  3. Approve and start implementation:"
 echo "     gleam run -- plan-approve $SESSION_ID --yes"

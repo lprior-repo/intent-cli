@@ -111,17 +111,17 @@ bd close intent-cli-ffj --reason "Verified prompt command logic" --json
 
 ```bash
 # What's ready to work on?
-bd ready --json
+bd ready
 
 # Claim a bead
-bd update <bead-id> --status in_progress --json
+bd update <bead-id> --status in_progress
 
 # Complete a bead
-bd close <bead-id> --reason "Done" --json
+bd close <bead-id> --reason "Done"
 
 # Check bead details
-bd show <bead-id> --json
+bd show <bead-id>
 
 # View all open beads
-bd list --status open --json
+bd list --status open
 ```

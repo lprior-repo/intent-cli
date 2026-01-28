@@ -145,31 +145,8 @@ gleam run -- validate examples/user-api.cue
 Get a comprehensive quality score across multiple dimensions.
 
 ```bash
-# Human-readable output
+# Analyze spec quality
 gleam run -- quality examples/user-api.cue
-
-# Machine-readable JSON
-gleam run -- quality examples/user-api.cue --json=true
-```
-
-**Example Output:**
-```
-Quality Analysis: User Management API
-
-Overall Score: 85/100
-
-Dimension Scores:
-  Coverage:      90/100 ✓ Excellent
-  Clarity:       85/100 ✓ Good
-  Testability:   80/100 ✓ Good
-  AI Readiness:  85/100 ✓ Good
-
-Details:
-  - 3 features defined
-  - 12 behaviors with clear intents
-  - 24 response checks
-  - All behaviors have intent statements
-  - Good anti-pattern documentation
 ```
 
 **JSON Output Structure:**
@@ -194,7 +171,7 @@ Details:
   },
   "next_actions": [
     {
-      "command": "intent gaps examples/user-api.cue --json",
+      "command": "intent gaps examples/user-api.cue",
       "reason": "Identify missing coverage areas"
     }
   ]
@@ -207,7 +184,7 @@ Detect missing requirements and coverage holes.
 
 ```bash
 # Find gaps in your spec
-gleam run -- gaps examples/user-api.cue --json=true
+gleam run -- gaps examples/user-api.cue
 ```
 
 **Example Output:**
@@ -244,33 +221,32 @@ Get prioritized suggestions for improvement.
 gleam run -- improve examples/user-api.cue
 
 # Get detailed health report with fixes
-gleam run -- doctor examples/user-api.cue --json=true
+gleam run -- doctor examples/user-api.cue
 ```
 
 **Example Output:**
-```
-Improvement Suggestions for User Management API
-
-High Priority (3):
-  1. Add rate limiting behavior
-     Impact: Security
-     Effort: Low
-     Why: Prevent abuse and DoS attacks
-
-  2. Test pagination edge cases
-     Impact: Reliability
-     Effort: Medium
-     Why: Ensure robust handling of large datasets
-
-Medium Priority (2):
-  1. Document error response formats
-     Impact: Developer Experience
-     Effort: Low
-
-Low Priority (1):
-  1. Add OpenAPI export hint
-     Impact: Integration
-     Effort: Low
+```json
+{
+  "success": true,
+  "data": {
+    "suggestions": [
+      {
+        "title": "Add rate limiting behavior",
+        "priority": "high",
+        "impact": "Security",
+        "effort": "Low",
+        "reasoning": "Prevent abuse and DoS attacks"
+      },
+      {
+        "title": "Test pagination edge cases",
+        "priority": "high",
+        "impact": "Reliability",
+        "effort": "Medium",
+        "reasoning": "Ensure robust handling of large datasets"
+      }
+    ]
+  }
+}
 ```
 
 ---
@@ -303,24 +279,23 @@ gleam run -- show <spec.cue>
 ```
 
 **Example Output:**
-```
-Spec: User Management API
-Version: 1.0.0
-Audience: Mobile and web clients
-
-Features (3):
-  1. User Registration
-     - successful-registration
-     - duplicate-email-rejected
-     - invalid-email-rejected
-
-  2. Authentication
-     - successful-login
-     - wrong-password-rejected
-
-  3. Profile Management
-     - get-own-profile
-     - update-profile
+```json
+{
+  "success": true,
+  "data": {
+    "spec": {
+      "name": "User Management API",
+      "version": "1.0.0",
+      "audience": "Mobile and web clients"
+    },
+    "features": [
+      {
+        "name": "User Registration",
+        "behaviors": ["successful-registration", "duplicate-email-rejected"]
+      }
+    ]
+  }
+}
 ```
 
 #### analyze / quality
@@ -328,7 +303,7 @@ Features (3):
 Analyze spec quality across 4 dimensions. (`analyze` is an alias for `quality`)
 
 ```bash
-gleam run -- quality <spec.cue> [--json=true]
+gleam run -- quality <spec.cue>
 ```
 
 **Dimensions:**
@@ -343,21 +318,6 @@ Detect anti-patterns in your spec.
 
 ```bash
 gleam run -- lint <spec.cue>
-```
-
-**Example Output:**
-```
-Linting User Management API
-
-Warnings (2):
-  ⚠ Missing intent statement
-    at: features[0].behaviors[3]
-    fix: Add an intent field explaining the behavior's purpose
-
-  ⚠ Weak check rule
-    at: features[1].behaviors[0].response.checks.token
-    current: "token exists"
-    suggestion: "valid JWT"
 ```
 
 #### improve
@@ -377,7 +337,7 @@ KIRK (Knowledge Integration & Requirements Knowledge) provides deep analysis.
 Analyze OWASP Top 10 and edge case coverage.
 
 ```bash
-gleam run -- coverage <spec.cue> [--json=true]
+gleam run -- coverage <spec.cue>
 ```
 
 **Example Output:**
@@ -410,7 +370,7 @@ gleam run -- coverage <spec.cue> [--json=true]
 Find missing requirements using 5 gap detection models.
 
 ```bash
-gleam run -- gaps <spec.cue> [--json=true]
+gleam run -- gaps <spec.cue>
 ```
 
 **Gap Types:**
@@ -425,7 +385,7 @@ gleam run -- gaps <spec.cue> [--json=true]
 Analyze failure modes and anti-patterns.
 
 ```bash
-gleam run -- invert <spec.cue> [--json=true]
+gleam run -- invert <spec.cue>
 ```
 
 **Example Output:**
@@ -458,27 +418,30 @@ gleam run -- invert <spec.cue> [--json=true]
 Identify second-order effects and side-effect behaviors.
 
 ```bash
-gleam run -- effects <spec.cue> [--json=true]
+gleam run -- effects <spec.cue>
 ```
 
 **Example Output:**
-```
-Second-Order Effects Analysis
-
-Direct Effects → Secondary Effects:
-  1. User registration
-     → Email verification sent
-     → Welcome email queued
-     → Analytics event fired
-     Status: 1/3 verified in spec
-
-  2. Password change
-     → Active sessions invalidated
-     → Security email sent
-     Status: 0/2 verified in spec
-
-Orphan behaviors (no dependencies): 2
-Circular dependencies: 0
+```json
+{
+  "success": true,
+  "data": {
+    "effects": [
+      {
+        "cause": "User registration",
+        "effects": [
+          "Email verification sent",
+          "Welcome email queued",
+          "Analytics event fired"
+        ],
+        "verified": 1,
+        "total": 3
+      }
+    ],
+    "orphans": 2,
+    "circular": 0
+  }
+}
 ```
 
 #### ears
@@ -616,7 +579,7 @@ Beads are atomic 5-30 minute work units generated from specs.
 Generate work items from an interview session.
 
 ```bash
-gleam run -- beads <session-id> [--json=true] [--max-items=N]
+gleam run -- beads <session-id> [--max-items=N]
 ```
 
 **Example Output:**
@@ -682,7 +645,7 @@ gleam run -- bead-status --bead-id bead_004 --status blocked --reason 'Waiting f
 Generate execution plan with health analysis, waves, and beads.
 
 ```bash
-gleam run -- plan <session-id> [--json=true] [--rounds=1..5]
+gleam run -- plan <session-id> [--rounds=1..5]
 ```
 
 **Rounds** refer to the 5-round mental model:
@@ -746,7 +709,7 @@ gleam run -- plan-approve session_abc123 --yes --notes 'Looks good, proceeding'
 Generate AI implementation prompts from beads.
 
 ```bash
-gleam run -- prompt <session-id> [--json=true] [--max-items=N]
+gleam run -- prompt <session-id> [--max-items=N]
 ```
 
 **Example Output:**
@@ -770,7 +733,7 @@ gleam run -- prompt <session-id> [--json=true] [--max-items=N]
 Generate fix beads from test failures.
 
 ```bash
-gleam run -- feedback --results <check-output.json> [--json=true]
+gleam run -- feedback --results <check-output.json>
 ```
 
 **Example Input (`check-output.json`):**
@@ -815,32 +778,30 @@ gleam run -- feedback --results <check-output.json> [--json=true]
 Get prioritized health report with actionable fixes.
 
 ```bash
-gleam run -- doctor <spec.cue> [--json=true]
+gleam run -- doctor <spec.cue>
 ```
 
 **Example Output:**
-```
-Health Report: User Management API
-
-Overall Health: 75/100 (Good)
-
-Critical Issues (1):
-  🔴 Missing security behavior: Rate limiting
-     Impact: High
-     Fix: Add behavior testing 429 responses
-     Estimated effort: 20 minutes
-
-Warnings (3):
-  🟡 Weak check in Authentication.successful-login
-     Current: "token exists"
-     Better: "valid JWT"
-
-  🟡 Missing edge case: concurrent registration
-     Add behavior testing race conditions
-
-Suggestions (2):
-  💡 Add more anti-patterns to ai_hints
-  💡 Document API versioning strategy
+```json
+{
+  "success": true,
+  "data": {
+    "critical_issues": [
+      {
+        "issue": "Missing security behavior: Rate limiting",
+        "impact": "High",
+        "fix": "Add behavior testing 429 responses",
+        "effort": "20 minutes"
+      }
+    ],
+    "warnings": [
+      {
+        "issue": "Weak check in Authentication.successful-login",
+        "suggestion": "Use 'valid JWT' instead of 'token exists'"
+      }
+    ]
+  }
+}
 ```
 
 ### AI Commands
@@ -850,7 +811,7 @@ Suggestions (2):
 Generate action JSON schema documentation for AI tools.
 
 ```bash
-gleam run -- ai schema [--json=true]
+gleam run -- ai schema
 ```
 
 **Use case**: Integrate Intent CLI with AI agents, provide schema for automated workflows.
@@ -865,18 +826,18 @@ Use JSON output with `jq` for powerful workflows:
 
 ```bash
 # Get quality score and check if it meets threshold
-SCORE=$(gleam run -- quality api.cue --json=true | jq '.data.overall_score')
+SCORE=$(gleam run -- quality api.cue | jq '.data.overall_score')
 if [ "$SCORE" -lt 80 ]; then
   echo "Quality below threshold, running doctor..."
   gleam run -- doctor api.cue
 fi
 
 # Extract high-priority gaps
-gleam run -- gaps api.cue --json=true | \
+gleam run -- gaps api.cue | \
   jq '.data.gaps[] | select(.severity == "high")'
 
 # Count failure modes by category
-gleam run -- invert api.cue --json=true | \
+gleam run -- invert api.cue | \
   jq '.data.failure_modes | group_by(.category) |
       map({category: .[0].category, count: length})'
 ```
@@ -990,7 +951,7 @@ checks: {
 
 ### Using JSON Output for Automation
 
-All KIRK and analysis commands support `--json=true` for machine-readable output.
+All KIRK and analysis commands support structured JSON output for machine-readable output.
 
 **Action JSON Schema:**
 ```json
@@ -1002,7 +963,7 @@ All KIRK and analysis commands support `--json=true` for machine-readable output
   "errors": [],
   "next_actions": [
     {
-      "command": "intent <next-command> --json",
+      "command": "intent <next-command>",
       "reason": "Why this is the logical next step"
     }
   ],
@@ -1022,17 +983,17 @@ All KIRK and analysis commands support `--json=true` for machine-readable output
 gleam run -- interview api --export=api.cue
 
 # 2. Check quality
-QUALITY=$(gleam run -- quality api.cue --json=true)
+QUALITY=$(gleam run -- quality api.cue)
 echo "$QUALITY" | jq '.data.overall_score'
 
 # 3. Find gaps
-gleam run -- gaps api.cue --json=true > gaps.json
+gleam run -- gaps api.cue > gaps.json
 
 # 4. Generate beads
-gleam run -- beads <session-id> --json=true > beads.json
+gleam run -- beads <session-id> > beads.json
 
 # 5. Create AI prompts
-gleam run -- prompt <session-id> --json=true > prompts.json
+gleam run -- prompt <session-id> > prompts.json
 
 # 6. Feed prompts to AI implementation tool
 cat prompts.json | jq -r '.data.prompts[].prompt' | \
@@ -1042,7 +1003,7 @@ cat prompts.json | jq -r '.data.prompts[].prompt' | \
 # (your test runner outputs failures.json)
 
 # 8. Generate fix beads
-gleam run -- feedback --results failures.json --json=true > fixes.json
+gleam run -- feedback --results failures.json > fixes.json
 ```
 
 ### Next Actions Guidance
@@ -1051,7 +1012,7 @@ Commands suggest logical next steps via `next_actions`:
 
 ```bash
 # After quality check, follow suggestions
-RESULT=$(gleam run -- quality api.cue --json=true)
+RESULT=$(gleam run -- quality api.cue)
 NEXT=$(echo "$RESULT" | jq -r '.next_actions[0].command')
 echo "Running: $NEXT"
 eval "$NEXT"
@@ -1182,7 +1143,7 @@ gleam run -- sessions --profile=api
 Generate beads first, then use valid IDs:
 ```bash
 # Generate beads
-gleam run -- beads <session-id> --json=true
+gleam run -- beads <session-id>
 
 # Use bead IDs from output
 gleam run -- bead-status --bead-id bead_001 --status success
@@ -1190,7 +1151,7 @@ gleam run -- bead-status --bead-id bead_001 --status success
 
 ### JSON Error Format
 
-When using `--json=true`, errors are structured:
+Errors are structured:
 
 ```json
 {

@@ -58,19 +58,19 @@ type HelpEntry {
 fn help_command_entries() -> List(HelpEntry) {
   [
     // Spec Operations
-    HelpEntry("validate", "spec", "<spec.cue>", "--watch --json", "Validate CUE spec syntax and structure", "validate_result"),
+    HelpEntry("validate", "spec", "<spec.cue>", "--watch", "Validate CUE spec syntax and structure", "validate_result"),
     HelpEntry("show", "spec", "<spec.cue>", "", "Display parsed spec contents", "show_result"),
     HelpEntry("diff", "spec", "<spec1.cue> <spec2.cue>", "", "Compare two spec versions", "diff_result"),
-    HelpEntry("lint", "spec", "<spec.cue>", "--json", "Detect anti-patterns", "lint_result"),
-    HelpEntry("improve", "spec", "<spec.cue>", "--json", "Suggest improvements", "improve_result"),
+    HelpEntry("lint", "spec", "<spec.cue>", "", "Detect anti-patterns", "lint_result"),
+    HelpEntry("improve", "spec", "<spec.cue>", "", "Suggest improvements", "improve_result"),
     // KIRK Analysis
-    HelpEntry("quality", "kirk", "<spec.cue>", "--json", "Score across 5 dimensions (0-100)", "quality_result"),
-    HelpEntry("coverage", "kirk", "<spec.cue>", "--json", "OWASP + edge case coverage audit", "coverage_result"),
-    HelpEntry("gaps", "kirk", "<spec.cue>", "--json", "Find missing requirements", "gaps_result"),
-    HelpEntry("invert", "kirk", "<spec.cue>", "--json", "Failure mode analysis", "invert_result"),
-    HelpEntry("effects", "kirk", "<spec.cue>", "--json", "Second-order effects analysis", "effects_result"),
+    HelpEntry("quality", "kirk", "<spec.cue>", "", "Score across 5 dimensions (0-100)", "quality_result"),
+    HelpEntry("coverage", "kirk", "<spec.cue>", "", "OWASP + edge case coverage audit", "coverage_result"),
+    HelpEntry("gaps", "kirk", "<spec.cue>", "", "Find missing requirements", "gaps_result"),
+    HelpEntry("invert", "kirk", "<spec.cue>", "", "Failure mode analysis", "invert_result"),
+    HelpEntry("effects", "kirk", "<spec.cue>", "", "Second-order effects analysis", "effects_result"),
     HelpEntry("ears", "kirk", "<file>", "--output=cue|json", "Parse EARS requirements", "ears_result"),
-    HelpEntry("doctor", "kirk", "<spec.cue>", "--json", "Prioritized health report", "doctor_result"),
+    HelpEntry("doctor", "kirk", "<spec.cue>", "", "Prioritized health report", "doctor_result"),
     // Interview
     HelpEntry("interview", "interview", "", "--profile=api|cli --resume=<session-id>", "Guided spec discovery. REQUIRED: --profile flag for new interviews", "interview_result"),
     HelpEntry("sessions", "interview", "", "--profile=api|cli --delete=<id>", "List all sessions with IDs and status", "sessions_list"),
@@ -107,7 +107,7 @@ fn help_command_entries() -> List(HelpEntry) {
     HelpEntry("ready agree", "phase", "<session-id>", "", "Finalize Ready phase agreement", "ready_agree_result"),
     // Utilities
     HelpEntry("parse", "utility", "<file>", "", "Quick EARS validation of requirements file", "parse_result"),
-    HelpEntry("analyze", "utility", "<spec.cue>", "--json", "Alias for quality command", "quality_result"),
+    HelpEntry("analyze", "utility", "<spec.cue>", "", "Alias for quality command", "quality_result"),
     HelpEntry("ai schema", "utility", "", "--all --list --command=<cmd> --type=input|output", "JSON schema docs for all commands", "schema_result"),
     HelpEntry("ai aggregate", "utility", "<spec.cue>", "", "Run all analyses at once", "aggregate_result"),
     HelpEntry("help", "utility", "[command]", "", "Show this help", "help_result"),

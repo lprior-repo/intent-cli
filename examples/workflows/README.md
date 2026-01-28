@@ -408,13 +408,13 @@ Install Gleam: https://gleam.run/getting-started/installing/
 Install jq: https://stedolan.github.io/jq/download/
 
 ### Invalid JSON output
-Check that you're using `--json=true` flag:
+Check that you're running the command correctly:
 ```bash
 # Correct
-gleam run -- quality spec.cue --json=true
-
-# Wrong
 gleam run -- quality spec.cue
+
+# Wrong (missing spec)
+gleam run -- quality
 ```
 
 ### No session ID found

@@ -299,16 +299,16 @@ Run these 5 testing subtasks in parallel:
 ### Bead Operations
 ```bash
 # List all beads
-bd list --json
+bd list
 
 # Check ready work
-bd ready --json
+bd ready
 
 # Claim a bead
-bd update <id> --status in_progress --json
+bd update <id> --status in_progress
 
 # Complete a bead
-bd close <id> --reason "Completed" --json
+bd close <id> --reason "Completed"
 
 # View dependencies
 bd graph --format=json

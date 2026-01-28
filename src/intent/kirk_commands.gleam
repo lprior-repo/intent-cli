@@ -73,11 +73,11 @@ pub fn kirk_quality_command() -> glint.Command(Nil) {
                 ])
               let next_actions = [
                 json_output.next_action(
-                  "intent gaps " <> spec_path <> " --json",
+                  "intent gaps " <> spec_path,
                   "Find coverage gaps",
                 ),
                 json_output.next_action(
-                  "intent invert " <> spec_path <> " --json",
+                  "intent invert " <> spec_path,
                   "Analyze failure modes",
                 ),
               ]
@@ -169,11 +169,11 @@ pub fn kirk_invert_command() -> glint.Command(Nil) {
                 ])
               let next_actions = [
                 json_output.next_action(
-                  "intent coverage " <> spec_path <> " --json",
+                  "intent coverage " <> spec_path,
                   "Check OWASP coverage",
                 ),
                 json_output.next_action(
-                  "intent effects " <> spec_path <> " --json",
+                  "intent effects " <> spec_path,
                   "Analyze second-order effects",
                 ),
               ]
@@ -277,11 +277,11 @@ pub fn kirk_coverage_command() -> glint.Command(Nil) {
                 ])
               let next_actions = [
                 json_output.next_action(
-                  "intent gaps " <> spec_path <> " --json",
+                  "intent gaps " <> spec_path,
                   "Detect mental model gaps",
                 ),
                 json_output.next_action(
-                  "intent quality " <> spec_path <> " --json",
+                  "intent quality " <> spec_path,
                   "Check overall quality",
                 ),
               ]
@@ -507,12 +507,6 @@ pub fn kirk_effects_command() -> glint.Command(Nil) {
   })
   |> glint.description(
     "KIRK: Analyze second-order effects (consequence tracing)",
-  )
-  |> glint.flag(
-    "json",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description("Output JSON for machine consumption"),
   )
 }
 
@@ -975,7 +969,7 @@ pub fn parse_command() -> glint.Command(Nil) {
       [] -> {
         io.println_error("requirements file path required")
         io.println(
-          "Usage: intent parse <requirements.ears.md> [-o spec.cue] [--json]",
+          "Usage: intent parse <requirements.ears.md> [-o spec.cue]",
         )
         io.println("")
         io.println(
@@ -1003,7 +997,6 @@ pub fn parse_command() -> glint.Command(Nil) {
         io.println("Examples:")
         io.println("  intent parse examples/requirements.ears.md")
         io.println("  intent parse requirements.md -o spec.cue")
-        io.println("  intent parse requirements.md --json")
         halt(exit_error)
       }
     }

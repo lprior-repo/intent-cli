@@ -65,7 +65,7 @@ Complete guide to examples, workflows, and tutorials for Intent CLI.
 ```bash
 gleam run -- validate examples/user-api.cue
 gleam run -- quality examples/user-api.cue
-gleam run -- gaps examples/user-api.cue --json=true
+gleam run -- gaps examples/user-api.cue
 ```
 
 ### meal-planner-api.cue
@@ -91,7 +91,7 @@ gleam run -- gaps examples/user-api.cue --json=true
 **Try it**:
 ```bash
 gleam run -- validate examples/meal-planner-api.cue
-gleam run -- invert examples/meal-planner-api.cue --json=true
+gleam run -- invert examples/meal-planner-api.cue
 gleam run -- coverage examples/meal-planner-api.cue
 ```
 
@@ -305,7 +305,7 @@ All scripts are in `workflows/` directory and are executable.
 
 ## JSON Output Structure
 
-All commands with `--json=true` return this structure:
+All analysis commands return this structure by default:
 
 ```json
 {
@@ -316,7 +316,7 @@ All commands with `--json=true` return this structure:
   "errors": [],
   "next_actions": [
     {
-      "command": "intent <next-cmd> --json",
+      "command": "intent <next-cmd>",
       "reason": "Why to run this next"
     }
   ],
@@ -350,39 +350,39 @@ gleam run -- quality examples/user-api.cue
 # Expected: Score >= 80
 
 # JSON output
-gleam run -- quality examples/user-api.cue --json=true | jq
+gleam run -- quality examples/user-api.cue | jq
 ```
 
 ### Coverage Analysis
 ```bash
 # Check OWASP coverage
-gleam run -- coverage examples/user-api.cue --json=true | \
+gleam run -- coverage examples/user-api.cue | \
     jq '.data.owasp_coverage'
 
 # Count edge cases
-gleam run -- coverage examples/user-api.cue --json=true | \
+gleam run -- coverage examples/user-api.cue | \
     jq '.data.edge_cases'
 ```
 
 ### Gap Detection
 ```bash
 # Find all gaps
-gleam run -- gaps examples/user-api.cue --json=true | \
+gleam run -- gaps examples/user-api.cue | \
     jq '.data.gaps'
 
 # High severity gaps only
-gleam run -- gaps examples/user-api.cue --json=true | \
+gleam run -- gaps examples/user-api.cue | \
     jq '.data.gaps[] | select(.severity == "high")'
 ```
 
 ### Failure Modes
 ```bash
 # Critical failures
-gleam run -- invert examples/user-api.cue --json=true | \
+gleam run -- invert examples/user-api.cue | \
     jq '.data.failure_modes[] | select(.severity == "critical")'
 
 # By category
-gleam run -- invert examples/user-api.cue --json=true | \
+gleam run -- invert examples/user-api.cue | \
     jq '.data.failure_modes | group_by(.category) |
         map({category: .[0].category, count: length})'
 ```
@@ -401,7 +401,7 @@ MIN_SCORE=75
 gleam run -- validate "$SPEC_FILE" || exit 1
 
 # Quality check
-SCORE=$(gleam run -- quality "$SPEC_FILE" --json=true | \
+SCORE=$(gleam run -- quality "$SPEC_FILE" | \
     jq -r '.data.overall_score')
 
 if [ "$SCORE" -lt "$MIN_SCORE" ]; then
@@ -410,7 +410,7 @@ if [ "$SCORE" -lt "$MIN_SCORE" ]; then
 fi
 
 # Check for critical gaps
-CRITICAL=$(gleam run -- gaps "$SPEC_FILE" --json=true | \
+CRITICAL=$(gleam run -- gaps "$SPEC_FILE" | \
     jq '[.data.gaps[] | select(.severity == "critical")] | length')
 
 if [ "$CRITICAL" -gt 0 ]; then

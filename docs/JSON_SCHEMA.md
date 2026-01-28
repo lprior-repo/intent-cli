@@ -1,6 +1,6 @@
 # Intent CLI JSON Output Schema
 
-Complete reference for Intent CLI's machine-readable JSON output format. All commands that support `--json=true` return consistent, strongly-typed JSON responses designed for AI agents and CI/CD integration.
+Complete reference for Intent CLI's machine-readable JSON output format. All analysis commands return consistent, strongly-typed JSON responses designed for AI agents and CI/CD integration.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ Complete reference for Intent CLI's machine-readable JSON output format. All com
 
 ### Supported Commands
 
-Commands with JSON output (`--json=true`):
+Commands with JSON output:
 
 | Command | Action Type | Description |
 |---------|------------|-------------|
@@ -64,7 +64,7 @@ All JSON responses follow this structure:
   "errors": [],
   "next_actions": [
     {
-      "command": "intent gaps spec.cue --json=true",
+      "command": "intent gaps spec.cue",
       "reason": "Find coverage gaps"
     }
   ],
@@ -106,7 +106,7 @@ Structured error information:
   "message": "Invalid CUE syntax at line 42",
   "location": "examples/user-api.cue:42",
   "fix_hint": "Missing closing brace",
-  "fix_command": "intent doctor spec.cue --json=true"
+  "fix_command": "intent doctor spec.cue"
 }
 ```
 
@@ -124,7 +124,7 @@ Workflow guidance for AI agents:
 
 ```json
 {
-  "command": "intent gaps spec.cue --json=true",
+  "command": "intent gaps spec.cue",
   "reason": "Find coverage gaps in mental models"
 }
 ```
@@ -183,7 +183,7 @@ Validates CUE spec syntax and structure.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent quality spec.cue --json=true",
+      "command": "intent quality spec.cue",
       "reason": "Analyze spec quality"
     }
   ],
@@ -254,7 +254,7 @@ Execute HTTP tests against API behaviors.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent feedback --results check-output.json --json=true",
+      "command": "intent feedback --results check-output.json",
       "reason": "Generate fix beads for failures"
     }
   ],
@@ -322,11 +322,11 @@ Multi-dimensional quality scoring (coverage, clarity, testability, AI readiness)
   "errors": [],
   "next_actions": [
     {
-      "command": "intent gaps spec.cue --json=true",
+      "command": "intent gaps spec.cue",
       "reason": "Find coverage gaps"
     },
     {
-      "command": "intent invert spec.cue --json=true",
+      "command": "intent invert spec.cue",
       "reason": "Analyze failure modes"
     }
   ],
@@ -401,11 +401,11 @@ OWASP Top 10 and edge case coverage analysis.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent effects spec.cue --json=true",
+      "command": "intent effects spec.cue",
       "reason": "Analyze second-order effects"
     },
     {
-      "command": "intent doctor spec.cue --json=true",
+      "command": "intent doctor spec.cue",
       "reason": "Get prioritized improvements"
     }
   ],
@@ -489,11 +489,11 @@ Mental model gap detection across 5 dimensions.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent quality spec.cue --json=true",
+      "command": "intent quality spec.cue",
       "reason": "Check overall quality score"
     },
     {
-      "command": "intent doctor spec.cue --json=true",
+      "command": "intent doctor spec.cue",
       "reason": "Get prioritized fix plan"
     }
   ],
@@ -575,11 +575,11 @@ Failure mode analysis (24 failure patterns across security, usability, integrati
   "errors": [],
   "next_actions": [
     {
-      "command": "intent gaps spec.cue --json=true",
+      "command": "intent gaps spec.cue",
       "reason": "Find other coverage gaps"
     },
     {
-      "command": "intent effects spec.cue --json=true",
+      "command": "intent effects spec.cue",
       "reason": "Analyze second-order effects"
     }
   ],
@@ -676,11 +676,11 @@ Second-order effects and cascade analysis.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent gaps spec.cue --json=true",
+      "command": "intent gaps spec.cue",
       "reason": "Find other gaps"
     },
     {
-      "command": "intent coverage spec.cue --json=true",
+      "command": "intent coverage spec.cue",
       "reason": "Check overall coverage"
     }
   ],
@@ -765,7 +765,7 @@ Prioritized improvement recommendations.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent improve spec.cue --json=true",
+      "command": "intent improve spec.cue",
       "reason": "Get detailed improvement suggestions"
     }
   ],
@@ -824,7 +824,7 @@ Anti-pattern detection.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent improve spec.cue --json=true",
+      "command": "intent improve spec.cue",
       "reason": "Get fix suggestions"
     }
   ],
@@ -879,7 +879,7 @@ Concrete improvement suggestions with proposed changes.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent doctor spec.cue --json=true",
+      "command": "intent doctor spec.cue",
       "reason": "Get prioritized action plan"
     }
   ],
@@ -1009,7 +1009,7 @@ Generate fix beads from check command failures.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent check spec.cue --json=true",
+      "command": "intent check spec.cue",
       "reason": "Re-run tests after fixes"
     }
   ],
@@ -1069,7 +1069,7 @@ Work item generation from interview session.
   "errors": [],
   "next_actions": [
     {
-      "command": "intent prompt interview-abc123 --json=true",
+      "command": "intent prompt interview-abc123",
       "reason": "Generate AI implementation prompts"
     }
   ],
@@ -1150,12 +1150,12 @@ The ready phase commands all follow the same base schema with command-specific d
       "message": "Invalid CUE syntax at line 42: missing closing brace",
       "location": "examples/user-api.cue:42",
       "fix_hint": "Add closing brace for feature block",
-      "fix_command": "intent doctor examples/user-api.cue --json=true"
+      "fix_command": "intent doctor examples/user-api.cue"
     }
   ],
   "next_actions": [
     {
-      "command": "intent doctor examples/user-api.cue --json=true",
+      "command": "intent doctor examples/user-api.cue",
       "reason": "Get prioritized fix suggestions"
     }
   ],
@@ -1597,7 +1597,7 @@ from typing import Dict, List, Any
 def run_intent_command(command: List[str]) -> Dict[str, Any]:
     """Execute Intent CLI command and parse JSON output"""
     result = subprocess.run(
-        command + ["--json=true"],
+        command,
         capture_output=True,
         text=True,
         check=False  # Don't raise on non-zero exit
@@ -1633,7 +1633,7 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 async function runIntentCommand(args) {
-  const command = `intent ${args.join(' ')} --json=true`;
+  const command = `intent ${args.join(' ')}`;
   const { stdout } = await execAsync(command);
   return JSON.parse(stdout);
 }
@@ -1659,14 +1659,14 @@ if (response.success) {
 #!/bin/bash
 
 # Run quality check and extract score
-RESPONSE=$(intent quality spec.cue --json=true)
+RESPONSE=$(intent quality spec.cue)
 SCORE=$(echo "$RESPONSE" | jq -r '.data.overall_score')
 
 if [ "$SCORE" -lt 80 ]; then
   echo "Quality score too low: $SCORE"
 
   # Get improvement suggestions
-  intent doctor spec.cue --json=true | jq -r '.data.suggestions[].title'
+  intent doctor spec.cue | jq -r '.data.suggestions[].title'
   exit 1
 fi
 
@@ -1693,7 +1693,7 @@ jobs:
       - name: Run Quality Analysis
         id: quality
         run: |
-          RESPONSE=$(intent quality api-spec.cue --json=true)
+          RESPONSE=$(intent quality api-spec.cue)
           echo "response=$RESPONSE" >> $GITHUB_OUTPUT
 
           SCORE=$(echo "$RESPONSE" | jq -r '.data.overall_score')
@@ -1710,9 +1710,9 @@ jobs:
 
       - name: Run KIRK Analysis
         run: |
-          intent gaps api-spec.cue --json=true > gaps.json
-          intent invert api-spec.cue --json=true > invert.json
-          intent effects api-spec.cue --json=true > effects.json
+          intent gaps api-spec.cue > gaps.json
+          intent invert api-spec.cue > invert.json
+          intent effects api-spec.cue > effects.json
 
       - name: Upload Analysis Results
         uses: actions/upload-artifact@v3
@@ -1741,7 +1741,7 @@ class IntentWorkflow:
     def run_command(self, command: str) -> Dict:
         """Execute Intent command with JSON output"""
         result = subprocess.run(
-            f"intent {command} {self.spec_path} --json=true",
+            f"intent {command} {self.spec_path}",
             shell=True,
             capture_output=True,
             text=True
@@ -1860,7 +1860,7 @@ async function runWorkflow(specPath) {
 ### 4. Handle Exit Codes Properly
 
 ```bash
-intent check spec.cue --json=true > results.json
+intent check spec.cue > results.json
 EXIT_CODE=$?
 
 case $EXIT_CODE in
@@ -1887,22 +1887,3 @@ try:
 except jsonschema.ValidationError as e:
     print(f"Invalid response: {e.message}")
 ```
-
----
-
-## Version Compatibility
-
-- All JSON output follows semantic versioning
-- `metadata.version` field indicates CLI version
-- Breaking changes to schema will increment major version
-- New optional fields may be added in minor versions
-- Check `metadata.version` for compatibility
-
----
-
-## Support
-
-For issues or questions:
-- GitHub: [intent-cli repository](https://github.com/your-org/intent-cli)
-- Documentation: See `docs/API_REFERENCE.md`
-- Examples: See `docs/AI_AGENT_EXAMPLES.md`

@@ -1,7 +1,7 @@
 /// Unified JSON output module for AI-friendly responses
 ///
 /// This module provides a consistent action-based JSON schema for ALL commands.
-/// When --json flag is used, commands output structured JSON with:
+/// Commands output structured JSON with:
 /// - success: Boolean indicating if command achieved its goal
 /// - action: What kind of result this is (e.g., "check_result", "error")
 /// - command: Which command produced this (e.g., "check", "quality")
@@ -161,10 +161,10 @@ pub fn with_errors(
 pub fn error(code: String, message: String) -> JsonError {
   let fix_command = case code {
     "usage_error" -> "intent validate <spec-file>"
-    "validation_error" -> "intent doctor <spec-file> --json"
+    "validation_error" -> "intent doctor <spec-file>"
     "load_error" -> "intent validate <spec-file>"
     "missing_session_id" -> "intent sessions [--profile=api|cli]"
-    "parse_error" -> "intent doctor <spec-file> --json"
+    "parse_error" -> "intent doctor <spec-file>"
     _ -> ""
   }
   JsonError(

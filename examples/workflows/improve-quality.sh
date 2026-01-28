@@ -80,7 +80,7 @@ echo ""
 # Initial assessment
 header "Initial Quality Assessment"
 
-INITIAL_JSON=$(gleam run -- quality "$SPEC_FILE" --json=true)
+INITIAL_JSON=$(gleam run -- quality "$SPEC_FILE")
 INITIAL_SCORE=$(echo "$INITIAL_JSON" | jq -r '.data.overall_score // 0')
 
 echo "Current Quality Score: $INITIAL_SCORE/100"
@@ -124,7 +124,7 @@ echo ""
 # Step 1: Run Doctor for prioritized fixes
 header "Step 1: Health Analysis"
 
-DOCTOR_JSON=$(gleam run -- doctor "$SPEC_FILE" --json=true)
+DOCTOR_JSON=$(gleam run -- doctor "$SPEC_FILE")
 
 # Count issues by severity
 CRITICAL_COUNT=$(echo "$DOCTOR_JSON" | jq '[.data.issues[] | select(.severity == "critical")] | length')
@@ -149,7 +149,7 @@ fi
 # Step 2: Check for gaps
 header "Step 2: Gap Analysis"
 
-GAPS_JSON=$(gleam run -- gaps "$SPEC_FILE" --json=true)
+GAPS_JSON=$(gleam run -- gaps "$SPEC_FILE")
 GAP_COUNT=$(echo "$GAPS_JSON" | jq -r '.data.gap_count // 0')
 
 echo "Found $GAP_COUNT gaps"
@@ -170,7 +170,7 @@ fi
 # Step 3: Coverage improvements
 header "Step 3: Coverage Improvements"
 
-COVERAGE_JSON=$(gleam run -- coverage "$SPEC_FILE" --json=true)
+COVERAGE_JSON=$(gleam run -- coverage "$SPEC_FILE")
 COVERAGE_SCORE=$(echo "$COVERAGE_JSON" | jq -r '.data.score // 0')
 
 echo "Current Coverage Score: $COVERAGE_SCORE/100"
@@ -217,7 +217,7 @@ fi
 # Step 4: Failure mode analysis
 header "Step 4: Failure Mode Coverage"
 
-INVERT_JSON=$(gleam run -- invert "$SPEC_FILE" --json=true)
+INVERT_JSON=$(gleam run -- invert "$SPEC_FILE")
 FAILURE_COUNT=$(echo "$INVERT_JSON" | jq -r '.data.failure_count // 0')
 
 echo "Identified $FAILURE_COUNT potential failure modes"

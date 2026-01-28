@@ -161,16 +161,13 @@ pub fn validate_validate_command(
 }
 
 pub fn validate_show_command(
-  has_json_flag: Bool,
+  _has_json_flag: Bool,
   uses_output_mode: Bool,
   uses_cli_ui_print: Bool,
   has_correct_usage: Bool,
 ) -> ConsistencyResult {
   let issues = []
-  let issues = case has_json_flag {
-    False -> [MissingJsonFlag("show"), ..issues]
-    True -> issues
-  }
+  // has_json_flag check removed as we don't expect it
   let issues = case uses_output_mode {
     False -> [
       IncorrectOutputMode("show", "from_json_flag", "missing"),
@@ -186,7 +183,7 @@ pub fn validate_show_command(
     False -> [
       InconsistentUsageFormat(
         "show",
-        "intent show <spec.cue> [--json]",
+        "intent show <spec.cue>",
         "missing/incorrect",
       ),
       ..issues
@@ -196,11 +193,11 @@ pub fn validate_show_command(
   validate_command_consistency(
     CommandSpec(
       name: "show",
-      expects_json_flag: True,
+      expects_json_flag: False,
       expected_output_mode: "from_json_flag",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 4],
-      usage_pattern: "intent show <spec.cue> [--json]",
+      usage_pattern: "intent show <spec.cue>",
     ),
     issues,
   )
@@ -307,15 +304,11 @@ pub fn validate_improve_command(has_correct_usage: Bool) -> ConsistencyResult {
 }
 
 pub fn validate_doctor_command(
-  has_json_flag: Bool,
+  _has_json_flag: Bool,
   uses_output_mode: Bool,
   has_correct_usage: Bool,
 ) -> ConsistencyResult {
   let issues = []
-  let issues = case has_json_flag {
-    False -> [MissingJsonFlag("doctor"), ..issues]
-    True -> issues
-  }
   let issues = case uses_output_mode {
     False -> [IncorrectOutputMode("doctor", "from_flags", "missing"), ..issues]
     True -> issues
@@ -324,7 +317,7 @@ pub fn validate_doctor_command(
     False -> [
       InconsistentUsageFormat(
         "doctor",
-        "intent doctor <spec.cue> [--json]",
+        "intent doctor <spec.cue>",
         "missing/incorrect",
       ),
       ..issues
@@ -334,11 +327,11 @@ pub fn validate_doctor_command(
   validate_command_consistency(
     CommandSpec(
       name: "doctor",
-      expects_json_flag: True,
+      expects_json_flag: False,
       expected_output_mode: "from_flags",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 3],
-      usage_pattern: "intent doctor <spec.cue> [--json]",
+      usage_pattern: "intent doctor <spec.cue>",
     ),
     issues,
   )
@@ -666,10 +659,10 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "ai schema",
       category: AICommands,
-      has_json_flag: True,
+      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
-      primary_flags: ["json", "command", "type"],
+      primary_flags: ["command", "type"],
       valid_exit_codes: [0],
     ),
     // Shape Phase (5)
@@ -1102,7 +1095,7 @@ fn check_help_command_consistency() -> List(ConsistencyIssue) {
 
 // AI Commands validators
 fn check_ai_schema_command_consistency() -> List(ConsistencyIssue) {
-  // ai schema command: has --json flag
+  // ai schema command: no --json flag
   // Generates action JSON schema documentation
   // Supports --command and --type flags
   []
