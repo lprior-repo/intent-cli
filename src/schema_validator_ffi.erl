@@ -95,6 +95,10 @@ resolve_refs_in(Other, _Defs) ->
     Other.
 
 %% Format jesse error list into a human-readable binary string
+format_errors({all_schemas_not_valid, Errors}) when is_list(Errors) ->
+    format_errors(Errors);
+format_errors({schema_invalid, _Schema, ErrorType}) ->
+    iolist_to_binary(io_lib:format("invalid schema: ~p", [ErrorType]));
 format_errors(Errors) when is_list(Errors) ->
     Parts = lists:map(fun format_error/1, Errors),
     iolist_to_binary(lists:join(<<"; ">>, Parts));

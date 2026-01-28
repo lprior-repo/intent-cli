@@ -28,8 +28,8 @@
       "description": "Command that produced this output (e.g., 'check', 'quality')"
     },
     "data": {
-      "type": "object",
-      "description": "Command-specific output data"
+      "type": ["object", "null"],
+      "description": "Command-specific output data (null on errors)"
     },
     "errors": {
       "type": "array",
