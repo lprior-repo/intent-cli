@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/doctor-response.json",
+  "title": "Intent CLI Doctor Response",
+  "description": "JSON response schema for 'intent doctor' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "command": {
+          "const": "doctor"
+        },
+        "data": {
+          "type": "object",
+          "description": "Doctor output data (varies by variant: doctor_report, health_report)"
+        }
+      }
+    }
+  ]
+}

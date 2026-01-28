@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/ears-response.json",
+  "title": "Intent CLI EARS Response",
+  "description": "JSON response schema for 'intent ears' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "ears_result"
+        },
+        "command": {
+          "const": "ears"
+        },
+        "data": {
+          "$ref": "#/definitions/EarsData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "EarsData": {
+      "type": "object",
+      "required": ["requirements", "summary"],
+      "properties": {
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EarsRequirement"
+          },
+          "description": "Parsed EARS requirements"
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "total",
+            "ubiquitous",
+            "event",
+            "state",
+            "unwanted",
+            "optional",
+            "complex"
+          ],
+          "properties": {
+            "total": {
+              "type": "integer",
+              "description": "Total requirements parsed"
+            },
+            "ubiquitous": {
+              "type": "integer",
+              "description": "Ubiquitous pattern count"
+            },
+            "event": {
+              "type": "integer",
+              "description": "Event pattern count"
+            },
+            "state": {
+              "type": "integer",
+              "description": "State pattern count"
+            },
+            "unwanted": {
+              "type": "integer",
+              "description": "Unwanted pattern count"
+            },
+            "optional": {
+              "type": "integer",
+              "description": "Optional pattern count"
+            },
+            "complex": {
+              "type": "integer",
+              "description": "Complex pattern count"
+            }
+          }
+        }
+      }
+    },
+    "EarsRequirement": {
+      "type": "object",
+      "required": ["id", "text", "pattern", "action", "source_line"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Requirement identifier"
+        },
+        "text": {
+          "type": "string",
+          "description": "Original requirement text"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "EARS pattern type"
+        },
+        "action": {
+          "type": "string",
+          "description": "Required action"
+        },
+        "source_line": {
+          "type": "integer",
+          "description": "Source line number"
+        },
+        "trigger": {
+          "type": ["string", "null"],
+          "description": "Event trigger"
+        },
+        "condition": {
+          "type": ["string", "null"],
+          "description": "State condition"
+        },
+        "behavior": {
+          "type": ["string", "null"],
+          "description": "Expected behavior"
+        }
+      }
+    }
+  }
+}

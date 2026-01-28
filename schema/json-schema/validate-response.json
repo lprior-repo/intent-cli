@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/validate-response.json",
+  "title": "Intent CLI Validate Response",
+  "description": "JSON response schema for 'intent validate' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "validate_result"
+        },
+        "command": {
+          "const": "validate"
+        },
+        "data": {
+          "$ref": "#/definitions/ValidateData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "ValidateData": {
+      "type": "object",
+      "required": ["valid", "message"],
+      "properties": {
+        "valid": {
+          "type": "boolean",
+          "description": "Whether the spec is valid"
+        },
+        "message": {
+          "type": "string",
+          "description": "Validation result message"
+        },
+        "spec": {
+          "type": ["object", "null"],
+          "description": "Parsed spec summary if valid",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

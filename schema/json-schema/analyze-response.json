@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/analyze-response.json",
+  "title": "Intent CLI Analyze Response",
+  "description": "JSON response schema for 'intent analyze' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "analyze_result"
+        },
+        "command": {
+          "const": "analyze"
+        },
+        "data": {
+          "$ref": "#/definitions/AnalyzeData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "AnalyzeData": {
+      "type": "object",
+      "required": [
+        "overall_score",
+        "coverage_score",
+        "clarity_score",
+        "testability_score",
+        "ai_readiness_score",
+        "issues",
+        "suggestions"
+      ],
+      "properties": {
+        "overall_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Aggregate quality score"
+        },
+        "coverage_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Test coverage completeness"
+        },
+        "clarity_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Specification clarity"
+        },
+        "testability_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "How testable the spec is"
+        },
+        "ai_readiness_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Readiness for AI implementation"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Identified problems"
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Improvement recommendations"
+        }
+      }
+    }
+  }
+}

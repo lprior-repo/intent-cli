@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/help-response.json",
+  "title": "Intent CLI Help Response",
+  "description": "JSON response schema for 'intent help' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "command": {
+          "const": "help"
+        },
+        "data": {
+          "type": "object",
+          "description": "Help output data (varies by variant: help_result, help_command, help_error)"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/invert-response.json",
+  "title": "Intent CLI Invert Response",
+  "description": "JSON response schema for 'intent invert' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "inversion_report"
+        },
+        "command": {
+          "const": "invert"
+        },
+        "data": {
+          "$ref": "#/definitions/InvertData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "InvertData": {
+      "type": "object",
+      "required": [
+        "score",
+        "security_gaps",
+        "usability_gaps",
+        "integration_gaps",
+        "suggested_behaviors"
+      ],
+      "properties": {
+        "score": {
+          "type": "number",
+          "description": "Inversion analysis score"
+        },
+        "security_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InversionGap"
+          },
+          "description": "Security-related gaps"
+        },
+        "usability_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InversionGap"
+          },
+          "description": "Usability-related gaps"
+        },
+        "integration_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InversionGap"
+          },
+          "description": "Integration-related gaps"
+        },
+        "suggested_behaviors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SuggestedBehavior"
+          },
+          "description": "Suggested behaviors to add"
+        }
+      }
+    },
+    "InversionGap": {
+      "type": "object",
+      "required": ["category", "description", "severity", "what_could_fail"],
+      "properties": {
+        "category": {
+          "type": "string",
+          "description": "Gap category"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the gap"
+        },
+        "severity": {
+          "type": "string",
+          "description": "Severity level"
+        },
+        "what_could_fail": {
+          "type": "string",
+          "description": "What could fail due to this gap"
+        }
+      }
+    },
+    "SuggestedBehavior": {
+      "type": "object",
+      "required": ["name", "intent", "method", "path", "expected_status", "category"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Behavior name"
+        },
+        "intent": {
+          "type": "string",
+          "description": "Intent of the behavior"
+        },
+        "method": {
+          "type": "string",
+          "description": "HTTP method"
+        },
+        "path": {
+          "type": "string",
+          "description": "Request path"
+        },
+        "expected_status": {
+          "type": "integer",
+          "description": "Expected HTTP status code"
+        },
+        "category": {
+          "type": "string",
+          "description": "Behavior category"
+        }
+      }
+    }
+  }
+}

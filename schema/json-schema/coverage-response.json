@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/coverage-response.json",
+  "title": "Intent CLI Coverage Response",
+  "description": "JSON response schema for 'intent coverage' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "coverage_report"
+        },
+        "command": {
+          "const": "coverage"
+        },
+        "data": {
+          "$ref": "#/definitions/CoverageData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "CoverageData": {
+      "type": "object",
+      "required": [
+        "overall_score",
+        "methods",
+        "status_codes",
+        "paths",
+        "edge_cases",
+        "owasp"
+      ],
+      "properties": {
+        "overall_score": {
+          "type": "number",
+          "description": "Aggregate coverage score"
+        },
+        "methods": {
+          "type": "object",
+          "description": "HTTP method coverage breakdown"
+        },
+        "status_codes": {
+          "type": "object",
+          "description": "Status code coverage breakdown"
+        },
+        "paths": {
+          "type": "object",
+          "description": "Path coverage breakdown"
+        },
+        "edge_cases": {
+          "type": "object",
+          "required": ["tested", "suggested"],
+          "properties": {
+            "tested": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Edge cases already tested"
+            },
+            "suggested": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Suggested edge cases to add"
+            }
+          }
+        },
+        "owasp": {
+          "type": "object",
+          "required": ["score", "categories", "missing"],
+          "properties": {
+            "score": {
+              "type": "number",
+              "description": "OWASP coverage score"
+            },
+            "categories": {
+              "type": "object",
+              "description": "OWASP category coverage"
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Missing OWASP categories"
+            }
+          }
+        }
+      }
+    }
+  }
+}

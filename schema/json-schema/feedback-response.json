@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/feedback-response.json",
+  "title": "Intent CLI Feedback Response",
+  "description": "JSON response schema for 'intent feedback' command",
+  "allOf": [
+    { "$ref": "base-response.json" },
+    {
+      "properties": {
+        "action": { "const": "feedback_result" },
+        "command": { "const": "feedback" },
+        "data": { "$ref": "#/definitions/FeedbackData" }
+      }
+    }
+  ],
+  "definitions": {
+    "FeedbackData": {
+      "type": "object",
+      "properties": {
+        "source_file": { "type": "string" },
+        "fix_beads": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/FixBead" }
+        },
+        "total_fixes": { "type": "integer" },
+        "behaviors_analyzed": { "type": "integer" }
+      },
+      "required": ["source_file", "fix_beads", "total_fixes", "behaviors_analyzed"]
+    },
+    "FixBead": {
+      "type": "object",
+      "properties": {
+        "behavior_name": { "type": "string" },
+        "feature": { "type": "string" },
+        "failure_type": { "type": "string", "enum": ["check_failed", "status_mismatch", "connection_error", "timeout"] },
+        "description": { "type": "string" },
+        "priority": { "type": "integer" },
+        "fix_suggestion": { "type": "string" },
+        "related_checks": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["behavior_name", "feature", "failure_type", "description", "priority", "fix_suggestion", "related_checks"]
+    }
+  }
+}

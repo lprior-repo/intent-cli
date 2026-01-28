@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/gaps-response.json",
+  "title": "Intent CLI Gaps Response",
+  "description": "JSON response schema for 'intent gaps' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "gaps_report"
+        },
+        "command": {
+          "const": "gaps"
+        },
+        "data": {
+          "$ref": "#/definitions/GapsData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "GapsData": {
+      "type": "object",
+      "required": [
+        "total_gaps",
+        "inversion_gaps",
+        "second_order_gaps",
+        "checklist_gaps",
+        "coverage_gaps",
+        "security_gaps",
+        "severity_breakdown"
+      ],
+      "properties": {
+        "total_gaps": {
+          "type": "integer",
+          "description": "Total number of gaps detected"
+        },
+        "inversion_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Gap"
+          },
+          "description": "Gaps found via inversion analysis"
+        },
+        "second_order_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Gap"
+          },
+          "description": "Gaps found via second-order effects"
+        },
+        "checklist_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Gap"
+          },
+          "description": "Gaps found via checklist analysis"
+        },
+        "coverage_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Gap"
+          },
+          "description": "Gaps found via coverage analysis"
+        },
+        "security_gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Gap"
+          },
+          "description": "Gaps found via security analysis"
+        },
+        "severity_breakdown": {
+          "type": "object",
+          "required": ["critical", "high", "medium", "low"],
+          "properties": {
+            "critical": {
+              "type": "integer",
+              "description": "Number of critical severity gaps"
+            },
+            "high": {
+              "type": "integer",
+              "description": "Number of high severity gaps"
+            },
+            "medium": {
+              "type": "integer",
+              "description": "Number of medium severity gaps"
+            },
+            "low": {
+              "type": "integer",
+              "description": "Number of low severity gaps"
+            }
+          }
+        }
+      }
+    },
+    "Gap": {
+      "type": "object",
+      "required": ["gap_type", "description", "severity", "suggestion", "mental_model"],
+      "properties": {
+        "gap_type": {
+          "type": "string",
+          "description": "Type of gap detected"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the gap"
+        },
+        "severity": {
+          "type": "string",
+          "description": "Severity level"
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "Suggested fix for the gap"
+        },
+        "mental_model": {
+          "type": "string",
+          "description": "Mental model that identified this gap"
+        }
+      }
+    }
+  }
+}

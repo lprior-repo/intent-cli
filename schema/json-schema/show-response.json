@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/show-response.json",
+  "title": "Intent CLI Show Response",
+  "description": "JSON response schema for 'intent show' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "show_result"
+        },
+        "command": {
+          "const": "show"
+        },
+        "data": {
+          "$ref": "#/definitions/ShowData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "ShowData": {
+      "type": "object",
+      "required": ["spec", "summary"],
+      "properties": {
+        "spec": {
+          "type": "object",
+          "description": "Full spec details"
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "total_features",
+            "total_behaviors",
+            "total_rules",
+            "total_anti_patterns"
+          ],
+          "properties": {
+            "total_features": {
+              "type": "integer",
+              "description": "Number of features"
+            },
+            "total_behaviors": {
+              "type": "integer",
+              "description": "Number of behaviors"
+            },
+            "total_rules": {
+              "type": "integer",
+              "description": "Number of rules"
+            },
+            "total_anti_patterns": {
+              "type": "integer",
+              "description": "Number of anti-patterns"
+            }
+          }
+        }
+      }
+    }
+  }
+}

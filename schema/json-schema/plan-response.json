@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/plan-response.json",
+  "title": "Intent CLI Plan Response",
+  "description": "JSON response schema for 'intent plan' command",
+  "allOf": [
+    { "$ref": "base-response.json" },
+    {
+      "properties": {
+        "action": { "const": "plan_result" },
+        "command": { "const": "plan" },
+        "data": { "$ref": "#/definitions/PlanData" }
+      }
+    }
+  ],
+  "definitions": {
+    "PlanData": {
+      "type": "object",
+      "properties": {
+        "session_id": { "type": "string" },
+        "health": { "type": "object" },
+        "waves": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Wave" }
+        },
+        "beads": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BeadRecord" }
+        },
+        "total_beads": { "type": "integer" },
+        "estimated_time_minutes": { "type": "integer" }
+      },
+      "required": ["session_id", "health", "waves", "beads", "total_beads", "estimated_time_minutes"]
+    },
+    "Wave": {
+      "type": "object",
+      "properties": {
+        "number": { "type": "integer" },
+        "beads": { "type": "array", "items": { "type": "string" } },
+        "parallelizable": { "type": "boolean" },
+        "risk_level": { "type": "string", "enum": ["low", "medium", "high"] },
+        "estimated_minutes": { "type": "integer" }
+      },
+      "required": ["number", "beads", "parallelizable", "risk_level", "estimated_minutes"]
+    },
+    "BeadRecord": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "profile_type": { "type": "string" },
+        "priority": { "type": "integer" },
+        "issue_type": { "type": "string" },
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "ai_hints": { "type": "string" },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+        "dependencies": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["title", "description", "profile_type", "priority", "issue_type", "labels", "ai_hints", "acceptance_criteria", "dependencies"]
+    }
+  }
+}

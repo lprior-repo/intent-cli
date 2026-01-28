@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/effects-response.json",
+  "title": "Intent CLI Effects Response",
+  "description": "JSON response schema for 'intent effects' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "effects_report"
+        },
+        "command": {
+          "const": "effects"
+        },
+        "data": {
+          "$ref": "#/definitions/EffectsData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "EffectsData": {
+      "type": "object",
+      "required": [
+        "total_second_order_effects",
+        "coverage_score",
+        "behavior_effects",
+        "orphaned_resources",
+        "cascade_warnings",
+        "state_dependencies"
+      ],
+      "properties": {
+        "total_second_order_effects": {
+          "type": "integer",
+          "description": "Total number of second-order effects detected"
+        },
+        "coverage_score": {
+          "type": "number",
+          "description": "Effects coverage score"
+        },
+        "behavior_effects": {
+          "type": "array",
+          "description": "Effects per behavior"
+        },
+        "orphaned_resources": {
+          "type": "array",
+          "description": "Resources without cleanup behaviors"
+        },
+        "cascade_warnings": {
+          "type": "array",
+          "description": "Potential cascade failure warnings"
+        },
+        "state_dependencies": {
+          "type": "array",
+          "description": "State dependency chains"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/beads-response.json",
+  "title": "Intent CLI Beads Response",
+  "description": "JSON response schema for 'intent beads' command",
+  "allOf": [
+    { "$ref": "base-response.json" },
+    {
+      "properties": {
+        "action": { "const": "beads_result" },
+        "command": { "const": "beads" },
+        "data": { "$ref": "#/definitions/BeadsData" }
+      }
+    }
+  ],
+  "definitions": {
+    "BeadsData": {
+      "type": "object",
+      "properties": {
+        "session_id": { "type": "string" },
+        "beads": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BeadRecord" }
+        },
+        "total": { "type": "integer" }
+      },
+      "required": ["session_id", "beads", "total"]
+    },
+    "BeadRecord": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "profile_type": { "type": "string" },
+        "priority": { "type": "integer" },
+        "issue_type": { "type": "string" },
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "ai_hints": { "type": "string" },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+        "dependencies": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["title", "description", "profile_type", "priority", "issue_type", "labels", "ai_hints", "acceptance_criteria", "dependencies"]
+    }
+  }
+}

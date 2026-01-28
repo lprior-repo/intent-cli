@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/diff-response.json",
+  "title": "Intent CLI Diff Response",
+  "description": "JSON response schema for 'intent diff' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "diff_result"
+        },
+        "command": {
+          "const": "diff"
+        },
+        "data": {
+          "$ref": "#/definitions/DiffData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "DiffData": {
+      "type": "object",
+      "required": [
+        "has_changes",
+        "config_changes",
+        "feature_changes",
+        "behavior_changes",
+        "rule_changes",
+        "anti_pattern_changes",
+        "success_criteria_changes"
+      ],
+      "properties": {
+        "has_changes": {
+          "type": "boolean",
+          "description": "Whether any changes were detected"
+        },
+        "name_changed": {
+          "type": ["object", "null"],
+          "description": "Name change details"
+        },
+        "description_changed": {
+          "type": ["object", "null"],
+          "description": "Description change details"
+        },
+        "version_changed": {
+          "type": ["object", "null"],
+          "description": "Version change details"
+        },
+        "config_changes": {
+          "type": "array",
+          "description": "Configuration changes"
+        },
+        "feature_changes": {
+          "type": "array",
+          "description": "Feature-level changes"
+        },
+        "behavior_changes": {
+          "type": "array",
+          "description": "Behavior-level changes"
+        },
+        "rule_changes": {
+          "type": "array",
+          "description": "Rule changes"
+        },
+        "anti_pattern_changes": {
+          "type": "array",
+          "description": "Anti-pattern changes"
+        },
+        "success_criteria_changes": {
+          "type": "object",
+          "description": "Success criteria changes"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/prompt-response.json",
+  "title": "Intent CLI Prompt Response",
+  "description": "JSON response schema for 'intent prompt' command",
+  "allOf": [
+    { "$ref": "base-response.json" },
+    {
+      "properties": {
+        "action": { "const": "prompt_result" },
+        "command": { "const": "prompt" },
+        "data": { "$ref": "#/definitions/PromptData" }
+      }
+    }
+  ],
+  "definitions": {
+    "PromptData": {
+      "type": "object",
+      "properties": {
+        "session_id": { "type": "string" },
+        "prompts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ImplementationPrompt" }
+        },
+        "total": { "type": "integer" }
+      },
+      "required": ["session_id", "prompts", "total"]
+    },
+    "ImplementationPrompt": {
+      "type": "object",
+      "properties": {
+        "bead_id": { "type": "string" },
+        "task_summary": { "type": "string" },
+        "context_section": { "type": "string" },
+        "requirements": { "type": "array", "items": { "type": "string" } },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+        "relevant_code": { "type": "array", "items": { "type": "object" } },
+        "suggested_approach": { "type": "string" },
+        "pitfalls_to_avoid": { "type": "array", "items": { "type": "string" } },
+        "guardrail_block": { "type": "string" },
+        "verification_steps": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["bead_id", "task_summary", "context_section", "requirements", "acceptance_criteria", "relevant_code", "suggested_approach", "pitfalls_to_avoid", "guardrail_block", "verification_steps"]
+    }
+  }
+}

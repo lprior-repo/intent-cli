@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/bead-status-response.json",
+  "title": "Intent CLI Bead Status Response",
+  "description": "JSON response schema for 'intent bead-status' command",
+  "allOf": [
+    { "$ref": "base-response.json" },
+    {
+      "properties": {
+        "action": { "const": "bead_status_result" },
+        "command": { "const": "bead-status" },
+        "data": { "$ref": "#/definitions/BeadStatusData" }
+      }
+    }
+  ],
+  "definitions": {
+    "BeadStatusData": {
+      "type": "object",
+      "properties": {
+        "bead_id": { "type": "string" },
+        "previous_status": { "type": "string" },
+        "new_status": { "type": "string", "enum": ["success", "failed", "blocked"] },
+        "reason": { "type": ["string", "null"] },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["bead_id", "previous_status", "new_status", "updated_at"]
+    }
+  }
+}

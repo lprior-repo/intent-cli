@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/parse-response.json",
+  "title": "Intent CLI Parse Response",
+  "description": "JSON response schema for 'intent parse' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "parse_result"
+        },
+        "command": {
+          "const": "parse"
+        },
+        "data": {
+          "$ref": "#/definitions/ParseData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "ParseData": {
+      "type": "object",
+      "required": ["valid", "requirements", "summary"],
+      "properties": {
+        "valid": {
+          "type": "boolean",
+          "description": "Whether all requirements parsed successfully"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ParsedRequirement"
+          },
+          "description": "List of parsed requirements"
+        },
+        "summary": {
+          "type": "object",
+          "required": ["total", "valid", "errors"],
+          "properties": {
+            "total": {
+              "type": "integer",
+              "description": "Total requirements found"
+            },
+            "valid": {
+              "type": "integer",
+              "description": "Number of valid requirements"
+            },
+            "errors": {
+              "type": "integer",
+              "description": "Number of parsing errors"
+            }
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Error messages if any"
+        }
+      }
+    },
+    "ParsedRequirement": {
+      "type": "object",
+      "required": ["line", "text", "pattern", "valid"],
+      "properties": {
+        "line": {
+          "type": "integer",
+          "description": "Line number in source file"
+        },
+        "text": {
+          "type": "string",
+          "description": "Original requirement text"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "EARS pattern matched"
+        },
+        "valid": {
+          "type": "boolean",
+          "description": "Whether this requirement is valid"
+        },
+        "error": {
+          "type": ["string", "null"],
+          "description": "Error message if invalid"
+        }
+      }
+    }
+  }
+}

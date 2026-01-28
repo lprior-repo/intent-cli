@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/interview-response.json",
+  "title": "Intent CLI Interview Response",
+  "description": "JSON response schema for 'intent interview' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "interview_result"
+        },
+        "command": {
+          "const": "interview"
+        },
+        "data": {
+          "$ref": "#/definitions/InterviewData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "InterviewData": {
+      "type": "object",
+      "required": [
+        "session_id",
+        "profile",
+        "status",
+        "round",
+        "total_rounds",
+        "questions_answered",
+        "progress_percentage"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Interview session identifier"
+        },
+        "profile": {
+          "type": "string",
+          "description": "Interview profile type"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current session status"
+        },
+        "round": {
+          "type": "integer",
+          "description": "Current round number"
+        },
+        "total_rounds": {
+          "type": "integer",
+          "description": "Total number of rounds"
+        },
+        "questions_answered": {
+          "type": "integer",
+          "description": "Number of questions answered"
+        },
+        "current_question": {
+          "type": ["object", "null"],
+          "description": "Current question awaiting answer"
+        },
+        "progress_percentage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Overall progress percentage"
+        }
+      }
+    }
+  }
+}

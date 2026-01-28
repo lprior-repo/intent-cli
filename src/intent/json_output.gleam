@@ -13,6 +13,7 @@
 import gleam/json.{type Json}
 import gleam/option.{type Option, None, Some}
 import intent/ffi
+import intent/schema_validator
 
 /// Unified JSON response structure for all commands
 pub type JsonResponse {
@@ -267,12 +268,23 @@ fn optional_string_to_json(value: Option(String)) -> Json {
   }
 }
 
-/// Output JSON response to stdout
+/// Output JSON response to stdout with automatic schema validation.
+/// Validates against the command's JSON Schema before printing.
+/// Non-breaking: always outputs the JSON, logs warnings to stderr on failure.
 pub fn output(response: JsonResponse) -> Nil {
-  response
-  |> to_json
-  |> json.to_string
-  |> io.println
+  let json_str =
+    response
+    |> to_json
+    |> json.to_string
+  case schema_validator.validate_command_output(response.command, json_str) {
+    Ok(Nil) -> io.println(json_str)
+    Error(e) -> {
+      ffi.write_stderr(
+        "Schema warning: " <> schema_validator.format_error(e),
+      )
+      io.println(json_str)
+    }
+  }
 }
 
 /// Get current timestamp in ISO 8601 format

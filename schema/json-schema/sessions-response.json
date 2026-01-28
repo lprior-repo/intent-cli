@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/sessions-response.json",
+  "title": "Intent CLI Sessions Response",
+  "description": "JSON response schema for 'intent sessions' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "sessions_list"
+        },
+        "command": {
+          "const": "sessions"
+        },
+        "data": {
+          "$ref": "#/definitions/SessionsData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "SessionsData": {
+      "type": "object",
+      "required": ["sessions", "total"],
+      "properties": {
+        "sessions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SessionSummary"
+          },
+          "description": "List of interview sessions"
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total number of sessions"
+        }
+      }
+    },
+    "SessionSummary": {
+      "type": "object",
+      "required": [
+        "id",
+        "profile",
+        "status",
+        "created_at",
+        "updated_at",
+        "round",
+        "answers",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Session identifier"
+        },
+        "profile": {
+          "type": "string",
+          "description": "Interview profile type"
+        },
+        "status": {
+          "type": "string",
+          "description": "Session status"
+        },
+        "created_at": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updated_at": {
+          "type": "string",
+          "description": "Last update timestamp"
+        },
+        "round": {
+          "type": "integer",
+          "description": "Current round"
+        },
+        "answers": {
+          "type": "integer",
+          "description": "Number of answers"
+        },
+        "description": {
+          "type": "string",
+          "description": "Session description"
+        }
+      }
+    }
+  }
+}

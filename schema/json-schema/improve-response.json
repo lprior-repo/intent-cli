@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/improve-response.json",
+  "title": "Intent CLI Improve Response",
+  "description": "JSON response schema for 'intent improve' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "improve_result"
+        },
+        "command": {
+          "const": "improve"
+        },
+        "data": {
+          "$ref": "#/definitions/ImproveData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "ImproveData": {
+      "type": "object",
+      "required": ["suggestions", "total_count"],
+      "properties": {
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ImprovementSuggestion"
+          },
+          "description": "List of improvement suggestions"
+        },
+        "total_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of suggestions"
+        }
+      }
+    },
+    "ImprovementSuggestion": {
+      "type": "object",
+      "required": ["title", "description", "reasoning", "impact_score", "proposed_change"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Suggestion title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description"
+        },
+        "reasoning": {
+          "type": "string",
+          "description": "Why this improvement matters"
+        },
+        "impact_score": {
+          "type": "integer",
+          "description": "Impact score of the suggestion"
+        },
+        "proposed_change": {
+          "type": "object",
+          "description": "Proposed change details"
+        }
+      }
+    }
+  }
+}

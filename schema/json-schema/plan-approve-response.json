@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/plan-approve-response.json",
+  "title": "Intent CLI Plan Approve Response",
+  "description": "JSON response schema for 'intent plan-approve' command",
+  "allOf": [
+    { "$ref": "base-response.json" },
+    {
+      "properties": {
+        "action": { "const": "plan_approve_result" },
+        "command": { "const": "plan-approve" },
+        "data": { "$ref": "#/definitions/PlanApproveData" }
+      }
+    }
+  ],
+  "definitions": {
+    "PlanApproveData": {
+      "type": "object",
+      "properties": {
+        "session_id": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "approved_at": { "type": "string" },
+        "notes": { "type": ["string", "null"] },
+        "waves": { "type": "integer" },
+        "total_beads": { "type": "integer" }
+      },
+      "required": ["session_id", "approved", "approved_at", "waves", "total_beads"]
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/history-response.json",
+  "title": "Intent CLI History Response",
+  "description": "JSON response schema for 'intent history' command",
+  "allOf": [
+    {
+      "$ref": "base-response.json"
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "history_result"
+        },
+        "command": {
+          "const": "history"
+        },
+        "data": {
+          "$ref": "#/definitions/HistoryData"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "HistoryData": {
+      "type": "object",
+      "required": ["snapshots", "total"],
+      "properties": {
+        "snapshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SessionSnapshot"
+          },
+          "description": "List of session snapshots"
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total number of snapshots"
+        }
+      }
+    },
+    "SessionSnapshot": {
+      "type": "object",
+      "required": [
+        "id",
+        "session_id",
+        "timestamp",
+        "round",
+        "question",
+        "answer",
+        "category"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Snapshot identifier"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Parent session identifier"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Snapshot timestamp"
+        },
+        "round": {
+          "type": "integer",
+          "description": "Round number"
+        },
+        "question": {
+          "type": "string",
+          "description": "Question text"
+        },
+        "answer": {
+          "type": "string",
+          "description": "Answer text"
+        },
+        "category": {
+          "type": "string",
+          "description": "Question category"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-cli.dev/schemas/export-response.json",
+  "title": "Intent CLI Export Response",
+  "description": "JSON response schema for 'intent export' command",
+  "allOf": [
+    { "$ref": "base-response.json" },
+    {
+      "properties": {
+        "action": { "const": "export_result" },
+        "command": { "const": "export" },
+        "data": { "$ref": "#/definitions/ExportData" }
+      }
+    }
+  ],
+  "definitions": {
+    "ExportData": {
+      "type": "object",
+      "properties": {
+        "session_id": { "type": "string" },
+        "output_path": { "type": "string" },
+        "format": { "type": "string", "enum": ["cue", "json"] },
+        "success": { "type": "boolean" },
+        "spec_preview": { "type": ["string", "null"] }
+      },
+      "required": ["session_id", "output_path", "format", "success"]
+    }
+  }
+}
