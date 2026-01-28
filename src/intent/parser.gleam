@@ -4,6 +4,7 @@ import gleam/dynamic.{type DecodeError, type Dynamic}
 import gleam/json.{type Json}
 import gleam/list
 import gleam/result
+import gleam/string
 import intent/planning_types.{
   type Blocker, type DimensionScore, type FeatureShape, type KIRKHealth,
   type MVPSlice, type Plan, type ReadyReport, type Recommendation,
@@ -199,9 +200,18 @@ fn convert_float(data: Dynamic) -> Json {
 
 fn convert_string(data: Dynamic) -> Json {
   case dynamic.string(data) {
-    Ok(s) -> json.string(s)
+    Ok(s) -> json.string(sanitize_for_json(s))
     Error(_) -> json.null()
   }
+}
+
+fn sanitize_for_json(s: String) -> String {
+  s
+  |> string.replace("\\", "\\\\")
+  |> string.replace("\"", "\\\"")
+  |> string.replace("\n", "\\n")
+  |> string.replace("\r", "\\r")
+  |> string.replace("\t", "\\t")
 }
 
 fn convert_list(data: Dynamic) -> Json {
