@@ -3,7 +3,7 @@
 import gleam/list
 import gleeunit
 import gleeunit/should
-import intent.{type BatchInput, parse_batch_input_from_string}
+import intent/interview_commands.{type BatchInput, parse_batch_input_from_string}
 
 pub fn main() {
   gleeunit.main()
