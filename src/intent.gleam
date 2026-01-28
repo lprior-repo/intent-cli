@@ -1066,9 +1066,8 @@ fn interview_command() -> glint.Command(Nil) {
       [] -> Nil
     }
 
-    let profile_str =
-      flag.get_string(input.flags, "profile")
-      |> result.unwrap("api")
+    let profile_result = flag.get_string(input.flags, "profile")
+    let profile_str = result.unwrap(profile_result, "api")
 
     let resume_id =
       flag.get_string(input.flags, "resume")
@@ -1129,14 +1128,24 @@ fn interview_command() -> glint.Command(Nil) {
       // Submitting an answer to an existing session
       False, True, True ->
         run_interview_cue_answer(session_flag, answer_text, dry_run)
-      // Start new session in CUE mode
+      // Start new session in CUE mode (requires explicit --profile)
       False, False, False -> {
-        let profile = parse_profile(profile_str)
-        case profile {
-          Ok(p) -> run_interview_cue_start(p, dry_run)
-          Error(msg) -> {
-            output_cue_error(msg)
+        case profile_result {
+          Error(_) -> {
+            output_cue_error(
+              "No flags provided. Use --profile to start a new interview, --resume to continue one, or --session with --answer to submit a response.\n\nExamples:\n  intent interview --profile=api\n  intent interview --resume=<session-id>\n  intent interview --session=<session-id> --answer='THE SYSTEM SHALL ...'",
+            )
             halt(exit_error)
+          }
+          Ok(_) -> {
+            let profile = parse_profile(profile_str)
+            case profile {
+              Ok(p) -> run_interview_cue_start(p, dry_run)
+              Error(msg) -> {
+                output_cue_error(msg)
+                halt(exit_error)
+              }
+            }
           }
         }
       }
@@ -1160,9 +1169,8 @@ fn interview_command() -> glint.Command(Nil) {
   |> glint.flag(
     "profile",
     flag.string()
-      |> flag.default("api")
       |> flag.description(
-        "System profile type: api, cli, event, data, workflow, or ui (default: api)",
+        "System profile type: api, cli, event, data, workflow, or ui",
       ),
   )
   |> glint.flag(
@@ -3719,17 +3727,27 @@ fn history_command() -> glint.Command(Nil) {
 /// The `diff` command - compare two specs
 fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let json_mode =
-      flag.get_bool(input.flags, "json")
-      |> result.unwrap(False)
-
     case input.args {
       [spec1_path, spec2_path] -> {
-        // Load both specs
-        case load_spec_for_mode(spec1_path, json_mode) {
+        case load_spec_for_mode(spec1_path, True) {
           Error(e) -> {
-            case json_mode {
-              True -> {
+            let error_msg = loader.format_error(e)
+            let response =
+              json_output.failure(
+                "diff_failed",
+                "diff",
+                json.null(),
+                [json_output.error("load_error", error_msg)],
+                Some(spec1_path),
+                [],
+                exit_invalid,
+              )
+            json_output.output(response)
+            halt(exit_invalid)
+          }
+          Ok(spec1) -> {
+            case load_spec_for_mode(spec2_path, True) {
+              Error(e) -> {
                 let error_msg = loader.format_error(e)
                 let response =
                   json_output.failure(
@@ -3737,87 +3755,34 @@ fn diff_command() -> glint.Command(Nil) {
                     "diff",
                     json.null(),
                     [json_output.error("load_error", error_msg)],
-                    Some(spec1_path),
+                    Some(spec2_path),
                     [],
                     exit_invalid,
                   )
                 json_output.output(response)
-              }
-              False -> {
-                io.println_error(
-                  "Failed to load first spec: " <> loader.format_error(e),
-                )
-              }
-            }
-            halt(exit_invalid)
-          }
-          Ok(spec1) -> {
-            case load_spec_for_mode(spec2_path, json_mode) {
-              Error(e) -> {
-                case json_mode {
-                  True -> {
-                    let error_msg = loader.format_error(e)
-                    let response =
-                      json_output.failure(
-                        "diff_failed",
-                        "diff",
-                        json.null(),
-                        [json_output.error("load_error", error_msg)],
-                        Some(spec2_path),
-                        [],
-                        exit_invalid,
-                      )
-                    json_output.output(response)
-                  }
-                  False -> {
-                    io.println_error(
-                      "Failed to load second spec: " <> loader.format_error(e),
-                    )
-                  }
-                }
                 halt(exit_invalid)
               }
               Ok(spec2) -> {
-                // Compute diff
                 let spec_diff = diff.compare_specs(spec1, spec2)
-
-                case json_mode {
-                  True -> {
-                    // JSON output
-                    let data = diff.diff_to_json(spec_diff)
-                    let next_actions = case spec_diff.has_changes {
-                      True -> [
-                        json_output.next_action(
-                          "intent quality " <> spec2_path <> " --json",
-                          "Analyze quality of new spec",
-                        ),
-                      ]
-                      False -> []
-                    }
-                    let response =
-                      json_output.success(
-                        "diff_result",
-                        "diff",
-                        data,
-                        None,
-                        next_actions,
-                      )
-                    json_output.output(response)
-                  }
-                  False -> {
-                    // Human-readable output
-                    io.println("SPEC COMPARISON")
-                    io.println("===============")
-                    io.println("")
-                    io.println("Old: " <> spec1_path)
-                    io.println("New: " <> spec2_path)
-                    io.println("")
-                    io.println(diff.format_diff(spec_diff))
-                    io.println("")
-                    io.println("Summary: " <> diff.diff_summary(spec_diff))
-                  }
+                let data = diff.diff_to_json(spec_diff)
+                let next_actions = case spec_diff.has_changes {
+                  True -> [
+                    json_output.next_action(
+                      "intent quality " <> spec2_path,
+                      "Analyze quality of new spec",
+                    ),
+                  ]
+                  False -> []
                 }
-
+                let response =
+                  json_output.success(
+                    "diff_result",
+                    "diff",
+                    data,
+                    None,
+                    next_actions,
+                  )
+                json_output.output(response)
                 halt(exit_pass)
               }
             }
@@ -3825,8 +3790,6 @@ fn diff_command() -> glint.Command(Nil) {
         }
       }
       _ -> {
-        // When arguments are missing, output JSON usage info with exit code 0
-        // This makes the command more testable and AI-friendly
         let error =
           json_output.error(
             "missing_arguments",
@@ -3840,7 +3803,7 @@ fn diff_command() -> glint.Command(Nil) {
             json.object([
               #(
                 "usage",
-                json.string("intent diff <spec1.cue> <spec2.cue> [--json]"),
+                json.string("intent diff <spec1.cue> <spec2.cue>"),
               ),
               #(
                 "description",
@@ -3851,12 +3814,8 @@ fn diff_command() -> glint.Command(Nil) {
             None,
             [
               json_output.next_action(
-                "intent diff spec1.cue spec2.cue --json",
-                "Compare two specs with JSON output",
-              ),
-              json_output.next_action(
                 "intent diff spec1.cue spec2.cue",
-                "Compare two specs with human-readable output",
+                "Compare two specs",
               ),
             ],
             exit_pass,
@@ -3868,10 +3827,6 @@ fn diff_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Compare two spec versions and show differences")
-  |> glint.flag(
-    "json",
-    flag.bool() |> flag.description("Output in JSON format"),
-  )
 }
 
 /// The `help` command - show detailed help for a specific command
