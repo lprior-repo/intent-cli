@@ -188,7 +188,6 @@ io.println(report)
 ### Validate Specific Command
 ```gleam
 let result = cli_consistency.validate_check_command(
-  has_json_flag: True,
   uses_output_mode: True,
   uses_cli_ui_print: True,
   uses_exit_error_for_validation: True,

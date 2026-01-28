@@ -2,7 +2,6 @@ import gleam/list
 import gleam/string
 
 pub type ConsistencyIssue {
-  MissingJsonFlag(command: String)
   IncorrectOutputMode(command: String, expected: String, found: String)
   InconsistentExitCode(
     command: String,
@@ -24,7 +23,6 @@ pub type ConsistencyResult {
 pub type CommandSpec {
   CommandSpec(
     name: String,
-    expects_json_flag: Bool,
     expected_output_mode: String,
     expected_error_output: String,
     valid_exit_codes: List(Int),
@@ -49,7 +47,6 @@ fn collect_issues(
 ) -> List(ConsistencyIssue) {
   list.filter(issues, fn(issue) {
     case issue {
-      MissingJsonFlag(cmd) -> cmd == spec.name && spec.expects_json_flag
       IncorrectOutputMode(cmd, _, _) -> cmd == spec.name
       InconsistentExitCode(cmd, _, _, _) -> cmd == spec.name
       MissingCliUiPrint(cmd) -> cmd == spec.name
@@ -61,17 +58,12 @@ fn collect_issues(
 }
 
 pub fn validate_check_command(
-  has_json_flag: Bool,
   uses_output_mode: Bool,
   uses_cli_ui_print: Bool,
   uses_exit_error_for_validation: Bool,
   has_correct_usage: Bool,
 ) -> ConsistencyResult {
   let issues = []
-  let issues = case has_json_flag {
-    False -> [MissingJsonFlag("check"), ..issues]
-    True -> issues
-  }
   let issues = case uses_output_mode {
     False -> [
       IncorrectOutputMode("check", "from_json_flag", "hardcoded Interactive"),
@@ -109,7 +101,6 @@ pub fn validate_check_command(
   validate_command_consistency(
     CommandSpec(
       name: "check",
-      expects_json_flag: True,
       expected_output_mode: "from_json_flag",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 1, 2, 3, 4],
@@ -150,7 +141,6 @@ pub fn validate_validate_command(
   validate_command_consistency(
     CommandSpec(
       name: "validate",
-      expects_json_flag: False,
       expected_output_mode: "Interactive",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 3],
@@ -161,13 +151,11 @@ pub fn validate_validate_command(
 }
 
 pub fn validate_show_command(
-  _has_json_flag: Bool,
   uses_output_mode: Bool,
   uses_cli_ui_print: Bool,
   has_correct_usage: Bool,
 ) -> ConsistencyResult {
   let issues = []
-  // has_json_flag check removed as we don't expect it
   let issues = case uses_output_mode {
     False -> [
       IncorrectOutputMode("show", "from_json_flag", "missing"),
@@ -193,7 +181,6 @@ pub fn validate_show_command(
   validate_command_consistency(
     CommandSpec(
       name: "show",
-      expects_json_flag: False,
       expected_output_mode: "from_json_flag",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 4],
@@ -218,7 +205,6 @@ pub fn validate_export_command(has_correct_usage: Bool) -> ConsistencyResult {
   validate_command_consistency(
     CommandSpec(
       name: "export",
-      expects_json_flag: False,
       expected_output_mode: "default",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 4],
@@ -243,7 +229,6 @@ pub fn validate_lint_command(has_correct_usage: Bool) -> ConsistencyResult {
   validate_command_consistency(
     CommandSpec(
       name: "lint",
-      expects_json_flag: False,
       expected_output_mode: "default",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 1, 3],
@@ -268,7 +253,6 @@ pub fn validate_analyze_command(has_correct_usage: Bool) -> ConsistencyResult {
   validate_command_consistency(
     CommandSpec(
       name: "analyze",
-      expects_json_flag: False,
       expected_output_mode: "default",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 3],
@@ -293,7 +277,6 @@ pub fn validate_improve_command(has_correct_usage: Bool) -> ConsistencyResult {
   validate_command_consistency(
     CommandSpec(
       name: "improve",
-      expects_json_flag: False,
       expected_output_mode: "default",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 3],
@@ -304,7 +287,6 @@ pub fn validate_improve_command(has_correct_usage: Bool) -> ConsistencyResult {
 }
 
 pub fn validate_doctor_command(
-  _has_json_flag: Bool,
   uses_output_mode: Bool,
   has_correct_usage: Bool,
 ) -> ConsistencyResult {
@@ -327,7 +309,6 @@ pub fn validate_doctor_command(
   validate_command_consistency(
     CommandSpec(
       name: "doctor",
-      expects_json_flag: False,
       expected_output_mode: "from_flags",
       expected_error_output: "cli_ui.print_error",
       valid_exit_codes: [0, 3],
@@ -339,8 +320,6 @@ pub fn validate_doctor_command(
 
 pub fn format_issue(issue: ConsistencyIssue) -> String {
   case issue {
-    MissingJsonFlag(cmd) ->
-      "Missing --json flag handling in '" <> cmd <> "' command"
     IncorrectOutputMode(cmd, expected, found) ->
       "Incorrect output mode in '"
       <> cmd
@@ -405,7 +384,6 @@ pub type CommandInfo {
   CommandInfo(
     name: String,
     category: CommandCategory,
-    has_json_flag: Bool,
     always_json_output: Bool,
     is_interactive: Bool,
     primary_flags: List(String),
@@ -419,7 +397,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "validate",
       category: CoreSpec,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -428,7 +405,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "analyze",
       category: CoreSpec,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -437,7 +413,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "lint",
       category: CoreSpec,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -446,7 +421,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "improve",
       category: CoreSpec,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -456,7 +430,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "quality",
       category: KirkAnalysis,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -465,7 +438,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "coverage",
       category: KirkAnalysis,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -474,7 +446,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "gaps",
       category: KirkAnalysis,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -483,7 +454,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "invert",
       category: KirkAnalysis,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -492,7 +462,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "effects",
       category: KirkAnalysis,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -501,7 +470,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "ears",
       category: KirkAnalysis,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["output"],
@@ -511,7 +479,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "interview",
       category: Interview,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: True,
       primary_flags: ["profile", "resume", "session", "answer", "dry-run"],
@@ -520,7 +487,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "sessions",
       category: Interview,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["profile"],
@@ -529,7 +495,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "history",
       category: Interview,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -538,7 +503,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "diff",
       category: Interview,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -547,7 +511,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "export",
       category: Interview,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["output"],
@@ -557,7 +520,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "beads",
       category: BeadsPlanning,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: ["max-items"],
@@ -566,7 +528,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "beads-regenerate",
       category: BeadsPlanning,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["strategy"],
@@ -575,7 +536,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "bead-status",
       category: BeadsPlanning,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["bead-id", "status", "reason"],
@@ -584,7 +544,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "plan",
       category: BeadsPlanning,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["format", "rounds"],
@@ -593,7 +552,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "plan-approve",
       category: BeadsPlanning,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["yes", "notes"],
@@ -602,7 +560,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "prompt",
       category: BeadsPlanning,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: ["max-items"],
@@ -611,7 +568,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "feedback",
       category: BeadsPlanning,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: ["results"],
@@ -621,7 +577,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "parse",
       category: Parsing,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["o"],
@@ -631,7 +586,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "doctor",
       category: Utilities,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -640,7 +594,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "show",
       category: Utilities,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -649,7 +602,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "help",
       category: Utilities,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -659,7 +611,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "ai schema",
       category: AICommands,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: ["command", "type"],
@@ -669,7 +620,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "shape start",
       category: ShapePhase,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: [],
@@ -678,7 +628,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "shape check",
       category: ShapePhase,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: ["session"],
@@ -687,7 +636,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "shape critique",
       category: ShapePhase,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: ["session"],
@@ -696,7 +644,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "shape respond",
       category: ShapePhase,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: ["session", "answers"],
@@ -705,7 +652,6 @@ pub fn get_all_command_info() -> List(CommandInfo) {
     CommandInfo(
       name: "shape agree",
       category: ShapePhase,
-      has_json_flag: False,
       always_json_output: True,
       is_interactive: False,
       primary_flags: ["session"],
@@ -727,10 +673,9 @@ pub fn format_command_summary(info: CommandInfo) -> String {
     ReadyPhase -> "Ready Phase"
   }
 
-  let output_type = case info.always_json_output, info.has_json_flag {
-    True, _ -> "JSON (always)"
-    False, True -> "JSON (with --json)"
-    False, False -> "Text"
+  let output_type = case info.always_json_output {
+    True -> "JSON (always)"
+    False -> "Text"
   }
 
   let interactive = case info.is_interactive {
@@ -776,10 +721,6 @@ pub fn generate_command_report() -> String {
     list.filter(commands, fn(c) { c.always_json_output })
     |> list.length
 
-  let has_json_flag_count =
-    list.filter(commands, fn(c) { c.has_json_flag })
-    |> list.length
-
   let interactive_count =
     list.filter(commands, fn(c) { c.is_interactive })
     |> list.length
@@ -796,9 +737,6 @@ pub fn generate_command_report() -> String {
     "\n",
     "JSON-only output: ",
     string.inspect(json_count),
-    "\n",
-    "Commands with --json flag: ",
-    string.inspect(has_json_flag_count),
     "\n",
     "Interactive commands: ",
     string.inspect(interactive_count),
@@ -1136,19 +1074,6 @@ fn check_shape_agree_command_consistency() -> List(ConsistencyIssue) {
   []
 }
 
-// Validation helper: Check that JSON-always commands don't have --json flag
-fn validate_json_consistency(info: CommandInfo) -> List(ConsistencyIssue) {
-  case info.always_json_output, info.has_json_flag {
-    // If command always outputs JSON, it shouldn't need a --json flag
-    True, True -> [
-      MissingUsageMessage(
-        info.name <> " always outputs JSON but has redundant --json flag",
-      ),
-    ]
-    _, _ -> []
-  }
-}
-
 // Validation helper: Check that interactive commands aren't JSON-only
 fn validate_interactive_consistency(info: CommandInfo) -> List(ConsistencyIssue) {
   case info.is_interactive, info.always_json_output {
@@ -1167,7 +1092,6 @@ fn validate_interactive_consistency(info: CommandInfo) -> List(ConsistencyIssue)
 // Run validation checks on command metadata
 fn validate_command_info(info: CommandInfo) -> List(ConsistencyIssue) {
   let issues = []
-  let issues = list.append(issues, validate_json_consistency(info))
   let issues = list.append(issues, validate_interactive_consistency(info))
   issues
 }

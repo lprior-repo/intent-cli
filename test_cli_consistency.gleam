@@ -38,21 +38,16 @@ pub fn main() {
 
   io.println("  - validate_check_command (all correct):")
   let check_result =
-    cli_consistency.validate_check_command(True, True, True, True, True)
+    cli_consistency.validate_check_command(True, True, True, True)
   io.println("    " <> cli_consistency.format_result(check_result))
-
-  io.println("  - validate_check_command (missing json flag):")
-  let check_result2 =
-    cli_consistency.validate_check_command(False, True, True, True, True)
-  io.println("    " <> cli_consistency.format_result(check_result2))
 
   io.println("  - validate_show_command (all correct):")
   let show_result =
-    cli_consistency.validate_show_command(False, True, True, True)
+    cli_consistency.validate_show_command(True, True, True)
   io.println("    " <> cli_consistency.format_result(show_result))
 
   io.println("  - validate_doctor_command (all correct):")
-  let doctor_result = cli_consistency.validate_doctor_command(False, True, True)
+  let doctor_result = cli_consistency.validate_doctor_command(True, True)
   io.println("    " <> cli_consistency.format_result(doctor_result))
 
   io.println("\nAll tests completed!")

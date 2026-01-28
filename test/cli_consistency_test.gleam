@@ -52,7 +52,6 @@ pub fn format_command_summary_test() {
     cli_consistency.CommandInfo(
       name: "validate",
       category: cli_consistency.CoreSpec,
-      has_json_flag: False,
       always_json_output: False,
       is_interactive: False,
       primary_flags: [],
@@ -77,41 +76,23 @@ pub fn format_command_summary_test() {
 pub fn validate_check_command_test() {
   // Test check command validation
   let result =
-    cli_consistency.validate_check_command(True, True, True, True, True)
+    cli_consistency.validate_check_command(True, True, True, True)
   result
   |> should.equal(cli_consistency.Passed)
 }
 
-pub fn validate_check_command_missing_json_test() {
-  // Test check command validation with missing JSON flag
-  let result =
-    cli_consistency.validate_check_command(False, True, True, True, True)
-  case result {
-    cli_consistency.Failed(issues) -> {
-      list.length(issues)
-      |> should.equal(1)
-    }
-    cli_consistency.Passed -> should.fail()
-  }
-}
-
 pub fn validate_show_command_test() {
   // Test show command validation
-  let result = cli_consistency.validate_show_command(False, True, True, True)
+  let result = cli_consistency.validate_show_command(True, True, True)
   result
   |> should.equal(cli_consistency.Passed)
 }
 
 pub fn validate_doctor_command_test() {
   // Test doctor command validation
-  let result = cli_consistency.validate_doctor_command(False, True, True)
+  let result = cli_consistency.validate_doctor_command(True, True)
   result
   |> should.equal(cli_consistency.Passed)
 }
 
-pub fn format_issue_test() {
-  let issue = cli_consistency.MissingJsonFlag("test")
-  let formatted = cli_consistency.format_issue(issue)
-  formatted
-  |> should.equal("Missing --json flag handling in 'test' command")
-}
+
