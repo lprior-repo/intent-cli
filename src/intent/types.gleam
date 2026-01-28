@@ -1,10 +1,12 @@
-/// Core types for the Intent specification
+/// Core types for Intent specification
 /// These types mirror the CUE schema definitions
 import gleam/dict.{type Dict}
 import gleam/json.{type Json}
 import gleam/option.{type Option}
+import intent/planning_types.{type Inversions, type PreMortem, type QualityScore}
 
 /// The main specification type - ai_hints is optional
+/// KIRK extensions (inversions, pre_mortem, quality_score) are also optional
 pub type Spec {
   Spec(
     name: String,
@@ -17,6 +19,9 @@ pub type Spec {
     rules: List(Rule),
     anti_patterns: List(AntiPattern),
     ai_hints: Option(AIHints),
+    inversions: Option(Inversions),
+    pre_mortem: Option(PreMortem),
+    quality_score: Option(QualityScore),
   )
 }
 

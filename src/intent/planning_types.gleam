@@ -74,7 +74,7 @@ pub type QualityScore {
     clarity: Float,
     security: Float,
     overall: Float,
-    issues: List(QualityIssue),
+    issues: Option(List(QualityIssue)),
   )
 }
 
@@ -99,9 +99,9 @@ pub type PreMortem {
 /// All failure lists are optional
 pub type Inversions {
   Inversions(
-    security_failures: List(String),
-    usability_failures: List(String),
-    integration_failures: List(String),
+    security_failures: Option(List(String)),
+    usability_failures: Option(List(String)),
+    integration_failures: Option(List(String)),
   )
 }
 

@@ -25,6 +25,7 @@ import intent/vision_types.{
 
 /// Parse a spec from a JSON value
 /// All fields are required - no backwards compatibility defaults
+/// KIRK fields (inversions, pre_mortem, quality_score) are optional
 pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
   use name <- result.try(dynamic.field("name", dynamic.string)(data))
   use description <- result.try(dynamic.field("description", dynamic.string)(
@@ -49,6 +50,18 @@ pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
   use ai_hints <- result.try(dynamic.optional_field("ai_hints", parse_ai_hints)(
     data,
   ))
+  use inversions <- result.try(dynamic.optional_field(
+    "inversions",
+    parse_inversions,
+  )(data))
+  use pre_mortem <- result.try(dynamic.optional_field(
+    "pre_mortem",
+    parse_pre_mortem,
+  )(data))
+  use quality_score <- result.try(dynamic.optional_field(
+    "quality_score",
+    parse_quality_score,
+  )(data))
 
   Ok(Spec(
     name: name,
@@ -61,6 +74,9 @@ pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
     rules: rules,
     anti_patterns: anti_patterns,
     ai_hints: ai_hints,
+    inversions: inversions,
+    pre_mortem: pre_mortem,
+    quality_score: quality_score,
   ))
 }
 
@@ -511,6 +527,130 @@ fn parse_mvp_slice(data: Dynamic) -> Result(MVPSlice, List(DecodeError)) {
     features: features,
     shortcuts: shortcuts,
   ))
+}
+
+fn parse_inversions(
+  data: Dynamic,
+) -> Result(planning_types.Inversions, List(DecodeError)) {
+  use security_failures <- result.try(dynamic.optional_field(
+    "security_failures",
+    dynamic.list(dynamic.string),
+  )(data))
+  use usability_failures <- result.try(dynamic.optional_field(
+    "usability_failures",
+    dynamic.list(dynamic.string),
+  )(data))
+  use integration_failures <- result.try(dynamic.optional_field(
+    "integration_failures",
+    dynamic.list(dynamic.string),
+  )(data))
+
+  Ok(planning_types.Inversions(
+    security_failures: security_failures,
+    usability_failures: usability_failures,
+    integration_failures: integration_failures,
+  ))
+}
+
+fn parse_pre_mortem(
+  data: Dynamic,
+) -> Result(planning_types.PreMortem, List(DecodeError)) {
+  use assumed_failure <- result.try(dynamic.field(
+    "assumed_failure",
+    dynamic.string,
+  )(data))
+  use likely_causes <- result.try(dynamic.field(
+    "likely_causes",
+    dynamic.list(parse_likely_cause),
+  )(data))
+
+  Ok(planning_types.PreMortem(
+    assumed_failure: assumed_failure,
+    likely_causes: likely_causes,
+  ))
+}
+
+fn parse_likely_cause(
+  data: Dynamic,
+) -> Result(planning_types.LikelyCause, List(DecodeError)) {
+  use cause <- result.try(dynamic.field("cause", dynamic.string)(data))
+  use probability <- result.try(dynamic.field("probability", dynamic.string)(
+    data,
+  ))
+  use mitigation <- result.try(dynamic.field("mitigation", dynamic.string)(data))
+
+  Ok(planning_types.LikelyCause(
+    cause: cause,
+    probability: probability,
+    mitigation: mitigation,
+  ))
+}
+
+fn parse_quality_score(
+  data: Dynamic,
+) -> Result(planning_types.QualityScore, List(DecodeError)) {
+  use completeness <- result.try(dynamic.field("completeness", dynamic.float)(
+    data,
+  ))
+  use consistency <- result.try(dynamic.field("consistency", dynamic.float)(
+    data,
+  ))
+  use testability <- result.try(dynamic.field("testability", dynamic.float)(
+    data,
+  ))
+  use clarity <- result.try(dynamic.field("clarity", dynamic.float)(data))
+  use security <- result.try(dynamic.field("security", dynamic.float)(data))
+  use overall <- result.try(dynamic.field("overall", dynamic.float)(data))
+  use issues <- result.try(dynamic.optional_field(
+    "issues",
+    dynamic.list(parse_quality_issue),
+  )(data))
+
+  Ok(planning_types.QualityScore(
+    completeness: completeness,
+    consistency: consistency,
+    testability: testability,
+    clarity: clarity,
+    security: security,
+    overall: overall,
+    issues: issues,
+  ))
+}
+
+fn parse_quality_issue(
+  data: Dynamic,
+) -> Result(planning_types.QualityIssue, List(DecodeError)) {
+  use field <- result.try(dynamic.field("field", dynamic.string)(data))
+  use issue <- result.try(dynamic.field("issue", dynamic.string)(data))
+  use severity <- result.try(dynamic.field(
+    "severity",
+    parse_quality_issue_severity,
+  )(data))
+
+  Ok(planning_types.QualityIssue(field: field, issue: issue, severity: severity))
+}
+
+fn parse_quality_issue_severity(
+  data: Dynamic,
+) -> Result(planning_types.Severity, List(DecodeError)) {
+  case dynamic.string(data) {
+    Ok(severity) ->
+      case severity {
+        "info" -> Ok(planning_types.QualityInfo)
+        "warning" -> Ok(planning_types.QualityWarning)
+        "error" -> Ok(planning_types.QualityError)
+        "critical" -> Ok(planning_types.QualityCritical)
+        _ ->
+          Error([
+            dynamic.DecodeError(
+              expected: "quality issue severity (info|warning|error|critical)",
+              found: severity,
+              path: [],
+            ),
+          ])
+      }
+    Error(e) -> Error([e])
+  }
 }
 
 fn parse_spec_section(data: Dynamic) -> Result(SpecSection, List(DecodeError)) {
