@@ -176,7 +176,6 @@ data: {
   spec_path: string
   json?: bool
 }
-"
 
   let invalid_json =
     json.object([
