@@ -32,6 +32,7 @@ pub type ErrorType {
   CircularDependency
   SessionNotFound
   InvalidInput
+  CommandNotFound
   UnknownError
 }
 
@@ -65,6 +66,7 @@ pub fn error_type_to_string(et: ErrorType) -> String {
     CircularDependency -> "circular_dependency"
     SessionNotFound -> "session_not_found"
     InvalidInput -> "invalid_input"
+    CommandNotFound -> "command_not_found"
     UnknownError -> "unknown_error"
   }
 }
@@ -334,6 +336,26 @@ pub fn session_not_found(session_id: String) -> StructuredError {
     ],
     retry_allowed: True,
     exit_code: 4,
+  )
+}
+
+/// Build command not found error (for unknown CLI commands)
+pub fn command_not_found(command: String, available: List(String)) -> StructuredError {
+  StructuredError(
+    error_type: CommandNotFound,
+    message: "Unknown command: " <> command,
+    context: dict.from_list([
+      #("command", command),
+      #("available_commands", string.join(available, ", ")),
+    ]),
+    suggestion: "Use 'intent help' to see available commands",
+    recovery: [
+      "Run: intent help",
+      "Check command spelling",
+      "Use tab completion if available",
+    ],
+    retry_allowed: True,
+    exit_code: 3,
   )
 }
 

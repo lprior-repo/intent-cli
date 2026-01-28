@@ -2,14 +2,18 @@
 /// Contract-driven API testing tool
 import argv
 import gleam/io
+import gleam/json
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
 import glint
+import intent/ai_errors
 import intent/analysis_commands
 import intent/bead_commands
 import intent/interview
 import intent/interview_commands
 import intent/interview_storage
+import intent/json_output
 import intent/kirk_commands
 import intent/loader
 import intent/plan_commands
@@ -25,6 +29,8 @@ import intent/vision_commands
 
 /// Exit codes
 const exit_pass = 0
+
+const exit_invalid_input = 3
 
 // ============================================================================
 // Path Constants
@@ -200,9 +206,9 @@ pub fn main() {
       exit_pass
     }
     ["--help", ..] | ["-h", ..] -> {
-      // Show help and exit cleanly
+      // Show help JSON
       let app = build_app()
-      let _ = glint.run(app, ["--help=true"])
+      let _ = glint.run(app, ["help"])
       exit_pass
     }
     [] -> {
@@ -217,38 +223,131 @@ pub fn main() {
       case action {
         smart_start.Resume(session_id) -> {
           // Auto-resume the session by running interview command with --resume flag
-          let app = build_app()
-          let _ = glint.run(app, ["interview", "--resume=" <> session_id])
-          exit_pass
+          run_command_with_json_errors(["interview", "--resume=" <> session_id])
         }
         smart_start.StartNew(profile) -> {
           // Start new interview with default profile
           let profile_str = interview.profile_to_string(profile)
-          let app = build_app()
-          let _ = glint.run(app, ["interview", "--profile=" <> profile_str])
-          exit_pass
+          run_command_with_json_errors(["interview", "--profile=" <> profile_str])
         }
       }
     }
     _ -> {
       // Check if --help or -h appears anywhere in args (e.g., "show --help")
-      // This ensures all commands show help cleanly with exit code 0
+      // Redirect to our JSON help command
       case list.any(raw_args, fn(arg) { arg == "--help" || arg == "-h" }) {
         True -> {
-          let normalized_args = normalize_flag_syntax(raw_args)
-          let app = build_app()
-          let _ = glint.run(app, normalized_args)
-          exit_pass
+          // Extract the command name for context-sensitive help
+          let cmd =
+            raw_args
+            |> list.filter(fn(arg) {
+              !string.starts_with(arg, "-")
+            })
+            |> list.first
+          case cmd {
+            Ok(command) -> {
+              // Run help for specific command
+              run_command_with_json_errors(["help", command])
+            }
+            Error(_) -> {
+              // Generic help
+              run_command_with_json_errors(["help"])
+            }
+          }
         }
         False -> {
           let normalized_args = normalize_flag_syntax(raw_args)
-          let app = build_app()
-          let _ = glint.run(app, normalized_args)
-          exit_pass
+          run_command_with_json_errors(normalized_args)
         }
       }
     }
   }
+}
+
+/// Run a command and handle errors with JSON output
+fn run_command_with_json_errors(args: List(String)) -> Int {
+  let app = build_app()
+
+  case glint.execute(app, args) {
+    Ok(glint.Out(_)) -> exit_pass
+    Ok(glint.Help(help_text)) -> {
+      // For glint's built-in help, output as JSON
+      output_glint_help_as_json(help_text, args)
+      exit_pass
+    }
+    Error(error_msg) -> {
+      // Output error as structured JSON
+      let cmd = list.first(args) |> option.from_result
+      output_command_error(error_msg, cmd)
+      // Halt with proper exit code since we're returning from main
+      halt(exit_invalid_input)
+      exit_invalid_input
+    }
+  }
+}
+
+/// Output glint's help text wrapped in JSON for AI consumption
+fn output_glint_help_as_json(help_text: String, args: List(String)) -> Nil {
+  let cmd = case args {
+    [first, ..] -> first
+    [] -> "intent"
+  }
+
+  let response =
+    json_output.success(
+      "help_fallback",
+      cmd,
+      json.object([
+        #("help_text", json.string(help_text)),
+        #(
+          "note",
+          json.string(
+            "Use 'intent help' for structured JSON help",
+          ),
+        ),
+      ]),
+      None,
+      [json_output.next_action("intent help", "Get structured JSON help")],
+    )
+  json_output.output(response)
+}
+
+/// Output command error as structured JSON
+fn output_command_error(_error_msg: String, command: option.Option(String)) -> Nil {
+  let cmd = case command {
+    Some(c) -> c
+    None -> "unknown"
+  }
+
+  // List of available commands for error context
+  let available = [
+    "validate", "show", "lint", "improve", "diff", "quality", "coverage",
+    "gaps", "invert", "effects", "ears", "doctor", "interview", "sessions",
+    "history", "export", "beads", "plan", "prompt", "feedback", "help",
+    "vision", "spec", "shape", "ready", "ai",
+  ]
+
+  let error = ai_errors.command_not_found(cmd, available)
+
+  let response =
+    json_output.failure(
+      "command_error",
+      cmd,
+      json.null(),
+      [
+        json_output.detailed_error(
+          ai_errors.error_type_to_string(error.error_type),
+          error.message,
+          "",
+          error.suggestion,
+          "intent help",
+        ),
+      ],
+      None,
+      [json_output.next_action("intent help", "See all available commands")],
+      exit_invalid_input,
+    )
+  json_output.output(response)
 }
 
 fn build_app() {

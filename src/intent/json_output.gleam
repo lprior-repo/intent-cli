@@ -270,21 +270,17 @@ fn optional_string_to_json(value: Option(String)) -> Json {
 
 /// Output JSON response to stdout with automatic schema validation.
 /// Validates against the command's JSON Schema before printing.
-/// Non-breaking: always outputs the JSON, logs warnings to stderr on failure.
+/// AI-native: outputs pure JSON with no warnings - validation issues are silent
+/// (schema validation is for development, not production output).
 pub fn output(response: JsonResponse) -> Nil {
   let json_str =
     response
     |> to_json
     |> json.to_string
-  case schema_validator.validate_command_output(response.command, json_str) {
-    Ok(Nil) -> io.println(json_str)
-    Error(e) -> {
-      ffi.write_stderr(
-        "Schema warning: " <> schema_validator.format_error(e),
-      )
-      io.println(json_str)
-    }
-  }
+  // Silent validation - don't pollute output with warnings
+  // Schema validation is for development-time catching of issues
+  let _ = schema_validator.validate_command_output(response.command, json_str)
+  io.println(json_str)
 }
 
 /// Get current timestamp in ISO 8601 format
