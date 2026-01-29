@@ -87,11 +87,7 @@ pub fn analyze_effects_user_delete_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 204,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 204, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     )
   let spec = test_helpers.make_test_spec_from_behaviors([behavior])
@@ -190,11 +186,7 @@ pub fn analyze_effects_cascade_detection_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 204,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 204, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     )
   let spec = test_helpers.make_test_spec_from_behaviors([delete_org])

@@ -88,11 +88,7 @@ pub fn analyze_quality_short_intent_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     )
   let spec = test_helpers.make_test_spec_from_behaviors([behavior])
@@ -166,11 +162,7 @@ pub fn analyze_quality_security_keywords_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
     Behavior(
@@ -186,11 +178,7 @@ pub fn analyze_quality_security_keywords_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 401,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 401, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]

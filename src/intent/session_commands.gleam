@@ -1,7 +1,6 @@
 /// Session Commands Module
 ///
 /// Commands for managing interview sessions and history snapshots.
-
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
@@ -19,8 +18,6 @@ import simplifile
 
 /// Exit codes
 const exit_pass = 0
-
-
 
 const exit_error = 4
 
@@ -264,11 +261,8 @@ pub fn sessions_command() -> glint.Command(Nil) {
             halt(exit_error)
           }
           Ok(content) -> {
-            let sessions =
-              interview_storage.parse_sessions_content(content)
-            case
-              interview_storage.find_session_by_id(sessions, session_id)
-            {
+            let sessions = interview_storage.parse_sessions_content(content)
+            case interview_storage.find_session_by_id(sessions, session_id) {
               Error(_) -> {
                 let response =
                   json_output.failure(
@@ -297,9 +291,7 @@ pub fn sessions_command() -> glint.Command(Nil) {
                 let _ = simplifile.write(jsonl_path, new_content)
                 // Clean up related files
                 let _ =
-                  simplifile.delete(
-                    ".intent/spec-" <> session_id <> ".cue",
-                  )
+                  simplifile.delete(".intent/spec-" <> session_id <> ".cue")
                 let response =
                   json_output.success(
                     "session_deleted",

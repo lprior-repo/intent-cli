@@ -146,11 +146,7 @@ pub fn empty_contracts() -> BeadContracts {
 }
 
 /// Generate a unique bead ID from components
-pub fn make_bead_id(
-  issue_type: String,
-  category: String,
-  index: Int,
-) -> String {
+pub fn make_bead_id(issue_type: String, category: String, index: Int) -> String {
   "bead-"
   <> slugify(issue_type)
   <> "-"
@@ -198,26 +194,17 @@ pub fn enhanced_bead_to_json(bead: EnhancedBead) -> Json {
     #("title", json.string(bead.title)),
     #("description", json.string(bead.description)),
     #("source_type", json.string(bead.source_type)),
-    #(
-      "kirk_sources",
-      json.array(bead.kirk_sources, kirk_source_to_json),
-    ),
+    #("kirk_sources", json.array(bead.kirk_sources, kirk_source_to_json)),
     #("spec_path", json.nullable(bead.spec_path, json.string)),
     #("behavior_name", json.nullable(bead.behavior_name, json.string)),
-    #(
-      "ears_patterns",
-      json.array(bead.ears_patterns, ears_pattern_to_json),
-    ),
+    #("ears_patterns", json.array(bead.ears_patterns, ears_pattern_to_json)),
     #("contracts", contracts_to_json(bead.contracts)),
     #("scenarios", json.array(bead.scenarios, test_case_to_json)),
     #(
       "acceptance_criteria",
       json.array(bead.acceptance_criteria, acceptance_criterion_to_json),
     ),
-    #(
-      "types_needed",
-      json.array(bead.types_needed, type_definition_to_json),
-    ),
+    #("types_needed", json.array(bead.types_needed, type_definition_to_json)),
     #("effort", json.string(bead.effort)),
     #("priority", json.int(bead.priority)),
     #("status", json.string(bead.status)),
@@ -285,10 +272,7 @@ fn acceptance_criterion_to_json(ac: AcceptanceCriterion) -> Json {
     #("id", json.string(ac.id)),
     #("description", json.string(ac.description)),
     #("verification_type", json.string(ac.verification_type)),
-    #(
-      "check_expression",
-      json.nullable(ac.check_expression, json.string),
-    ),
+    #("check_expression", json.nullable(ac.check_expression, json.string)),
     #("verified", json.bool(ac.verified)),
   ])
 }

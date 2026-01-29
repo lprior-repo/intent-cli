@@ -340,7 +340,10 @@ pub fn session_not_found(session_id: String) -> StructuredError {
 }
 
 /// Build command not found error (for unknown CLI commands)
-pub fn command_not_found(command: String, available: List(String)) -> StructuredError {
+pub fn command_not_found(
+  command: String,
+  available: List(String),
+) -> StructuredError {
   StructuredError(
     error_type: CommandNotFound,
     message: "Unknown command: " <> command,

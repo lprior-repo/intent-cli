@@ -7,7 +7,6 @@
 /// - export: Export spec to JSON format
 /// - lint: Check for specification anti-patterns
 /// - check: Run spec against API (under development)
-
 import gleam/dynamic
 import gleam/io
 import gleam/json

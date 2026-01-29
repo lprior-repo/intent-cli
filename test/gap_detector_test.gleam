@@ -89,11 +89,7 @@ pub fn detect_gaps_delete_no_verification_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 204,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 204, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]
@@ -145,11 +141,7 @@ pub fn detect_gaps_with_auth_coverage_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 401,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 401, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]

@@ -13,8 +13,7 @@ pub fn all_commands_have_schemas_test() {
   case missing {
     [] -> should.be_true(True)
     cmds -> {
-      let msg =
-        "Missing schemas for: " <> string.join(cmds, ", ")
+      let msg = "Missing schemas for: " <> string.join(cmds, ", ")
       panic as msg
     }
   }
@@ -41,8 +40,7 @@ pub fn all_schemas_are_valid_json_test() {
   case invalid {
     [] -> should.be_true(True)
     cmds -> {
-      let msg =
-        "Invalid schema files for: " <> string.join(cmds, ", ")
+      let msg = "Invalid schema files for: " <> string.join(cmds, ", ")
       panic as msg
     }
   }

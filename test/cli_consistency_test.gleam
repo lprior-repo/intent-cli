@@ -75,8 +75,7 @@ pub fn format_command_summary_test() {
 
 pub fn validate_check_command_test() {
   // Test check command validation
-  let result =
-    cli_consistency.validate_check_command(True, True, True, True)
+  let result = cli_consistency.validate_check_command(True, True, True, True)
   result
   |> should.equal(cli_consistency.Passed)
 }
@@ -94,5 +93,3 @@ pub fn validate_doctor_command_test() {
   result
   |> should.equal(cli_consistency.Passed)
 }
-
-

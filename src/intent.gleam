@@ -229,7 +229,10 @@ pub fn main() {
         smart_start.StartNew(profile) -> {
           // Start new interview with default profile
           let profile_str = interview.profile_to_string(profile)
-          run_command_with_json_errors(["interview", "--profile=" <> profile_str])
+          run_command_with_json_errors([
+            "interview",
+            "--profile=" <> profile_str,
+          ])
         }
       }
     }
@@ -241,9 +244,7 @@ pub fn main() {
           // Extract the command name for context-sensitive help
           let cmd =
             raw_args
-            |> list.filter(fn(arg) {
-              !string.starts_with(arg, "-")
-            })
+            |> list.filter(fn(arg) { !string.starts_with(arg, "-") })
             |> list.first
           case cmd {
             Ok(command) -> {
@@ -300,12 +301,7 @@ fn output_glint_help_as_json(help_text: String, args: List(String)) -> Nil {
       cmd,
       json.object([
         #("help_text", json.string(help_text)),
-        #(
-          "note",
-          json.string(
-            "Use 'intent help' for structured JSON help",
-          ),
-        ),
+        #("note", json.string("Use 'intent help' for structured JSON help")),
       ]),
       None,
       [json_output.next_action("intent help", "Get structured JSON help")],
@@ -314,7 +310,10 @@ fn output_glint_help_as_json(help_text: String, args: List(String)) -> Nil {
 }
 
 /// Output command error as structured JSON
-fn output_command_error(_error_msg: String, command: option.Option(String)) -> Nil {
+fn output_command_error(
+  _error_msg: String,
+  command: option.Option(String),
+) -> Nil {
   let cmd = case command {
     Some(c) -> c
     None -> "unknown"
@@ -322,10 +321,10 @@ fn output_command_error(_error_msg: String, command: option.Option(String)) -> N
 
   // List of available commands for error context
   let available = [
-    "validate", "show", "lint", "improve", "diff", "quality", "coverage",
-    "gaps", "invert", "effects", "ears", "doctor", "interview", "sessions",
-    "history", "export", "beads", "plan", "prompt", "feedback", "help",
-    "vision", "spec", "shape", "ready", "ai",
+    "validate", "show", "lint", "improve", "diff", "quality", "coverage", "gaps",
+    "invert", "effects", "ears", "doctor", "interview", "sessions", "history",
+    "export", "beads", "plan", "prompt", "feedback", "help", "vision", "spec",
+    "shape", "ready", "ai",
   ]
 
   let error = ai_errors.command_not_found(cmd, available)
@@ -398,13 +397,13 @@ fn build_app() {
   // KIRK-to-beads commands
   |> glint.add(at: ["kirk-beads"], do: kirk_beads_commands.kirk_beads_command())
   |> glint.add(at: ["bead-show"], do: kirk_beads_commands.bead_show_command())
-  |> glint.add(at: ["bead-verify"], do: kirk_beads_commands.bead_verify_command())
+  |> glint.add(
+    at: ["bead-verify"],
+    do: kirk_beads_commands.bead_verify_command(),
+  )
   // Plan commands
   |> glint.add(at: ["plan"], do: plan_commands.plan_command())
-  |> glint.add(
-    at: ["plan-approve"],
-    do: plan_commands.plan_approve_command(),
-  )
+  |> glint.add(at: ["plan-approve"], do: plan_commands.plan_approve_command())
   // Vision phase commands
   |> glint.add(at: ["vision"], do: vision_commands.vision_group_command())
   |> glint.add(
@@ -442,14 +441,8 @@ fn build_app() {
   |> glint.add(at: ["spec", "agree"], do: spec_commands.spec_agree_command())
   // Shape phase commands
   |> glint.add(at: ["shape"], do: shape_commands.shape_group_command())
-  |> glint.add(
-    at: ["shape", "start"],
-    do: shape_commands.shape_start_command(),
-  )
-  |> glint.add(
-    at: ["shape", "check"],
-    do: shape_commands.shape_check_command(),
-  )
+  |> glint.add(at: ["shape", "start"], do: shape_commands.shape_start_command())
+  |> glint.add(at: ["shape", "check"], do: shape_commands.shape_check_command())
   |> glint.add(
     at: ["shape", "critique"],
     do: shape_commands.shape_critique_command(),
@@ -458,20 +451,11 @@ fn build_app() {
     at: ["shape", "respond"],
     do: shape_commands.shape_respond_command(),
   )
-  |> glint.add(
-    at: ["shape", "agree"],
-    do: shape_commands.shape_agree_command(),
-  )
+  |> glint.add(at: ["shape", "agree"], do: shape_commands.shape_agree_command())
   // Ready phase commands
   |> glint.add(at: ["ready"], do: ready_commands.ready_group_command())
-  |> glint.add(
-    at: ["ready", "start"],
-    do: ready_commands.ready_start_command(),
-  )
-  |> glint.add(
-    at: ["ready", "check"],
-    do: ready_commands.ready_check_command(),
-  )
+  |> glint.add(at: ["ready", "start"], do: ready_commands.ready_start_command())
+  |> glint.add(at: ["ready", "check"], do: ready_commands.ready_check_command())
   |> glint.add(
     at: ["ready", "critique"],
     do: ready_commands.ready_critique_command(),
@@ -480,8 +464,5 @@ fn build_app() {
     at: ["ready", "respond"],
     do: ready_commands.ready_respond_command(),
   )
-  |> glint.add(
-    at: ["ready", "agree"],
-    do: ready_commands.ready_agree_command(),
-  )
+  |> glint.add(at: ["ready", "agree"], do: ready_commands.ready_agree_command())
 }

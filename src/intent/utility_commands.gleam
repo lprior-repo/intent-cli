@@ -2,7 +2,6 @@
 ///
 /// This module contains utility and meta-commands for the Intent CLI,
 /// including diff, help, and AI schema introspection commands.
-
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
@@ -18,7 +17,6 @@ import intent/types
 
 // Exit codes
 const exit_pass = 0
-
 
 const exit_invalid = 3
 
@@ -58,70 +56,439 @@ type HelpEntry {
 fn help_command_entries() -> List(HelpEntry) {
   [
     // Spec Operations
-    HelpEntry("validate", "spec", "<spec.cue>", "--watch", "Validate CUE spec syntax and structure", "validate_result"),
-    HelpEntry("show", "spec", "<spec.cue>", "", "Display parsed spec contents", "show_result"),
-    HelpEntry("diff", "spec", "<spec1.cue> <spec2.cue>", "", "Compare two spec versions", "diff_result"),
-    HelpEntry("lint", "spec", "<spec.cue>", "", "Detect anti-patterns", "lint_result"),
-    HelpEntry("improve", "spec", "<spec.cue>", "", "Suggest improvements", "improve_result"),
+    HelpEntry(
+      "validate",
+      "spec",
+      "<spec.cue>",
+      "--watch",
+      "Validate CUE spec syntax and structure",
+      "validate_result",
+    ),
+    HelpEntry(
+      "show",
+      "spec",
+      "<spec.cue>",
+      "",
+      "Display parsed spec contents",
+      "show_result",
+    ),
+    HelpEntry(
+      "diff",
+      "spec",
+      "<spec1.cue> <spec2.cue>",
+      "",
+      "Compare two spec versions",
+      "diff_result",
+    ),
+    HelpEntry(
+      "lint",
+      "spec",
+      "<spec.cue>",
+      "",
+      "Detect anti-patterns",
+      "lint_result",
+    ),
+    HelpEntry(
+      "improve",
+      "spec",
+      "<spec.cue>",
+      "",
+      "Suggest improvements",
+      "improve_result",
+    ),
     // KIRK Analysis
-    HelpEntry("quality", "kirk", "<spec.cue>", "", "Score across 5 dimensions (0-100)", "quality_result"),
-    HelpEntry("coverage", "kirk", "<spec.cue>", "", "OWASP + edge case coverage audit", "coverage_result"),
-    HelpEntry("gaps", "kirk", "<spec.cue>", "", "Find missing requirements", "gaps_result"),
-    HelpEntry("invert", "kirk", "<spec.cue>", "", "Failure mode analysis", "invert_result"),
-    HelpEntry("effects", "kirk", "<spec.cue>", "", "Second-order effects analysis", "effects_result"),
-    HelpEntry("ears", "kirk", "<file>", "--output=cue|json", "Parse EARS requirements", "ears_result"),
-    HelpEntry("doctor", "kirk", "<spec.cue>", "", "Prioritized health report", "doctor_result"),
+    HelpEntry(
+      "quality",
+      "kirk",
+      "<spec.cue>",
+      "",
+      "Score across 5 dimensions (0-100)",
+      "quality_result",
+    ),
+    HelpEntry(
+      "coverage",
+      "kirk",
+      "<spec.cue>",
+      "",
+      "OWASP + edge case coverage audit",
+      "coverage_result",
+    ),
+    HelpEntry(
+      "gaps",
+      "kirk",
+      "<spec.cue>",
+      "",
+      "Find missing requirements",
+      "gaps_result",
+    ),
+    HelpEntry(
+      "invert",
+      "kirk",
+      "<spec.cue>",
+      "",
+      "Failure mode analysis",
+      "invert_result",
+    ),
+    HelpEntry(
+      "effects",
+      "kirk",
+      "<spec.cue>",
+      "",
+      "Second-order effects analysis",
+      "effects_result",
+    ),
+    HelpEntry(
+      "ears",
+      "kirk",
+      "<file>",
+      "--output=cue|json",
+      "Parse EARS requirements",
+      "ears_result",
+    ),
+    HelpEntry(
+      "doctor",
+      "kirk",
+      "<spec.cue>",
+      "",
+      "Prioritized health report",
+      "doctor_result",
+    ),
     // Interview
-    HelpEntry("interview", "interview", "", "--profile=api|cli --resume=<session-id>", "Guided spec discovery. REQUIRED: --profile flag for new interviews", "interview_result"),
-    HelpEntry("sessions", "interview", "", "--profile=api|cli --delete=<id>", "List all sessions with IDs and status", "sessions_list"),
-    HelpEntry("history", "interview", "", "--profile=api|cli", "Show interview snapshots", "history_result"),
-    HelpEntry("export", "interview", "<session-id>", "--output=<file.cue>", "Export interview session to CUE spec", "export_result"),
+    HelpEntry(
+      "interview",
+      "interview",
+      "",
+      "--profile=api|cli --resume=<session-id>",
+      "Guided spec discovery. REQUIRED: --profile flag for new interviews",
+      "interview_result",
+    ),
+    HelpEntry(
+      "sessions",
+      "interview",
+      "",
+      "--profile=api|cli --delete=<id>",
+      "List all sessions with IDs and status",
+      "sessions_list",
+    ),
+    HelpEntry(
+      "history",
+      "interview",
+      "",
+      "--profile=api|cli",
+      "Show interview snapshots",
+      "history_result",
+    ),
+    HelpEntry(
+      "export",
+      "interview",
+      "<session-id>",
+      "--output=<file.cue>",
+      "Export interview session to CUE spec",
+      "export_result",
+    ),
     // Planning
-    HelpEntry("beads", "planning", "<session-id>", "--max-items=N", "Generate atomic work items from session", "beads_result"),
-    HelpEntry("plan", "planning", "<session-id>", "--rounds=1..5", "Health check + wave ordering + beads", "plan_result"),
-    HelpEntry("plan-approve", "planning", "<session-id>", "--yes --notes='text'", "Approve execution plan", "plan_approve_result"),
-    HelpEntry("beads-regenerate", "planning", "<spec.cue>", "", "Regenerate beads from spec file", "beads_regenerate_result"),
-    HelpEntry("bead-status", "planning", "", "--bead-id=<id> --status=success|failed|blocked --reason='text'", "Update individual bead execution status", "bead_status_result"),
-    HelpEntry("prompt", "planning", "<session-id>", "--max-items=N", "Generate AI implementation prompts from beads", "prompt_result"),
-    HelpEntry("feedback", "planning", "", "--results=<check-output.json>", "Generate fix beads from check command failures", "feedback_result"),
-    HelpEntry("kirk-beads", "planning", "<spec.cue>", "--round=N --min-severity=low|medium|high|critical", "Generate enhanced beads from KIRK analysis", "kirk_beads_result"),
-    HelpEntry("bead-show", "planning", "<bead-id>", "--spec=<spec.cue>", "Show full bead details", "bead_show_result"),
-    HelpEntry("bead-verify", "planning", "<bead-id>", "--spec=<spec.cue>", "Verify bead acceptance criteria", "bead_verify_result"),
+    HelpEntry(
+      "beads",
+      "planning",
+      "<session-id>",
+      "--max-items=N",
+      "Generate atomic work items from session",
+      "beads_result",
+    ),
+    HelpEntry(
+      "plan",
+      "planning",
+      "<session-id>",
+      "--rounds=1..5",
+      "Health check + wave ordering + beads",
+      "plan_result",
+    ),
+    HelpEntry(
+      "plan-approve",
+      "planning",
+      "<session-id>",
+      "--yes --notes='text'",
+      "Approve execution plan",
+      "plan_approve_result",
+    ),
+    HelpEntry(
+      "beads-regenerate",
+      "planning",
+      "<spec.cue>",
+      "",
+      "Regenerate beads from spec file",
+      "beads_regenerate_result",
+    ),
+    HelpEntry(
+      "bead-status",
+      "planning",
+      "",
+      "--bead-id=<id> --status=success|failed|blocked --reason='text'",
+      "Update individual bead execution status",
+      "bead_status_result",
+    ),
+    HelpEntry(
+      "prompt",
+      "planning",
+      "<session-id>",
+      "--max-items=N",
+      "Generate AI implementation prompts from beads",
+      "prompt_result",
+    ),
+    HelpEntry(
+      "feedback",
+      "planning",
+      "",
+      "--results=<check-output.json>",
+      "Generate fix beads from check command failures",
+      "feedback_result",
+    ),
+    HelpEntry(
+      "kirk-beads",
+      "planning",
+      "<spec.cue>",
+      "--round=N --min-severity=low|medium|high|critical",
+      "Generate enhanced beads from KIRK analysis",
+      "kirk_beads_result",
+    ),
+    HelpEntry(
+      "bead-show",
+      "planning",
+      "<bead-id>",
+      "--spec=<spec.cue>",
+      "Show full bead details",
+      "bead_show_result",
+    ),
+    HelpEntry(
+      "bead-verify",
+      "planning",
+      "<bead-id>",
+      "--spec=<spec.cue>",
+      "Verify bead acceptance criteria",
+      "bead_verify_result",
+    ),
     // Phase commands
-    HelpEntry("vision start", "phase", "<spec.cue>", "", "Initialize Vision phase session", "vision_start_result"),
-    HelpEntry("vision check", "phase", "<session-id>", "", "Validate Vision phase completeness", "vision_check_result"),
-    HelpEntry("vision critique", "phase", "<session-id>", "", "Generate Vision critique questions", "vision_critique_result"),
-    HelpEntry("vision respond", "phase", "<session-id>", "--answers=<file>", "Process Vision critique responses", "vision_respond_result"),
-    HelpEntry("vision agree", "phase", "<session-id>", "", "Finalize Vision phase agreement", "vision_agree_result"),
-    HelpEntry("spec start", "phase", "<spec.cue>", "", "Initialize Spec phase session", "spec_start_result"),
-    HelpEntry("spec check", "phase", "<session-id>", "", "Validate Spec phase completeness", "spec_check_result"),
-    HelpEntry("spec critique", "phase", "<session-id>", "", "Generate Spec critique questions", "spec_critique_result"),
-    HelpEntry("spec respond", "phase", "<session-id>", "--answers=<file>", "Process Spec critique responses", "spec_respond_result"),
-    HelpEntry("spec agree", "phase", "<session-id>", "", "Finalize Spec phase agreement", "spec_agree_result"),
-    HelpEntry("shape start", "phase", "<spec.cue>", "", "Initialize Shape phase session", "shape_start_result"),
-    HelpEntry("shape check", "phase", "<session-id>", "", "Validate Shape phase completeness", "shape_check_result"),
-    HelpEntry("shape critique", "phase", "<session-id>", "", "Generate Shape critique questions", "shape_critique_result"),
-    HelpEntry("shape respond", "phase", "<session-id>", "--answers=<file>", "Process Shape critique responses", "shape_respond_result"),
-    HelpEntry("shape agree", "phase", "<session-id>", "", "Finalize Shape phase agreement", "shape_agree_result"),
-    HelpEntry("ready start", "phase", "<spec.cue>", "", "Initialize Ready phase session", "ready_start_result"),
-    HelpEntry("ready check", "phase", "<session-id>", "", "Validate Ready phase completeness", "ready_check_result"),
-    HelpEntry("ready critique", "phase", "<session-id>", "", "Generate Ready critique questions", "ready_critique_result"),
-    HelpEntry("ready respond", "phase", "<session-id>", "--answers=<file>", "Process Ready critique responses", "ready_respond_result"),
-    HelpEntry("ready agree", "phase", "<session-id>", "", "Finalize Ready phase agreement", "ready_agree_result"),
+    HelpEntry(
+      "vision start",
+      "phase",
+      "<spec.cue>",
+      "",
+      "Initialize Vision phase session",
+      "vision_start_result",
+    ),
+    HelpEntry(
+      "vision check",
+      "phase",
+      "<session-id>",
+      "",
+      "Validate Vision phase completeness",
+      "vision_check_result",
+    ),
+    HelpEntry(
+      "vision critique",
+      "phase",
+      "<session-id>",
+      "",
+      "Generate Vision critique questions",
+      "vision_critique_result",
+    ),
+    HelpEntry(
+      "vision respond",
+      "phase",
+      "<session-id>",
+      "--answers=<file>",
+      "Process Vision critique responses",
+      "vision_respond_result",
+    ),
+    HelpEntry(
+      "vision agree",
+      "phase",
+      "<session-id>",
+      "",
+      "Finalize Vision phase agreement",
+      "vision_agree_result",
+    ),
+    HelpEntry(
+      "spec start",
+      "phase",
+      "<spec.cue>",
+      "",
+      "Initialize Spec phase session",
+      "spec_start_result",
+    ),
+    HelpEntry(
+      "spec check",
+      "phase",
+      "<session-id>",
+      "",
+      "Validate Spec phase completeness",
+      "spec_check_result",
+    ),
+    HelpEntry(
+      "spec critique",
+      "phase",
+      "<session-id>",
+      "",
+      "Generate Spec critique questions",
+      "spec_critique_result",
+    ),
+    HelpEntry(
+      "spec respond",
+      "phase",
+      "<session-id>",
+      "--answers=<file>",
+      "Process Spec critique responses",
+      "spec_respond_result",
+    ),
+    HelpEntry(
+      "spec agree",
+      "phase",
+      "<session-id>",
+      "",
+      "Finalize Spec phase agreement",
+      "spec_agree_result",
+    ),
+    HelpEntry(
+      "shape start",
+      "phase",
+      "<spec.cue>",
+      "",
+      "Initialize Shape phase session",
+      "shape_start_result",
+    ),
+    HelpEntry(
+      "shape check",
+      "phase",
+      "<session-id>",
+      "",
+      "Validate Shape phase completeness",
+      "shape_check_result",
+    ),
+    HelpEntry(
+      "shape critique",
+      "phase",
+      "<session-id>",
+      "",
+      "Generate Shape critique questions",
+      "shape_critique_result",
+    ),
+    HelpEntry(
+      "shape respond",
+      "phase",
+      "<session-id>",
+      "--answers=<file>",
+      "Process Shape critique responses",
+      "shape_respond_result",
+    ),
+    HelpEntry(
+      "shape agree",
+      "phase",
+      "<session-id>",
+      "",
+      "Finalize Shape phase agreement",
+      "shape_agree_result",
+    ),
+    HelpEntry(
+      "ready start",
+      "phase",
+      "<spec.cue>",
+      "",
+      "Initialize Ready phase session",
+      "ready_start_result",
+    ),
+    HelpEntry(
+      "ready check",
+      "phase",
+      "<session-id>",
+      "",
+      "Validate Ready phase completeness",
+      "ready_check_result",
+    ),
+    HelpEntry(
+      "ready critique",
+      "phase",
+      "<session-id>",
+      "",
+      "Generate Ready critique questions",
+      "ready_critique_result",
+    ),
+    HelpEntry(
+      "ready respond",
+      "phase",
+      "<session-id>",
+      "--answers=<file>",
+      "Process Ready critique responses",
+      "ready_respond_result",
+    ),
+    HelpEntry(
+      "ready agree",
+      "phase",
+      "<session-id>",
+      "",
+      "Finalize Ready phase agreement",
+      "ready_agree_result",
+    ),
     // Utilities
-    HelpEntry("parse", "utility", "<file>", "", "Quick EARS validation of requirements file", "parse_result"),
-    HelpEntry("analyze", "utility", "<spec.cue>", "", "Alias for quality command", "quality_result"),
-    HelpEntry("ai schema", "utility", "", "--all --list --command=<cmd> --type=input|output", "JSON schema docs for all commands", "schema_result"),
-    HelpEntry("ai aggregate", "utility", "<spec.cue>", "", "Run all analyses at once", "aggregate_result"),
-    HelpEntry("help", "utility", "[command]", "", "Show this help", "help_result"),
+    HelpEntry(
+      "parse",
+      "utility",
+      "<file>",
+      "",
+      "Quick EARS validation of requirements file",
+      "parse_result",
+    ),
+    HelpEntry(
+      "analyze",
+      "utility",
+      "<spec.cue>",
+      "",
+      "Alias for quality command",
+      "quality_result",
+    ),
+    HelpEntry(
+      "ai schema",
+      "utility",
+      "",
+      "--all --list --command=<cmd> --type=input|output",
+      "JSON schema docs for all commands",
+      "schema_result",
+    ),
+    HelpEntry(
+      "ai aggregate",
+      "utility",
+      "<spec.cue>",
+      "",
+      "Run all analyses at once",
+      "aggregate_result",
+    ),
+    HelpEntry(
+      "help",
+      "utility",
+      "[command]",
+      "",
+      "Show this help",
+      "help_result",
+    ),
   ]
 }
 
 fn help_workflow_steps() -> List(#(Int, String, String)) {
   [
-    #(1, "Start an interview to discover your API spec", "intent interview --profile=api"),
-    #(2, "List sessions to find your session ID", "intent sessions --profile=api"),
-    #(3, "Export the interview to a CUE spec file", "intent export <session-id> --output=spec.cue"),
+    #(
+      1,
+      "Start an interview to discover your API spec",
+      "intent interview --profile=api",
+    ),
+    #(
+      2,
+      "List sessions to find your session ID",
+      "intent sessions --profile=api",
+    ),
+    #(
+      3,
+      "Export the interview to a CUE spec file",
+      "intent export <session-id> --output=spec.cue",
+    ),
     #(4, "Validate the spec", "intent validate spec.cue"),
     #(5, "Analyze spec quality", "intent quality spec.cue"),
     #(6, "Find gaps in coverage", "intent gaps spec.cue"),
@@ -209,10 +576,7 @@ pub fn diff_command() -> glint.Command(Nil) {
             "diff_usage",
             "diff",
             json.object([
-              #(
-                "usage",
-                json.string("intent diff <spec1.cue> <spec2.cue>"),
-              ),
+              #("usage", json.string("intent diff <spec1.cue> <spec2.cue>")),
               #(
                 "description",
                 json.string("Compare two spec versions and show differences"),
@@ -246,9 +610,7 @@ pub fn help_command() -> glint.Command(Nil) {
             "help_command",
             "help",
             json.object([
-              #("hint", json.string(
-                "intent " <> command_name <> " --help",
-              )),
+              #("hint", json.string("intent " <> command_name <> " --help")),
             ]),
             None,
             [
@@ -268,60 +630,69 @@ pub fn help_command() -> glint.Command(Nil) {
         let data =
           json.object([
             #("tool", json.string("intent")),
-            #("purpose", json.string(
-              "Contract-driven API testing. CUE specs to HTTP tests to verification.",
-            )),
+            #(
+              "purpose",
+              json.string(
+                "Contract-driven API testing. CUE specs to HTTP tests to verification.",
+              ),
+            ),
             #("usage", json.string("intent <command> [args] [flags]")),
-            #("output_format", json.string(
-              "All commands return JSON: {success, action, command, data, errors, next_actions, metadata}",
-            )),
-            #("exit_codes", json.object([
-              #("0", json.string("success")),
-              #("1", json.string("spec failure")),
-              #("3", json.string("invalid input")),
-              #("4", json.string("error")),
-            ])),
-            #("workflow", json.array(workflow, fn(step) {
+            #(
+              "output_format",
+              json.string(
+                "All commands return JSON: {success, action, command, data, errors, next_actions, metadata}",
+              ),
+            ),
+            #(
+              "exit_codes",
               json.object([
-                #("step", json.int(step.0)),
-                #("description", json.string(step.1)),
-                #("command", json.string(step.2)),
-              ])
-            })),
-            #("commands", json.array(commands, fn(cmd) {
-              json.object([
-                #("command", json.string(cmd.command)),
-                #("group", json.string(cmd.group)),
-                #("args", json.string(cmd.args)),
-                #("flags", json.string(cmd.flags)),
-                #("description", json.string(cmd.description)),
-                #("output_action", json.string(cmd.output_action)),
-              ])
-            })),
+                #("0", json.string("success")),
+                #("1", json.string("spec failure")),
+                #("3", json.string("invalid input")),
+                #("4", json.string("error")),
+              ]),
+            ),
+            #(
+              "workflow",
+              json.array(workflow, fn(step) {
+                json.object([
+                  #("step", json.int(step.0)),
+                  #("description", json.string(step.1)),
+                  #("command", json.string(step.2)),
+                ])
+              }),
+            ),
+            #(
+              "commands",
+              json.array(commands, fn(cmd) {
+                json.object([
+                  #("command", json.string(cmd.command)),
+                  #("group", json.string(cmd.group)),
+                  #("args", json.string(cmd.args)),
+                  #("flags", json.string(cmd.flags)),
+                  #("description", json.string(cmd.description)),
+                  #("output_action", json.string(cmd.output_action)),
+                ])
+              }),
+            ),
             #("total_commands", json.int(list.length(commands))),
           ])
 
         let response =
-          json_output.success(
-            "help_result",
-            "help",
-            data,
-            None,
-            [
-              json_output.next_action(
-                "intent sessions --profile=api",
-                "List existing interview sessions",
-              ),
-              json_output.next_action(
-                "intent interview --profile=api",
-                "Start a new API spec interview",
-              ),
-              json_output.next_action(
-                "intent ai schema --all",
-                "Get JSON schemas for all command inputs/outputs",
-              ),
-            ],
-          )
+          json_output.success("help_result", "help", data, None, [
+            json_output.next_action(
+              "intent sessions --profile=api",
+              "List existing interview sessions",
+            ),
+            json_output.next_action(
+              "intent interview --profile=api",
+              "Start a new API spec interview",
+            ),
+            json_output.next_action(
+              "intent ai schema --all",
+              "Get JSON schemas for all command inputs/outputs",
+            ),
+          ])
         json_output.output(response)
         halt(exit_pass)
       }
@@ -331,7 +702,12 @@ pub fn help_command() -> glint.Command(Nil) {
             "help_error",
             "help",
             json.object([]),
-            [json_output.error("TOO_MANY_ARGS", "Expected: intent help [command]")],
+            [
+              json_output.error(
+                "TOO_MANY_ARGS",
+                "Expected: intent help [command]",
+              ),
+            ],
             None,
             [],
             exit_error,

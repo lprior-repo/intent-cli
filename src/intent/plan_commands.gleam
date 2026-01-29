@@ -1,10 +1,9 @@
 /// Plan Commands Module
 /// Commands for execution plan generation and approval from interview sessions.
-
 import gleam/io
 import gleam/json
 import gleam/list
-import gleam/option.{Some, None}
+import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import glint
@@ -17,7 +16,6 @@ import simplifile
 
 // Exit codes
 const exit_pass = 0
-
 
 const exit_error = 4
 

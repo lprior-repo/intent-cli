@@ -6,7 +6,6 @@
 /// - shape_critique: generate critique questions for spec
 /// - shape_respond: process critique responses
 /// - shape_agree: finalize shape phase agreement
-
 import gleam/json
 import gleam/option.{None}
 import gleam/result

@@ -42,8 +42,7 @@ pub fn main() {
   io.println("    " <> cli_consistency.format_result(check_result))
 
   io.println("  - validate_show_command (all correct):")
-  let show_result =
-    cli_consistency.validate_show_command(True, True, True)
+  let show_result = cli_consistency.validate_show_command(True, True, True)
   io.println("    " <> cli_consistency.format_result(show_result))
 
   io.println("  - validate_doctor_command (all correct):")

@@ -2,7 +2,6 @@
 ///
 /// Extracts KIRK analysis commands (quality, invert, coverage, gaps, effects, ears)
 /// and parse command from intent.gleam.
-
 import gleam/dict
 import gleam/io
 import gleam/json
@@ -14,8 +13,8 @@ import glint
 import glint/flag
 import intent/json_output
 import intent/kirk/coverage_analyzer
-import intent/kirk/effects_analyzer
 import intent/kirk/ears_parser
+import intent/kirk/effects_analyzer
 import intent/kirk/gap_detector
 import intent/kirk/inversion_checker
 import intent/loader
@@ -968,9 +967,7 @@ pub fn parse_command() -> glint.Command(Nil) {
       }
       [] -> {
         io.println_error("requirements file path required")
-        io.println(
-          "Usage: intent parse <requirements.ears.md> [-o spec.cue]",
-        )
+        io.println("Usage: intent parse <requirements.ears.md> [-o spec.cue]")
         io.println("")
         io.println(
           "Parse EARS-formatted requirements and output structured CUE spec.",

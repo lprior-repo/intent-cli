@@ -97,15 +97,11 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/users",
-      headers: dict.new(),
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
     Behavior(
@@ -117,15 +113,11 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/user",
-      headers: dict.new(),
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
     Behavior(
@@ -137,15 +129,11 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/users/${id}",
-      headers: dict.new(),
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
     Behavior(
@@ -157,15 +145,11 @@ pub fn analyze_empathy_attention_similar_endpoints_test() {
       request: Request(
         method: Get,
         path: "/user/${id}",
-      headers: dict.new(),
+        headers: dict.new(),
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]
@@ -207,11 +191,7 @@ pub fn analyze_empathy_expertise_technical_jargon_test() {
           ),
         ]),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]
@@ -238,7 +218,7 @@ pub fn analyze_empathy_many_required_fields_test() {
       request: Request(
         method: Post,
         path: "/resources",
-      headers: dict.new(),
+        headers: dict.new(),
         query: dict.new(),
         body: json.object([
           #("field1", json.string("value1")),
@@ -253,11 +233,7 @@ pub fn analyze_empathy_many_required_fields_test() {
           #("field10", json.string("value10")),
         ]),
       ),
-      response: Response(
-        status: 201,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 201, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]

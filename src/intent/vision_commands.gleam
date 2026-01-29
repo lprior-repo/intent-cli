@@ -30,7 +30,10 @@ pub fn vision_group_command() -> glint.Command(Nil) {
     let data =
       json.object([
         #("phase", json.string("vision")),
-        #("description", json.string("Phase 1: Shape the product vision before building")),
+        #(
+          "description",
+          json.string("Phase 1: Shape the product vision before building"),
+        ),
         #(
           "subcommands",
           json.array(

@@ -838,11 +838,7 @@ fn make_behavior_with_path(
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-    ),
+    response: Response(status: 200, example: json.null(), checks: dict.new()),
     captures: dict.new(),
   )
 }
@@ -867,11 +863,7 @@ fn make_behavior_with_capture(
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-    ),
+    response: Response(status: 200, example: json.null(), checks: dict.new()),
     captures: dict.from_list([#(capture_name, capture_path)]),
   )
 }
@@ -895,11 +887,7 @@ fn make_behavior_with_captures(
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-    ),
+    response: Response(status: 200, example: json.null(), checks: dict.new()),
     captures: dict.from_list(captures),
   )
 }
@@ -924,11 +912,7 @@ fn make_behavior_with_header(
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-    ),
+    response: Response(status: 200, example: json.null(), checks: dict.new()),
     captures: dict.new(),
   )
 }
@@ -952,11 +936,7 @@ fn make_behavior_with_checks(
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: checks,
-    ),
+    response: Response(status: 200, example: json.null(), checks: checks),
     captures: dict.new(),
   )
 }
@@ -982,11 +962,7 @@ fn make_behavior_with_path_and_header(
       query: dict.new(),
       body: json.null(),
     ),
-    response: Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-    ),
+    response: Response(status: 200, example: json.null(), checks: dict.new()),
     captures: dict.new(),
   )
 }

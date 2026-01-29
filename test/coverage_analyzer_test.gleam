@@ -89,11 +89,7 @@ pub fn analyze_coverage_path_normalization_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     )
   let spec = test_helpers.make_test_spec_from_behaviors([behavior])
@@ -128,11 +124,7 @@ pub fn analyze_coverage_owasp_keywords_test() {
           #("password", json.string("secret")),
         ]),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
     Behavior(
@@ -148,11 +140,7 @@ pub fn analyze_coverage_owasp_keywords_test() {
         query: dict.new(),
         body: json.null(),
       ),
-      response: Response(
-        status: 401,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 401, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]
@@ -215,11 +203,7 @@ pub fn analyze_coverage_edge_cases_test() {
         ]),
         body: json.null(),
       ),
-      response: Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-      ),
+      response: Response(status: 200, example: json.null(), checks: dict.new()),
       captures: dict.new(),
     ),
   ]

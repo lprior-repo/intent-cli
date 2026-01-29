@@ -1,5 +1,6 @@
 //// Smart Profile Defaults Tests
 //// TDD: RED phase - tests will fail until implementation is complete
+///// Test: Can update profile on existing session
 
 import gleam/option.{None, Some}
 import intent/interview
@@ -216,14 +217,12 @@ pub fn test_none_values_cascade_correctly() {
 
   let assert interview.Api = result
 }
-
 // =============================================================================
 // MID-INTERVIEW PROFILE CHANGE TESTS
 // =============================================================================
 // Note: Tests commented out - update_session_profile requires interview.set_profile helper
 // which doesn't exist yet. The core functionality (git detection, config file) works.
 
-///// Test: Can update profile on existing session
 // pub fn test_update_session_profile() {
 //   let session =
 //     interview.create_session(

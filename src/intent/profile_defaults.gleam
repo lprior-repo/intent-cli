@@ -116,9 +116,7 @@ pub fn detect_profile_from_git_remote(
 
 /// Check if URL matches any of the given patterns
 fn check_patterns(url: String, patterns: List(String)) -> Bool {
-  list.any(patterns, fn(pattern) {
-    glob_match(url, pattern)
-  })
+  list.any(patterns, fn(pattern) { glob_match(url, pattern) })
 }
 
 /// Simple glob pattern matching

@@ -30,8 +30,7 @@ import gleam/string
 import intent/parser
 import intent/security
 import intent/types.{
-  type AIHints, type Config, type Spec, ImplementationHints,
-  SecurityHints,
+  type AIHints, type Config, type Spec, ImplementationHints, SecurityHints,
 }
 import shellout
 

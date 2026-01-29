@@ -1,7 +1,6 @@
 /// Analysis Commands Module
 ///
 /// Handles quality analysis, improvement suggestions, and health checks
-
 import gleam/io
 import gleam/json
 import gleam/list
@@ -19,7 +18,6 @@ import intent/types
 // Exit codes
 const exit_pass = 0
 
-
 const exit_invalid = 3
 
 const exit_error = 4
@@ -28,7 +26,10 @@ const exit_error = 4
 fn halt(code: Int) -> Nil
 
 /// Load spec with optional JSON-only mode (no pretty printing errors)
-fn load_spec_for_mode(path: String, json_mode: Bool) -> Result(types.Spec, loader.LoadError) {
+fn load_spec_for_mode(
+  path: String,
+  json_mode: Bool,
+) -> Result(types.Spec, loader.LoadError) {
   case json_mode {
     True -> loader.load_spec_quiet(path)
     False -> loader.load_spec(path)

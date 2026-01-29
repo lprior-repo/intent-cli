@@ -2,7 +2,6 @@
 ///
 /// Handles all bead-related commands for managing work items, feedback, and prompts.
 /// Beads are atomic 5-30min work units generated from interview sessions or specs.
-
 import gleam/io
 import gleam/json
 import gleam/list
@@ -62,7 +61,6 @@ fn current_iso8601_timestamp() -> String {
 }
 
 /// Generate a UUID v4 string
-
 /// Convert bead feedback error to string message
 fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
   case err {
