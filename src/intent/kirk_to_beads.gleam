@@ -5,11 +5,9 @@
 
 import gleam/dict
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
-import gleam/result
 import gleam/string
 import intent/enhanced_bead_generator.{
   type EnhancedBead, AcceptanceCriterion, EnhancedBead, KirkSource, TestCase,
@@ -684,7 +682,7 @@ fn from_dict(list: List(#(a, b))) -> dict.Dict(a, b) {
 // =============================================================================
 
 /// Assign parallel groups (waves) to beads based on dependencies
-/// Beads in the same wave can be executed in parallel
+/// Beads in same wave can be executed in parallel
 pub fn assign_parallel_groups(beads: List(EnhancedBead)) -> List(EnhancedBead) {
   let sorted_by_round =
     list.sort(beads, fn(a, b) {
@@ -704,91 +702,64 @@ pub fn assign_parallel_groups(beads: List(EnhancedBead)) -> List(EnhancedBead) {
       }
     })
 
-  assign_waves_loop(sorted_by_round, [], [], 1)
+  build_waves(sorted_by_round, [], [], 1)
 }
 
-fn assign_waves_loop(
-  remaining: List(EnhancedBead),
-  assigned: List(EnhancedBead),
-  current_wave_beads: List(String),
+fn build_waves(
+  beads: List(EnhancedBead),
+  completed: List(EnhancedBead),
+  completed_ids: List(String),
   wave_number: Int,
 ) -> List(EnhancedBead) {
-  case remaining {
-    [] -> {
-      let final_wave =
-        list.map(current_wave_beads, fn(id) {
-          list.find(assigned, fn(b) { b.id == id })
-          |> result.unwrap(fail_bead_lookup(id))
-        })
-      list.reverse(list.append(assigned, final_wave))
-    }
-    [head, ..tail] -> {
-      // Check if bead's dependencies are satisfied
-      let deps_satisfied =
-        list.all(head.dependencies, fn(dep_id) {
-          list.contains(current_wave_beads, dep_id)
-          || list.any(assigned, fn(b) { b.id == dep_id })
+  case beads {
+    [] -> list.reverse(completed)
+    _ -> {
+      // Find all beads that can be in next wave
+      let #(ready_beads, remaining_beads) =
+        list.partition(beads, fn(bead) {
+          list.all(bead.dependencies, fn(dep_id) {
+            list.contains(completed_ids, dep_id)
+          })
         })
 
-      case deps_satisfied {
-        True -> {
-          // Add to current wave
-          let updated_bead = EnhancedBead(..head, blocks: current_wave_beads)
-          assign_waves_loop(
-            tail,
-            [updated_bead, ..assigned],
-            [head.id, ..current_wave_beads],
-            wave_number,
-          )
+      case ready_beads {
+        [] -> {
+          // No beads ready - circular dependency or missing dependencies
+          // Force next bead with warning
+          case remaining_beads {
+            [next_bead, ..rest] -> {
+              build_waves(
+                rest,
+                [next_bead, ..completed],
+                [next_bead.id, ..completed_ids],
+                wave_number + 1,
+              )
+            }
+            [] -> list.reverse(completed)
+          }
         }
-        False -> {
-          // Start new wave
-          let previous_wave =
-            list.map(current_wave_beads, fn(id) {
-              list.find(assigned, fn(b) { b.id == id })
-              |> result.unwrap(fail_bead_lookup(id))
+        _ -> {
+          // Create wave with ready beads
+          let wave_with_blocks =
+            list.map(ready_beads, fn(bead) {
+              let other_in_wave =
+                list.filter(ready_beads, fn(b) { b.id != bead.id })
+                |> list.map(fn(b) { b.id })
+              EnhancedBead(..bead, blocks: other_in_wave)
             })
-          let updated_assigned = list.append(assigned, previous_wave)
-          assign_waves_loop(
-            [head, ..tail],
-            updated_assigned,
-            [head.id],
+
+          let wave_ids = list.map(wave_with_blocks, fn(b) { b.id })
+
+          build_waves(
+            remaining_beads,
+            list.append(list.reverse(wave_with_blocks), completed),
+            list.append(list.reverse(wave_ids), completed_ids),
             wave_number + 1,
           )
         }
       }
     }
   }
-}
-
-fn fail_bead_lookup(id: String) -> EnhancedBead {
-  io.debug("Bead not found: " <> id)
-  // Return a minimal bead as fallback
-  EnhancedBead(
-    id: "unknown-" <> id,
-    title: "Unknown Bead",
-    description: "Bead lookup failed",
-    source_type: "error",
-    kirk_sources: [],
-    spec_path: None,
-    behavior_name: None,
-    ears_patterns: [],
-    contracts: enhanced_bead_generator.empty_contracts(),
-    scenarios: [],
-    acceptance_criteria: [],
-    types_needed: [],
-    effort: "0min",
-    priority: 4,
-    status: "error",
-    dependencies: [],
-    blocks: [],
-    round: 1,
-    profile_type: "api",
-    issue_type: "error",
-    labels: ["error"],
-    ai_hints: "",
-    pitfalls: [],
-  )
 }
 
 // =============================================================================

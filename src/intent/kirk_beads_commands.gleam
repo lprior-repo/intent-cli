@@ -4,7 +4,6 @@
 /// - kirk-beads: Generate enhanced beads from KIRK analysis
 /// - bead-show: Show full bead details
 /// - bead-verify: Verify acceptance criteria
-
 import gleam/dict
 import gleam/int
 import gleam/json
@@ -55,8 +54,7 @@ pub fn kirk_beads_command() -> glint.Command(Nil) {
         case loader.load_spec_quiet(spec_path) {
           Ok(spec) -> {
             // Generate all beads
-            let all_beads =
-              kirk_to_beads.generate_all_beads(spec, spec_path)
+            let all_beads = kirk_to_beads.generate_all_beads(spec, spec_path)
 
             // Apply filters
             let filtered = case round_flag {
@@ -69,38 +67,34 @@ pub fn kirk_beads_command() -> glint.Command(Nil) {
               sev -> kirk_to_beads.filter_by_min_severity(filtered, sev)
             }
 
-            // Group by round
+            // Group by round for summary
             let by_round =
               filtered
               |> list.group(fn(b) { b.round })
+
+            // Build summary by round (without duplicating full bead data)
+            let round_summary =
+              by_round
+              |> dict.to_list
+              |> list.map(fn(pair) {
+                let #(round, beads) = pair
+                #(
+                  "round_" <> int.to_string(round),
+                  json.object([
+                    #("count", json.int(list.length(beads))),
+                    #(
+                      "bead_ids",
+                      json.array(beads, fn(b) { json.string(b.id) }),
+                    ),
+                  ]),
+                )
+              })
 
             // Build output
             let data =
               json.object([
                 #("total", json.int(list.length(filtered))),
-                #(
-                  "by_round",
-                  json.object(
-                    by_round
-                    |> dict.to_list
-                    |> list.map(fn(pair) {
-                      let #(round, beads) = pair
-                      #(
-                        "round_" <> int.to_string(round),
-                        json.object([
-                          #("count", json.int(list.length(beads))),
-                          #(
-                            "beads",
-                            json.array(
-                              beads,
-                              enhanced_bead_generator.enhanced_bead_to_json,
-                            ),
-                          ),
-                        ]),
-                      )
-                    }),
-                  ),
-                ),
+                #("by_round", json.object(round_summary)),
                 #(
                   "beads",
                   json.array(
@@ -178,7 +172,9 @@ pub fn kirk_beads_command() -> glint.Command(Nil) {
     "min-severity",
     flag.string()
       |> flag.default("")
-      |> flag.description("Minimum severity to include (low, medium, high, critical)"),
+      |> flag.description(
+        "Minimum severity to include (low, medium, high, critical)",
+      ),
   )
 }
 
@@ -225,7 +221,8 @@ pub fn bead_show_command() -> glint.Command(Nil) {
 
                 case list.find(all_beads, fn(b) { b.id == bead_id }) {
                   Ok(bead) -> {
-                    let data = enhanced_bead_generator.enhanced_bead_to_json(bead)
+                    let data =
+                      enhanced_bead_generator.enhanced_bead_to_json(bead)
                     let response =
                       json_output.success(
                         "bead_show_result",
@@ -234,7 +231,10 @@ pub fn bead_show_command() -> glint.Command(Nil) {
                         Some(spec_path),
                         [
                           json_output.next_action(
-                            "intent bead-verify " <> bead_id <> " --spec=" <> spec_path,
+                            "intent bead-verify "
+                              <> bead_id
+                              <> " --spec="
+                              <> spec_path,
                             "Verify acceptance criteria",
                           ),
                         ],
@@ -378,7 +378,10 @@ pub fn bead_verify_command() -> glint.Command(Nil) {
                         json.object([
                           #("id", json.string(ac.id)),
                           #("description", json.string(ac.description)),
-                          #("verification_type", json.string(ac.verification_type)),
+                          #(
+                            "verification_type",
+                            json.string(ac.verification_type),
+                          ),
                           #(
                             "check_expression",
                             json.nullable(ac.check_expression, json.string),
