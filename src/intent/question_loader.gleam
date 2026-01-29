@@ -6,6 +6,8 @@ import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
+import intent/decode_utils
+import intent/option_helpers
 import intent/question_types.{
   type Perspective, type Question, type QuestionCategory, type QuestionPriority,
   Business, Constraint, Critical, Dependency, Developer, EdgeCase, ErrorCase,
@@ -164,7 +166,8 @@ fn parse_custom_database(
     Ok(custom) -> Ok(custom)
     Error(errs) ->
       Error(QuestionParseError(
-        "Failed to parse custom questions: " <> format_decode_errors(errs),
+        "Failed to parse custom questions: "
+        <> decode_utils.format_decode_errors(errs),
       ))
   }
 }
@@ -295,7 +298,7 @@ fn parse_database(data: Dynamic) -> Result(QuestionsDatabase, QuestionLoadError)
     Ok(db) -> Ok(db)
     Error(errs) ->
       Error(QuestionParseError(
-        "Failed to parse questions: " <> format_decode_errors(errs),
+        "Failed to parse questions: " <> decode_utils.format_decode_errors(errs),
       ))
   }
 }
@@ -384,10 +387,10 @@ fn parse_question(data: Dynamic) -> Result(Question, List(dynamic.DecodeError)) 
         question: question,
         context: context,
         example: example,
-        expected_type: option.unwrap(expected_type_opt, "text"),
-        extract_into: option.unwrap(extract_into_opt, []),
-        depends_on: option.unwrap(depends_on_opt, []),
-        blocks: option.unwrap(blocks_opt, []),
+        expected_type: option_helpers.unwrap_string(expected_type_opt, "text"),
+        extract_into: option_helpers.unwrap_string_list(extract_into_opt, []),
+        depends_on: option_helpers.unwrap_string_list(depends_on_opt, []),
+        blocks: option_helpers.unwrap_string_list(blocks_opt, []),
       ))
     }
     Error(errs), _ -> Error(errs)
@@ -425,14 +428,6 @@ fn parse_priority(s: String) -> QuestionPriority {
     "nice_to_have" -> NiceTohave
     _ -> Important
   }
-}
-
-fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
-  errors
-  |> list.map(fn(e) {
-    "Expected " <> e.expected <> " at " <> string.join(e.path, ".")
-  })
-  |> string.join(", ")
 }
 
 /// Get questions for a specific profile and round from a loaded database

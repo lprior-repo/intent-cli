@@ -18,6 +18,7 @@ import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
+import intent/option_helpers
 import intent/types.{
   type AntiPattern, type Behavior, type Check, type Config, type Feature,
   type Request, type Response, type Rule, type RuleCheck, type Spec, type When,
@@ -214,8 +215,8 @@ fn compare_config(old: Config, new: Config) -> List(ConfigChange) {
     True -> changes
     False -> [
       AllowLocalhostChanged(
-        option.unwrap(old.allow_localhost, False),
-        option.unwrap(new.allow_localhost, False),
+        option_helpers.unwrap_bool(old.allow_localhost, False),
+        option_helpers.unwrap_bool(new.allow_localhost, False),
       ),
       ..changes
     ]

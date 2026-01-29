@@ -24,9 +24,10 @@
 import gleam/dict
 import gleam/dynamic
 import gleam/json
-import gleam/list
 import gleam/option
 import gleam/string
+import intent/decode_utils
+import intent/option_helpers
 import intent/parser
 import intent/security
 import intent/types.{
@@ -127,7 +128,7 @@ pub fn parse_json_to_spec(json_str: String) -> Result(Spec, LoadError) {
 /// Returns False as default if not specified in config
 /// Defaults are applied in shell layer, not core parser
 pub fn get_allow_localhost(config: Config) -> Bool {
-  option.unwrap(config.allow_localhost, False)
+  option_helpers.unwrap_bool(config.allow_localhost, False)
 }
 
 /// Get ai_hints with shell-layer default (PURE - no I/O)
@@ -156,35 +157,35 @@ pub fn get_ai_hints(spec: Spec) -> AIHints {
 pub fn get_rule_check_body_must_not_contain(
   rule_check: types.RuleCheck,
 ) -> List(String) {
-  option.unwrap(rule_check.body_must_not_contain, [])
+  option_helpers.unwrap_string_list(rule_check.body_must_not_contain, [])
 }
 
 pub fn get_rule_check_body_must_contain(
   rule_check: types.RuleCheck,
 ) -> List(String) {
-  option.unwrap(rule_check.body_must_contain, [])
+  option_helpers.unwrap_string_list(rule_check.body_must_contain, [])
 }
 
 pub fn get_rule_check_fields_must_exist(
   rule_check: types.RuleCheck,
 ) -> List(String) {
-  option.unwrap(rule_check.fields_must_exist, [])
+  option_helpers.unwrap_string_list(rule_check.fields_must_exist, [])
 }
 
 pub fn get_rule_check_fields_must_not_exist(
   rule_check: types.RuleCheck,
 ) -> List(String) {
-  option.unwrap(rule_check.fields_must_not_exist, [])
+  option_helpers.unwrap_string_list(rule_check.fields_must_not_exist, [])
 }
 
 pub fn get_rule_check_header_must_exist(rule_check: types.RuleCheck) -> String {
-  option.unwrap(rule_check.header_must_exist, "")
+  option_helpers.unwrap_string(rule_check.header_must_exist, "")
 }
 
 pub fn get_rule_check_header_must_not_exist(
   rule_check: types.RuleCheck,
 ) -> String {
-  option.unwrap(rule_check.header_must_not_exist, "")
+  option_helpers.unwrap_string(rule_check.header_must_not_exist, "")
 }
 
 // ============================================================================
@@ -334,39 +335,6 @@ fn json_error_to_decode_errors(
   }
 }
 
-fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
-  case errors {
-    [] -> "Unknown decode error"
-    [error] -> format_single_decode_error(error)
-    multiple -> {
-      "Multiple decode errors:\n"
-      <> string.join(
-        list.map(multiple, fn(e) { "  • " <> format_single_decode_error(e) }),
-        "\n",
-      )
-    }
-  }
-}
-
-fn format_single_decode_error(error: dynamic.DecodeError) -> String {
-  let path_str = case error.path {
-    [] -> "at root"
-    path_parts ->
-      "at "
-      <> string.join(path_parts, ".")
-      <> " (path: ."
-      <> string.join(path_parts, ".")
-      <> ")"
-  }
-
-  "Expected "
-  <> error.expected
-  <> " but found "
-  <> error.found
-  <> " "
-  <> path_str
-}
-
 /// Format a LoadError as a human-readable string
 pub fn format_error(error: LoadError) -> String {
   case error {
@@ -393,9 +361,9 @@ pub fn format_error(error: LoadError) -> String {
       <> stderr
     }
     JsonDecodeFailed(errors) ->
-      "JSON decode error:\n" <> format_decode_errors(errors)
+      "JSON decode error:\n" <> decode_utils.format_decode_errors(errors)
     SpecParseFailed(errors) ->
-      "Spec parse error:\n" <> format_decode_errors(errors)
+      "Spec parse error:\n" <> decode_utils.format_decode_errors(errors)
     SecurityError(msg) -> {
       let enhanced = enhance_security_error(msg)
       enhanced

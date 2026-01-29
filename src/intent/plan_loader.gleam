@@ -22,8 +22,8 @@
 /// Pattern follows intent/loader.gleam for consistency
 import gleam/dynamic
 import gleam/json
-import gleam/list
 import gleam/string
+import intent/decode_utils
 import intent/parser
 import intent/planning_types.{type Plan}
 import intent/security
@@ -223,39 +223,6 @@ fn json_error_to_decode_errors(
   }
 }
 
-fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
-  case errors {
-    [] -> "Unknown decode error"
-    [error] -> format_single_decode_error(error)
-    multiple -> {
-      "Multiple decode errors:\n"
-      <> string.join(
-        list.map(multiple, fn(e) { "  • " <> format_single_decode_error(e) }),
-        "\n",
-      )
-    }
-  }
-}
-
-fn format_single_decode_error(error: dynamic.DecodeError) -> String {
-  let path_str = case error.path {
-    [] -> "at root"
-    path_parts ->
-      "at "
-      <> string.join(path_parts, ".")
-      <> " (path: ."
-      <> string.join(path_parts, ".")
-      <> ")"
-  }
-
-  "Expected "
-  <> error.expected
-  <> " but found "
-  <> error.found
-  <> " "
-  <> path_str
-}
-
 /// Format a LoadPlanError as a human-readable string
 pub fn format_error(error: LoadPlanError) -> String {
   case error {
@@ -275,9 +242,9 @@ pub fn format_error(error: LoadPlanError) -> String {
       <> "):\n"
       <> stderr
     JsonDecodeFailed(errors) ->
-      "JSON decode error:\n" <> format_decode_errors(errors)
+      "JSON decode error:\n" <> decode_utils.format_decode_errors(errors)
     PlanParseFailed(errors) ->
-      "Plan parse error:\n" <> format_decode_errors(errors)
+      "Plan parse error:\n" <> decode_utils.format_decode_errors(errors)
     SecurityError(msg) -> msg
   }
 }
