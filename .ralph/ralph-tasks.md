@@ -1,7 +1,7 @@
 # Ralph Tasks
 
 - [x] Codebase understanding - Read gleam.toml, AGENTS.md, README, list src/ files, verify build/test
-- [ ] Beads integration - Check bd status, run bd ready, understand issues.jsonl, run bv triage
+- [x] Beads integration - Check bd status, run bd ready, understand issues.jsonl, run bv triage
 - [ ] Codebase interrogation - Analyze all src/intent/*.gleam files for quality issues
 - [ ] TDD15 workflow setup - Load tdd15-gleam skill and apply to first code issue
 - [ ] Beads issue resolution - Work through beads issues systematically using TDD
