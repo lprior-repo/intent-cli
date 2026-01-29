@@ -1,0 +1,174 @@
+{
+  "features": [
+    {
+      "category": "codebase-understanding",
+      "description": "Read and comprehend project structure, tech stack, and architecture",
+      "steps": [
+        "Read gleam.toml to understand dependencies and project configuration",
+        "Read AGENTS.md to understand project instructions and workflow",
+        "Read README.md if available for project overview",
+        "List all files in src/ directory to understand module structure",
+        "Read src/intent.gleam to understand CLI entry point",
+        "Verify project compiles with 'gleam build'",
+        "Verify tests pass with 'gleam test'",
+        "Document key findings about architecture and tech stack"
+      ],
+      "passes": false
+    },
+    {
+      "category": "beads-integration",
+      "description": "Initialize and sync with beads issue tracking system",
+      "steps": [
+        "Run 'bd status' to check beads installation",
+        "Run 'bd ready' to list unblocked issues",
+        "Read .beads/issues.jsonl to understand issue structure",
+        "Document current issue state and priorities",
+        "Run 'bv --robot-triage' to get comprehensive issue analysis",
+        "Identify high-priority issues (0-1) to tackle first"
+      ],
+      "passes": false
+    },
+    {
+      "category": "codebase-interrogation",
+      "description": "Analyze each source file for code quality and opportunities",
+      "steps": [
+        "Read src/intent/types.gleam to understand core type definitions",
+        "Read src/intent/parser.gleam to understand JSON parsing logic",
+        "Read src/intent/loader.gleam to understand CUE file loading",
+        "Read src/intent/runner.gleam to understand test orchestration",
+        "Read src/intent/checker.gleam to understand validation logic",
+        "Read src/intent/http_client.gleam to understand HTTP client implementation",
+        "Read src/intent/resolver.gleam to understand dependency resolution",
+        "Read src/intent/rules_engine.gleam to understand rule evaluation",
+        "Read src/intent/anti_patterns.gleam to understand anti-pattern detection",
+        "Read src/intent/rule.gleam to understand rule parsing",
+        "Read src/intent/interpolate.gleam to understand variable interpolation",
+        "Read src/intent/output.gleam to understand result formatting",
+        "Identify code smells, duplication, and refactoring opportunities",
+        "Document findings with file paths and line numbers"
+      ],
+      "passes": false
+    },
+    {
+      "category": "tdd15-workflow",
+      "description": "Apply 15-phase TDD workflow to refactor identified code issues",
+      "steps": [
+        "Load tdd15-gleam skill to get TDD workflow instructions",
+        "Select first issue or code problem identified",
+        "Phase 0: Verify existing tests for the code being refactored",
+        "Phase 1: Write failing test for new behavior (RED)",
+        "Phase 2: Run test to confirm failure",
+        "Phase 3: Write minimal code to make test pass (GREEN)",
+        "Phase 4: Run test to confirm passing",
+        "Phase 5: Refactor code while keeping tests green",
+        "Phase 6-15: Apply additional TDD phases as needed",
+        "Verify all tests still pass with 'gleam test'",
+        "Verify build succeeds with 'gleam build'",
+        "Commit changes with descriptive message"
+      ],
+      "passes": false
+    },
+    {
+      "category": "beads-issue-resolution",
+      "description": "Work through beads issues systematically using TDD",
+      "steps": [
+        "Run 'bd ready' to get next available issue",
+        "Read issue details from .beads/issues.jsonl",
+        "Claim issue with 'bd update <id> --status in_progress'",
+        "Apply tdd15-gleam workflow to implement or fix the issue",
+        "Write tests first, then implementation",
+        "Verify all tests pass",
+        "Update issue with 'bd close <id> --reason \"Completed via TDD\"'",
+        "Sync beads state with 'bd sync'",
+        "Commit changes including .beads/issues.jsonl",
+        "Proceed to next issue"
+      ],
+      "passes": false
+    },
+    {
+      "category": "quality-gates",
+      "description": "Run all quality checks to ensure code health",
+      "steps": [
+        "Run 'gleam build' to verify compilation",
+        "Run 'gleam test' to verify all tests pass",
+        "Check for test coverage gaps",
+        "Run 'gleam format' to ensure code formatting",
+        "Verify no compiler warnings",
+        "Document any quality issues found"
+      ],
+      "passes": false
+    },
+    {
+      "category": "code-consolidation",
+      "description": "Identify and eliminate code duplication across modules",
+      "steps": [
+        "Search for duplicate function patterns across src/ files",
+        "Identify common patterns in error handling",
+        "Identify common patterns in HTTP request/response handling",
+        "Identify common patterns in type conversions",
+        "Extract common utilities to shared modules",
+        "Update callers to use consolidated functions",
+        "Verify all tests still pass",
+        "Refactor for DRY (Don't Repeat Yourself) principle"
+      ],
+      "passes": false
+    },
+    {
+      "category": "error-handling-review",
+      "description": "Improve error handling throughout the codebase",
+      "steps": [
+        "Review all functions returning Result types",
+        "Ensure proper error messages are provided",
+        "Verify error types are meaningful and actionable",
+        "Add error context where missing",
+        "Ensure errors bubble up appropriately",
+        "Add tests for error cases",
+        "Verify error handling follows Gleam best practices"
+      ],
+      "passes": false
+    },
+    {
+      "category": "documentation-update",
+      "description": "Ensure code and documentation are in sync",
+      "steps": [
+        "Verify all public functions have documentation comments",
+        "Update AGENTS.md if workflow has changed",
+        "Check if README.md needs updates based on code changes",
+        "Add inline comments for complex logic",
+        "Document any new APIs or interfaces added"
+      ],
+      "passes": false
+    },
+    {
+      "category": "session-completion",
+      "description": "Complete work session and push changes to remote",
+      "steps": [
+        "File beads issues for any discovered but unaddressed work",
+        "Run all quality gates (build, test, format)",
+        "Close finished beads issues",
+        "Run 'git pull --rebase' to sync with remote",
+        "Run 'bd sync' to sync issue state",
+        "Run 'git push' to push all changes",
+        "Verify 'git status' shows 'up to date with origin'",
+        "Clean up any stashes or temporary branches",
+        "Provide session summary with context for next iteration"
+      ],
+      "passes": false
+    },
+    {
+      "category": "continuous-improvement",
+      "description": "Iterate through all beads issues until all are resolved",
+      "steps": [
+        "Run 'bd ready' to check for remaining issues",
+        "If issues remain, claim next highest priority issue",
+        "Apply tdd15-gleam workflow to issue",
+        "Complete issue and close in beads",
+        "Repeat until 'bd ready' returns no issues",
+        "Perform final codebase review",
+        "Ensure all tests pass",
+        "Complete session with proper git push"
+      ],
+      "passes": false
+    }
+  ]
+}
