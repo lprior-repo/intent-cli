@@ -3,6 +3,7 @@
 import gleam/dict.{type Dict}
 import gleam/json.{type Json}
 import gleam/option.{type Option}
+import gleam/string
 import intent/planning_types.{type Inversions, type PreMortem, type QualityScore}
 
 /// The main specification type - ai_hints is optional
@@ -78,9 +79,16 @@ pub fn method_to_string(method: Method) -> String {
   }
 }
 
-/// Parse method from string
-pub fn method_from_string(s: String) -> Result(Method, String) {
-  case s {
+/// Error type for method parsing failures
+pub type MethodParseError {
+  UnknownMethod(method: String, available: List(String))
+  EmptyMethod
+}
+
+/// Parse method from string with structured error handling
+pub fn method_from_string(s: String) -> Result(Method, MethodParseError) {
+  case string.trim(s) {
+    "" -> Error(EmptyMethod)
     "GET" -> Ok(Get)
     "POST" -> Ok(Post)
     "PUT" -> Ok(Put)
@@ -88,7 +96,30 @@ pub fn method_from_string(s: String) -> Result(Method, String) {
     "DELETE" -> Ok(Delete)
     "HEAD" -> Ok(Head)
     "OPTIONS" -> Ok(Options)
-    _ -> Error("Unknown HTTP method: " <> s)
+    _ -> {
+      let available = [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "HEAD",
+        "OPTIONS",
+      ]
+      Error(UnknownMethod(method: s, available: available))
+    }
+  }
+}
+
+/// Format a method parse error as a human-readable string
+pub fn format_method_parse_error(error: MethodParseError) -> String {
+  case error {
+    UnknownMethod(method, available) ->
+      "Unknown HTTP method: "
+      <> method
+      <> "\n\nAvailable methods: "
+      <> string.join(available, ", ")
+    EmptyMethod -> "HTTP method cannot be empty"
   }
 }
 

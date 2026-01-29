@@ -103,12 +103,23 @@ pub fn method_from_string_options_test() {
 }
 
 pub fn method_from_string_invalid_test() {
-  // Contract: Invalid method string returns descriptive error
+  // Contract: Invalid method string returns descriptive error with available methods
   let result = types.method_from_string("INVALID")
   case result {
-    Error(msg) -> {
-      msg |> should.equal("Unknown HTTP method: INVALID")
+    Error(types.UnknownMethod(method, available)) -> {
+      method |> should.equal("INVALID")
+      available
+      |> should.equal([
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "HEAD",
+        "OPTIONS",
+      ])
     }
+    Error(types.EmptyMethod) -> should.fail()
     Ok(_) -> should.fail()
   }
 }
@@ -117,6 +128,16 @@ pub fn method_from_string_lowercase_fails_test() {
   // Contract: Lowercase method strings are rejected
   types.method_from_string("get")
   |> should.be_error
+}
+
+pub fn method_from_string_empty_test() {
+  // Contract: Empty method string returns EmptyMethod error
+  let result = types.method_from_string("  ")
+  case result {
+    Error(types.EmptyMethod) -> should.be_ok(Ok(Nil))
+    Error(_) -> should.fail()
+    Ok(_) -> should.fail()
+  }
 }
 
 pub fn method_roundtrip_test() {
