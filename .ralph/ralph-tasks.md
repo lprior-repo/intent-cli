@@ -4,7 +4,7 @@
 - [x] Beads integration - Check bd status, run bd ready, understand issues.jsonl, run bv triage
 - [x] Codebase interrogation - Analyze all src/intent/*.gleam files for quality issues
 - [x] TDD15 workflow setup - Load tdd15-gleam skill and apply to first code issue
-- [ ] Beads issue resolution - Work through beads issues systematically using TDD
+- [x] Beads issue resolution - Work through beads issues systematically using TDD
 - [ ] Quality gates - Run build, test, format, verify no warnings
 - [ ] Code consolidation - Identify and eliminate duplication across modules
 - [ ] Error handling review - Improve error handling throughout codebase
