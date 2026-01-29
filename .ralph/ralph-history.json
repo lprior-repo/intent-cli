@@ -221,14 +221,45 @@
         "pub fn format_method_parse_error(error: MethodParseError) -> String {",
         "\u001b[0;32m1778 tests, 0 failures"
       ]
+    },
+    {
+      "iteration": 9,
+      "startedAt": "2026-01-29T04:31:39.912Z",
+      "endedAt": "2026-01-29T04:33:51.683Z",
+      "durationMs": 131051,
+      "toolsUsed": {
+        "Read": 12,
+        "Edit": 5,
+        "Glob": 1,
+        "Bash": 9
+      },
+      "filesModified": [
+        ".intent/sessions.jsonl",
+        ".ralph/ralph-tasks.md",
+        "src/intent/cli_consistency.gleam",
+        "src/intent/doctor.gleam",
+        "src/intent/exit_codes.gleam"
+      ],
+      "exitCode": 0,
+      "completionDetected": false,
+      "errors": [
+        "src/intent/ai_errors.gleam:pub fn from_load_error(error: loader.LoadError, path: String) -> StructuredError {",
+        "src/intent/ai_errors.gleam:pub fn to_json(error: StructuredError) -> Json {",
+        "src/intent/ai_errors.gleam:pub fn format_text(error: StructuredError) -> String {",
+        "src/intent/ai_errors.gleam:pub fn output_and_halt(error: StructuredError, is_json: Bool) -> Nil {",
+        "src/intent/ai_errors.gleam:pub fn cli_error_from_structured(error: StructuredError) -> CliError {",
+        "src/intent/ai_errors.gleam:pub fn format_cli_error(error: CliError) -> String {",
+        "{\"success\":true,\"action\":\"help_result\",\"command\":\"help\",\"data\":{\"tool\":\"intent\",\"purpose\":\"Contract-driven API testing. CUE specs to HTTP tests to verification.\",\"usage\":\"intent <command> [args] [flag",
+        "\u001b[0;32m1778 tests, 0 failures"
+      ]
     }
   ],
-  "totalDurationMs": 2058251,
+  "totalDurationMs": 2189302,
   "struggleIndicators": {
     "repeatedErrors": {
       "\u001b[0;32m1777 tests, 0 failures": 3,
       "{\"id\":\"intent-cli-uw2s\",\"title\":\"Ralph Loop Iteration 10: P0 ears fix implemented and verified\",\"des": 1,
-      "{\"success\":true,\"action\":\"help_result\",\"command\":\"help\",\"data\":{\"tool\":\"intent\",\"purpose\":\"Contract-": 1,
+      "{\"success\":true,\"action\":\"help_result\",\"command\":\"help\",\"data\":{\"tool\":\"intent\",\"purpose\":\"Contract-": 2,
       "Error: Parse error: Failed to parse config: /home/lewis/src/intent-cli/.zjj/config.toml: TOML parse ": 1,
       "jq: parse error: Invalid numeric literal at line 1, column 8": 1,
       "Error: current phase is 0, not 1": 1,
@@ -244,7 +275,13 @@
       "\u001b[94m\u001b[1m| \u001b[0m\u001b[90m Grep     \u001b[0mfn format_.*\\(error:": 1,
       "error: Type mismatch": 1,
       "pub fn format_method_parse_error(error: MethodParseError) -> String {": 1,
-      "\u001b[0;32m1778 tests, 0 failures": 1
+      "\u001b[0;32m1778 tests, 0 failures": 2,
+      "src/intent/ai_errors.gleam:pub fn from_load_error(error: loader.LoadError, path: String) -> Structur": 1,
+      "src/intent/ai_errors.gleam:pub fn to_json(error: StructuredError) -> Json {": 1,
+      "src/intent/ai_errors.gleam:pub fn format_text(error: StructuredError) -> String {": 1,
+      "src/intent/ai_errors.gleam:pub fn output_and_halt(error: StructuredError, is_json: Bool) -> Nil {": 1,
+      "src/intent/ai_errors.gleam:pub fn cli_error_from_structured(error: StructuredError) -> CliError {": 1,
+      "src/intent/ai_errors.gleam:pub fn format_cli_error(error: CliError) -> String {": 1
     },
     "noProgressIterations": 0,
     "shortIterations": 0

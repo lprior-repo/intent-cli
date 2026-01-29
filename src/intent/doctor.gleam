@@ -1,3 +1,13 @@
+/// Doctor Command - Health and Quality Analysis
+///
+/// Provides comprehensive health checks and quality reports for specifications:
+/// - Quality analysis across 5 dimensions
+/// - Linting for anti-patterns
+/// - Improvement suggestions
+/// - System health checks (CUE binary, config files, schemas)
+///
+/// The doctor command combines multiple analysis tools to provide
+/// actionable recommendations for improving specifications.
 import gleam/io
 import gleam/json.{type Json}
 import gleam/list

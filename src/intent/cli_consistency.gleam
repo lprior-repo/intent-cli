@@ -1,3 +1,14 @@
+/// CLI Command Consistency Checker
+///
+/// Validates command implementations for consistency across:
+/// - Output modes (JSON vs text)
+/// - Exit code usage
+/// - Error output patterns
+/// - Usage message format
+/// - Interactive vs non-interactive behavior
+///
+/// This module ensures all CLI commands follow consistent patterns
+/// and conventions, making the codebase easier to maintain and extend.
 import gleam/list
 import gleam/string
 

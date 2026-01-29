@@ -1,3 +1,13 @@
+/// Exit Codes and Error Handling
+///
+/// Defines semantic exit codes and error handling helpers for CLI commands:
+/// - exit_pass (0): Success
+/// - exit_fail (1): General failure (tests failed, warnings)
+/// - exit_invalid (3): Invalid input (file not found, parse errors)
+/// - exit_error (4): Usage error (missing args, invalid flags)
+///
+/// Provides structured error handlers that output JSON and halt with
+/// appropriate exit codes for machine-readable error handling.
 import gleam/json
 import gleam/option.{None, Some}
 import intent/json_output
@@ -6,13 +16,16 @@ import intent/loader
 @external(erlang, "intent_ffi", "halt")
 pub fn halt(code: Int) -> Nil
 
-// Exit Code Constants
+/// Exit code for successful operation
 pub const exit_pass = 0
 
+/// Exit code for general failure (tests failed, warnings found)
 pub const exit_fail = 1
 
+/// Exit code for invalid input (file not found, parse errors)
 pub const exit_invalid = 3
 
+/// Exit code for usage errors (missing args, invalid flags)
 pub const exit_error = 4
 
 /// Handle file-not-found errors → exits 3 (invalid input)
