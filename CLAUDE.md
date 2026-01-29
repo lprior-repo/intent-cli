@@ -15,7 +15,7 @@ Contract-driven API testing in Gleam. CUE specs → HTTP tests → verification.
 ```
 CRITICAL: Never bare `bv` - launches blocking TUI.
 
-## Commands (33 total)
+## Commands (36 total)
 
 **Core Spec Operations** (5):
 ```jsonl
@@ -44,7 +44,7 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 {"cmd":"export","args":"<session-id> [--output=spec.cue]","desc":"export session to CUE spec"}
 ```
 
-**Beads/Planning** (7):
+**Beads/Planning** (10):
 ```jsonl
 {"cmd":"beads","args":"<session-id> [--max-items=N]","desc":"generate work items from interview session"}
 {"cmd":"beads-regenerate","args":"<spec>","desc":"regenerate beads from spec"}
@@ -53,6 +53,9 @@ CRITICAL: Never bare `bv` - launches blocking TUI.
 {"cmd":"plan-approve","args":"<session-id> [--yes] [--notes 'text']","desc":"approve execution plan"}
 {"cmd":"prompt","args":"<session-id> [--max-items=N]","desc":"generate AI implementation prompts from session beads"}
 {"cmd":"feedback","args":"--results <check-output.json>","desc":"generate fix beads from check command failures"}
+{"cmd":"kirk-beads","args":"<spec> [--round=N] [--min-severity=low|medium|high|critical]","desc":"generate enhanced beads from KIRK analysis"}
+{"cmd":"bead-show","args":"<bead-id> --spec=<spec>","desc":"show full bead details with methodology components"}
+{"cmd":"bead-verify","args":"<bead-id> --spec=<spec>","desc":"verify bead acceptance criteria"}
 ```
 Note: Get session IDs with `intent sessions [--profile=api|cli]`
 

@@ -3,9 +3,13 @@
 //// Transforms KIRK analysis findings into enhanced beads with full traceability.
 //// Each KIRK command produces findings that become actionable work units.
 
+import gleam/dict
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/order
+import gleam/result
 import gleam/string
 import intent/enhanced_bead_generator.{
   type EnhancedBead, AcceptanceCriterion, EnhancedBead, KirkSource, TestCase,
@@ -14,6 +18,8 @@ import intent/kirk/coverage_analyzer.{type CoverageReport}
 import intent/kirk/effects_analyzer.{type EffectsReport}
 import intent/kirk/gap_detector.{type GapReport}
 import intent/kirk/inversion_checker.{type InversionReport}
+import intent/kirk/ready
+import intent/planning_types.{type ReadyReport}
 import intent/quality_analyzer.{type QualityReport}
 import intent/types.{type Spec}
 
@@ -363,16 +369,132 @@ pub fn behaviors_to_beads(spec: Spec, spec_path: String) -> List(EnhancedBead) {
 }
 
 // =============================================================================
+// READY → BEADS
+// =============================================================================
+
+pub fn ready_to_beads(
+  report: ReadyReport,
+  spec_path: String,
+) -> List(EnhancedBead) {
+  let blocker_beads =
+    report.blockers
+    |> list.index_map(fn(blocker, i) {
+      let severity = blocker_severity_to_string(blocker.severity)
+      let areas_string = string.join(blocker.affected_areas, ", ")
+
+      make_kirk_bead(
+        index: i + 1,
+        analysis_type: "ready",
+        finding_id: "ready-blocker-" <> int.to_string(i + 1),
+        severity: severity,
+        category: "blocker",
+        original_text: blocker.description
+          <> " (affected areas: "
+          <> areas_string
+          <> ")",
+        suggestion: Some(blocker.description),
+        spec_path: spec_path,
+        title: "Resolve blocker: " <> blocker.description,
+        description: blocker.description <> " (affects: " <> areas_string <> ")",
+        issue_type: "blocker_resolution",
+        round: 5,
+        labels: ["ready", "blocker", ..blocker.affected_areas],
+      )
+    })
+
+  let recommendation_beads =
+    report.recommendations
+    |> list.index_map(fn(rec, i) {
+      let offset = list.length(blocker_beads)
+      let priority =
+        enhanced_bead_generator.severity_to_priority(case rec.priority {
+          1 | 2 -> "critical"
+          3 | 4 -> "high"
+          _ -> "medium"
+        })
+
+      EnhancedBead(
+        id: enhanced_bead_generator.make_bead_id(
+          "ready-recommendation",
+          "improvement",
+          offset + i + 1,
+        ),
+        title: "Implement improvement: " <> rec.description,
+        description: rec.description,
+        source_type: "kirk",
+        kirk_sources: [
+          KirkSource(
+            analysis_type: "ready",
+            finding_id: "ready-rec-" <> int.to_string(i + 1),
+            severity: "medium",
+            category: "recommendation",
+            original_text: rec.description,
+            suggestion: Some(rec.rationale),
+          ),
+        ],
+        spec_path: Some(spec_path),
+        behavior_name: None,
+        ears_patterns: [],
+        contracts: enhanced_bead_generator.empty_contracts(),
+        scenarios: [
+          TestCase(
+            name: "Apply recommendation",
+            given: ["READY analysis completed"],
+            when: "Improvement implemented",
+            then: rec.description <> " is addressed",
+            assertion: "Readiness score improves",
+          ),
+        ],
+        acceptance_criteria: [
+          AcceptanceCriterion(
+            id: "AC-001",
+            description: rec.description,
+            verification_type: "review",
+            check_expression: None,
+            verified: False,
+          ),
+        ],
+        types_needed: [],
+        effort: "20min",
+        priority: priority,
+        status: "pending",
+        dependencies: [],
+        blocks: [],
+        round: 5,
+        profile_type: "api",
+        issue_type: "improvement",
+        labels: ["ready", "recommendation"],
+        ai_hints: rec.rationale,
+        pitfalls: [],
+      )
+    })
+
+  list.concat([blocker_beads, recommendation_beads])
+}
+
+fn blocker_severity_to_string(
+  severity: planning_types.BlockerSeverity,
+) -> String {
+  case severity {
+    planning_types.Critical -> "critical"
+    planning_types.High -> "high"
+    planning_types.Medium -> "medium"
+    planning_types.Low -> "low"
+  }
+}
+
+// =============================================================================
 // AGGREGATE
 // =============================================================================
 
 pub fn generate_all_beads(spec: Spec, spec_path: String) -> List(EnhancedBead) {
-  // Run all KIRK analyses
+  // Run all 6 KIRK analyses
   let quality_report = quality_analyzer.analyze_spec(spec)
   let coverage_report = coverage_analyzer.analyze_coverage(spec)
   let gap_report = gap_detector.detect_gaps(spec)
   let inversion_report = inversion_checker.analyze_inversions(spec)
   let effects_report = effects_analyzer.analyze_effects(spec)
+  let ready_report = ready.analyze_ready(spec)
 
   // Transform to beads
   let behavior_beads = behaviors_to_beads(spec, spec_path)
@@ -381,16 +503,46 @@ pub fn generate_all_beads(spec: Spec, spec_path: String) -> List(EnhancedBead) {
   let gap_beads = gaps_to_beads(gap_report, spec_path)
   let inversion_beads = inversions_to_beads(inversion_report, spec_path)
   let effects_beads = effects_to_beads(effects_report, spec_path)
+  let ready_beads = ready_to_beads(ready_report, spec_path)
 
   // Combine all beads
-  list.concat([
-    behavior_beads,
-    quality_beads,
-    coverage_beads,
-    gap_beads,
-    inversion_beads,
-    effects_beads,
-  ])
+  let all_beads =
+    list.concat([
+      behavior_beads,
+      quality_beads,
+      coverage_beads,
+      gap_beads,
+      inversion_beads,
+      effects_beads,
+      ready_beads,
+    ])
+
+  // Deduplicate by title similarity
+  let deduplicated = deduplicate_beads(all_beads)
+
+  // Infer dependencies from behavior.requires and spec structure
+  let with_dependencies = infer_dependencies(deduplicated, spec)
+
+  // Assign parallel groups (waves)
+  let with_waves = assign_parallel_groups(with_dependencies)
+
+  // Sort by round then priority
+  list.sort(with_waves, fn(a, b) {
+    case a.round == b.round {
+      True -> {
+        case a.priority < b.priority {
+          True -> order.Lt
+          False -> order.Gt
+        }
+      }
+      False -> {
+        case a.round < b.round {
+          True -> order.Lt
+          False -> order.Gt
+        }
+      }
+    }
+  })
 }
 
 /// Filter beads by round number
@@ -408,6 +560,235 @@ pub fn filter_by_min_severity(
 ) -> List(EnhancedBead) {
   let min_priority = enhanced_bead_generator.severity_to_priority(min_severity)
   list.filter(beads, fn(b) { b.priority <= min_priority })
+}
+
+// =============================================================================
+// DEDUPLICATION
+// =============================================================================
+
+/// Deduplicate beads by title similarity
+/// Removes beads with similar titles (>80% similarity) keeping the higher priority one
+pub fn deduplicate_beads(beads: List(EnhancedBead)) -> List(EnhancedBead) {
+  deduplicate_loop(beads, [])
+}
+
+fn deduplicate_loop(
+  remaining: List(EnhancedBead),
+  acc: List(EnhancedBead),
+) -> List(EnhancedBead) {
+  case remaining {
+    [] -> list.reverse(acc)
+    [head, ..tail] -> {
+      let is_duplicate =
+        list.any(acc, fn(b) { title_similarity(b.title, head.title) >. 0.8 })
+
+      case is_duplicate {
+        True -> {
+          // Keep the higher priority bead
+          let existing =
+            list.find(acc, fn(b) {
+              title_similarity(b.title, head.title) >. 0.8
+            })
+          case existing {
+            Ok(existing_bead) -> {
+              case existing_bead.priority > head.priority {
+                True -> deduplicate_loop(tail, acc)
+                False -> {
+                  // Replace with higher priority one
+                  let filtered =
+                    list.filter(acc, fn(b) {
+                      title_similarity(b.title, head.title) <=. 0.8
+                    })
+                  deduplicate_loop(tail, [head, ..filtered])
+                }
+              }
+            }
+            Error(_) -> deduplicate_loop(tail, [head, ..acc])
+          }
+        }
+        False -> deduplicate_loop(tail, [head, ..acc])
+      }
+    }
+  }
+}
+
+/// Calculate similarity between two titles using simple token overlap
+fn title_similarity(title1: String, title2: String) -> Float {
+  let tokens1 = tokenize(title1)
+  let tokens2 = tokenize(title2)
+
+  case list.length(tokens1) + list.length(tokens2) {
+    0 -> 1.0
+    total_tokens -> {
+      let common_tokens =
+        list.filter(tokens1, fn(t) { list.contains(tokens2, t) })
+      let overlap = list.length(common_tokens)
+      int.to_float(overlap * 2) /. int.to_float(total_tokens)
+    }
+  }
+}
+
+/// Tokenize a string into lowercase words
+fn tokenize(text: String) -> List(String) {
+  text
+  |> string.lowercase
+  |> string.replace(" ", "-")
+  |> string.replace(":", "")
+  |> string.replace("(", "")
+  |> string.replace(")", "")
+  |> string.split("-")
+  |> list.filter(fn(s) { string.length(s) > 0 })
+}
+
+// =============================================================================
+// DEPENDENCY INFERENCE
+// =============================================================================
+
+/// Infer dependencies from behavior.requires and spec structure
+/// Creates dependency links between related beads
+pub fn infer_dependencies(
+  beads: List(EnhancedBead),
+  spec: Spec,
+) -> List(EnhancedBead) {
+  let behavior_map = create_behavior_map(spec)
+
+  list.map(beads, fn(bead) {
+    case bead.behavior_name {
+      Some(behavior_name) -> {
+        let deps = case dict.get(behavior_map, behavior_name) {
+          Ok(behavior) -> behavior.requires
+          Error(_) -> []
+        }
+        EnhancedBead(..bead, dependencies: deps)
+      }
+      None -> bead
+    }
+  })
+}
+
+/// Create a map of behavior name to behavior for easy lookup
+fn create_behavior_map(spec: Spec) -> dict.Dict(String, types.Behavior) {
+  spec.features
+  |> list.flat_map(fn(f) { f.behaviors })
+  |> list.fold(from_dict([]), fn(acc, behavior) {
+    dict.insert(acc, behavior.name, behavior)
+  })
+}
+
+fn from_dict(list: List(#(a, b))) -> dict.Dict(a, b) {
+  dict.from_list(list)
+}
+
+// =============================================================================
+// PARALLEL GROUP ASSIGNMENT
+// =============================================================================
+
+/// Assign parallel groups (waves) to beads based on dependencies
+/// Beads in the same wave can be executed in parallel
+pub fn assign_parallel_groups(beads: List(EnhancedBead)) -> List(EnhancedBead) {
+  let sorted_by_round =
+    list.sort(beads, fn(a, b) {
+      case a.round == b.round {
+        True -> {
+          case a.priority < b.priority {
+            True -> order.Lt
+            False -> order.Gt
+          }
+        }
+        False -> {
+          case a.round < b.round {
+            True -> order.Lt
+            False -> order.Gt
+          }
+        }
+      }
+    })
+
+  assign_waves_loop(sorted_by_round, [], [], 1)
+}
+
+fn assign_waves_loop(
+  remaining: List(EnhancedBead),
+  assigned: List(EnhancedBead),
+  current_wave_beads: List(String),
+  wave_number: Int,
+) -> List(EnhancedBead) {
+  case remaining {
+    [] -> {
+      let final_wave =
+        list.map(current_wave_beads, fn(id) {
+          list.find(assigned, fn(b) { b.id == id })
+          |> result.unwrap(fail_bead_lookup(id))
+        })
+      list.reverse(list.append(assigned, final_wave))
+    }
+    [head, ..tail] -> {
+      // Check if bead's dependencies are satisfied
+      let deps_satisfied =
+        list.all(head.dependencies, fn(dep_id) {
+          list.contains(current_wave_beads, dep_id)
+          || list.any(assigned, fn(b) { b.id == dep_id })
+        })
+
+      case deps_satisfied {
+        True -> {
+          // Add to current wave
+          let updated_bead = EnhancedBead(..head, blocks: current_wave_beads)
+          assign_waves_loop(
+            tail,
+            [updated_bead, ..assigned],
+            [head.id, ..current_wave_beads],
+            wave_number,
+          )
+        }
+        False -> {
+          // Start new wave
+          let previous_wave =
+            list.map(current_wave_beads, fn(id) {
+              list.find(assigned, fn(b) { b.id == id })
+              |> result.unwrap(fail_bead_lookup(id))
+            })
+          let updated_assigned = list.append(assigned, previous_wave)
+          assign_waves_loop(
+            [head, ..tail],
+            updated_assigned,
+            [head.id],
+            wave_number + 1,
+          )
+        }
+      }
+    }
+  }
+}
+
+fn fail_bead_lookup(id: String) -> EnhancedBead {
+  io.debug("Bead not found: " <> id)
+  // Return a minimal bead as fallback
+  EnhancedBead(
+    id: "unknown-" <> id,
+    title: "Unknown Bead",
+    description: "Bead lookup failed",
+    source_type: "error",
+    kirk_sources: [],
+    spec_path: None,
+    behavior_name: None,
+    ears_patterns: [],
+    contracts: enhanced_bead_generator.empty_contracts(),
+    scenarios: [],
+    acceptance_criteria: [],
+    types_needed: [],
+    effort: "0min",
+    priority: 4,
+    status: "error",
+    dependencies: [],
+    blocks: [],
+    round: 1,
+    profile_type: "api",
+    issue_type: "error",
+    labels: ["error"],
+    ai_hints: "",
+    pitfalls: [],
+  )
 }
 
 // =============================================================================
@@ -438,17 +819,6 @@ pub fn generate_bead_id(
   <> slugified_category
   <> "-"
   <> string.pad_left(int.to_string(index), 3, "0")
-}
-
-/// Map severity string to priority int (critical→1, high→2, medium→3, low→4)
-pub fn severity_to_priority(severity: String) -> Int {
-  case string.lowercase(severity) {
-    "critical" -> 1
-    "high" -> 2
-    "medium" -> 3
-    "low" -> 4
-    _ -> 3
-  }
 }
 
 /// Map mental model string to round number

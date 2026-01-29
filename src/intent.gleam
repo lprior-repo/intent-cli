@@ -14,6 +14,7 @@ import intent/interview
 import intent/interview_commands
 import intent/interview_storage
 import intent/json_output
+import intent/kirk_beads_commands
 import intent/kirk_commands
 import intent/loader
 import intent/plan_commands
@@ -394,6 +395,10 @@ fn build_app() {
   |> glint.add(at: ["ears"], do: kirk_commands.kirk_ears_command())
   |> glint.add(at: ["parse"], do: kirk_commands.parse_command())
   |> glint.add(at: ["effects"], do: kirk_commands.kirk_effects_command())
+  // KIRK-to-beads commands
+  |> glint.add(at: ["kirk-beads"], do: kirk_beads_commands.kirk_beads_command())
+  |> glint.add(at: ["bead-show"], do: kirk_beads_commands.bead_show_command())
+  |> glint.add(at: ["bead-verify"], do: kirk_beads_commands.bead_verify_command())
   // Plan commands
   |> glint.add(at: ["plan"], do: plan_commands.plan_command())
   |> glint.add(

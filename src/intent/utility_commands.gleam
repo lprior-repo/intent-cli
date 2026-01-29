@@ -84,6 +84,9 @@ fn help_command_entries() -> List(HelpEntry) {
     HelpEntry("bead-status", "planning", "", "--bead-id=<id> --status=success|failed|blocked --reason='text'", "Update individual bead execution status", "bead_status_result"),
     HelpEntry("prompt", "planning", "<session-id>", "--max-items=N", "Generate AI implementation prompts from beads", "prompt_result"),
     HelpEntry("feedback", "planning", "", "--results=<check-output.json>", "Generate fix beads from check command failures", "feedback_result"),
+    HelpEntry("kirk-beads", "planning", "<spec.cue>", "--round=N --min-severity=low|medium|high|critical", "Generate enhanced beads from KIRK analysis", "kirk_beads_result"),
+    HelpEntry("bead-show", "planning", "<bead-id>", "--spec=<spec.cue>", "Show full bead details", "bead_show_result"),
+    HelpEntry("bead-verify", "planning", "<bead-id>", "--spec=<spec.cue>", "Verify bead acceptance criteria", "bead_verify_result"),
     // Phase commands
     HelpEntry("vision start", "phase", "<spec.cue>", "", "Initialize Vision phase session", "vision_start_result"),
     HelpEntry("vision check", "phase", "<session-id>", "", "Validate Vision phase completeness", "vision_check_result"),
