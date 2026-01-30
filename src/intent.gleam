@@ -289,13 +289,19 @@ fn output_glint_help_as_json(help_text: String, args: List(String)) -> Nil {
 
 /// Output command error as structured JSON
 fn output_command_error(
-  _error_msg: String,
+  error_msg: String,
   command: option.Option(String),
 ) -> Nil {
   let cmd = case command {
     Some(c) -> c
     None -> "unknown"
   }
+
+  // Check if the error is about an unknown flag
+  let is_flag_error =
+    string.contains(error_msg, "flag")
+    || string.contains(error_msg, "Flag")
+    || string.contains(error_msg, "unexpected")
 
   // List of available commands for error context
   let available = [
@@ -305,7 +311,21 @@ fn output_command_error(
     "shape", "ready", "ai",
   ]
 
-  let error = ai_errors.command_not_found(cmd, available)
+  let #(error_type, error_message, suggestion) = case is_flag_error {
+    True -> #(
+      "unknown_flag",
+      error_msg,
+      "Check available flags with: intent " <> cmd <> " --help",
+    )
+    False -> {
+      let error = ai_errors.command_not_found(cmd, available)
+      #(
+        ai_errors.error_type_to_string(error.error_type),
+        error.message,
+        error.suggestion,
+      )
+    }
+  }
 
   let response =
     json_output.failure(
@@ -314,10 +334,10 @@ fn output_command_error(
       json.null(),
       [
         json_output.detailed_error(
-          ai_errors.error_type_to_string(error.error_type),
-          error.message,
+          error_type,
+          error_message,
           "",
-          error.suggestion,
+          suggestion,
           "intent help",
         ),
       ],

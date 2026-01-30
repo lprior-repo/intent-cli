@@ -21,6 +21,7 @@ import intent/interview.{
 import intent/question_types.{
   type Perspective, Business, Developer, Ops, Security, User,
 }
+import intent/security
 import simplifile
 
 // =============================================================================
@@ -43,13 +44,20 @@ pub type DirectoryCreator =
 // Simplifile Adapter Functions
 // =============================================================================
 
-/// Create a FileReader that uses simplifile
+/// Create a FileReader that uses simplifile with symlink security check
+/// Rejects symlinks to prevent symlink-based attacks (intent-cli-83rb)
 pub fn simplifile_reader() -> FileReader {
   fn(path: String) -> Result(String, String) {
-    simplifile.read(path)
-    |> result.map_error(fn(err) {
-      "Failed to read file '" <> path <> "': " <> string.inspect(err)
-    })
+    // Security check: reject symlinks to prevent attacks
+    case security.reject_symlink(path) {
+      Error(security_err) ->
+        Error(security.format_security_error(security_err))
+      Ok(_) ->
+        simplifile.read(path)
+        |> result.map_error(fn(err) {
+          "Failed to read file '" <> path <> "': " <> string.inspect(err)
+        })
+    }
   }
 }
 
@@ -102,6 +110,16 @@ pub type SessionRecord {
     stage: String,
     rounds_completed: Int,
     raw_notes: String,
+  )
+}
+
+/// Result of parsing JSONL content with corruption detection
+/// Tracks both successfully parsed sessions and any corrupted lines
+pub type ParseResult {
+  ParseResult(
+    sessions: List(interview.InterviewSession),
+    /// Number of lines that failed to parse (corrupted data)
+    skipped_lines: Int,
   )
 }
 
@@ -854,6 +872,63 @@ pub fn parse_sessions_content(content: String) -> List(InterviewSession) {
             |> result.map_error(fn(_) { Nil })
         }
       })
+    }
+  }
+}
+
+/// Parse sessions content with corruption detection (pure)
+/// Returns Error if file appears truncated (has content but no valid sessions)
+/// Returns Ok(ParseResult) with sessions and count of skipped lines
+/// Bug fixes: intent-cli-4c5t (truncation detection), intent-cli-8iiz (corruption warnings)
+pub fn parse_sessions_content_with_warnings(
+  content: String,
+) -> Result(ParseResult, String) {
+  let trimmed = string.trim(content)
+  case string.length(trimmed) {
+    0 -> Ok(ParseResult(sessions: [], skipped_lines: 0))
+    _ -> {
+      let lines = string.split(content, "\n")
+      let non_empty_lines =
+        list.filter(lines, fn(line) { string.length(string.trim(line)) > 0 })
+
+      // Parse each line and track results
+      let parse_results =
+        list.map(non_empty_lines, fn(line) {
+          json.decode(line, session_decoder)
+        })
+
+      // Count successes and failures
+      let sessions =
+        list.filter_map(parse_results, fn(r) {
+          case r {
+            Ok(session) -> Ok(session)
+            Error(_) -> Error(Nil)
+          }
+        })
+      let failures =
+        list.filter(parse_results, fn(r) {
+          case r {
+            Ok(_) -> False
+            Error(_) -> True
+          }
+        })
+      let failure_count = list.length(failures)
+      let total_lines = list.length(non_empty_lines)
+
+      // If file has content but no valid sessions, it's likely truncated/corrupted
+      case list.length(sessions) {
+        0 ->
+          case total_lines > 0 {
+            True ->
+              Error(
+                "JSONL file appears corrupted: "
+                <> string.inspect(total_lines)
+                <> " non-empty lines but no valid sessions found",
+              )
+            False -> Ok(ParseResult(sessions: [], skipped_lines: 0))
+          }
+        _ -> Ok(ParseResult(sessions: sessions, skipped_lines: failure_count))
+      }
     }
   }
 }

@@ -174,12 +174,26 @@ pub fn improve_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        ai_errors.cli_error_with_usage(
-          message: "spec file path required",
-          usage: "intent improve <spec.cue>",
-        )
-        |> ai_errors.format_cli_error()
-        |> io.println_error()
+        let response =
+          json_output.failure(
+            "improve_failed",
+            "improve",
+            json.object([#("usage", json.string("intent improve <spec.cue>"))]),
+            [json_output.error("usage_error", "spec file path required")],
+            None,
+            [
+              json_output.next_action(
+                "intent validate <spec.cue>",
+                "Validate a spec file first",
+              ),
+              json_output.next_action(
+                "intent sessions",
+                "List available sessions",
+              ),
+            ],
+            exit_error,
+          )
+        json_output.output(response)
         halt(exit_error)
       }
     }

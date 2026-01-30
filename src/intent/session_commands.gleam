@@ -20,6 +20,8 @@ import simplifile
 /// Exit codes
 const exit_pass = 0
 
+const exit_invalid = 3
+
 const exit_error = 4
 
 @external(erlang, "intent_ffi", "halt")
@@ -285,14 +287,32 @@ pub fn sessions_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let jsonl_path = ".intent/sessions.jsonl"
 
-    let delete_id =
-      flag.get_string(input.flags, "delete")
-      |> result.unwrap("")
+    let delete_result = flag.get_string(input.flags, "delete")
 
-    // Handle delete mode
-    case delete_id {
-      "" -> Nil
-      session_id -> {
+    // Handle delete mode - only if --delete flag was explicitly provided
+    case delete_result {
+      // Flag was provided but has empty value - error
+      Ok("") -> {
+        let response =
+          json_output.failure(
+            "sessions_failed",
+            "sessions",
+            json.object([#("usage", json.string("intent sessions --delete=<session-id>"))]),
+            [json_output.error("usage_error", "Session ID required for --delete flag")],
+            None,
+            [
+              json_output.next_action(
+                "intent sessions",
+                "List sessions to find session IDs",
+              ),
+            ],
+            exit_error,
+          )
+        json_output.output(response)
+        halt(exit_error)
+      }
+      // Flag was provided with a value - process delete
+      Ok(session_id) -> {
         case simplifile.read(jsonl_path) {
           Error(_) -> {
             let response =
@@ -362,6 +382,8 @@ pub fn sessions_command() -> glint.Command(Nil) {
           }
         }
       }
+      // Flag was not provided - continue to list sessions
+      Error(_) -> Nil
     }
 
     let profile_filter =
@@ -377,26 +399,46 @@ pub fn sessions_command() -> glint.Command(Nil) {
       |> result.unwrap(list_limits.default_max_items)
 
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
-      Error(_) -> {
-        // File doesn't exist yet - treat as empty
-        let response =
-          json_output.success(
-            "sessions_empty",
-            "sessions",
-            json.object([
-              #("sessions", json.array([], fn(_) { json.null() })),
-              #("total", json.int(0)),
-            ]),
-            None,
-            [
-              json_output.next_action(
-                "interview --profile api",
-                "Start a new interview",
-              ),
-            ],
-          )
-        json_output.output(response)
-        halt(exit_pass)
+      Error(err) -> {
+        // Check if it's a symlink security error
+        case string.contains(err, "Symbolic links are not allowed") {
+          True -> {
+            // Security error - symlink detected
+            let response =
+              json_output.failure(
+                "sessions_failed",
+                "sessions",
+                json.object([]),
+                [json_output.error("SECURITY_ERROR", err)],
+                None,
+                [],
+                exit_invalid,
+              )
+            json_output.output(response)
+            halt(exit_invalid)
+          }
+          False -> {
+            // File doesn't exist yet - treat as empty
+            let response =
+              json_output.success(
+                "sessions_empty",
+                "sessions",
+                json.object([
+                  #("sessions", json.array([], fn(_) { json.null() })),
+                  #("total", json.int(0)),
+                ]),
+                None,
+                [
+                  json_output.next_action(
+                    "interview --profile api",
+                    "Start a new interview",
+                  ),
+                ],
+              )
+            json_output.output(response)
+            halt(exit_pass)
+          }
+        }
       }
       Ok([]) -> {
         let response =
@@ -484,7 +526,6 @@ pub fn sessions_command() -> glint.Command(Nil) {
   |> glint.flag(
     "delete",
     flag.string()
-      |> flag.default("")
       |> flag.description("Delete a session by ID"),
   )
   |> glint.flag(

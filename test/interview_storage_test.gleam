@@ -428,3 +428,8 @@ pub fn sync_from_jsonl_delegates_to_read_and_save_test() {
   }
   |> should.equal(True)
 }
+
+// =============================================================================
+// JSONL Corruption Detection Tests (Bug fixes: intent-cli-4c5t, intent-cli-8iiz)
+// TODO: Add tests when parse_sessions_content_with_warnings is implemented
+// =============================================================================

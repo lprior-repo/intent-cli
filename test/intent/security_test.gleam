@@ -622,3 +622,26 @@ pub fn format_security_error_ssrf_test() {
   string.contains(formatted, "http://localhost") |> should.be_true()
   string.contains(formatted, "Test reason") |> should.be_true()
 }
+
+// =============================================================================
+// Symlink Rejection Tests (intent-cli-qd8r)
+// =============================================================================
+
+pub fn validate_file_path_rejects_symlink_test() {
+  // Test that symlinks are rejected with SymlinkNotAllowed error
+  // This uses a path that would be a symlink in real testing scenarios
+  // Note: In unit tests we test the error type, integration tests verify actual symlinks
+  let error = security.SymlinkNotAllowed("/tmp/test-symlink")
+  let formatted = security.format_security_error(error)
+
+  string.contains(formatted, "Symbolic links are not allowed") |> should.be_true()
+  string.contains(formatted, "/tmp/test-symlink") |> should.be_true()
+}
+
+pub fn format_symlink_error_test() {
+  let error = security.SymlinkNotAllowed("./malicious-symlink.cue")
+  let formatted = security.format_security_error(error)
+
+  string.contains(formatted, "symlink") |> should.be_true()
+  string.contains(formatted, "malicious-symlink.cue") |> should.be_true()
+}

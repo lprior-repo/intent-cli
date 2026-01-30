@@ -347,6 +347,25 @@ pub fn validate_file_paths(
   |> list_try_map(validate_file_path)
 }
 
+/// Check if a path is a symlink (for security validation)
+/// Returns True if the path exists and is a symlink, False otherwise
+/// Used to prevent symlink-based attacks when reading sensitive files
+pub fn is_symlink(path: String) -> Bool {
+  case simplifile.verify_is_symlink(path) {
+    Ok(True) -> True
+    _ -> False
+  }
+}
+
+/// Validate that a file path is not a symlink (security check for session files)
+/// Returns Ok if the path is safe to read, Error(SymlinkNotAllowed) if it's a symlink
+pub fn reject_symlink(path: String) -> Result(Nil, SecurityError) {
+  case is_symlink(path) {
+    True -> Error(SymlinkNotAllowed(path))
+    False -> Ok(Nil)
+  }
+}
+
 // Helper to map over list with Result
 fn list_try_map(list: List(a), fun: fn(a) -> Result(b, e)) -> Result(List(b), e) {
   case list {

@@ -47,6 +47,37 @@ pub fn plan_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "format")
       |> result.unwrap("human")
 
+    let rounds =
+      flag.get_int(input.flags, "rounds")
+      |> result.unwrap(5)
+
+    // Validate rounds is in range 1-5
+    case rounds >= 1 && rounds <= 5 {
+      False -> {
+        let response =
+          json_output.failure(
+            "plan_failed",
+            "plan",
+            json.object([
+              #("usage", json.string("intent plan <session_id> [--rounds=1..5]")),
+              #("provided_rounds", json.int(rounds)),
+            ]),
+            [json_output.error("usage_error", "Rounds must be between 1 and 5")],
+            None,
+            [
+              json_output.next_action(
+                "intent plan <session_id> --rounds=3",
+                "Use a valid rounds value (1-5)",
+              ),
+            ],
+            exit_error,
+          )
+        json_output.output(response)
+        halt(exit_error)
+      }
+      True -> Nil
+    }
+
     case input.args {
       [session_id, ..] -> {
         case compute_plan_with_session(session_id) {
@@ -141,6 +172,12 @@ pub fn plan_command() -> glint.Command(Nil) {
     flag.string()
       |> flag.default("human")
       |> flag.description("Output format: human or json"),
+  )
+  |> glint.flag(
+    "rounds",
+    flag.int()
+      |> flag.default(5)
+      |> flag.description("Number of mental model rounds to consider (1-5)"),
   )
 }
 
