@@ -8,7 +8,7 @@ pub fn main() -> Nil {
 // Test that --resume flag is honored in CUE mode
 // Bug: intent-cli-26ui - CUE mode should use resume_id not session_flag
 pub fn cue_mode_uses_resume_flag_test() {
-  // This test verifies that when --cue=true and --resume=<id> are both set,
+  // This test verifies that when --resume=<id> is set,
   // the code should use the resume_id value, not the session_flag value.
   //
   // Expected behavior:
@@ -25,5 +25,5 @@ pub fn cue_mode_uses_resume_flag_test() {
   should.equal(1, 1)
   // TODO: Refactor interview command handler to make it testable
   // For now, manual verification required:
-  // gleam run -- interview api --cue --resume=test-session-123
+  // gleam run -- interview --resume=test-session-123
 }

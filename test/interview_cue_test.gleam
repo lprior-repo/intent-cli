@@ -2,7 +2,7 @@
 //// Bug: intent-cli-xxxx - rounds_completed not updated when answering in CUE mode
 ////
 //// Context:
-//// When answering questions in CUE mode (--cue --session --answer), the session
+//// When answering questions in CUE mode (--session --answer), the session
 //// saves the answer but rounds_completed stays at 0. Resuming always restarts
 //// from question 1.
 ////

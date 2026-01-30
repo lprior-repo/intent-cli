@@ -330,7 +330,7 @@ pub fn session_not_found(session_id: String) -> StructuredError {
     suggestion: "List available sessions or start a new one",
     recovery: [
       "List sessions: intent sessions",
-      "Start new session: intent interview --cue",
+      "Start new session: intent interview --profile=api",
       "Check session ID spelling",
       "Verify .intent/ directory exists",
     ],
