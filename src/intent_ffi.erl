@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, int_to_float/1, get_env/1, write_stderr/1, execute_command/1]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, int_to_float/1, get_env/1, write_stderr/1, execute_command/1, unique_suffix/0]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -80,10 +80,19 @@ collect_port_output(Port, Acc) ->
             %% Port closed normally
             %% Status 0 means success, non-zero means failure
             {Acc, Status};
-        {'EXIT', Port, Reason} ->
+        {'EXIT', Port, _Reason} ->
             %% Port crashed
             {Acc, 1}
     after 30000 ->
         %% Timeout after 30 seconds
         {Acc, 124}  %% Timeout exit code
     end.
+
+%% Generate unique suffix for temp file names
+%% Combines monotonic time (ordering) + process ID (isolation)
+%% Format: "<monotonic_time>_<process_id>"
+unique_suffix() ->
+    MonotonicTime = erlang:monotonic_time(),
+    Pid = os:getpid(),
+    Suffix = integer_to_list(MonotonicTime) ++ "_" ++ Pid,
+    list_to_binary(Suffix).
