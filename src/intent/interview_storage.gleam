@@ -14,6 +14,7 @@ import gleam/list
 import gleam/option.{type Option}
 import gleam/result
 import gleam/string
+import intent/atomic_file
 import intent/interview.{
   type Answer, type Conflict, type ConflictResolution, type Gap,
   type InterviewSession, type InterviewStage, type Profile, unresolved_conflict,
@@ -50,31 +51,37 @@ pub fn simplifile_reader() -> FileReader {
   fn(path: String) -> Result(String, String) {
     // Security check: reject symlinks to prevent attacks
     case security.reject_symlink(path) {
-      Error(security_err) ->
-        Error(security.format_security_error(security_err))
+      Error(security_err) -> Error(security.format_security_error(security_err))
       Ok(_) ->
         simplifile.read(path)
         |> result.map_error(fn(err) {
-          "Failed to read file '" <> path <> "': " <> string.inspect(err)
+          let err_type = case err {
+            simplifile.Enoent -> "FILE_NOT_FOUND"
+            simplifile.Eacces -> "PERMISSION_DENIED"
+            simplifile.Eio -> "IO_ERROR"
+            simplifile.Enospc -> "NO_SPACE"
+            _ -> "UNKNOWN_ERROR"
+          }
+          let err_msg = case err {
+            simplifile.Enoent -> "File or directory not found"
+            simplifile.Eacces -> "Permission denied"
+            simplifile.Eio -> "I/O error"
+            simplifile.Enospc -> "No space left on device"
+            _ -> string.inspect(err)
+          }
+          err_type <> ": " <> err_msg <> " (path: " <> path <> ")"
         })
     }
   }
 }
 
-/// Create a FileWriter that uses simplifile
+/// Create a FileWriter that uses atomic writes (temp-file-then-rename pattern)
+/// Guarantees: no partial writes, all-or-nothing atomicity
+/// Bug fix: intent-cli-3e3z (atomic file writes for sessions.jsonl)
 pub fn simplifile_writer() -> FileWriter {
   fn(path: String, content: String) -> Result(Nil, String) {
-    simplifile.write(path, content)
-    |> result.map_error(fn(err) {
-      let err_msg = case err {
-        simplifile.Enoent -> "File or directory not found"
-        simplifile.Eacces -> "Permission denied"
-        simplifile.Enospc -> "No space left on device"
-        simplifile.Eio -> "I/O error"
-        _ -> "Unknown error"
-      }
-      "Failed to write file '" <> path <> "': " <> err_msg
-    })
+    atomic_file.write_atomic(path, content)
+    |> result.map_error(atomic_file.format_error)
   }
 }
 

@@ -634,7 +634,8 @@ pub fn validate_file_path_rejects_symlink_test() {
   let error = security.SymlinkNotAllowed("/tmp/test-symlink")
   let formatted = security.format_security_error(error)
 
-  string.contains(formatted, "Symbolic links are not allowed") |> should.be_true()
+  string.contains(formatted, "Symbolic links are not allowed")
+  |> should.be_true()
   string.contains(formatted, "/tmp/test-symlink") |> should.be_true()
 }
 

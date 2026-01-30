@@ -622,16 +622,21 @@ pub fn kirk_ears_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Error(_) -> {
-            let error = json_output.error("file_read_error", "Failed to read: " <> requirements_path)
-            let response = json_output.failure(
-              "ears_error",
-              "ears",
-              json.null(),
-              [error],
-              None,
-              [],
-              exit_invalid,
-            )
+            let error =
+              json_output.error(
+                "file_read_error",
+                "Failed to read: " <> requirements_path,
+              )
+            let response =
+              json_output.failure(
+                "ears_error",
+                "ears",
+                json.null(),
+                [error],
+                None,
+                [],
+                exit_invalid,
+              )
             json_output.output(response)
             halt(exit_invalid)
           }

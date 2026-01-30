@@ -7,6 +7,7 @@ import glint
 import glint/flag
 import intent/interview_storage
 import intent/json_output
+import intent/session_validation
 import intent/spec_builder
 import simplifile
 
@@ -16,6 +17,8 @@ const exit_pass = 0
 const exit_invalid = 3
 
 const exit_error = 4
+
+const exit_corrupted = 5
 
 // Path constants (duplicated to avoid circular dependency)
 const sessions_jsonl = ".intent/sessions.jsonl"
@@ -43,72 +46,106 @@ pub fn export_command() -> glint.Command(Nil) {
           interview_storage.get_session_from_jsonl(sessions_jsonl, session_id)
         {
           Ok(session) -> {
-            // Convert session to CUE spec
-            let cue_content = spec_builder.build_spec_from_session(session)
+            // CRITICAL: Validate session data BEFORE export (intent-cli-pn1w)
+            case session_validation.validate_session_for_export(session) {
+              Ok(validated_session) -> {
+                // Convert validated session to CUE spec
+                let cue_content =
+                  spec_builder.build_spec_from_session(validated_session)
 
-            // Determine output file path
-            let output_path = case output_file {
-              "" -> spec_file_path(session_id)
-              path -> path
-            }
-
-            // Write CUE file
-            case simplifile.write(output_path, cue_content) {
-              Ok(_) -> {
-                let next_actions = [
-                  json_output.next_action(
-                    "intent validate " <> output_path,
-                    "Validate generated spec",
-                  ),
-                  json_output.next_action(
-                    "intent quality " <> output_path,
-                    "Analyze spec quality",
-                  ),
-                  json_output.next_action(
-                    "intent lint " <> output_path,
-                    "Check for anti-patterns",
-                  ),
-                ]
-                let response =
-                  json_output.success(
-                    "export_result",
-                    "export",
-                    json.object([
-                      #("session_id", json.string(session_id)),
-                      #("output_file", json.string(output_path)),
-                      #(
-                        "message",
-                        json.string(
-                          "Interview session exported to CUE spec successfully",
-                        ),
-                      ),
-                    ]),
-                    Some(output_path),
-                    next_actions,
-                  )
-                json_output.output(response)
-                halt(exit_pass)
-              }
-              Error(err) -> {
-                let error_msg = "Failed to write file: " <> case err {
-                  simplifile.Enoent -> "File or directory not found"
-                  simplifile.Eacces -> "Permission denied"
-                  simplifile.Enospc -> "No space left on device"
-                  simplifile.Eio -> "I/O error"
-                  _ -> "Unknown error"
+                // Determine output file path
+                let output_path = case output_file {
+                  "" -> spec_file_path(session_id)
+                  path -> path
                 }
+
+                // Write CUE file
+                case simplifile.write(output_path, cue_content) {
+                  Ok(_) -> {
+                    let next_actions = [
+                      json_output.next_action(
+                        "intent validate " <> output_path,
+                        "Validate generated spec",
+                      ),
+                      json_output.next_action(
+                        "intent quality " <> output_path,
+                        "Analyze spec quality",
+                      ),
+                      json_output.next_action(
+                        "intent lint " <> output_path,
+                        "Check for anti-patterns",
+                      ),
+                    ]
+                    let response =
+                      json_output.success(
+                        "export_result",
+                        "export",
+                        json.object([
+                          #("session_id", json.string(session_id)),
+                          #("output_file", json.string(output_path)),
+                          #(
+                            "message",
+                            json.string(
+                              "Interview session exported to CUE spec successfully",
+                            ),
+                          ),
+                        ]),
+                        Some(output_path),
+                        next_actions,
+                      )
+                    json_output.output(response)
+                    halt(exit_pass)
+                  }
+                  Error(err) -> {
+                    let error_msg =
+                      "Failed to write file: "
+                      <> case err {
+                        simplifile.Enoent -> "File or directory not found"
+                        simplifile.Eacces -> "Permission denied"
+                        simplifile.Enospc -> "No space left on device"
+                        simplifile.Eio -> "I/O error"
+                        _ -> "Unknown error"
+                      }
+                    let response =
+                      json_output.failure(
+                        "export_failed",
+                        "export",
+                        json.null(),
+                        [json_output.error("write_error", error_msg)],
+                        Some(output_path),
+                        [],
+                        exit_error,
+                      )
+                    json_output.output(response)
+                    halt(exit_error)
+                  }
+                }
+              }
+              // Validation failed - corrupted session data
+              Error(validation_errors) -> {
+                let error_msg =
+                  session_validation.format_validation_errors(validation_errors)
                 let response =
                   json_output.failure(
                     "export_failed",
                     "export",
                     json.null(),
-                    [json_output.error("write_error", error_msg)],
-                    Some(output_path),
-                    [],
-                    exit_error,
+                    [json_output.error("corrupted_session_data", error_msg)],
+                    None,
+                    [
+                      json_output.next_action(
+                        "intent sessions",
+                        "List all available sessions",
+                      ),
+                      json_output.next_action(
+                        "intent resume " <> session_id,
+                        "Resume interview to fix corruption",
+                      ),
+                    ],
+                    exit_corrupted,
                   )
                 json_output.output(response)
-                halt(exit_error)
+                halt(exit_corrupted)
               }
             }
           }

@@ -266,9 +266,7 @@ pub fn interview_command() -> glint.Command(Nil) {
     "session",
     flag.string()
       |> flag.default("")
-      |> flag.description(
-        "Session identifier (required with --answer flag)",
-      ),
+      |> flag.description("Session identifier (required with --answer flag)"),
   )
   |> glint.flag(
     "answer",
@@ -427,10 +425,7 @@ fn output_cue_error(message: String) -> Nil {
       "interview",
       json.null(),
       [
-        json_output.error(
-          "invalid_input",
-          message,
-        ),
+        json_output.error("invalid_input", message),
       ],
       None,
       [

@@ -297,8 +297,15 @@ pub fn sessions_command() -> glint.Command(Nil) {
           json_output.failure(
             "sessions_failed",
             "sessions",
-            json.object([#("usage", json.string("intent sessions --delete=<session-id>"))]),
-            [json_output.error("usage_error", "Session ID required for --delete flag")],
+            json.object([
+              #("usage", json.string("intent sessions --delete=<session-id>")),
+            ]),
+            [
+              json_output.error(
+                "usage_error",
+                "Session ID required for --delete flag",
+              ),
+            ],
             None,
             [
               json_output.next_action(
@@ -400,7 +407,7 @@ pub fn sessions_command() -> glint.Command(Nil) {
 
     case interview_storage.list_sessions_from_jsonl(jsonl_path) {
       Error(err) -> {
-        // Check if it's a symlink security error
+        // Check error type and handle appropriately
         case string.contains(err, "Symbolic links are not allowed") {
           True -> {
             // Security error - symlink detected
@@ -417,27 +424,77 @@ pub fn sessions_command() -> glint.Command(Nil) {
             json_output.output(response)
             halt(exit_invalid)
           }
-          False -> {
-            // File doesn't exist yet - treat as empty
-            let response =
-              json_output.success(
-                "sessions_empty",
-                "sessions",
-                json.object([
-                  #("sessions", json.array([], fn(_) { json.null() })),
-                  #("total", json.int(0)),
-                ]),
-                None,
-                [
-                  json_output.next_action(
-                    "interview --profile api",
-                    "Start a new interview",
-                  ),
-                ],
-              )
-            json_output.output(response)
-            halt(exit_pass)
-          }
+          False ->
+            case string.contains(err, "PERMISSION_DENIED") {
+              True -> {
+                // Permission denied - return error with actionable message
+                let response =
+                  json_output.failure(
+                    "sessions_failed",
+                    "sessions",
+                    json.object([#("path", json.string(jsonl_path))]),
+                    [
+                      json_output.error(
+                        "PERMISSION_DENIED",
+                        "Cannot read sessions file: " <> err,
+                      ),
+                    ],
+                    None,
+                    [
+                      json_output.next_action(
+                        "chmod +r " <> jsonl_path,
+                        "Fix file permissions to make it readable",
+                      ),
+                      json_output.next_action(
+                        "ls -la " <> jsonl_path,
+                        "Check current file permissions",
+                      ),
+                    ],
+                    exit_error,
+                  )
+                json_output.output(response)
+                halt(exit_error)
+              }
+              False ->
+                case string.contains(err, "FILE_NOT_FOUND") {
+                  True -> {
+                    // File doesn't exist yet - treat as empty
+                    let response =
+                      json_output.success(
+                        "sessions_empty",
+                        "sessions",
+                        json.object([
+                          #("sessions", json.array([], fn(_) { json.null() })),
+                          #("total", json.int(0)),
+                        ]),
+                        None,
+                        [
+                          json_output.next_action(
+                            "interview --profile api",
+                            "Start a new interview",
+                          ),
+                        ],
+                      )
+                    json_output.output(response)
+                    halt(exit_pass)
+                  }
+                  False -> {
+                    // Other I/O error - return error
+                    let response =
+                      json_output.failure(
+                        "sessions_failed",
+                        "sessions",
+                        json.object([#("path", json.string(jsonl_path))]),
+                        [json_output.error("IO_ERROR", err)],
+                        None,
+                        [],
+                        exit_error,
+                      )
+                    json_output.output(response)
+                    halt(exit_error)
+                  }
+                }
+            }
         }
       }
       Ok([]) -> {

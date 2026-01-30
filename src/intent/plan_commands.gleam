@@ -59,7 +59,10 @@ pub fn plan_command() -> glint.Command(Nil) {
             "plan_failed",
             "plan",
             json.object([
-              #("usage", json.string("intent plan <session_id> [--rounds=1..5]")),
+              #(
+                "usage",
+                json.string("intent plan <session_id> [--rounds=1..5]"),
+              ),
               #("provided_rounds", json.int(rounds)),
             ]),
             [json_output.error("usage_error", "Rounds must be between 1 and 5")],
@@ -90,7 +93,7 @@ pub fn plan_command() -> glint.Command(Nil) {
               plan_mode.CyclicDependency(_) -> "cyclic_dependency"
               plan_mode.MissingDependency(_, _) -> "missing_dependency"
             }
-            
+
             let response =
               json_output.failure(
                 "plan_failed",
