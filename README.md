@@ -434,6 +434,80 @@ docs/
   - `json-integration.ts` - TypeScript/Node.js integration patterns
   - `json-integration.py` - Python integration patterns
 
+#### Piping JSON Output
+
+**Problem**: When running Intent CLI with `gleam run`, compilation progress messages pollute stdout, breaking JSON parsing:
+
+```bash
+# ❌ BROKEN - Progress messages corrupt JSON
+gleam run -- validate api.cue | jq '.data.valid'
+# Output: jq: parse error: Invalid numeric literal at line 1, column 12
+
+# The actual output is:
+# {"success":true,"action":"validate_result",...}
+#    Compiled in 0.05s
+#     Running intent.main
+```
+
+**Solution**: Use `--no-print-progress` flag to suppress Gleam's build output:
+
+```bash
+# ✅ WORKS - Clean JSON output
+gleam run --no-print-progress -- validate api.cue | jq '.data.valid'
+# Output: true
+```
+
+**Common Examples**:
+
+```bash
+# Extract quality score
+gleam run --no-print-progress -- quality api.cue | jq '.data.overall_score'
+# Output: 86
+
+# Check if spec is valid
+gleam run --no-print-progress -- validate api.cue | jq '.success'
+# Output: true
+
+# Get suggestions from doctor command
+gleam run --no-print-progress -- doctor api.cue | jq '.data.suggestions'
+
+# Extract specific fields from analysis
+gleam run --no-print-progress -- quality api.cue | jq '{
+  score: .data.overall_score,
+  timestamp: .metadata.timestamp,
+  valid: .success
+}'
+# Output:
+# {
+#   "score": 86,
+#   "timestamp": "2026-01-30T07:51:03.490-06:00",
+#   "valid": true
+# }
+
+# CI/CD pipeline integration
+SCORE=$(gleam run --no-print-progress -- quality api.cue | jq '.data.overall_score')
+if [ "$SCORE" -lt 80 ]; then
+  echo "Quality score too low: $SCORE"
+  exit 1
+fi
+```
+
+**Which commands output JSON?**
+
+All Intent CLI commands output structured JSON by default:
+- `validate` - Validation results
+- `check` - Test execution results with behavior outcomes
+- `quality` / `analyze` - 5-dimension quality scores
+- `coverage` - OWASP and edge case coverage analysis
+- `gaps` - Mental model gap detection
+- `invert` - Failure mode analysis
+- `effects` - Second-order effects analysis
+- `doctor` - Prioritized recommendations
+- `improve` - Specific improvement suggestions
+- `ears` / `parse` - EARS requirement parsing (with `--output=json`)
+
+**Note**: The `--no-print-progress` flag is a **Gleam runtime flag**, not an Intent CLI flag. It must appear before the `--` separator that precedes Intent CLI arguments.
+
 ### For Humans
 
 - **[User Guide](docs/USER_GUIDE.md)** - Getting started and common workflows
