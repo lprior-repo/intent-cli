@@ -693,11 +693,11 @@ pub fn kirk_ears_command() -> glint.Command(Nil) {
                 "Quick EARS validation",
               ),
             ],
-            exit_pass,
+            exit_error,
           )
 
         json_output.output(response)
-        halt(exit_pass)
+        halt(exit_error)
       }
     }
   })

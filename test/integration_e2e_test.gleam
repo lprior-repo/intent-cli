@@ -592,11 +592,11 @@ pub fn plan_e2e_test() {
   result.is_valid_json |> should.be_true()
 }
 
-/// Test: diff command shows differences
+/// Test: diff command requires arguments (usage error exit 4)
 pub fn diff_e2e_test() {
   let result = execute_cli("gleam run -- diff")
 
-  result.exit_code |> should.equal(0)
+  result.exit_code |> should.equal(4)
   result.is_valid_json |> should.be_true()
 }
 

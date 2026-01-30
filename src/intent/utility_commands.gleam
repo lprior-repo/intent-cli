@@ -590,11 +590,11 @@ pub fn diff_command() -> glint.Command(Nil) {
                 "Compare two specs",
               ),
             ],
-            exit_pass,
+            exit_error,
           )
 
         json_output.output(response)
-        halt(exit_pass)
+        halt(exit_error)
       }
     }
   })
