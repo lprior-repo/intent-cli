@@ -14,6 +14,7 @@ import intent/ffi
 import intent/interview
 import intent/interview_questions
 import intent/interview_storage
+import intent/json_output
 import intent/question_types.{type Question}
 import intent/spec_builder
 import simplifile
@@ -420,11 +421,31 @@ fn run_interview_batch(input_file: String, export_path: String) -> Nil {
 }
 
 fn output_cue_error(message: String) -> Nil {
-  io.println(
-    "{\n\taction: \"validation_error\"\n\terror: {\n\t\tmessage: \""
-    <> escape_cue_string(message)
-    <> "\"\n\t\tsuggestion: \"Check your input and try again\"\n\t\tretry_allowed: true\n\t}\n}",
-  )
+  let response =
+    json_output.failure(
+      "validation_error",
+      "interview",
+      json.null(),
+      [
+        json_output.error(
+          "invalid_input",
+          message,
+        ),
+      ],
+      None,
+      [
+        json_output.next_action(
+          "intent interview --profile=api",
+          "Start a new interview with valid profile",
+        ),
+        json_output.next_action(
+          "intent help interview",
+          "See interview command help",
+        ),
+      ],
+      exit_error,
+    )
+  json_output.output(response)
 }
 
 fn run_interview_cue_start(profile: interview.Profile, dry_run: Bool) -> Nil {
