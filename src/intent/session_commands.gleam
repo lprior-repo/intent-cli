@@ -1,6 +1,7 @@
 /// Session Commands Module
 ///
 /// Commands for managing interview sessions and history snapshots.
+import gleam/dict
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
@@ -29,6 +30,10 @@ pub fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let history_path = "history_jsonl"
     let _mode = output_mode.Interactive
+
+    let profile_filter =
+      flag.get_string(input.flags, "profile")
+      |> result.unwrap("")
 
     let max_items =
       flag.get_int(input.flags, "max-items")
@@ -174,8 +179,45 @@ pub fn history_command() -> glint.Command(Nil) {
             halt(exit_pass)
           }
           Ok(all_snapshots) -> {
-            let total_count = list.length(all_snapshots)
-            let snapshots = list_limits.apply_limit(all_snapshots, max_items)
+            // Filter by profile if specified
+            let filtered = case profile_filter {
+              "" -> all_snapshots
+              p -> {
+                // Load sessions to get profile mapping
+                case
+                  interview_storage.list_sessions_from_jsonl(
+                    ".intent/sessions.jsonl",
+                  )
+                {
+                  Error(_) -> all_snapshots
+                  Ok(sessions) -> {
+                    // Build session_id -> profile mapping
+                    let session_profiles =
+                      sessions
+                      |> list.fold(dict.new(), fn(acc, session) {
+                        dict.insert(
+                          acc,
+                          session.id,
+                          interview_commands.profile_to_string(session.profile),
+                        )
+                      })
+
+                    // Filter snapshots by session profile
+                    all_snapshots
+                    |> list.filter(fn(snapshot) {
+                      case dict.get(session_profiles, snapshot.session_id) {
+                        Ok(session_profile) ->
+                          session_profile == string.lowercase(p)
+                        Error(_) -> False
+                      }
+                    })
+                  }
+                }
+              }
+            }
+
+            let total_count = list.length(filtered)
+            let snapshots = list_limits.apply_limit(filtered, max_items)
             let shown_count = list.length(snapshots)
             let was_limited = total_count > shown_count
 
@@ -189,7 +231,7 @@ pub fn history_command() -> glint.Command(Nil) {
                 #("shown", json.int(shown_count)),
                 #("truncated", json.bool(was_limited)),
               ])
-            let next_actions = case list.is_empty(all_snapshots) {
+            let next_actions = case list.is_empty(filtered) {
               True -> [
                 json_output.next_action(
                   "intent interview --profile api",
@@ -223,6 +265,12 @@ pub fn history_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("View snapshot history for an interview session")
+  |> glint.flag(
+    "profile",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Filter by profile (api, cli, event, etc.)"),
+  )
   |> glint.flag(
     "max-items",
     flag.int()
