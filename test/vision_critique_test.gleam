@@ -15,7 +15,7 @@ pub fn main() {
 
 fn perfect_vision() -> VisionSection {
   VisionSection(
-    press_release: "Contract-driven API testing eliminates production failures by catching breaking changes before deployment. Backend engineers waste 40% of integration time debugging undocumented API changes.",
+    press_release: "AI-guided planning eliminates ambiguity and missed requirements by systematically decomposing high-level goals. Engineers waste 40% of integration time debugging unclear or incomplete specifications.",
     persona: "Backend engineers building microservices who integrate with 5+ REST APIs",
     non_personas: ["Frontend developers", "DevOps engineers", "QA testers"],
     north_star: "Run 'intent check api.cue' and catch every breaking change in 30 seconds, with zero false positives",

@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Last Updated:** 2026-01-11
 
-This document provides comprehensive API documentation for all public functions in the Intent CLI codebase. Intent is a contract-driven API testing tool that validates HTTP APIs against CUE specification files.
+This document provides comprehensive API documentation for all public functions in the Intent CLI codebase. Intent is an AI-guided planning framework that transforms vague requirements into crystal-clear, atomic work items through systematic interviewing and rigorous decomposition.
 
 ---
 

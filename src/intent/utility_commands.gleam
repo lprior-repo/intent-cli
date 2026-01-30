@@ -633,7 +633,7 @@ pub fn help_command() -> glint.Command(Nil) {
             #(
               "purpose",
               json.string(
-                "Contract-driven API testing. CUE specs to HTTP tests to verification.",
+                "Contract-driven API testing and AI-powered planning. Human-writes, AI-verifies, AI-implements.",
               ),
             ),
             #("usage", json.string("intent <command> [args] [flags]")),

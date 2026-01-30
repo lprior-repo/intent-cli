@@ -278,8 +278,10 @@ pub fn sample_complete_vision() -> VisionSection {
         outcome: "API regression bugs reduced by 80%",
       ),
     ],
-    replaces: Some("Manual API testing with curl/Postman + custom scripts"),
-    vorp: "10x faster API validation: Complete contract verification in 30 seconds vs 4+ hours of manual testing. 100x fewer escaped defects through automated edge case testing.",
+    replaces: Some(
+      "Manual requirement gathering with vague specs and ad-hoc questions",
+    ),
+    vorp: "10x faster planning: Complete requirement decomposition in 30 seconds vs 4+ hours of manual interviews. 100x fewer missed edge cases through systematic EARS/KIRK analysis.",
     out_of_scope: ["Database testing", "UI testing", "Load testing"],
   )
 }

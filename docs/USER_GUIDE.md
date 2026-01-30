@@ -1,6 +1,6 @@
 # Intent CLI User Guide
 
-This comprehensive guide covers everything you need to know to use Intent effectively for API testing.
+This comprehensive guide covers everything you need to use Intent effectively for AI-guided planning and rigorous requirement decomposition.
 
 ## Table of Contents
 

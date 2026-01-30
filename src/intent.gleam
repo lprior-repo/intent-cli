@@ -1,5 +1,5 @@
 /// Intent CLI - Human-writes, AI-verifies, AI-implements
-/// Contract-driven API testing tool
+/// Contract-driven API testing and AI-powered planning framework
 import argv
 import gleam/io
 import gleam/json

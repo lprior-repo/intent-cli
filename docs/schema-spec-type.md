@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `#Spec` type is the top-level type in the Intent schema. It defines a complete contract-driven API specification that can be validated, executed, and tested against a target API.
+The `#Spec` type is the top-level type in the Intent schema. It defines a complete, rigorously analyzed specification that includes EARS requirements, KIRK contracts, and testable behaviors for implementation verification.
 
 ## Type Definition
 
@@ -50,7 +50,7 @@ A list of acceptance criteria that define success for the API.
   - `"Error responses include meaningful error messages"`
 
 ### `config: #Config`
-Configuration for API testing, including base URL, timeout, and headers.
+Configuration for specification validation and verification, including base URL, timeout, and headers.
 - See `#Config` type documentation
 - Example:
   ```cue

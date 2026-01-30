@@ -1,39 +1,90 @@
 # Intent CLI
 
-**Contract-driven API testing with AI-powered planning.**
+**AI-guided planning framework for rigorous requirement decomposition.**
 
-Intent transforms vague requirements into crystal-clear, atomic work items that an AI can execute deterministically.
+Intent takes a high-level "north star" goal and guides you through systematic interviews to decompose it into crystal-clear, atomic work items that an AI can execute deterministically.
 
-## The Vision
-
-```
-Human writes requirements → CLI interviews systematically → CUE schemas control AI → AI executes perfectly
-```
-
-**CUE is the center of the universe.** Everything flows through typed, validated CUE schemas:
-- Requirements are structured as CUE
-- Interview state is tracked in CUE
-- AI directives are output as CUE
-- Beads (work items) are defined in CUE
-- Feedback loops communicate via CUE
+**The Planning Process:**
+- Systematic interviewing uncovers hidden requirements
+- EARS patterns eliminate ambiguity in specifications
+- KIRK contracts enforce preconditions/postconditions
+- Mental Lattices detect gaps and edge cases
+- Beads: atomic, perfectly-specified work items
 
 ## How It Works
 
-### For Humans: Write Requirements Naturally
+### Step 1: Start with a High-Level Goal
+
+You describe what you want to build in natural language:
+- "Build a user authentication system"
+- "Create a payment processing flow"
+- "Design a notification service"
+
+### Step 2: AI-Guided Interview
+
+The CLI guides you through rigorous decomposition using:
 
 ```bash
 # Start an interview
-intent interview --profile api --cue
+intent interview --profile=api --cue
 
-# CLI outputs CUE telling AI what to ask:
+# AI asks systematic questions:
 # {
 #   action: "ask_question"
 #   question: {
-#     text: "In one sentence, what should this API do?"
+#     text: "In one sentence, what should this system do?"
 #     pattern: "ubiquitous"
 #   }
 #   progress: { percent_complete: 0 }
 # }
+```
+
+You answer, the CLI validates using EARS patterns, then asks the next question. This continues until every edge case is enumerated.
+
+### Step 3: Rigorous Analysis
+
+Multiple analysis dimensions catch what humans miss:
+
+```bash
+intent quality spec.cue      # 5-dimension scoring
+intent coverage spec.cue    # OWASP + edge cases
+intent gaps spec.cue        # Mental model gaps
+intent invert spec.cue       # Failure mode analysis
+intent effects spec.cue      # Second-order effects
+```
+
+### Step 4: Atomic Beads
+
+The CLI generates beads - tiny, perfectly-specified work items:
+
+```cue
+beads: [{
+    id: "USR-001"
+    title: "Implement login endpoint"
+    what: "Create POST /login that validates email/password and returns JWT"
+    why: "Core authentication for all API access"
+    test: "Valid credentials return 200 with JWT; invalid return 401"
+    done_when: "All tests pass, endpoint responds correctly"
+    edge_cases: ["empty email", "very long password", "unicode characters"]
+    dependencies: []
+}]
+```
+
+Each bead is so detailed that implementing it is purely mechanical - no decisions left to make.
+
+### Step 5: AI Execution Prompts
+
+Generate AI-ready prompts for each bead:
+
+```bash
+intent prompt <session-id>
+
+# Outputs detailed prompts like:
+# "Implement the login endpoint according to specification USR-001.
+#  Input: {email, password}
+#  Output: JWT token or error
+#  Rules: bcrypt hashing, JWT HS256, 1hr expiry
+#  Tests: Valid→200, Wrong password→401..."
 ```
 
 ### For AI: Follow CUE Instructions Exactly

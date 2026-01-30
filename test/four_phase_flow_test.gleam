@@ -117,7 +117,7 @@ fn make_valid_shape() -> ShapeSection {
 fn make_valid_spec() -> SpecSection {
   SpecSection(
     name: "intent-cli",
-    description: "Contract-driven API testing CLI",
+    description: "AI-guided planning CLI for rigorous requirement decomposition",
     rounds_complete: 5,
     kirk_health: KIRKHealth(
       coverage_score: 0.85,

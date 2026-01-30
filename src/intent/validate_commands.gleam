@@ -472,7 +472,7 @@ pub fn check_command() -> glint.Command(Nil) {
                 #(
                   "message",
                   json.string(
-                    "Check command is under development. The full API testing implementation is not yet available.",
+                    "Check command validates specifications against implementations. Full verification pipeline under development.",
                   ),
                 ),
               ])

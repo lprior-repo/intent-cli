@@ -1,6 +1,6 @@
 # Intent CLI Tutorial
 
-Welcome to Intent CLI - a contract-driven API testing tool that helps you design, analyze, and improve API specifications using CUE.
+Welcome to Intent CLI - an AI-guided planning framework that helps you transform vague goals into crystal-clear, atomic work items through systematic interviewing and rigorous decomposition.
 
 ## Table of Contents
 
