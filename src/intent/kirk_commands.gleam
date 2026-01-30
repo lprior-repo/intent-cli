@@ -790,20 +790,6 @@ pub fn parse_command() -> glint.Command(Nil) {
             let req_count = list.length(result.requirements)
             let err_count = list.length(result.errors)
 
-            // Count by pattern type
-            let #(ubiq, event, state, opt, unwant, complex) =
-              list.fold(result.requirements, #(0, 0, 0, 0, 0, 0), fn(acc, r) {
-                let #(u, e, s, o, w, c) = acc
-                case r.pattern {
-                  ears_parser.Ubiquitous -> #(u + 1, e, s, o, w, c)
-                  ears_parser.EventDriven -> #(u, e + 1, s, o, w, c)
-                  ears_parser.StateDriven -> #(u, e, s + 1, o, w, c)
-                  ears_parser.Optional -> #(u, e, s, o + 1, w, c)
-                  ears_parser.Unwanted -> #(u, e, s, o, w + 1, c)
-                  ears_parser.Complex -> #(u, e, s, o, w, c + 1)
-                }
-              })
-
             {
               let behaviors = ears_parser.to_behaviors(result)
               let data =
@@ -878,7 +864,7 @@ pub fn parse_command() -> glint.Command(Nil) {
                 )
               json_output.output(response)
 
-              // Write to output file if specified
+              // Write to output file if specified (silently - status in JSON)
               case output_file {
                 "" -> Nil
                 path -> {
@@ -895,63 +881,10 @@ pub fn parse_command() -> glint.Command(Nil) {
                       }
                   }
                   let cue_output = ears_parser.to_cue(result, spec_name)
-                  case simplifile.write(path, cue_output) {
-                    Ok(_) -> {
-                      io.println("")
-                      io.println("✓ Wrote spec to: " <> path)
-                    }
-                    Error(err) -> {
-                      io.println_error("Failed to write spec: " <> path)
-                      io.println_error(string.inspect(err))
-                    }
-                  }
+                  let _ = simplifile.write(path, cue_output)
+                  Nil
                 }
               }
-            }
-            io.println(
-              "✓ Parsed " <> string.inspect(ubiq) <> " ubiquitous requirements",
-            )
-            io.println(
-              "✓ Parsed "
-              <> string.inspect(event)
-              <> " event-driven requirements",
-            )
-            io.println(
-              "✓ Parsed "
-              <> string.inspect(state)
-              <> " state-driven requirements",
-            )
-            io.println(
-              "✓ Parsed " <> string.inspect(opt) <> " optional requirements",
-            )
-            io.println(
-              "✓ Parsed " <> string.inspect(unwant) <> " unwanted requirements",
-            )
-            io.println(
-              "✓ Parsed " <> string.inspect(complex) <> " complex requirements",
-            )
-            {
-              io.println("")
-              list.each(result.errors, fn(e) {
-                let #(message, suggestion) = ears_parser.error_message(e)
-                let line = case e {
-                  ears_parser.PatternNotMatched(line:, ..) -> line
-                  ears_parser.PatternMatchFailed(line:, ..) -> line
-                  ears_parser.RegexCompileFailed(line:, ..) -> line
-                  ears_parser.ComponentExtractionFailed(line:, ..) -> line
-                }
-                io.println("Error parsing requirements:")
-                io.println("Line " <> string.inspect(line) <> ": " <> message)
-                io.println("  ❌ Does not match any EARS pattern")
-                io.println("  💡 Suggestion: " <> suggestion)
-              })
-              io.println("")
-              io.println(
-                "Parsed: " <> string.inspect(req_count) <> " requirements",
-              )
-              io.println(
-                "Failed: " <> string.inspect(err_count) <> " requirements",
-              )
             }
 
             case err_count > 0 {
