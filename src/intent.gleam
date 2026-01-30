@@ -10,6 +10,7 @@ import glint
 import intent/ai_errors
 import intent/analysis_commands
 import intent/bead_commands
+import intent/export_command as session_export
 import intent/interview
 import intent/interview_commands
 import intent/interview_storage
@@ -357,7 +358,7 @@ fn build_app() {
   // Validate/Show/Export/Lint/Check
   |> glint.add(at: ["validate"], do: validate_commands.validate_command())
   |> glint.add(at: ["show"], do: validate_commands.show_command())
-  |> glint.add(at: ["export"], do: validate_commands.export_command())
+  |> glint.add(at: ["export"], do: session_export.export_command())
   |> glint.add(at: ["lint"], do: validate_commands.lint_command())
   |> glint.add(at: ["check"], do: validate_commands.check_command())
   // Analysis

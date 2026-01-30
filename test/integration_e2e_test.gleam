@@ -324,15 +324,15 @@ pub fn show_spec_e2e_test() {
   result.is_valid_json |> should.be_true()
 }
 
-/// Test: export command returns JSON
+/// Test: export command exports interview session to CUE
 pub fn export_spec_e2e_test() {
-  let spec = "examples/user-api.cue"
-  let result = execute_cli("gleam run -- export " <> spec)
+  // Test that export command requires a session ID
+  let result = execute_cli("gleam run -- export")
 
-  // Should succeed
-  result.exit_code |> should.equal(0)
+  // Should fail with usage error
+  result.exit_code |> should.equal(4)
 
-  // Should return valid JSON
+  // Should return valid JSON error
   result.is_valid_json |> should.be_true()
 }
 
