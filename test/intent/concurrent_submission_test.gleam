@@ -1,16 +1,15 @@
 import gleam/dict
-import gleam/io
 import gleam/list
 import gleeunit/should
-import intent/interview.{Answer, Conflict, ConflictResolution, Gap}
+import intent/interview.{Answer}
 import intent/interview_storage
-import intent/question_types.{Developer, User}
+import intent/question_types.{Developer}
 import simplifile
 
 const test_file = ".beads/test_concurrent_sessions.jsonl"
 
 pub fn concurrent_answer_submissions_data_loss_test() {
-  setup_test_file()
+  let _ = setup_test_file()
 
   let session1 = create_session("session-1")
   let session2 = create_session("session-2")
@@ -40,7 +39,7 @@ pub fn concurrent_answer_submissions_data_loss_test() {
 }
 
 pub fn concurrent_same_session_updates_last_write_wins_test() {
-  setup_test_file()
+  let _ = setup_test_file()
 
   let session1 = create_session("session-a")
   let _ = interview_storage.append_session_to_jsonl(session1, test_file)
@@ -106,7 +105,7 @@ pub fn concurrent_same_session_updates_last_write_wins_test() {
 }
 
 pub fn concurrent_updates_different_sessions_race_test() {
-  setup_test_file()
+  let _ = setup_test_file()
 
   let session1 = create_session("concurrent-1")
   let session2 = create_session("concurrent-2")

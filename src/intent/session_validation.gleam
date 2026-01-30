@@ -1,6 +1,5 @@
 /// Session Validation Module (stub for build)
 /// TODO: Restore full implementation from .bak file
-import gleam/dict
 import gleam/list
 import gleam/string
 import intent/interview.{type Answer, type InterviewSession, type InterviewStage}
@@ -22,7 +21,7 @@ pub fn contains_template_marker(text: String) -> Bool {
 
 pub fn is_empty_response(text: String) -> Bool {
   let trimmed = string.trim(text)
-  let upper = string.uppercase(trimmed)
+  let _upper = string.uppercase(trimmed)
   string.length(trimmed) == 0 || trimmed == "N/A" || trimmed == "null"
 }
 
@@ -77,7 +76,7 @@ pub fn validate_session_for_export(
   session: InterviewSession,
 ) -> Result(InterviewSession, List(SessionError)) {
   let errors = []
-  let errors = case list.length(session.answers) == 0 {
+  let errors = case session.answers == [] {
     True -> list.append(errors, [EmptyAnswers(session.id)])
     False -> errors
   }

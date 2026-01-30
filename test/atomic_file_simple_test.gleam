@@ -1,7 +1,6 @@
 /// Simple atomic file operations test
 /// Verifies basic write-then-rename atomicity
 /// Bug reference: intent-cli-3e3z
-import gleam/result
 import gleeunit
 import gleeunit/should
 import intent/atomic_file

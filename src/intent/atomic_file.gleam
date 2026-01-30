@@ -101,13 +101,13 @@ fn classify_file_error(error: simplifile.FileError) -> FileErrorReason {
 /// Format FileErrorReason as human-readable string
 pub fn format_error_reason(reason: FileErrorReason) -> String {
   case reason {
-    PermissionDenied -> "Permission denied"
-    DiskFull -> "No space left on device (disk full)"
+    PermissionDenied -> "permission denied"
+    DiskFull -> "no space left on device (disk full)"
     IOError -> "I/O error (hardware or filesystem issue)"
-    NotFound -> "File or directory not found"
-    CrossDevice -> "Cannot rename across filesystem boundaries"
-    IsDirectory -> "Expected file but found directory"
-    NotDirectory -> "Expected directory but found file"
+    NotFound -> "file or directory not found"
+    CrossDevice -> "cannot rename across filesystem boundaries"
+    IsDirectory -> "expected file but found directory"
+    NotDirectory -> "expected directory but found file"
     Other(desc) -> desc
   }
 }

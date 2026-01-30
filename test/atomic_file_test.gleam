@@ -233,10 +233,9 @@ pub fn write_atomic_no_temp_file_left_behind_on_success_test() {
   case simplifile.read_directory("/tmp") {
     Ok(files) -> {
       let temp_files =
-        files
-        |> list_filter(fn(f) {
+        list_filter(fn(f) {
           string.contains(f, "atomic_test_no_temp.txt.tmp")
-        })
+        }, files)
 
       temp_files
       |> list_length()
@@ -351,4 +350,4 @@ fn generate_unique_suffix() -> String
 fn list_length(lst: List(a)) -> Int
 
 @external(erlang, "lists", "filter")
-fn list_filter(lst: List(a), pred: fn(a) -> Bool) -> List(a)
+fn list_filter(pred: fn(a) -> Bool, lst: List(a)) -> List(a)
