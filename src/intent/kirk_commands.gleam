@@ -525,10 +525,6 @@ pub fn kirk_ears_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let _mode = output_mode.Interactive
 
-    let output_format =
-      flag.get_string(input.flags, "output")
-      |> result.unwrap("text")
-
     let output_file =
       flag.get_string(input.flags, "out")
       |> result.unwrap("")
@@ -538,149 +534,105 @@ pub fn kirk_ears_command() -> glint.Command(Nil) {
         case simplifile.read(requirements_path) {
           Ok(content) -> {
             let result = ears_parser.parse(content)
+            let behaviors = ears_parser.to_behaviors(result)
 
-            let output = case output_format {
-              "cue" -> {
+            // Always output JSON to stdout
+            let data =
+              json.object([
+                #(
+                  "requirements",
+                  json.array(result.requirements, fn(r) {
+                    json.object([
+                      #("id", json.string(r.id)),
+                      #(
+                        "pattern",
+                        json.string(ears_parser.pattern_to_string(r.pattern)),
+                      ),
+                      #("system_shall", json.string(r.system_shall)),
+                      #("raw_text", json.string(r.raw_text)),
+                    ])
+                  }),
+                ),
+                #(
+                  "behaviors",
+                  json.array(behaviors, fn(b) {
+                    json.object([
+                      #("name", json.string(b.name)),
+                      #("intent", json.string(b.intent)),
+                      #("method", json.string(b.method)),
+                      #("path", json.string(b.path)),
+                      #("status", json.int(b.status)),
+                    ])
+                  }),
+                ),
+                #(
+                  "errors",
+                  json.array(result.errors, fn(e) {
+                    let #(message, suggestion) = ears_parser.error_message(e)
+                    let line = case e {
+                      ears_parser.PatternNotMatched(line:, ..) -> line
+                      ears_parser.PatternMatchFailed(line:, ..) -> line
+                      ears_parser.RegexCompileFailed(line:, ..) -> line
+                      ears_parser.ComponentExtractionFailed(line:, ..) -> line
+                    }
+                    json.object([
+                      #("line", json.int(line)),
+                      #("message", json.string(message)),
+                      #("suggestion", json.string(suggestion)),
+                    ])
+                  }),
+                ),
+                #("warnings", json.array(result.warnings, json.string)),
+              ])
+
+            let next_actions = [
+              json_output.next_action(
+                "intent parse " <> requirements_path <> " -o spec.cue",
+                "Generate CUE spec from requirements",
+              ),
+            ]
+
+            let response =
+              json_output.success(
+                "ears_result",
+                "ears",
+                data,
+                case output_file {
+                  "" -> None
+                  path -> Some(path)
+                },
+                next_actions,
+              )
+            json_output.output(response)
+
+            // Optionally write CUE to file (silently - status in JSON)
+            case output_file {
+              "" -> Nil
+              path -> {
                 let spec_name = case flag.get_string(input.flags, "name") {
                   Ok(n) -> n
                   Error(_) -> "GeneratedSpec"
                 }
-                ears_parser.to_cue(result, spec_name)
-              }
-              "json" -> {
-                let behaviors = ears_parser.to_behaviors(result)
-                let data =
-                  json.object([
-                    #(
-                      "requirements",
-                      json.array(result.requirements, fn(r) {
-                        json.object([
-                          #("id", json.string(r.id)),
-                          #(
-                            "pattern",
-                            json.string(ears_parser.pattern_to_string(r.pattern)),
-                          ),
-                          #("system_shall", json.string(r.system_shall)),
-                          #("raw_text", json.string(r.raw_text)),
-                        ])
-                      }),
-                    ),
-                    #(
-                      "behaviors",
-                      json.array(behaviors, fn(b) {
-                        json.object([
-                          #("name", json.string(b.name)),
-                          #("intent", json.string(b.intent)),
-                          #("method", json.string(b.method)),
-                          #("path", json.string(b.path)),
-                          #("status", json.int(b.status)),
-                        ])
-                      }),
-                    ),
-                    #(
-                      "errors",
-                      json.array(result.errors, fn(e) {
-                        let #(message, suggestion) =
-                          ears_parser.error_message(e)
-                        let line = case e {
-                          ears_parser.PatternNotMatched(line:, ..) -> line
-                          ears_parser.PatternMatchFailed(line:, ..) -> line
-                          ears_parser.RegexCompileFailed(line:, ..) -> line
-                          ears_parser.ComponentExtractionFailed(line:, ..) ->
-                            line
-                        }
-                        json.object([
-                          #("line", json.int(line)),
-                          #("message", json.string(message)),
-                          #("suggestion", json.string(suggestion)),
-                        ])
-                      }),
-                    ),
-                    #("warnings", json.array(result.warnings, json.string)),
-                  ])
-                let next_actions = [
-                  json_output.next_action(
-                    "intent ears " <> requirements_path <> " --output cue",
-                    "Generate CUE spec from requirements",
-                  ),
-                ]
-                let response =
-                  json_output.success(
-                    "ears_result",
-                    "ears",
-                    data,
-                    None,
-                    next_actions,
-                  )
-                json.to_string(json_output.to_json(response))
-              }
-              _ -> ears_parser.format_result(result)
-            }
-
-            case output_file {
-              "" -> {
-                io.println(output)
-                // Add next-step guidance for text/JSON output modes (not CUE since CUE writes to file)
-                case output_format {
-                  "cue" | "json" -> Nil
-                  _ -> {
-                    io.println("")
-                    io.println("Next steps:")
-                    io.println(
-                      "  • intent ears "
-                      <> requirements_path
-                      <> " --output=cue --out=spec.cue - Generate CUE spec",
-                    )
-                    io.println(
-                      "  • intent ears "
-                      <> requirements_path
-                      <> " --output=json - Machine-readable output",
-                    )
-                  }
-                }
-              }
-              path -> {
-                case simplifile.write(path, output) {
-                  Ok(_) -> {
-                    io.println("✓ Written to: " <> path)
-                    // Add next-step guidance after writing CUE file
-                    case output_format {
-                      "cue" -> {
-                        io.println("")
-                        io.println("Next steps:")
-                        io.println(
-                          "  • intent validate "
-                          <> path
-                          <> " - Verify spec syntax",
-                        )
-                        io.println(
-                          "  • intent lint "
-                          <> path
-                          <> " - Check for quality issues",
-                        )
-                        io.println(
-                          "  • intent quality "
-                          <> path
-                          <> " - Analyze overall quality",
-                        )
-                        io.println(
-                          "  • intent check "
-                          <> path
-                          <> " --target=URL - Test against API",
-                        )
-                      }
-                      _ -> Nil
-                    }
-                  }
-                  Error(_) -> io.println_error("Failed to write to: " <> path)
-                }
+                let cue_output = ears_parser.to_cue(result, spec_name)
+                let _ = simplifile.write(path, cue_output)
+                Nil
               }
             }
 
             halt(exit_pass)
           }
           Error(_) -> {
-            io.println_error("Failed to read: " <> requirements_path)
+            let error = json_output.error("file_read_error", "Failed to read: " <> requirements_path)
+            let response = json_output.failure(
+              "ears_error",
+              "ears",
+              json.null(),
+              [error],
+              None,
+              [],
+              exit_invalid,
+            )
+            json_output.output(response)
             halt(exit_invalid)
           }
         }
