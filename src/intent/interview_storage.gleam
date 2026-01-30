@@ -9,6 +9,7 @@
 /// - Simplifile wrappers provided for convenience
 import gleam/dict.{type Dict}
 import gleam/dynamic
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option}
@@ -988,6 +989,9 @@ pub fn get_parent_directory(file_path: String) -> Option(String) {
 // Sessions JSONL - I/O Functions with Dependency Injection
 // =============================================================================
 
+/// Maximum number of retry attempts for concurrent writes
+pub const max_write_retries = 5
+
 /// Ensure parent directory exists for a file path (with DI)
 pub fn ensure_parent_directory_with_io(
   file_path: String,
@@ -1001,6 +1005,7 @@ pub fn ensure_parent_directory_with_io(
 
 /// Write session to sessions.jsonl (with DI)
 /// Each session ID appears once, most recent last (for efficient updates)
+/// Uses retry mechanism to handle concurrent writes (intent-cli-7zgl)
 pub fn append_session_to_jsonl_with_io(
   session: InterviewSession,
   jsonl_path: String,
@@ -1008,10 +1013,53 @@ pub fn append_session_to_jsonl_with_io(
   writer: FileWriter,
   dir_creator: DirectoryCreator,
 ) -> Result(Nil, String) {
+  append_session_to_jsonl_with_io_retry(
+    session,
+    jsonl_path,
+    reader,
+    writer,
+    dir_creator,
+    0,
+  )
+}
+
+fn append_session_to_jsonl_with_io_retry(
+  session: InterviewSession,
+  jsonl_path: String,
+  reader: FileReader,
+  writer: FileWriter,
+  dir_creator: DirectoryCreator,
+  attempt: Int,
+) -> Result(Nil, String) {
   let existing = reader(jsonl_path) |> result.unwrap("")
   let new_content = update_sessions_content(existing, session)
   use _ <- result.try(ensure_parent_directory_with_io(jsonl_path, dir_creator))
-  writer(jsonl_path, new_content)
+
+  case writer(jsonl_path, new_content) {
+    Ok(_) -> Ok(Nil)
+    Error(err) -> {
+      case attempt < max_write_retries {
+        True -> {
+          let _ = attempt + 1
+          append_session_to_jsonl_with_io_retry(
+            session,
+            jsonl_path,
+            reader,
+            writer,
+            dir_creator,
+            attempt,
+          )
+        }
+        False ->
+          Error(
+            "Write failed after "
+            <> int.to_string(max_write_retries)
+            <> " attempts: "
+            <> err,
+          )
+      }
+    }
+  }
 }
 
 /// List all sessions from JSONL file (with DI)
