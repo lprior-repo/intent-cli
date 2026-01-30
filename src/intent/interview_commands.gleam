@@ -267,7 +267,7 @@ pub fn interview_command() -> glint.Command(Nil) {
     flag.string()
       |> flag.default("")
       |> flag.description(
-        "Session identifier for CUE mode (required with --cue flag)",
+        "Session identifier (required with --answer flag)",
       ),
   )
   |> glint.flag(
@@ -275,7 +275,7 @@ pub fn interview_command() -> glint.Command(Nil) {
     flag.string()
       |> flag.default("")
       |> flag.description(
-        "Response value for current question in CUE mode (use with --cue and --session)",
+        "Response value for current question (use with --session)",
       ),
   )
   |> glint.flag(
@@ -798,11 +798,11 @@ fn output_cue_question(
     }
     <> "\t}\n\n"
     <> "\tnext_action: {\n"
-    <> "\t\tcommand: \"intent interview --cue --session="
+    <> "\t\tcommand: \"intent interview --session="
     <> session.id
     <> " --answer='<your-answer>'\"\n"
     <> "\t\tdescription: \"Submit your answer to continue the interview\"\n"
-    <> "\t\texample: \"intent interview --cue --session="
+    <> "\t\texample: \"intent interview --session="
     <> session.id
     <> " --answer='THE SYSTEM SHALL validate all API inputs'\"\n"
     <> "\t}\n"

@@ -11,9 +11,7 @@ import intent/ai_errors
 import intent/analysis_commands
 import intent/bead_commands
 import intent/export_command as session_export
-import intent/interview
 import intent/interview_commands
-import intent/interview_storage
 import intent/json_output
 import intent/kirk_beads_commands
 import intent/kirk_commands
@@ -22,7 +20,6 @@ import intent/plan_commands
 import intent/ready_commands
 import intent/session_commands
 import intent/shape_commands
-import intent/smart_start
 import intent/spec_commands
 import intent/types
 import intent/utility_commands
@@ -214,28 +211,8 @@ pub fn main() {
       exit_pass
     }
     [] -> {
-      // No args: smart start - detect and resume sessions or start new interview
-      let sessions_path = ".intent/sessions.jsonl"
-      let action =
-        smart_start.determine_start_action(
-          sessions_path,
-          interview_storage.simplifile_reader(),
-        )
-
-      case action {
-        smart_start.Resume(session_id) -> {
-          // Auto-resume the session by running interview command with --resume flag
-          run_command_with_json_errors(["interview", "--resume=" <> session_id])
-        }
-        smart_start.StartNew(profile) -> {
-          // Start new interview with default profile
-          let profile_str = interview.profile_to_string(profile)
-          run_command_with_json_errors([
-            "interview",
-            "--profile=" <> profile_str,
-          ])
-        }
-      }
+      // No args: show help
+      run_command_with_json_errors(["help"])
     }
     _ -> {
       // Check if --help or -h appears anywhere in args (e.g., "show --help")

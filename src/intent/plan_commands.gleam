@@ -51,7 +51,35 @@ pub fn plan_command() -> glint.Command(Nil) {
       [session_id, ..] -> {
         case compute_plan_with_session(session_id) {
           Error(err) -> {
-            io.println_error(plan_mode.format_error(err))
+            // Return JSON error instead of plain text
+            let error_message = plan_mode.format_error(err)
+            let error_type = case err {
+              plan_mode.SessionNotFound(_) -> "session_not_found"
+              plan_mode.ParseError(_) -> "parse_error"
+              plan_mode.CyclicDependency(_) -> "cyclic_dependency"
+              plan_mode.MissingDependency(_, _) -> "missing_dependency"
+            }
+            
+            let response =
+              json_output.failure(
+                "plan_failed",
+                "plan",
+                json.object([#("session_id", json.string(session_id))]),
+                [json_output.error(error_type, error_message)],
+                Some(session_id),
+                [
+                  json_output.next_action(
+                    "intent sessions",
+                    "List available sessions",
+                  ),
+                  json_output.next_action(
+                    "intent beads " <> session_id,
+                    "Generate beads from session",
+                  ),
+                ],
+                exit_error,
+              )
+            json_output.output(response)
             halt(exit_error)
           }
           Ok(plan) -> {
