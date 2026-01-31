@@ -14,13 +14,13 @@
 //! # Examples
 //!
 //! ```rust
-//! use intent_core::error::{IntentError, IntentResult};
 //! use std::path::PathBuf;
+//!
+//! use intent_core::error::{IntentError, IntentResult};
 //!
 //! fn read_spec(path: &str) -> IntentResult<String> {
 //!     let path = PathBuf::from(path);
-//!     std::fs::read_to_string(&path)
-//!         .map_err(|source| IntentError::not_found(path, source))
+//!     std::fs::read_to_string(&path).map_err(|source| IntentError::not_found(path, source))
 //! }
 //!
 //! // Railway-oriented chaining
@@ -33,6 +33,7 @@
 //! ```
 
 use std::path::PathBuf;
+
 use thiserror::Error;
 
 /// Result type alias for Intent operations
@@ -105,7 +106,7 @@ pub enum IntentError {
     JsonParse {
         /// Error message
         message: String,
-        /// Source serde_json error
+        /// Source `serde_json` error
         #[source]
         source: serde_json::Error,
     },
@@ -478,7 +479,7 @@ impl IntentError {
 
     /// Create a batch validation error
     #[must_use]
-    pub fn validation_batch(errors: Vec<ValidationDetail>) -> Self {
+    pub const fn validation_batch(errors: Vec<ValidationDetail>) -> Self {
         Self::ValidationBatch {
             count: errors.len(),
             errors,
@@ -667,8 +668,10 @@ impl IntentError {
     pub const fn exit_code(&self) -> i32 {
         match self {
             Self::NotFound { .. } | Self::SessionNotFound { .. } => 4,
-            Self::Parse { .. } | Self::JsonParse { .. } | Self::CueEval { .. } => 3,
-            Self::Validation { .. }
+            Self::Parse { .. }
+            | Self::JsonParse { .. }
+            | Self::CueEval { .. }
+            | Self::Validation { .. }
             | Self::ValidationBatch { .. }
             | Self::SchemaValidation { .. } => 3,
             Self::Config { .. } | Self::ConfigMissing { .. } => 2,
@@ -734,10 +737,7 @@ mod tests {
     #[test]
     fn test_exit_codes() {
         assert_eq!(IntentError::spec_not_found("x").exit_code(), 4);
-        assert_eq!(
-            IntentError::validation("field", "invalid").exit_code(),
-            3
-        );
+        assert_eq!(IntentError::validation("field", "invalid").exit_code(), 3);
         assert_eq!(IntentError::config("bad").exit_code(), 2);
         assert_eq!(IntentError::connection("url", "failed").exit_code(), 6);
         assert_eq!(IntentError::timeout("op", 1000).exit_code(), 5);

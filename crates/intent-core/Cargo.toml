@@ -50,6 +50,7 @@ tracing-subscriber = "0.3"
 
 # Text processing
 regex = "1.11"
+url = "2.5"
 
 [dev-dependencies]
 tokio-test = "0.4"
