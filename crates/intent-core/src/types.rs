@@ -288,6 +288,182 @@ impl FromStr for HttpMethod {
     }
 }
 
+/// HTTP header name
+///
+/// Validated header name following RFC 7230.
+/// Stores names in lowercase for case-insensitive comparison.
+/// Only allows alphanumeric characters and hyphens.
+///
+/// # Examples
+///
+/// ```
+/// use intent_core::types::HeaderName;
+///
+/// let name = HeaderName::try_new("Content-Type").unwrap();
+/// assert_eq!(name.as_str(), "content-type");
+///
+/// // Case-insensitive equality
+/// let name1 = HeaderName::try_new("Content-Type").unwrap();
+/// let name2 = HeaderName::try_new("content-type").unwrap();
+/// assert_eq!(name1, name2);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HeaderName(String);
+
+impl HeaderName {
+    /// Create a new `HeaderName` with validation
+    ///
+    /// The name is stored in lowercase for case-insensitive comparison.
+    /// Only alphanumeric characters and hyphens are allowed.
+    ///
+    /// # Errors
+    ///
+    /// Returns `IntentError::Validation` if:
+    /// - Name is empty
+    /// - Name contains invalid characters (only alphanumeric and hyphen allowed)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use intent_core::types::HeaderName;
+    ///
+    /// let name = HeaderName::try_new("Content-Type").unwrap();
+    /// assert_eq!(name.as_str(), "content-type");
+    ///
+    /// let invalid = HeaderName::try_new("Invalid@Header");
+    /// assert!(invalid.is_err());
+    /// ```
+    pub fn try_new(name: impl Into<String>) -> Result<Self, IntentError> {
+        let name = name.into();
+
+        if name.is_empty() {
+            return Err(IntentError::validation(
+                "header_name",
+                "Header name cannot be empty",
+            ));
+        }
+
+        // Validate characters: alphanumeric and hyphens only
+        if !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+        {
+            return Err(IntentError::validation(
+                "header_name",
+                format!("Header name contains invalid characters: '{name}'. Only ASCII alphanumeric and hyphens allowed"),
+            ));
+        }
+
+        // Store lowercase for case-insensitive comparison
+        Ok(Self(name.to_ascii_lowercase()))
+    }
+
+    /// Get the header name as a string slice
+    ///
+    /// Returns the name in lowercase form.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for HeaderName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for HeaderName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// HTTP header value
+///
+/// Validated header value that supports any ASCII string.
+/// Allows printable ASCII characters and whitespace.
+///
+/// # Examples
+///
+/// ```
+/// use intent_core::types::HeaderValue;
+///
+/// let value = HeaderValue::try_new("application/json").unwrap();
+/// assert_eq!(value.as_str(), "application/json");
+///
+/// let with_spaces = HeaderValue::try_new("Bearer token123").unwrap();
+/// assert_eq!(with_spaces.as_str(), "Bearer token123");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HeaderValue(String);
+
+impl HeaderValue {
+    /// Create a new `HeaderValue` with validation
+    ///
+    /// Supports any valid ASCII string (printable characters + whitespace).
+    ///
+    /// # Errors
+    ///
+    /// Returns `IntentError::Validation` if:
+    /// - Value is empty
+    /// - Value contains non-ASCII characters
+    /// - Value contains control characters (except tab, space, CR, LF)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use intent_core::types::HeaderValue;
+    ///
+    /// let value = HeaderValue::try_new("application/json").unwrap();
+    /// assert_eq!(value.as_str(), "application/json");
+    ///
+    /// let invalid = HeaderValue::try_new("invalid\x00value");
+    /// assert!(invalid.is_err());
+    /// ```
+    pub fn try_new(value: impl Into<String>) -> Result<Self, IntentError> {
+        let value = value.into();
+
+        if value.is_empty() {
+            return Err(IntentError::validation(
+                "header_value",
+                "Header value cannot be empty",
+            ));
+        }
+
+        // Validate ASCII: printable characters + common whitespace (space, tab, CR, LF)
+        if !value.chars().all(|c| {
+            c.is_ascii()
+                && (c.is_ascii_graphic() || c == ' ' || c == '\t' || c == '\r' || c == '\n')
+        }) {
+            return Err(IntentError::validation(
+                "header_value",
+                format!("Header value contains invalid characters: '{value}'. Only ASCII printable characters and whitespace allowed"),
+            ));
+        }
+
+        Ok(Self(value))
+    }
+
+    /// Get the header value as a string slice
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for HeaderValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for HeaderValue {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -659,6 +835,336 @@ mod tests {
         assert!(result.is_ok());
         if let Ok(url) = result {
             assert_eq!(url.path(), "/api/v1/users/123");
+        }
+    }
+
+    // =========================================================================
+    // HeaderName Tests
+    // =========================================================================
+
+    #[test]
+    fn header_name_valid_simple() {
+        let result = HeaderName::try_new("Content-Type");
+        assert!(result.is_ok());
+        if let Ok(name) = result {
+            assert_eq!(name.as_str(), "content-type");
+        }
+    }
+
+    #[test]
+    fn header_name_valid_lowercase() {
+        let result = HeaderName::try_new("content-type");
+        assert!(result.is_ok());
+        if let Ok(name) = result {
+            assert_eq!(name.as_str(), "content-type");
+        }
+    }
+
+    #[test]
+    fn header_name_valid_uppercase() {
+        let result = HeaderName::try_new("CONTENT-TYPE");
+        assert!(result.is_ok());
+        if let Ok(name) = result {
+            assert_eq!(name.as_str(), "content-type");
+        }
+    }
+
+    #[test]
+    fn header_name_valid_with_hyphens() {
+        let result = HeaderName::try_new("X-Custom-Header");
+        assert!(result.is_ok());
+        if let Ok(name) = result {
+            assert_eq!(name.as_str(), "x-custom-header");
+        }
+    }
+
+    #[test]
+    fn header_name_valid_alphanumeric() {
+        let result = HeaderName::try_new("X-API-Key123");
+        assert!(result.is_ok());
+        if let Ok(name) = result {
+            assert_eq!(name.as_str(), "x-api-key123");
+        }
+    }
+
+    #[test]
+    fn header_name_case_insensitive_equality() {
+        let result1 = HeaderName::try_new("Content-Type");
+        let result2 = HeaderName::try_new("content-type");
+        let result3 = HeaderName::try_new("CONTENT-TYPE");
+        assert!(result1.is_ok() && result2.is_ok() && result3.is_ok());
+        if let (Ok(name1), Ok(name2), Ok(name3)) = (result1, result2, result3) {
+            assert_eq!(name1, name2);
+            assert_eq!(name2, name3);
+            assert_eq!(name1, name3);
+        }
+    }
+
+    #[test]
+    fn header_name_empty_fails() {
+        let result = HeaderName::try_new("");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("cannot be empty"));
+        }
+    }
+
+    #[test]
+    fn header_name_with_spaces_fails() {
+        let result = HeaderName::try_new("Content Type");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_name_with_underscore_fails() {
+        let result = HeaderName::try_new("Content_Type");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_name_with_special_chars_fails() {
+        let result = HeaderName::try_new("Content@Type");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_name_with_colon_fails() {
+        let result = HeaderName::try_new("Content:Type");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_name_with_slash_fails() {
+        let result = HeaderName::try_new("Content/Type");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_name_display() {
+        let result = HeaderName::try_new("Content-Type");
+        assert!(result.is_ok());
+        if let Ok(name) = result {
+            assert_eq!(name.to_string(), "content-type");
+        }
+    }
+
+    #[test]
+    fn header_name_as_ref() {
+        let result = HeaderName::try_new("Accept");
+        assert!(result.is_ok());
+        if let Ok(name) = result {
+            let s: &str = name.as_ref();
+            assert_eq!(s, "accept");
+        }
+    }
+
+    #[test]
+    fn header_name_clone() {
+        let result = HeaderName::try_new("Authorization");
+        assert!(result.is_ok());
+        if let Ok(name1) = result {
+            let name2 = name1.clone();
+            assert_eq!(name1, name2);
+        }
+    }
+
+    #[test]
+    fn header_name_common_headers() {
+        let headers = vec![
+            "Content-Type",
+            "Authorization",
+            "Accept",
+            "User-Agent",
+            "Accept-Encoding",
+            "Cache-Control",
+            "X-Forwarded-For",
+            "X-Request-ID",
+        ];
+
+        for header in headers {
+            let result = HeaderName::try_new(header);
+            assert!(result.is_ok(), "Failed to create header: {header}");
+        }
+    }
+
+    // =========================================================================
+    // HeaderValue Tests
+    // =========================================================================
+
+    #[test]
+    fn header_value_valid_simple() {
+        let result = HeaderValue::try_new("application/json");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            assert_eq!(value.as_str(), "application/json");
+        }
+    }
+
+    #[test]
+    fn header_value_valid_with_spaces() {
+        let result = HeaderValue::try_new("Bearer token123");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            assert_eq!(value.as_str(), "Bearer token123");
+        }
+    }
+
+    #[test]
+    fn header_value_valid_with_numbers() {
+        let result = HeaderValue::try_new("12345");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            assert_eq!(value.as_str(), "12345");
+        }
+    }
+
+    #[test]
+    fn header_value_valid_with_special_chars() {
+        let result = HeaderValue::try_new("text/html; charset=utf-8");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            assert_eq!(value.as_str(), "text/html; charset=utf-8");
+        }
+    }
+
+    #[test]
+    fn header_value_valid_with_tabs() {
+        let result = HeaderValue::try_new("value\twith\ttabs");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            assert_eq!(value.as_str(), "value\twith\ttabs");
+        }
+    }
+
+    #[test]
+    fn header_value_valid_with_crlf() {
+        let result = HeaderValue::try_new("line1\r\nline2");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            assert_eq!(value.as_str(), "line1\r\nline2");
+        }
+    }
+
+    #[test]
+    fn header_value_empty_fails() {
+        let result = HeaderValue::try_new("");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("cannot be empty"));
+        }
+    }
+
+    #[test]
+    fn header_value_with_null_fails() {
+        let result = HeaderValue::try_new("value\x00with\x00null");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_value_with_control_chars_fails() {
+        let result = HeaderValue::try_new("value\x01control");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_value_with_non_ascii_fails() {
+        let result = HeaderValue::try_new("value with emoji 🚀");
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn header_value_display() {
+        let result = HeaderValue::try_new("application/json");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            assert_eq!(value.to_string(), "application/json");
+        }
+    }
+
+    #[test]
+    fn header_value_as_ref() {
+        let result = HeaderValue::try_new("text/plain");
+        assert!(result.is_ok());
+        if let Ok(value) = result {
+            let s: &str = value.as_ref();
+            assert_eq!(s, "text/plain");
+        }
+    }
+
+    #[test]
+    fn header_value_clone() {
+        let result = HeaderValue::try_new("application/xml");
+        assert!(result.is_ok());
+        if let Ok(value1) = result {
+            let value2 = value1.clone();
+            assert_eq!(value1, value2);
+        }
+    }
+
+    #[test]
+    fn header_value_equality() {
+        let result1 = HeaderValue::try_new("application/json");
+        let result2 = HeaderValue::try_new("application/json");
+        let result3 = HeaderValue::try_new("text/plain");
+        assert!(result1.is_ok() && result2.is_ok() && result3.is_ok());
+        if let (Ok(value1), Ok(value2), Ok(value3)) = (result1, result2, result3) {
+            assert_eq!(value1, value2);
+            assert_ne!(value1, value3);
+        }
+    }
+
+    #[test]
+    fn header_value_case_sensitive() {
+        let result1 = HeaderValue::try_new("Application/JSON");
+        let result2 = HeaderValue::try_new("application/json");
+        assert!(result1.is_ok() && result2.is_ok());
+        if let (Ok(value1), Ok(value2)) = (result1, result2) {
+            // HeaderValue is case-sensitive (unlike HeaderName)
+            assert_ne!(value1, value2);
+        }
+    }
+
+    #[test]
+    fn header_value_common_values() {
+        let values = vec![
+            "application/json",
+            "text/html",
+            "text/plain",
+            "application/xml",
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+            "gzip, deflate, br",
+            "max-age=3600",
+            "*/*",
+            "Mozilla/5.0 (compatible; MSIE 10.0)",
+        ];
+
+        for value in values {
+            let result = HeaderValue::try_new(value);
+            assert!(result.is_ok(), "Failed to create value: {value}");
         }
     }
 }
