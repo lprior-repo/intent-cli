@@ -10,9 +10,7 @@
 //! - **Zero panics**: Use `Result` for all fallible operations
 //! - **Immutable by default**: Config is read-only after construction
 
-use crate::error::{IntentError, IntentResult};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Main configuration struct
 ///
