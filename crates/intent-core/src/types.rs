@@ -581,6 +581,99 @@ impl fmt::Display for StatusCode {
     }
 }
 
+// =============================================================================
+// Time Types
+// =============================================================================
+
+/// Duration wrapper with millisecond precision
+///
+/// Wraps `std::time::Duration` for timeout and timing operations.
+/// Provides convenient constructors for common durations.
+///
+/// # Examples
+///
+/// ```
+/// use intent_core::types::IntentDuration;
+///
+/// let timeout = IntentDuration::from_secs(30);
+/// assert_eq!(timeout.as_millis(), 30_000);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IntentDuration(std::time::Duration);
+
+impl IntentDuration {
+    /// Create a duration from seconds
+    #[must_use]
+    pub const fn from_secs(secs: u64) -> Self {
+        Self(std::time::Duration::from_secs(secs))
+    }
+
+    /// Create a duration from milliseconds
+    #[must_use]
+    pub const fn from_millis(millis: u64) -> Self {
+        Self(std::time::Duration::from_millis(millis))
+    }
+
+    /// Create a duration from microseconds
+    #[must_use]
+    pub const fn from_micros(micros: u64) -> Self {
+        Self(std::time::Duration::from_micros(micros))
+    }
+
+    /// Get duration in seconds
+    #[must_use]
+    pub const fn as_secs(&self) -> u64 {
+        self.0.as_secs()
+    }
+
+    /// Get duration in milliseconds
+    #[must_use]
+    pub const fn as_millis(&self) -> u128 {
+        self.0.as_millis()
+    }
+
+    /// Get duration in microseconds
+    #[must_use]
+    pub const fn as_micros(&self) -> u128 {
+        self.0.as_micros()
+    }
+
+    /// Get the inner `std::time::Duration`
+    #[must_use]
+    pub const fn inner(&self) -> std::time::Duration {
+        self.0
+    }
+
+    /// Check if duration is zero
+    #[must_use]
+    pub const fn is_zero(&self) -> bool {
+        self.0.as_nanos() == 0
+    }
+}
+
+impl fmt::Display for IntentDuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let millis = self.as_millis();
+        if millis < 1000 {
+            write!(f, "{}ms", millis)
+        } else {
+            write!(f, "{}s", self.as_secs())
+        }
+    }
+}
+
+impl From<std::time::Duration> for IntentDuration {
+    fn from(duration: std::time::Duration) -> Self {
+        Self(duration)
+    }
+}
+
+impl From<IntentDuration> for std::time::Duration {
+    fn from(duration: IntentDuration) -> Self {
+        duration.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1396,5 +1489,103 @@ mod tests {
         let status2 = StatusCode::try_new(404).unwrap();
         assert!(status1 < status2);
         assert!(status2 > status1);
+    }
+
+    // =========================================================================
+    // IntentDuration Tests
+    // =========================================================================
+
+    #[test]
+    fn duration_from_secs() {
+        let duration = IntentDuration::from_secs(5);
+        assert_eq!(duration.as_secs(), 5);
+        assert_eq!(duration.as_millis(), 5_000);
+    }
+
+    #[test]
+    fn duration_from_millis() {
+        let duration = IntentDuration::from_millis(1_500);
+        assert_eq!(duration.as_millis(), 1_500);
+        assert_eq!(duration.as_secs(), 1);
+    }
+
+    #[test]
+    fn duration_from_micros() {
+        let duration = IntentDuration::from_micros(1_000_000);
+        assert_eq!(duration.as_micros(), 1_000_000);
+        assert_eq!(duration.as_secs(), 1);
+    }
+
+    #[test]
+    fn duration_as_conversions() {
+        let duration = IntentDuration::from_secs(3);
+        assert_eq!(duration.as_secs(), 3);
+        assert_eq!(duration.as_millis(), 3_000);
+        assert_eq!(duration.as_micros(), 3_000_000);
+    }
+
+    #[test]
+    fn duration_is_zero() {
+        let zero = IntentDuration::from_secs(0);
+        let non_zero = IntentDuration::from_millis(1);
+        assert!(zero.is_zero());
+        assert!(!non_zero.is_zero());
+    }
+
+    #[test]
+    fn duration_display_millis() {
+        let duration = IntentDuration::from_millis(500);
+        assert_eq!(duration.to_string(), "500ms");
+    }
+
+    #[test]
+    fn duration_display_secs() {
+        let duration = IntentDuration::from_secs(5);
+        assert_eq!(duration.to_string(), "5s");
+    }
+
+    #[test]
+    fn duration_from_std_duration() {
+        let std_dur = std::time::Duration::from_secs(10);
+        let intent_dur = IntentDuration::from(std_dur);
+        assert_eq!(intent_dur.as_secs(), 10);
+    }
+
+    #[test]
+    fn duration_to_std_duration() {
+        let intent_dur = IntentDuration::from_secs(10);
+        let std_dur: std::time::Duration = intent_dur.into();
+        assert_eq!(std_dur.as_secs(), 10);
+    }
+
+    #[test]
+    fn duration_equality() {
+        let dur1 = IntentDuration::from_millis(1_000);
+        let dur2 = IntentDuration::from_secs(1);
+        let dur3 = IntentDuration::from_secs(2);
+        assert_eq!(dur1, dur2);
+        assert_ne!(dur1, dur3);
+    }
+
+    #[test]
+    fn duration_ordering() {
+        let dur1 = IntentDuration::from_secs(1);
+        let dur2 = IntentDuration::from_secs(2);
+        assert!(dur1 < dur2);
+        assert!(dur2 > dur1);
+    }
+
+    #[test]
+    fn duration_clone() {
+        let dur1 = IntentDuration::from_secs(5);
+        let dur2 = dur1;
+        assert_eq!(dur1, dur2);
+    }
+
+    #[test]
+    fn duration_inner() {
+        let duration = IntentDuration::from_secs(3);
+        let inner = duration.inner();
+        assert_eq!(inner.as_secs(), 3);
     }
 }
