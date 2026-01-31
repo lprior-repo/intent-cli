@@ -12,7 +12,107 @@
 
 use crate::error::IntentError;
 use std::fmt;
+use std::path::Path;
 use std::str::FromStr;
+
+// =============================================================================
+// Spec Types
+// =============================================================================
+
+/// Validated specification name
+///
+/// Must be non-empty, alphanumeric + hyphens/underscores only, and end with .cue
+///
+/// # Examples
+///
+/// ```
+/// use intent_core::types::SpecName;
+///
+/// let name = SpecName::try_new("user-api.cue").unwrap();
+/// assert_eq!(name.as_str(), "user-api.cue");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SpecName(String);
+
+impl SpecName {
+    /// Create a new SpecName with validation
+    ///
+    /// # Errors
+    ///
+    /// Returns `IntentError::Validation` if:
+    /// - Name is empty
+    /// - Name doesn't end with .cue
+    /// - Name contains invalid characters
+    pub fn try_new(name: impl Into<String>) -> Result<Self, IntentError> {
+        let name = name.into();
+
+        if name.is_empty() {
+            return Err(IntentError::validation(
+                "spec_name",
+                "Spec name cannot be empty",
+            ));
+        }
+
+        if !name.ends_with(".cue") {
+            return Err(IntentError::validation(
+                "spec_name",
+                format!("Spec name must end with .cue: '{}'", name),
+            ));
+        }
+
+        // Check for valid characters (alphanumeric, hyphens, underscores, dots, slashes for paths)
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | '/'))
+        {
+            return Err(IntentError::validation(
+                "spec_name",
+                format!(
+                    "Spec name contains invalid characters: '{}'. Only alphanumeric, hyphens, underscores, dots, and slashes allowed",
+                    name
+                ),
+            ));
+        }
+
+        Ok(Self(name))
+    }
+
+    /// Get the spec name as a string slice
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Convert to PathBuf
+    #[must_use]
+    pub fn as_path(&self) -> &Path {
+        Path::new(&self.0)
+    }
+
+    /// Get the base name without .cue extension
+    #[must_use]
+    pub fn base_name(&self) -> &str {
+        self.0.strip_suffix(".cue").unwrap_or(&self.0)
+    }
+}
+
+impl fmt::Display for SpecName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for SpecName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for SpecName {
+    fn as_ref(&self) -> &Path {
+        Path::new(&self.0)
+    }
+}
 
 // =============================================================================
 // HTTP Types
@@ -142,5 +242,72 @@ mod tests {
     fn http_method_equality() {
         assert_eq!(HttpMethod::Get, HttpMethod::Get);
         assert_ne!(HttpMethod::Get, HttpMethod::Post);
+    }
+
+    // =========================================================================
+    // SpecName Tests
+    // =========================================================================
+
+    #[test]
+    fn spec_name_valid() {
+        let name = SpecName::try_new("test.cue").unwrap();
+        assert_eq!(name.as_str(), "test.cue");
+    }
+
+    #[test]
+    fn spec_name_with_hyphens_underscores() {
+        let name = SpecName::try_new("user-api_v2.cue").unwrap();
+        assert_eq!(name.as_str(), "user-api_v2.cue");
+    }
+
+    #[test]
+    fn spec_name_with_path() {
+        let name = SpecName::try_new("specs/user-api.cue").unwrap();
+        assert_eq!(name.as_str(), "specs/user-api.cue");
+    }
+
+    #[test]
+    fn spec_name_empty_fails() {
+        let result = SpecName::try_new("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("cannot be empty"));
+    }
+
+    #[test]
+    fn spec_name_missing_extension_fails() {
+        let result = SpecName::try_new("test");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("must end with .cue"));
+    }
+
+    #[test]
+    fn spec_name_invalid_chars_fails() {
+        let result = SpecName::try_new("test@spec.cue");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("invalid characters"));
+    }
+
+    #[test]
+    fn spec_name_base_name() {
+        let name = SpecName::try_new("user-api.cue").unwrap();
+        assert_eq!(name.base_name(), "user-api");
+    }
+
+    #[test]
+    fn spec_name_display() {
+        let name = SpecName::try_new("test.cue").unwrap();
+        assert_eq!(name.to_string(), "test.cue");
+    }
+
+    #[test]
+    fn spec_name_as_path() {
+        let name = SpecName::try_new("specs/test.cue").unwrap();
+        assert_eq!(name.as_path(), Path::new("specs/test.cue"));
     }
 }
