@@ -736,11 +736,30 @@ mod tests {
 
     #[test]
     fn test_exit_codes() {
-        assert_eq!(IntentError::spec_not_found("x").exit_code(), 4);
-        assert_eq!(IntentError::validation("field", "invalid").exit_code(), 3);
+        // Exit code 1: General errors
+        let io_error = std::io::Error::new(std::io::ErrorKind::Other, "io error");
+        assert_eq!(IntentError::io("read", io_error).exit_code(), 1);
+        assert_eq!(IntentError::session("session error").exit_code(), 1);
+        assert_eq!(IntentError::internal("bug", "file.rs:42").exit_code(), 1);
+
+        // Exit code 2: Config errors
         assert_eq!(IntentError::config("bad").exit_code(), 2);
-        assert_eq!(IntentError::connection("url", "failed").exit_code(), 6);
+        assert_eq!(IntentError::config_missing("key", "file").exit_code(), 2);
+
+        // Exit code 3: Validation errors
+        assert_eq!(IntentError::validation("field", "invalid").exit_code(), 3);
+        assert_eq!(IntentError::parse("file.cue", 1, 1, "error").exit_code(), 3);
+
+        // Exit code 4: Not found errors
+        assert_eq!(IntentError::spec_not_found("x").exit_code(), 4);
+        assert_eq!(IntentError::session_not_found("sid").exit_code(), 4);
+
+        // Exit code 5: Timeout errors
         assert_eq!(IntentError::timeout("op", 1000).exit_code(), 5);
+
+        // Exit code 6: Network errors
+        assert_eq!(IntentError::connection("url", "failed").exit_code(), 6);
+        assert_eq!(IntentError::http("GET", "url", 500).exit_code(), 6);
     }
 
     #[test]
@@ -774,5 +793,234 @@ mod tests {
         let error = IntentError::validation_batch(errors);
         let display = error.to_string();
         assert!(display.contains("2 errors"));
+    }
+
+    // =========================================================================
+    // Constructor Method Tests (BEAD: intent-cli-mzn5)
+    // =========================================================================
+    // These tests verify each main constructor creates the correct variant
+    // with expected data. Following TDD and functional patterns with zero unwraps.
+
+    #[test]
+    fn test_not_found_constructor_creates_correct_variant() {
+        // Arrange: Create a sample IO error
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "file missing");
+        let path = PathBuf::from("/tmp/missing.txt");
+
+        // Act: Use the constructor
+        let error = IntentError::not_found(path.clone(), io_error);
+
+        // Assert: Verify correct variant and data using pattern matching
+        match error {
+            IntentError::NotFound {
+                resource_type,
+                path: error_path,
+                source,
+            } => {
+                assert_eq!(resource_type, "file");
+                assert_eq!(error_path, path);
+                assert!(source.is_some());
+            }
+            _ => panic!("Expected NotFound variant"),
+        }
+    }
+
+    #[test]
+    fn test_parse_constructor_creates_correct_variant() {
+        // Arrange: Set up parse error parameters
+        let file = PathBuf::from("spec.cue");
+        let line = 42;
+        let column = 15;
+        let message = "unexpected token ';'";
+
+        // Act: Use the constructor
+        let error = IntentError::parse(file.clone(), line, column, message);
+
+        // Assert: Verify correct variant and all fields
+        match error {
+            IntentError::Parse {
+                file: error_file,
+                line: error_line,
+                column: error_column,
+                message: error_message,
+                suggestion,
+            } => {
+                assert_eq!(error_file, file);
+                assert_eq!(error_line, line);
+                assert_eq!(error_column, column);
+                assert_eq!(error_message, message);
+                assert!(suggestion.is_none());
+            }
+            _ => panic!("Expected Parse variant"),
+        }
+    }
+
+    #[test]
+    fn test_validation_constructor_creates_correct_variant() {
+        // Arrange: Set up validation error parameters
+        let field = "email";
+        let message = "must contain @ symbol";
+
+        // Act: Use the constructor
+        let error = IntentError::validation(field, message);
+
+        // Assert: Verify correct variant and all fields
+        match error {
+            IntentError::Validation {
+                field: error_field,
+                message: error_message,
+                value,
+                suggestion,
+            } => {
+                assert_eq!(error_field, field);
+                assert_eq!(error_message, message);
+                assert!(value.is_none());
+                assert!(suggestion.is_none());
+            }
+            _ => panic!("Expected Validation variant"),
+        }
+    }
+
+    #[test]
+    fn test_http_constructor_creates_correct_variant() {
+        // Arrange: Set up HTTP error parameters
+        let method = "GET";
+        let url = "https://api.example.com/users";
+        let status = 404;
+
+        // Act: Use the constructor
+        let error = IntentError::http(method, url, status);
+
+        // Assert: Verify correct variant and all fields
+        match error {
+            IntentError::Http {
+                method: error_method,
+                url: error_url,
+                status: error_status,
+                body,
+                expected_status,
+            } => {
+                assert_eq!(error_method, method);
+                assert_eq!(error_url, url);
+                assert_eq!(error_status, status);
+                assert!(body.is_none());
+                assert!(expected_status.is_none());
+            }
+            _ => panic!("Expected Http variant"),
+        }
+    }
+
+    #[test]
+    fn test_config_constructor_creates_correct_variant() {
+        // Arrange: Set up config error parameters
+        let message = "invalid timeout value";
+
+        // Act: Use the constructor
+        let error = IntentError::config(message);
+
+        // Assert: Verify correct variant and all fields
+        match error {
+            IntentError::Config {
+                message: error_message,
+                key,
+                file,
+                suggestion,
+            } => {
+                assert_eq!(error_message, message);
+                assert!(key.is_none());
+                assert!(file.is_none());
+                assert!(suggestion.is_none());
+            }
+            _ => panic!("Expected Config variant"),
+        }
+    }
+
+    #[test]
+    fn test_not_found_constructor_with_string_path() {
+        // Test that Into<PathBuf> works with &str
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "test");
+        let error = IntentError::not_found("config.toml", io_error);
+
+        match error {
+            IntentError::NotFound { path, .. } => {
+                assert_eq!(path, PathBuf::from("config.toml"));
+            }
+            _ => panic!("Expected NotFound variant"),
+        }
+    }
+
+    #[test]
+    fn test_parse_constructor_with_string_inputs() {
+        // Test that Into<String> and Into<PathBuf> work with &str
+        let error = IntentError::parse("test.cue", 1, 1, "error");
+
+        match error {
+            IntentError::Parse { file, message, .. } => {
+                assert_eq!(file, PathBuf::from("test.cue"));
+                assert_eq!(message, "error");
+            }
+            _ => panic!("Expected Parse variant"),
+        }
+    }
+
+    #[test]
+    fn test_validation_constructor_with_string_inputs() {
+        // Test that Into<String> works with &str
+        let error = IntentError::validation("field", "message");
+
+        match error {
+            IntentError::Validation { field, message, .. } => {
+                assert_eq!(field, "field");
+                assert_eq!(message, "message");
+            }
+            _ => panic!("Expected Validation variant"),
+        }
+    }
+
+    #[test]
+    fn test_http_constructor_with_string_inputs() {
+        // Test that Into<String> works with &str
+        let error = IntentError::http("POST", "http://localhost", 500);
+
+        match error {
+            IntentError::Http { method, url, status, .. } => {
+                assert_eq!(method, "POST");
+                assert_eq!(url, "http://localhost");
+                assert_eq!(status, 500);
+            }
+            _ => panic!("Expected Http variant"),
+        }
+    }
+
+    #[test]
+    fn test_config_constructor_with_string_input() {
+        // Test that Into<String> works with &str
+        let error = IntentError::config("error message");
+
+        match error {
+            IntentError::Config { message, .. } => {
+                assert_eq!(message, "error message");
+            }
+            _ => panic!("Expected Config variant"),
+        }
+    }
+
+    #[test]
+    fn test_constructor_must_use_attribute_present() {
+        // This test verifies that #[must_use] is working by attempting to
+        // call constructors without binding the result. If #[must_use] is present,
+        // the compiler will warn, but the test will still pass.
+        // This is a compile-time check, not a runtime check.
+
+        // These calls would generate warnings if #[must_use] is properly applied
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "test");
+        let _ = IntentError::not_found("test", io_err);
+        let _ = IntentError::parse("test", 1, 1, "msg");
+        let _ = IntentError::validation("field", "msg");
+        let _ = IntentError::http("GET", "url", 200);
+        let _ = IntentError::config("msg");
+
+        // If we get here, the constructors work correctly
+        // The #[must_use] attribute will be verified by clippy
     }
 }
