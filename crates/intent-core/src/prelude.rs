@@ -11,7 +11,10 @@ pub use tap::{Pipe, Tap};
 
 // Re-export error types
 pub use crate::error::{IntentError, IntentResult};
-
+// Re-export HTTP types
+pub use crate::http::{
+    HttpClient, HttpClientBuilder, HttpRequest, HttpRequestBuilder, RedirectPolicy, TimeoutConfig,
+};
 // Re-export domain types
 pub use crate::types::{
     HeaderName, HeaderValue, HttpMethod, IntentDuration, SpecName, StatusCode, Url,

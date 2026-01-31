@@ -983,7 +983,12 @@ mod tests {
         let error = IntentError::http("POST", "http://localhost", 500);
 
         match error {
-            IntentError::Http { method, url, status, .. } => {
+            IntentError::Http {
+                method,
+                url,
+                status,
+                ..
+            } => {
                 assert_eq!(method, "POST");
                 assert_eq!(url, "http://localhost");
                 assert_eq!(status, 500);

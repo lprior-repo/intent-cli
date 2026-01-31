@@ -152,9 +152,9 @@ impl Url {
     /// ```
     pub fn try_new(url: impl AsRef<str>) -> Result<Self, IntentError> {
         let url_str = url.as_ref();
-        url::Url::parse(url_str).map(Self).map_err(|e| {
-            IntentError::validation("url", format!("Invalid URL '{url_str}': {e}"))
-        })
+        url::Url::parse(url_str)
+            .map(Self)
+            .map_err(|e| IntentError::validation("url", format!("Invalid URL '{url_str}': {e}")))
     }
 
     /// Get the URL as a string slice
@@ -344,10 +344,7 @@ impl HeaderName {
         }
 
         // Validate characters: alphanumeric and hyphens only
-        if !name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-')
-        {
+        if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
             return Err(IntentError::validation(
                 "header_name",
                 format!("Header name contains invalid characters: '{name}'. Only ASCII alphanumeric and hyphens allowed"),
@@ -578,6 +575,177 @@ impl StatusCode {
 impl fmt::Display for StatusCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+/// HTTP response
+///
+/// Represents a complete HTTP response with all relevant metadata.
+/// Uses validated types for all fields to ensure type safety.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+///
+/// use intent_core::types::{HeaderName, HeaderValue, HttpResponse, StatusCode, Url};
+///
+/// let mut headers = HashMap::new();
+/// headers.insert(
+///     HeaderName::try_new("content-type").unwrap(),
+///     HeaderValue::try_new("application/json").unwrap(),
+/// );
+///
+/// let response = HttpResponse::new(
+///     StatusCode::ok(),
+///     headers,
+///     String::from(r#"{"status":"success"}"#),
+///     42,
+///     Url::try_new("https://api.example.com/data").unwrap(),
+/// );
+///
+/// assert_eq!(response.status().as_u16(), 200);
+/// assert_eq!(response.body(), r#"{"status":"success"}"#);
+/// assert_eq!(response.elapsed_ms(), 42);
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct HttpResponse {
+    status: StatusCode,
+    headers: std::collections::HashMap<HeaderName, HeaderValue>,
+    body: String,
+    elapsed_ms: u64,
+    final_url: Url,
+}
+
+impl HttpResponse {
+    /// Create a new `HttpResponse`
+    ///
+    /// All fields are required. Use an empty HashMap for no headers,
+    /// or an empty String for no body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// use intent_core::types::{HttpResponse, StatusCode, Url};
+    ///
+    /// let response = HttpResponse::new(
+    ///     StatusCode::ok(),
+    ///     HashMap::new(),
+    ///     String::new(),
+    ///     100,
+    ///     Url::try_new("https://example.com").unwrap(),
+    /// );
+    ///
+    /// assert_eq!(response.status().as_u16(), 200);
+    /// assert!(response.body().is_empty());
+    /// ```
+    #[must_use]
+    pub fn new(
+        status: StatusCode,
+        headers: std::collections::HashMap<HeaderName, HeaderValue>,
+        body: String,
+        elapsed_ms: u64,
+        final_url: Url,
+    ) -> Self {
+        Self {
+            status,
+            headers,
+            body,
+            elapsed_ms,
+            final_url,
+        }
+    }
+
+    /// Get the HTTP status code
+    #[must_use]
+    pub const fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    /// Get the response headers
+    #[must_use]
+    pub fn headers(&self) -> &std::collections::HashMap<HeaderName, HeaderValue> {
+        &self.headers
+    }
+
+    /// Get a specific header value by name
+    ///
+    /// Returns `None` if the header is not present.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// use intent_core::types::{HeaderName, HeaderValue, HttpResponse, StatusCode, Url};
+    ///
+    /// let mut headers = HashMap::new();
+    /// headers.insert(
+    ///     HeaderName::try_new("content-type").unwrap(),
+    ///     HeaderValue::try_new("application/json").unwrap(),
+    /// );
+    ///
+    /// let response = HttpResponse::new(
+    ///     StatusCode::ok(),
+    ///     headers,
+    ///     String::new(),
+    ///     0,
+    ///     Url::try_new("https://example.com").unwrap(),
+    /// );
+    ///
+    /// let content_type = HeaderName::try_new("content-type").unwrap();
+    /// assert_eq!(
+    ///     response.header(&content_type).map(|v| v.as_str()),
+    ///     Some("application/json")
+    /// );
+    /// ```
+    #[must_use]
+    pub fn header(&self, name: &HeaderName) -> Option<&HeaderValue> {
+        self.headers.get(name)
+    }
+
+    /// Get the response body as a string slice
+    #[must_use]
+    pub fn body(&self) -> &str {
+        &self.body
+    }
+
+    /// Get the elapsed time in milliseconds
+    #[must_use]
+    pub const fn elapsed_ms(&self) -> u64 {
+        self.elapsed_ms
+    }
+
+    /// Get the final URL (after redirects)
+    #[must_use]
+    pub fn final_url(&self) -> &Url {
+        &self.final_url
+    }
+
+    /// Check if the response was successful (2xx status code)
+    #[must_use]
+    pub const fn is_success(&self) -> bool {
+        self.status.is_success()
+    }
+
+    /// Check if the response is a redirect (3xx status code)
+    #[must_use]
+    pub const fn is_redirect(&self) -> bool {
+        self.status.is_redirect()
+    }
+
+    /// Check if the response is a client error (4xx status code)
+    #[must_use]
+    pub const fn is_client_error(&self) -> bool {
+        self.status.is_client_error()
+    }
+
+    /// Check if the response is a server error (5xx status code)
+    #[must_use]
+    pub const fn is_server_error(&self) -> bool {
+        self.status.is_server_error()
     }
 }
 
@@ -1446,7 +1614,9 @@ mod tests {
         assert!(StatusCode::try_new(500).unwrap().is_server_error());
         assert!(StatusCode::try_new(599).unwrap().is_server_error());
         assert!(!StatusCode::try_new(499).unwrap().is_server_error());
-        assert!(!StatusCode::try_new(600).unwrap_or(StatusCode::ok()).is_server_error());
+        assert!(!StatusCode::try_new(600)
+            .unwrap_or(StatusCode::ok())
+            .is_server_error());
     }
 
     #[test]
@@ -1587,5 +1757,296 @@ mod tests {
         let duration = IntentDuration::from_secs(3);
         let inner = duration.inner();
         assert_eq!(inner.as_secs(), 3);
+    }
+
+    // =========================================================================
+    // HttpResponse Tests
+    // =========================================================================
+
+    #[test]
+    fn test_response_fields() {
+        use std::collections::HashMap;
+
+        let mut headers = HashMap::new();
+        let content_type = HeaderName::try_new("content-type");
+        let content_type_value = HeaderValue::try_new("application/json");
+        assert!(content_type.is_ok());
+        assert!(content_type_value.is_ok());
+
+        if let (Ok(name), Ok(value)) = (content_type, content_type_value) {
+            headers.insert(name, value);
+        }
+
+        let status = StatusCode::ok();
+        let body = String::from(r#"{"status":"success"}"#);
+        let elapsed = 42_u64;
+        let url_result = Url::try_new("https://api.example.com/data");
+        assert!(url_result.is_ok());
+
+        if let Ok(url) = url_result {
+            let response = HttpResponse::new(status, headers, body, elapsed, url);
+
+            // Test all field accessors
+            assert_eq!(response.status().as_u16(), 200);
+            assert_eq!(response.body(), r#"{"status":"success"}"#);
+            assert_eq!(response.elapsed_ms(), 42);
+            assert_eq!(
+                response.final_url().as_str(),
+                "https://api.example.com/data"
+            );
+
+            // Test header access
+            let ct_result = HeaderName::try_new("content-type");
+            assert!(ct_result.is_ok());
+            if let Ok(ct) = ct_result {
+                let header_value = response.header(&ct);
+                assert!(header_value.is_some());
+                if let Some(val) = header_value {
+                    assert_eq!(val.as_str(), "application/json");
+                }
+            }
+
+            // Test status helpers
+            assert!(response.is_success());
+            assert!(!response.is_redirect());
+            assert!(!response.is_client_error());
+            assert!(!response.is_server_error());
+        }
+    }
+
+    #[test]
+    fn http_response_new() {
+        use std::collections::HashMap;
+
+        let url_result = Url::try_new("https://example.com");
+        assert!(url_result.is_ok());
+
+        if let Ok(url) = url_result {
+            let response =
+                HttpResponse::new(StatusCode::ok(), HashMap::new(), String::new(), 100, url);
+
+            assert_eq!(response.status().as_u16(), 200);
+            assert!(response.body().is_empty());
+            assert_eq!(response.elapsed_ms(), 100);
+        }
+    }
+
+    #[test]
+    fn http_response_with_headers() {
+        use std::collections::HashMap;
+
+        let mut headers = HashMap::new();
+        let name_result = HeaderName::try_new("authorization");
+        let value_result = HeaderValue::try_new("Bearer token123");
+        let url_result = Url::try_new("https://api.example.com");
+
+        assert!(name_result.is_ok() && value_result.is_ok() && url_result.is_ok());
+
+        if let (Ok(name), Ok(value), Ok(url)) = (name_result, value_result, url_result) {
+            headers.insert(name.clone(), value);
+
+            let response = HttpResponse::new(
+                StatusCode::ok(),
+                headers,
+                String::from("response body"),
+                250,
+                url,
+            );
+
+            assert_eq!(response.headers().len(), 1);
+            let header_val = response.header(&name);
+            assert!(header_val.is_some());
+            if let Some(val) = header_val {
+                assert_eq!(val.as_str(), "Bearer token123");
+            }
+        }
+    }
+
+    #[test]
+    fn http_response_status_checks() {
+        use std::collections::HashMap;
+
+        // Test success response
+        let url_result = Url::try_new("https://example.com");
+        assert!(url_result.is_ok());
+        if let Ok(url) = url_result {
+            let success_response =
+                HttpResponse::new(StatusCode::ok(), HashMap::new(), String::new(), 0, url);
+            assert!(success_response.is_success());
+        }
+
+        // Test redirect response
+        let url_result = Url::try_new("https://example.com");
+        assert!(url_result.is_ok());
+        if let Ok(url) = url_result {
+            let redirect_result = StatusCode::try_new(301);
+            assert!(redirect_result.is_ok());
+            if let Ok(redirect_status) = redirect_result {
+                let redirect_response =
+                    HttpResponse::new(redirect_status, HashMap::new(), String::new(), 0, url);
+                assert!(redirect_response.is_redirect());
+            }
+        }
+
+        // Test client error response
+        let url_result = Url::try_new("https://example.com");
+        assert!(url_result.is_ok());
+        if let Ok(url) = url_result {
+            let client_error_response = HttpResponse::new(
+                StatusCode::not_found(),
+                HashMap::new(),
+                String::new(),
+                0,
+                url,
+            );
+            assert!(client_error_response.is_client_error());
+        }
+
+        // Test server error response
+        let url_result = Url::try_new("https://example.com");
+        assert!(url_result.is_ok());
+        if let Ok(url) = url_result {
+            let server_error_response = HttpResponse::new(
+                StatusCode::internal_server_error(),
+                HashMap::new(),
+                String::new(),
+                0,
+                url,
+            );
+            assert!(server_error_response.is_server_error());
+        }
+    }
+
+    #[test]
+    fn http_response_header_not_found() {
+        use std::collections::HashMap;
+
+        let url_result = Url::try_new("https://example.com");
+        assert!(url_result.is_ok());
+
+        if let Ok(url) = url_result {
+            let response =
+                HttpResponse::new(StatusCode::ok(), HashMap::new(), String::new(), 0, url);
+
+            let missing_header = HeaderName::try_new("x-custom-header");
+            assert!(missing_header.is_ok());
+
+            if let Ok(header_name) = missing_header {
+                assert!(response.header(&header_name).is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn http_response_final_url() {
+        use std::collections::HashMap;
+
+        let initial_url = Url::try_new("https://example.com/redirect");
+        let final_url = Url::try_new("https://example.com/final");
+
+        assert!(initial_url.is_ok() && final_url.is_ok());
+
+        if let (Ok(_initial), Ok(final_dest)) = (initial_url, final_url) {
+            let response = HttpResponse::new(
+                StatusCode::ok(),
+                HashMap::new(),
+                String::new(),
+                150,
+                final_dest,
+            );
+
+            assert_eq!(response.final_url().as_str(), "https://example.com/final");
+        }
+    }
+
+    #[test]
+    fn http_response_clone() {
+        use std::collections::HashMap;
+
+        let url_result = Url::try_new("https://example.com");
+        assert!(url_result.is_ok());
+
+        if let Ok(url) = url_result {
+            let response1 = HttpResponse::new(
+                StatusCode::ok(),
+                HashMap::new(),
+                String::from("test"),
+                100,
+                url,
+            );
+
+            let response2 = response1.clone();
+            assert_eq!(response1, response2);
+            assert_eq!(response2.body(), "test");
+        }
+    }
+
+    #[test]
+    fn http_response_equality() {
+        use std::collections::HashMap;
+
+        let url1_result = Url::try_new("https://example.com");
+        let url2_result = Url::try_new("https://example.com");
+        assert!(url1_result.is_ok() && url2_result.is_ok());
+
+        if let (Ok(url1), Ok(url2)) = (url1_result, url2_result) {
+            let response1 = HttpResponse::new(
+                StatusCode::ok(),
+                HashMap::new(),
+                String::from("body"),
+                50,
+                url1,
+            );
+
+            let response2 = HttpResponse::new(
+                StatusCode::ok(),
+                HashMap::new(),
+                String::from("body"),
+                50,
+                url2,
+            );
+
+            assert_eq!(response1, response2);
+        }
+    }
+
+    #[test]
+    fn http_response_with_multiple_headers() {
+        use std::collections::HashMap;
+
+        let mut headers = HashMap::new();
+        let ct_name = HeaderName::try_new("content-type");
+        let ct_value = HeaderValue::try_new("application/json");
+        let auth_name = HeaderName::try_new("authorization");
+        let auth_value = HeaderValue::try_new("Bearer token");
+        let url_result = Url::try_new("https://api.example.com");
+
+        assert!(
+            ct_name.is_ok()
+                && ct_value.is_ok()
+                && auth_name.is_ok()
+                && auth_value.is_ok()
+                && url_result.is_ok()
+        );
+
+        if let (Ok(ct_n), Ok(ct_v), Ok(auth_n), Ok(auth_v), Ok(url)) =
+            (ct_name, ct_value, auth_name, auth_value, url_result)
+        {
+            headers.insert(ct_n.clone(), ct_v);
+            headers.insert(auth_n.clone(), auth_v);
+
+            let response = HttpResponse::new(
+                StatusCode::created(),
+                headers,
+                String::from(r#"{"id":123}"#),
+                75,
+                url,
+            );
+
+            assert_eq!(response.headers().len(), 2);
+            assert!(response.header(&ct_n).is_some());
+            assert!(response.header(&auth_n).is_some());
+            assert_eq!(response.status().as_u16(), 201);
+        }
     }
 }
