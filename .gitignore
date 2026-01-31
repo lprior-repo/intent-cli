@@ -2,8 +2,12 @@
 build/
 _build/
 
+# Rust
+/target/
+Cargo.lock
+
 # Moon build cache
-.moon/
+.moon/cache/
 
 # Erlang artifacts
 *.beam
@@ -46,3 +50,12 @@ cover/
 .bead_session.jsonl
 scripts/beads-queue
 .intent/
+
+# Build artifacts
+*.so
+*.dylib
+*.dll
+
+# Codanna (local index)
+.codanna/
+.fastembed_cache
