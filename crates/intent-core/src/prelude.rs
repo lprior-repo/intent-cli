@@ -9,4 +9,10 @@
 pub use itertools::Itertools;
 pub use tap::{Pipe, Tap};
 
+// Re-export error types
 pub use crate::error::{IntentError, IntentResult};
+
+// Re-export domain types
+pub use crate::types::{
+    HeaderName, HeaderValue, HttpMethod, IntentDuration, SpecName, StatusCode, Url,
+};
