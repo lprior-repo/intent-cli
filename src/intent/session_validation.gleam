@@ -87,6 +87,18 @@ pub fn validate_session_for_export(
         InvalidStageForExport(session.id, stage_to_string(session.stage)),
       ])
   }
+
+  // Validate each answer for template markers and empty responses
+  let answer_errors =
+    list.filter_map(session.answers, fn(answer) {
+      case validate_answer(session.id, answer) {
+        Error(err) -> Ok(err)
+        Ok(_) -> Error(Nil)
+      }
+    })
+
+  let errors = list.append(errors, answer_errors)
+
   case list.length(errors) {
     0 -> Ok(session)
     _ -> Error(errors)

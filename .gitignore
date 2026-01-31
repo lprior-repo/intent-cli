@@ -45,3 +45,4 @@ cover/
 .bead_logs/
 .bead_session.jsonl
 scripts/beads-queue
+.intent/
