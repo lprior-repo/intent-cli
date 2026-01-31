@@ -464,6 +464,123 @@ impl AsRef<str> for HeaderValue {
     }
 }
 
+/// HTTP status code
+///
+/// Validated HTTP status code (100-599).
+/// Common status codes can be constructed with helper methods.
+///
+/// # Examples
+///
+/// ```
+/// use intent_core::types::StatusCode;
+///
+/// let status = StatusCode::try_new(200).unwrap();
+/// assert_eq!(status.as_u16(), 200);
+/// assert!(status.is_success());
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StatusCode(u16);
+
+impl StatusCode {
+    /// Create a new `StatusCode` with validation
+    ///
+    /// # Errors
+    ///
+    /// Returns `IntentError::Validation` if the status code is not in the range 100-599
+    pub fn try_new(code: u16) -> Result<Self, IntentError> {
+        if !(100..=599).contains(&code) {
+            return Err(IntentError::validation(
+                "status_code",
+                format!("Invalid HTTP status code: {code}. Must be in range 100-599"),
+            ));
+        }
+        Ok(Self(code))
+    }
+
+    /// Get the status code as a u16
+    #[must_use]
+    pub const fn as_u16(&self) -> u16 {
+        self.0
+    }
+
+    /// Check if this is a success status (2xx)
+    #[must_use]
+    pub const fn is_success(&self) -> bool {
+        matches!(self.0, 200..=299)
+    }
+
+    /// Check if this is a redirect status (3xx)
+    #[must_use]
+    pub const fn is_redirect(&self) -> bool {
+        matches!(self.0, 300..=399)
+    }
+
+    /// Check if this is a client error status (4xx)
+    #[must_use]
+    pub const fn is_client_error(&self) -> bool {
+        matches!(self.0, 400..=499)
+    }
+
+    /// Check if this is a server error status (5xx)
+    #[must_use]
+    pub const fn is_server_error(&self) -> bool {
+        matches!(self.0, 500..=599)
+    }
+
+    /// Check if this is an informational status (1xx)
+    #[must_use]
+    pub const fn is_informational(&self) -> bool {
+        matches!(self.0, 100..=199)
+    }
+
+    // Common status codes
+    #[must_use]
+    pub const fn ok() -> Self {
+        Self(200)
+    }
+
+    #[must_use]
+    pub const fn created() -> Self {
+        Self(201)
+    }
+
+    #[must_use]
+    pub const fn no_content() -> Self {
+        Self(204)
+    }
+
+    #[must_use]
+    pub const fn bad_request() -> Self {
+        Self(400)
+    }
+
+    #[must_use]
+    pub const fn unauthorized() -> Self {
+        Self(401)
+    }
+
+    #[must_use]
+    pub const fn forbidden() -> Self {
+        Self(403)
+    }
+
+    #[must_use]
+    pub const fn not_found() -> Self {
+        Self(404)
+    }
+
+    #[must_use]
+    pub const fn internal_server_error() -> Self {
+        Self(500)
+    }
+}
+
+impl fmt::Display for StatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1166,5 +1283,118 @@ mod tests {
             let result = HeaderValue::try_new(value);
             assert!(result.is_ok(), "Failed to create value: {value}");
         }
+    }
+
+    // =========================================================================
+    // StatusCode Tests
+    // =========================================================================
+
+    #[test]
+    fn status_code_valid() {
+        let result = StatusCode::try_new(200);
+        assert!(result.is_ok());
+        if let Ok(status) = result {
+            assert_eq!(status.as_u16(), 200);
+        }
+    }
+
+    #[test]
+    fn status_code_range_valid() {
+        for code in [100, 200, 300, 400, 500, 599] {
+            let result = StatusCode::try_new(code);
+            assert!(result.is_ok(), "Failed for code: {code}");
+        }
+    }
+
+    #[test]
+    fn status_code_below_100_fails() {
+        let result = StatusCode::try_new(99);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("Invalid HTTP status code"));
+        }
+    }
+
+    #[test]
+    fn status_code_above_599_fails() {
+        let result = StatusCode::try_new(600);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.to_string().contains("Invalid HTTP status code"));
+        }
+    }
+
+    #[test]
+    fn status_code_is_success() {
+        assert!(StatusCode::try_new(200).unwrap().is_success());
+        assert!(StatusCode::try_new(299).unwrap().is_success());
+        assert!(!StatusCode::try_new(199).unwrap().is_success());
+        assert!(!StatusCode::try_new(300).unwrap().is_success());
+    }
+
+    #[test]
+    fn status_code_is_redirect() {
+        assert!(StatusCode::try_new(300).unwrap().is_redirect());
+        assert!(StatusCode::try_new(399).unwrap().is_redirect());
+        assert!(!StatusCode::try_new(299).unwrap().is_redirect());
+        assert!(!StatusCode::try_new(400).unwrap().is_redirect());
+    }
+
+    #[test]
+    fn status_code_is_client_error() {
+        assert!(StatusCode::try_new(400).unwrap().is_client_error());
+        assert!(StatusCode::try_new(499).unwrap().is_client_error());
+        assert!(!StatusCode::try_new(399).unwrap().is_client_error());
+        assert!(!StatusCode::try_new(500).unwrap().is_client_error());
+    }
+
+    #[test]
+    fn status_code_is_server_error() {
+        assert!(StatusCode::try_new(500).unwrap().is_server_error());
+        assert!(StatusCode::try_new(599).unwrap().is_server_error());
+        assert!(!StatusCode::try_new(499).unwrap().is_server_error());
+        assert!(!StatusCode::try_new(600).unwrap_or(StatusCode::ok()).is_server_error());
+    }
+
+    #[test]
+    fn status_code_is_informational() {
+        assert!(StatusCode::try_new(100).unwrap().is_informational());
+        assert!(StatusCode::try_new(199).unwrap().is_informational());
+        assert!(!StatusCode::try_new(200).unwrap().is_informational());
+    }
+
+    #[test]
+    fn status_code_common_constructors() {
+        assert_eq!(StatusCode::ok().as_u16(), 200);
+        assert_eq!(StatusCode::created().as_u16(), 201);
+        assert_eq!(StatusCode::no_content().as_u16(), 204);
+        assert_eq!(StatusCode::bad_request().as_u16(), 400);
+        assert_eq!(StatusCode::unauthorized().as_u16(), 401);
+        assert_eq!(StatusCode::forbidden().as_u16(), 403);
+        assert_eq!(StatusCode::not_found().as_u16(), 404);
+        assert_eq!(StatusCode::internal_server_error().as_u16(), 500);
+    }
+
+    #[test]
+    fn status_code_display() {
+        let status = StatusCode::try_new(404).unwrap();
+        assert_eq!(status.to_string(), "404");
+    }
+
+    #[test]
+    fn status_code_equality() {
+        let status1 = StatusCode::try_new(200).unwrap();
+        let status2 = StatusCode::try_new(200).unwrap();
+        let status3 = StatusCode::try_new(404).unwrap();
+        assert_eq!(status1, status2);
+        assert_ne!(status1, status3);
+    }
+
+    #[test]
+    fn status_code_ordering() {
+        let status1 = StatusCode::try_new(200).unwrap();
+        let status2 = StatusCode::try_new(404).unwrap();
+        assert!(status1 < status2);
+        assert!(status2 > status1);
     }
 }
