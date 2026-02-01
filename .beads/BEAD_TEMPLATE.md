@@ -253,6 +253,7 @@ acceptance_tests:
         - "No side effects occurred"
       real_input: |
         [Actual invalid input]
+      expected_output: null
       expected_error: |
         [Actual error response]
 
@@ -310,9 +311,9 @@ e2e_tests:
       stdout_contains:
         - "[Exact string that must appear]"
       stdout_matches_json:
-        field: "expected.value"
-        type: "string"
-        pattern: "[regex pattern]"
+        - path: "expected.value"
+          type: "string"
+          pattern: "[regex pattern]"
       files_created:
         - path: "[file that should exist]"
           contains: "[content verification]"
@@ -435,7 +436,7 @@ implementation_tasks:
 
       - task: "Search for [pattern] in codebase"
         parallel_group: "research"
-        command: "grep -r '[pattern]' src/"
+        commands: ["grep -r '[pattern]' src/"]
         done_when: "All occurrences documented"
 
       - task: "Review prior art: [similar feature]"
@@ -583,8 +584,8 @@ anti_hallucination:
   # Rule 5: Git as Ground Truth
   git_verification:
     before_claiming_done: |
-      git status  # Verify changes are staged
-      git diff    # Verify changes match specification
+      jj status  # Verify changes are staged
+      jj diff    # Verify changes match specification
       moon run :test  # Verify tests pass
 
 # ============================================================================
@@ -675,15 +676,15 @@ completion_checklist:
     - "[ ] No mocks or fake data in any test"
 
   code:
-    - "[ ] Implementation uses Result<T, Error> throughout"
-    - "[ ] Zero unwrap() or expect() calls"
+    - "[ ] Implementation uses explicit, well-typed/structured error handling throughout"
+    - "[ ] No unchecked panic/assert/crash-style calls in normal control flow"
     - "[ ] All preconditions validated"
     - "[ ] All postconditions guaranteed"
     - "[ ] All invariants maintained"
 
   ci:
-    - "[ ] moon run :ci passes"
-    - "[ ] No clippy warnings"
+    - "[ ] CI pipeline passes"
+    - "[ ] No static analysis or linter warnings"
     - "[ ] No compiler warnings"
 
   documentation:
@@ -994,55 +995,64 @@ e2e_tests:
 
 implementation_tasks:
   phase_1_tests_first:
-    - task: "Write test: analyze_verbose_includes_breakdown_test"
-      file: "test/integration_e2e_test.gleam"
-      what: |
-        pub fn analyze_verbose_includes_breakdown_test() {
-          let result = execute_cli("gleam run -- analyze examples/user-api.cue --verbose")
-          result.exit_code |> should.equal(0)
-          result.output |> should.contain("breakdown")
-        }
-      done_when: "Test exists and FAILS"
+    parallelizable: false
+    gate_required: false
+    tasks:
+      - task: "Write test: analyze_verbose_includes_breakdown_test"
+        file: "test/integration_e2e_test.gleam"
+        what: |
+          pub fn analyze_verbose_includes_breakdown_test() {
+            let result = execute_cli("gleam run -- analyze examples/user-api.cue --verbose")
+            result.exit_code |> should.equal(0)
+            result.output |> should.contain("breakdown")
+          }
+        done_when: "Test exists and FAILS"
 
-    - task: "Write test: analyze_no_verbose_no_breakdown_test"
-      file: "test/integration_e2e_test.gleam"
-      what: |
-        pub fn analyze_no_verbose_no_breakdown_test() {
-          let result = execute_cli("gleam run -- analyze examples/user-api.cue")
-          result.exit_code |> should.equal(0)
-          result.output |> should_not_contain("breakdown")
-        }
-      done_when: "Test exists and FAILS"
+      - task: "Write test: analyze_no_verbose_no_breakdown_test"
+        file: "test/integration_e2e_test.gleam"
+        what: |
+          pub fn analyze_no_verbose_no_breakdown_test() {
+            let result = execute_cli("gleam run -- analyze examples/user-api.cue")
+            result.exit_code |> should.equal(0)
+            result.output |> should_not_contain("breakdown")
+          }
+        done_when: "Test exists and FAILS"
 
   phase_2_implementation:
-    - task: "Add --verbose flag to analyze command parser"
-      file: "src/intent.gleam"
-      what: "Add 'verbose' flag parsing in analyze_command function"
-      patterns_to_use:
-        - "case verbose { True -> ... False -> ... }"
-      done_when: "Flag is parsed but not yet used"
+    parallelizable: false
+    gate_required: false
+    tasks:
+      - task: "Add --verbose flag to analyze command parser"
+        file: "src/intent.gleam"
+        what: "Add 'verbose' flag parsing in analyze_command function"
+        patterns_to_use:
+          - "case verbose { True -> ... False -> ... }"
+        done_when: "Flag is parsed but not yet used"
 
-    - task: "Implement breakdown generation in quality_analyzer"
-      file: "src/intent/quality_analyzer.gleam"
-      what: "Add analyze_with_breakdown function that returns per-behavior scores"
-      patterns_to_use:
-        - "list.map to iterate behaviors"
-        - "Result<BreakdownReport, Error> return type"
-      done_when: "Function exists, tests still fail"
+      - task: "Implement breakdown generation in quality_analyzer"
+        file: "src/intent/quality_analyzer.gleam"
+        what: "Add analyze_with_breakdown function that returns per-behavior scores"
+        patterns_to_use:
+          - "list.map to iterate behaviors"
+          - "Result<BreakdownReport, Error> return type"
+        done_when: "Function exists, tests still fail"
 
-    - task: "Wire verbose flag to breakdown generation"
-      file: "src/intent.gleam"
-      what: "In analyze command, call analyze_with_breakdown when verbose=True"
-      done_when: "All phase_1 tests PASS"
+      - task: "Wire verbose flag to breakdown generation"
+        file: "src/intent.gleam"
+        what: "In analyze command, call analyze_with_breakdown when verbose=True"
+        done_when: "All phase_1 tests PASS"
 
   phase_4_verification:
-    - task: "Run moon run :ci"
-      done_when: "All tests pass, no warnings"
+    parallelizable: false
+    gate_required: true
+    tasks:
+      - task: "Run moon run :ci"
+        done_when: "All tests pass, no warnings"
 
-    - task: "Manual verification"
-      commands:
-        - "gleam run -- analyze examples/user-api.cue --verbose | jq .data.breakdown"
-      expected: "Array of behavior scores"
+      - task: "Manual verification"
+        commands:
+          - "gleam run -- analyze examples/user-api.cue --verbose | jq .data.breakdown"
+        expected: "Array of behavior scores"
 
 # ============================================================================
 # SECTION 7: FAILURE MODES
@@ -1076,20 +1086,17 @@ debugging_commands:
 
 completion_checklist:
   tests:
-    - "[ ] test_analyze_verbose_includes_breakdown passes"
-    - "[ ] test_analyze_no_verbose_no_breakdown passes"
-    - "[ ] test_analyze_missing_file_exits_4 passes"
-    - "[ ] E2E pipeline test passes with real spec file"
-    - "[ ] No mocks - all tests use real gleam run commands"
+    - "[ ] All acceptance tests written and passing"
+    - "[ ] All unit tests written and passing"
+    - "[ ] All regression or edge-case tests written and passing"
 
   code:
-    - "[ ] No unwrap() or expect() in new code"
-    - "[ ] All new functions return Result types"
-    - "[ ] Exit codes follow AGENTS.md specification"
+    - "[ ] All new and modified code follows project style and lint rules"
+    - "[ ] All new functions and public APIs are documented"
 
   ci:
-    - "[ ] moon run :ci passes"
-    - "[ ] No clippy warnings"
+    - "[ ] CI pipeline is green on the default branch"
+    - "[ ] All required CI checks are configured and passing"
 
 # ============================================================================
 # SECTION 9: CONTEXT
@@ -1201,7 +1208,7 @@ If any answer is "no", the bead is incomplete.
 # 1. Copy template
 cp .beads/BEAD_TEMPLATE.md /tmp/new-bead.md
 
-# 2. Fill in all 10 sections
+# 2. Fill in all 16 sections
 # (This is the hard part - be thorough!)
 
 # 3. Create the bead
