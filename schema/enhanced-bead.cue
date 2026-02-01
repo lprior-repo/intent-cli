@@ -9,11 +9,13 @@
 
 package schema
 
+import "strings"
+
 // ============================================================================
 // Core Bead Structure
 // ============================================================================
 
-#EnhancedBead: {
+#EnhancedBeadV2: {
 	// Identity
 	id:              string & =~"^intent-cli-[a-z0-9]+$"
 	title:           string & =~"^[A-Za-z0-9_-]+: .+"  // Must be "Component: Description"
@@ -572,7 +574,7 @@ package schema
 // ============================================================================
 
 // A bead is only valid if it passes ALL quality gates
-#ValidBead: #EnhancedBead & {
+#ValidBead: #EnhancedBeadV2 & {
 	// Gate 0: Clarifications resolved
 	clarifications: _ready_for_implementation: true
 
@@ -614,7 +616,7 @@ package schema
 }
 
 // Lightweight validation for in-progress beads
-#DraftBead: #EnhancedBead & {
+#DraftBead: #EnhancedBeadV2 & {
 	// Only require clarifications status to be set
 	clarifications: clarification_status: "RESOLVED" | "HAS_OPEN_QUESTIONS"
 }
