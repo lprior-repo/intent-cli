@@ -249,10 +249,8 @@ package schema
 	then:  [...string] & [_, ...]  // At least one assertion
 
 	// Real data - no placeholders allowed
-	real_input: string
-	// For happy-path tests, provide concrete expected_output.
-	// For error-path tests, expected_output may be omitted or explicitly set to null.
-	expected_output?: *null | string
+	real_input:      string
+	expected_output: string | null  // null for error path tests
 	expected_error?: string
 }
 
