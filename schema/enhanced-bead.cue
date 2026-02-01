@@ -1,6 +1,11 @@
-// Enhanced Bead Schema - World-Class Ticket Template
-// This schema enforces the complete EARS + KIRK + ATDD + E2E structure
-// Any bead conforming to this schema is guaranteed to be implementable
+// Enhanced Bead Schema - World-Class Ticket Template (v2)
+// Incorporates 2025-2026 research on AI agent best practices:
+// - Anthropic Claude 4.x Best Practices
+// - GitHub Spec-Driven Development (spec-kit)
+// - Martin Fowler's SDD Analysis
+// - ThoughtWorks Engineering Practices
+//
+// This schema enforces the complete 16-section structure for one-shot AI implementation
 
 package schema
 
@@ -17,17 +22,22 @@ package schema
 	effort_estimate: #EffortEstimate
 	labels:          [...string]
 
-	// The 10 Required Sections
-	ears_requirements: #EarsRequirements
-	contracts:         #KirkContracts
-	inversions:        #InversionAnalysis
-	acceptance_tests:  #AcceptanceTests
-	e2e_tests:         #E2ETests
-	implementation_tasks: #ImplementationTasks
-	failure_modes:     #FailureModes
-	completion_checklist: #CompletionChecklist
-	context:           #Context
-	ai_hints:          #AIHints
+	// The 16 Required Sections (with .5 sections for extended coverage)
+	clarifications:       #Clarifications          // Section 0
+	ears_requirements:    #EarsRequirements        // Section 1
+	contracts:            #KirkContracts           // Section 2
+	research_requirements: #ResearchRequirements   // Section 2.5
+	inversions:           #InversionAnalysis       // Section 3
+	acceptance_tests:     #AcceptanceTests         // Section 4
+	e2e_tests:            #E2ETests                // Section 5
+	verification_checkpoints: #VerificationCheckpoints  // Section 5.5
+	implementation_tasks: #ImplementationTasks     // Section 6
+	failure_modes:        #FailureModes            // Section 7
+	anti_hallucination:   #AntiHallucination       // Section 7.5
+	context_survival:     #ContextSurvival         // Section 7.6
+	completion_checklist: #CompletionChecklist     // Section 8
+	context:              #Context                 // Section 9
+	ai_hints:             #AIHints                 // Section 10
 }
 
 #IssueType: "feature" | "bug" | "task" | "epic" | "chore"
@@ -35,6 +45,38 @@ package schema
 #Priority: 0 | 1 | 2 | 3 | 4  // 0=critical, 4=backlog
 
 #EffortEstimate: "15min" | "30min" | "1hr" | "2hr" | "4hr"
+
+// ============================================================================
+// Section 0: Clarifications (Anti-Assumption Gate)
+// ============================================================================
+// From GitHub Spec Kit: Force explicit questions instead of assumptions
+
+#Clarifications: {
+	clarification_status: "RESOLVED" | "HAS_OPEN_QUESTIONS"
+
+	resolved_clarifications?: [...{
+		question:   string
+		answer:     string
+		decided_by: string
+		date:       string
+	}]
+
+	open_clarifications?: [...{
+		question:             string & =~"^\\[NEEDS CLARIFICATION: .+\\]$"
+		context:              string
+		options:              [...string]
+		default_if_unresolved: string
+	}]
+
+	assumptions?: [...{
+		assumption:        string
+		validation_method: string
+		risk_if_wrong:     string
+	}]
+
+	// Validation: No open questions allowed for implementation
+	_ready_for_implementation: clarification_status == "RESOLVED"
+}
 
 // ============================================================================
 // Section 1: EARS Requirements
@@ -125,6 +167,45 @@ package schema
 #ReturnGuarantee: {
 	field:     string
 	guarantee: string
+}
+
+// ============================================================================
+// Section 2.5: Research Requirements (Investigate Before Implementing)
+// ============================================================================
+// From Anthropic: "ALWAYS read and understand relevant files before proposing code edits"
+
+#ResearchRequirements: {
+	files_to_read: [...{
+		path:            string
+		what_to_extract: string
+		document_in:     string | *"research_notes.md"
+	}]
+
+	patterns_to_find?: [...{
+		pattern:            string
+		purpose:            string
+		expected_locations: string
+	}]
+
+	prior_art?: [...{
+		feature:       string
+		location:      string
+		what_to_learn: string
+	}]
+
+	external_docs?: [...{
+		url:     string
+		section: string
+		extract: string
+	}]
+
+	research_questions: [...{
+		question: string
+		answered: bool
+		answer?:  string
+	}]
+
+	research_complete_when: [...string] & [_, ...]  // At least one criterion
 }
 
 // ============================================================================
@@ -245,21 +326,57 @@ package schema
 }
 
 // ============================================================================
+// Section 5.5: Verification Checkpoints (Quality Gates)
+// ============================================================================
+// From Anthropic: "Have the model write tests in structured format (tests.json)"
+
+#VerificationCheckpoints: {
+	gate_0_research: #Gate
+	gate_1_tests:    #Gate
+	gate_2_implementation: #Gate
+	gate_3_integration: #Gate
+
+	tests_json?: {
+		format:   string
+		location: string
+	}
+}
+
+#Gate: {
+	name:              string
+	must_pass_before:  string
+	checks:            [...string] & [_, ...]  // At least one check
+	evidence_required: [...string] & [_, ...]  // At least one evidence
+}
+
+// ============================================================================
 // Section 6: Implementation Tasks
 // ============================================================================
 
 #ImplementationTasks: {
+	// Phase 0: Research (must complete before code)
+	phase_0_research: #TaskPhase
+
 	// Phase 1: Write failing tests first (TDD Red)
-	phase_1_tests_first: [...#Task] & [_, ...]
+	phase_1_tests_first: #TaskPhase
 
 	// Phase 2: Implement to make tests pass (TDD Green)
-	phase_2_implementation: [...#Task] & [_, ...]
+	phase_2_implementation: #TaskPhase
 
 	// Phase 3: Wire up to system (Integration)
-	phase_3_integration?: [...#Task]
+	phase_3_integration?: #TaskPhase
 
 	// Phase 4: Verification
-	phase_4_verification: [...#Task] & [_, ...]
+	phase_4_verification: #TaskPhase
+
+	// Parallelization rules for AI
+	parallelization_rules?: [...string]
+}
+
+#TaskPhase: {
+	parallelizable: bool
+	gate_required?: string
+	tasks:          [...#Task] & [_, ...]  // At least one task
 }
 
 #Task: {
@@ -267,6 +384,10 @@ package schema
 	file?:     string
 	what?:     string
 	done_when: string
+
+	// Parallelization markers
+	parallel_group?: string
+	depends_on?:     string | null
 
 	patterns_to_use?: [...string]
 	commands?: [...string]
@@ -298,6 +419,69 @@ package schema
 	scenario: string
 	run:      string
 	look_for: string
+}
+
+// ============================================================================
+// Section 7.5: Anti-Hallucination Rules (Ground Truth Enforcement)
+// ============================================================================
+// From Anthropic: "Never speculate about code you have not opened"
+
+#AntiHallucination: {
+	read_before_write: [...{
+		file:                     string
+		must_read_first:          bool | *true
+		key_sections_to_understand: [...string]
+	}]
+
+	verify_before_reference?: [...{
+		type:              string
+		expected_location: string
+		verify_command:    string
+	}]
+
+	apis_that_exist: [...{
+		api:         string
+		signature:   string
+		import_from: string
+	}]
+
+	apis_that_do_not_exist?: [...string]
+
+	no_placeholder_values: [...string] & [_, ...]  // At least one rule
+
+	git_verification: {
+		before_claiming_done: string
+	}
+}
+
+// ============================================================================
+// Section 7.6: Context Window Survival (Long-Running Task Support)
+// ============================================================================
+// From Anthropic: "For tasks spanning multiple context windows, use structured state files"
+
+#ContextSurvival: {
+	progress_file: {
+		path:   string
+		format: string
+	}
+
+	tests_status_file?: {
+		path:             string
+		update_frequency: string
+	}
+
+	research_notes_file?: {
+		path:     string
+		contains: [...string]
+	}
+
+	git_checkpoints?: {
+		frequency:      string
+		message_format: string
+		purpose:        string
+	}
+
+	recovery_instructions: string
 }
 
 // ============================================================================
@@ -348,41 +532,86 @@ package schema
 }
 
 // ============================================================================
-// Section 10: AI Implementation Hints
+// Section 10: AI Implementation Hints (Claude 4.x Optimized)
 // ============================================================================
 
 #AIHints: {
 	do: [...string] & [_, ...]      // At least one "do"
 	do_not: [...string] & [_, ...]  // At least one "do not"
 
+	// Claude 4.x specific: Avoid "think" in prompts
+	language_guidance?: {
+		avoid:       [...string]
+		use_instead: [...string]
+	}
+
+	// Claude 4.x specific: Action vs suggestion guidance
+	action_guidance?: string
+
+	// Claude 4.x specific: Parallel execution guidance
+	parallel_execution?: string
+
+	// Claude 4.x specific: Incremental progress
+	incremental_progress?: string
+
 	code_patterns?: [...{
 		name:     string
 		use_when: string
 		example:  string
 	}]
+
+	// Constitutional principles (project invariants)
+	constitution: [...string] & [_, ...]  // At least one principle
 }
 
 // ============================================================================
-// Validation: Quality Gates
+// Validation: Quality Gates (Extended for 16-Section Template)
 // ============================================================================
 
-// A bead is only valid if it passes these quality gates
+// A bead is only valid if it passes ALL quality gates
 #ValidBead: #EnhancedBead & {
-	// Must have EARS coverage
+	// Gate 0: Clarifications resolved
+	clarifications: _ready_for_implementation: true
+
+	// Gate 1: EARS coverage
 	ears_requirements: _valid: true
 
-	// Must have inversion analysis
+	// Gate 2: Research requirements defined
+	research_requirements: files_to_read: [_, ...]
+
+	// Gate 3: Inversion analysis done
 	inversions: _valid: true
 
-	// Must have at least one happy path and one error path test
+	// Gate 4: Happy and error path tests defined
 	acceptance_tests: {
 		happy_paths: [_, ...]
 		error_paths: [_, ...]
 	}
 
-	// Must have pipeline test
+	// Gate 5: Pipeline test defined
 	e2e_tests: pipeline_test: name: =~"^test_full_.+"
 
-	// Must have test-first tasks
-	implementation_tasks: phase_1_tests_first: [_, ...]
+	// Gate 6: Verification checkpoints defined
+	verification_checkpoints: {
+		gate_0_research: checks: [_, ...]
+		gate_1_tests: checks: [_, ...]
+	}
+
+	// Gate 7: Test-first tasks defined
+	implementation_tasks: phase_0_research: tasks: [_, ...]
+
+	// Gate 8: Anti-hallucination rules
+	anti_hallucination: read_before_write: [_, ...]
+
+	// Gate 9: Context survival configured
+	context_survival: progress_file: path: =~".+"
+
+	// Gate 10: Constitution defined
+	ai_hints: constitution: [_, ...]
+}
+
+// Lightweight validation for in-progress beads
+#DraftBead: #EnhancedBead & {
+	// Only require clarifications status to be set
+	clarifications: clarification_status: "RESOLVED" | "HAS_OPEN_QUESTIONS"
 }

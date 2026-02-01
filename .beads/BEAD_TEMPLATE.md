@@ -8,6 +8,18 @@ Every bead must be so rigorously specified that implementation becomes mechanica
 
 ---
 
+## Research-Backed Principles (2025-2026)
+
+This template incorporates findings from:
+- [Anthropic Claude 4.x Best Practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-4-best-practices)
+- [GitHub Spec-Driven Development](https://github.com/github/spec-kit)
+- [Martin Fowler's Spec-Driven Development Analysis](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html)
+- [ThoughtWorks Engineering Practices 2025](https://www.thoughtworks.com/en-us/insights/blog/agile-engineering-practices/spec-driven-development-unpacking-2025-new-engineering-practices)
+
+Key insight: **Specifications become the source of truth. Code is just the expression of specifications in a particular language.**
+
+---
+
 ## Template Structure
 
 ```yaml
@@ -21,6 +33,40 @@ type: feature | bug | task | epic | chore
 priority: 0 (critical) | 1 (high) | 2 (medium) | 3 (low) | 4 (backlog)
 effort_estimate: "15min | 30min | 1hr | 2hr | 4hr"  # Max 4hr per bead
 labels: [component, category, methodology]
+
+# ============================================================================
+# SECTION 0: CLARIFICATION MARKERS (Anti-Assumption Gate)
+# ============================================================================
+# From GitHub Spec Kit: "Use [NEEDS CLARIFICATION: specific question] for
+# any ambiguities rather than making assumptions"
+#
+# AI agents hallucinate when they ASSUME. Force them to ASK.
+# Every ambiguity must be explicitly flagged BEFORE implementation.
+
+clarification_status: "RESOLVED" | "HAS_OPEN_QUESTIONS"
+
+resolved_clarifications:
+  # Questions that WERE ambiguous but are now answered
+  - question: "[What was unclear?]"
+    answer: "[The definitive answer]"
+    decided_by: "[Who decided - human or prior research]"
+    date: "[When resolved]"
+
+open_clarifications:
+  # Questions that MUST be answered before implementation can begin
+  # If this section is non-empty, the bead is NOT READY for implementation
+  - question: "[NEEDS CLARIFICATION: specific question]"
+    context: "[Why this matters for implementation]"
+    options:
+      - "[Option A and its implications]"
+      - "[Option B and its implications]"
+    default_if_unresolved: "[What to do if no answer comes]"
+
+assumptions:
+  # Explicit assumptions made - AI must validate these, not blindly accept
+  - assumption: "[What we're assuming is true]"
+    validation_method: "[How to verify this assumption]"
+    risk_if_wrong: "[What breaks if assumption is false]"
 
 # ============================================================================
 # SECTION 1: EARS REQUIREMENTS (What must happen)
@@ -100,6 +146,53 @@ contracts:
     - "[Invariant 1 - e.g., 'Passwords never appear in logs']"
     - "[Invariant 2 - e.g., 'All timestamps are ISO8601']"
     - "[Invariant 3 - e.g., 'Exit codes match AGENTS.md spec']"
+
+# ============================================================================
+# SECTION 2.5: RESEARCH REQUIREMENTS (Investigate Before Implementing)
+# ============================================================================
+# From Anthropic: "ALWAYS read and understand relevant files before proposing
+# code edits. Do not speculate about code you have not inspected."
+#
+# AI must PROVE it has done the research before writing any code.
+# This section defines what must be investigated and documented.
+
+research_requirements:
+  # Files that MUST be read before implementation
+  files_to_read:
+    - path: "[exact file path]"
+      what_to_extract: "[What information to gather]"
+      document_in: "research_notes.md"
+
+  # Patterns to find in codebase (grep/search)
+  patterns_to_find:
+    - pattern: "[regex or string to search]"
+      purpose: "[Why this matters]"
+      expected_locations: "[Where you expect to find it]"
+
+  # Existing implementations to study
+  prior_art:
+    - feature: "[Similar feature already in codebase]"
+      location: "[file:line]"
+      what_to_learn: "[What patterns to copy]"
+
+  # External documentation to consult
+  external_docs:
+    - url: "[Documentation URL]"
+      section: "[Specific section needed]"
+      extract: "[What information to gather]"
+
+  # Questions the research must answer
+  research_questions:
+    - question: "[What must be answered by research]"
+      answered: false
+      answer: "[To be filled after research]"
+
+  # Research gate - AI cannot proceed until this is done
+  research_complete_when:
+    - "[ ] All files_to_read have been opened and key info extracted"
+    - "[ ] All patterns_to_find have been searched"
+    - "[ ] All prior_art has been examined"
+    - "[ ] All research_questions have answers documented"
 
 # ============================================================================
 # SECTION 3: INVERSION ANALYSIS (What could go wrong)
@@ -246,47 +339,175 @@ e2e_tests:
           verify: "[Verification]"
 
 # ============================================================================
+# SECTION 5.5: VERIFICATION CHECKPOINTS (Quality Gates)
+# ============================================================================
+# From Anthropic: "Have the model write tests in a structured format and keep
+# track of them in a structured format (e.g., tests.json)"
+#
+# AI must pass each gate before proceeding to the next phase.
+# This prevents "just make the test pass" shortcuts.
+
+verification_checkpoints:
+  # Gate 0: Research Complete
+  gate_0_research:
+    name: "Research Gate"
+    must_pass_before: "Writing any code"
+    checks:
+      - "[ ] All research_requirements files have been read"
+      - "[ ] All research_questions have documented answers"
+      - "[ ] All assumptions have been validated"
+      - "[ ] All clarifications have been resolved"
+    evidence_required:
+      - "Research notes with file contents summarized"
+      - "Answers to all research questions"
+
+  # Gate 1: Tests Written
+  gate_1_tests:
+    name: "Test Gate"
+    must_pass_before: "Writing implementation code"
+    checks:
+      - "[ ] All acceptance tests written"
+      - "[ ] All error path tests written"
+      - "[ ] All E2E tests written"
+      - "[ ] Tests are in tests.json structured format"
+    evidence_required:
+      - "Tests exist in codebase"
+      - "Tests fail with expected 'not implemented' errors"
+
+  # Gate 2: Implementation Complete
+  gate_2_implementation:
+    name: "Implementation Gate"
+    must_pass_before: "Declaring task complete"
+    checks:
+      - "[ ] All tests pass"
+      - "[ ] No unwrap() or expect() calls"
+      - "[ ] Exit codes match specification"
+      - "[ ] moon run :ci passes"
+    evidence_required:
+      - "Test output showing all pass"
+      - "CI output showing green"
+
+  # Gate 3: Integration Verified
+  gate_3_integration:
+    name: "Integration Gate"
+    must_pass_before: "Closing bead"
+    checks:
+      - "[ ] E2E tests pass with real data"
+      - "[ ] No regressions in existing tests"
+      - "[ ] Manual verification complete"
+    evidence_required:
+      - "E2E test output"
+      - "Manual verification notes"
+
+  # Structured test tracking (Claude 4.x best practice)
+  tests_json:
+    format: |
+      {
+        "tests": [
+          {"id": 1, "name": "test_name", "status": "not_started|failing|passing"},
+          ...
+        ],
+        "total": N,
+        "passing": 0,
+        "failing": 0,
+        "not_started": N
+      }
+    location: "[where to save tests.json]"
+
+# ============================================================================
 # SECTION 6: IMPLEMENTATION TASK LIST
 # ============================================================================
-# Explicit, ordered, atomic tasks
+# From Anthropic: "If you intend to call multiple tools and there are no
+# dependencies between the tool calls, make all independent calls in parallel"
+#
+# Explicit, ordered, atomic tasks with PARALLELIZATION MARKERS
 # Each task should be completable in <30 minutes
 
 implementation_tasks:
-  phase_1_tests_first:
-    - task: "Write test: test_[name]"
-      file: "[exact file path]"
-      what: "[Exact test to write]"
-      done_when: "Test exists and FAILS (red phase)"
+  # Phase 0: Research (must complete before any other phase)
+  phase_0_research:
+    parallelizable: true  # These can all run in parallel
+    tasks:
+      - task: "Read [file1] and extract [patterns]"
+        parallel_group: "research"
+        file: "[exact file path]"
+        done_when: "Key patterns documented in research notes"
 
-    - task: "Write test: test_[name2]"
-      file: "[exact file path]"
-      what: "[Exact test to write]"
-      done_when: "Test exists and FAILS (red phase)"
+      - task: "Search for [pattern] in codebase"
+        parallel_group: "research"
+        command: "grep -r '[pattern]' src/"
+        done_when: "All occurrences documented"
+
+      - task: "Review prior art: [similar feature]"
+        parallel_group: "research"
+        file: "[exact file path]"
+        done_when: "Patterns to copy identified"
+
+  phase_1_tests_first:
+    parallelizable: true  # Test writing can be parallel
+    gate_required: "gate_0_research"
+    tasks:
+      - task: "Write test: test_[name]"
+        parallel_group: "tests"
+        file: "[exact file path]"
+        what: "[Exact test to write]"
+        done_when: "Test exists and FAILS (red phase)"
+
+      - task: "Write test: test_[name2]"
+        parallel_group: "tests"
+        file: "[exact file path]"
+        what: "[Exact test to write]"
+        done_when: "Test exists and FAILS (red phase)"
 
   phase_2_implementation:
-    - task: "Implement [function/module]"
-      file: "[exact file path]"
-      what: "[Exact implementation]"
-      patterns_to_use:
-        - "Result<T, Error> for all fallible operations"
-        - "? operator for error propagation"
-        - "[Other required patterns]"
-      done_when: "All phase_1 tests PASS (green phase)"
+    parallelizable: false  # These are sequential - order matters!
+    gate_required: "gate_1_tests"
+    tasks:
+      - task: "Implement [function/module]"
+        depends_on: null  # First task
+        file: "[exact file path]"
+        what: "[Exact implementation]"
+        patterns_to_use:
+          - "Result<T, Error> for all fallible operations"
+          - "? operator for error propagation"
+          - "[Other required patterns]"
+        done_when: "Function compiles, some tests pass"
+
+      - task: "Implement [second function]"
+        depends_on: "Implement [function/module]"  # Must complete first
+        file: "[exact file path]"
+        what: "[Exact implementation]"
+        done_when: "All phase_1 tests PASS (green phase)"
 
   phase_3_integration:
-    - task: "Wire up [component] to [system]"
-      file: "[exact file path]"
-      what: "[Exact integration work]"
-      done_when: "E2E test passes"
+    parallelizable: false
+    gate_required: "gate_2_implementation"
+    tasks:
+      - task: "Wire up [component] to [system]"
+        file: "[exact file path]"
+        what: "[Exact integration work]"
+        done_when: "E2E test passes"
 
   phase_4_verification:
-    - task: "Run moon run :ci"
-      done_when: "All tests pass, no clippy warnings"
+    parallelizable: true  # Verification steps can run in parallel
+    gate_required: "gate_3_integration"
+    tasks:
+      - task: "Run moon run :ci"
+        parallel_group: "verification"
+        done_when: "All tests pass, no clippy warnings"
 
-    - task: "Manual verification"
-      commands:
-        - "[Command to run]"
-      expected: "[Expected output]"
+      - task: "Manual verification"
+        parallel_group: "verification"
+        commands:
+          - "[Command to run]"
+        expected: "[Expected output]"
+
+  # Parallelization guidance for AI
+  parallelization_rules:
+    - "Tasks in same parallel_group CAN run simultaneously"
+    - "Tasks with depends_on MUST wait for dependency"
+    - "Gates MUST pass before next phase begins"
+    - "When parallelizable: false, execute in listed order"
 
 # ============================================================================
 # SECTION 7: FAILURE MODES & DEBUGGING GUIDE
@@ -314,6 +535,131 @@ debugging_commands:
   - scenario: "[When X happens]"
     run: "[Command to debug]"
     look_for: "[What to look for in output]"
+
+# ============================================================================
+# SECTION 7.5: ANTI-HALLUCINATION RULES (Ground Truth Enforcement)
+# ============================================================================
+# From Anthropic: "Never speculate about code you have not opened. If the user
+# references a specific file, you MUST read the file before answering."
+#
+# AI must PROVE it has seen the code before modifying it.
+# These rules prevent the #1 cause of AI implementation failures.
+
+anti_hallucination:
+  # Rule 1: Read Before Write
+  read_before_write:
+    - file: "[file to be modified]"
+      must_read_first: true
+      key_sections_to_understand:
+        - "[Function/struct that will be modified]"
+        - "[Import patterns used]"
+        - "[Error handling patterns used]"
+
+  # Rule 2: Verify Existence Before Reference
+  verify_before_reference:
+    - type: "[Type/function/constant being referenced]"
+      expected_location: "[where it should be defined]"
+      verify_command: "grep -n '[type_name]' [file]"
+
+  # Rule 3: No Invented APIs
+  apis_that_exist:
+    - api: "[Actual API/function to use]"
+      signature: "[Exact function signature]"
+      import_from: "[Module path]"
+    - api: "[Another API]"
+      signature: "[Signature]"
+      import_from: "[Module]"
+
+  apis_that_do_not_exist:
+    - "[Common hallucinated API that looks plausible but doesn't exist]"
+    - "[Another non-existent API AI might invent]"
+
+  # Rule 4: Concrete Examples Only
+  no_placeholder_values:
+    - "Do NOT use placeholder values like 'example.com'"
+    - "Do NOT use 'lorem ipsum' or 'test' data"
+    - "Use REAL values from the codebase or specification"
+
+  # Rule 5: Git as Ground Truth
+  git_verification:
+    before_claiming_done: |
+      git status  # Verify changes are staged
+      git diff    # Verify changes match specification
+      moon run :test  # Verify tests pass
+
+# ============================================================================
+# SECTION 7.6: CONTEXT WINDOW SURVIVAL (Long-Running Task Support)
+# ============================================================================
+# From Anthropic: "For tasks spanning multiple context windows, use structured
+# state files and git for state tracking."
+#
+# AI must be able to resume from where it left off if context is cleared.
+# All progress must be externalized to files, not held in context.
+
+context_survival:
+  # Progress tracking file
+  progress_file:
+    path: ".bead-progress/[bead-id]/progress.txt"
+    format: |
+      # Bead: [id] - [title]
+      # Started: [timestamp]
+      # Last updated: [timestamp]
+
+      ## Current Phase
+      [phase_name]
+
+      ## Completed Tasks
+      - [x] [task 1]
+      - [x] [task 2]
+
+      ## Current Task
+      - [ ] [current task] (IN PROGRESS)
+          - [sub-step completed]
+          - [sub-step in progress]
+
+      ## Remaining Tasks
+      - [ ] [task 3]
+      - [ ] [task 4]
+
+      ## Key Decisions Made
+      - [Decision 1]: [Rationale]
+      - [Decision 2]: [Rationale]
+
+      ## Blockers/Issues
+      - [None | List of blockers]
+
+      ## Next Steps (if context clears)
+      1. Read this file
+      2. Review git log for recent commits
+      3. Continue from "Current Task"
+
+  # Test status tracking (structured JSON)
+  tests_status_file:
+    path: ".bead-progress/[bead-id]/tests.json"
+    update_frequency: "After each test run"
+
+  # Research notes (persistent)
+  research_notes_file:
+    path: ".bead-progress/[bead-id]/research.md"
+    contains:
+      - "Files read and key findings"
+      - "Patterns discovered"
+      - "Prior art examined"
+      - "Answers to research questions"
+
+  # Git checkpoints
+  git_checkpoints:
+    frequency: "After each completed task"
+    message_format: "[bead-id] checkpoint: [task completed]"
+    purpose: "Allow rollback if next step fails"
+
+  # Recovery instructions (for fresh context window)
+  recovery_instructions: |
+    If context window is cleared, start new session with:
+    1. cat .bead-progress/[bead-id]/progress.txt
+    2. cat .bead-progress/[bead-id]/tests.json
+    3. git log --oneline -10
+    4. Continue from where progress.txt indicates
 
 # ============================================================================
 # SECTION 8: COMPLETION CRITERIA
@@ -366,16 +712,23 @@ context:
       how_to_apply: "[How to apply here]"
 
 # ============================================================================
-# SECTION 10: AI IMPLEMENTATION HINTS
+# SECTION 10: AI IMPLEMENTATION HINTS (Claude 4.x Optimized)
 # ============================================================================
-# Explicit guidance for AI implementers
+# From Anthropic Claude 4.x Best Practices Guide
+# Explicit guidance for AI implementers with model-specific optimizations
 
 ai_hints:
+  # Claude 4.x responds well to explicit, clear instructions
   do:
     - "Use functional patterns: map, and_then, ?"
     - "Return Result<T, Error> from all fallible functions"
     - "Use exhaustive pattern matching"
     - "Follow existing code conventions in [file]"
+    - "READ files before modifying them (anti-hallucination)"
+    - "VERIFY types/functions exist before referencing them"
+    - "Use parallel tool calls when tasks are independent"
+    - "Update progress.txt after each completed task"
+    - "Commit to git after each completed task"
 
   do_not:
     - "Do NOT use unwrap() or expect()"
@@ -383,12 +736,48 @@ ai_hints:
     - "Do NOT modify clippy configuration"
     - "Do NOT use raw cargo commands (use moon)"
     - "Do NOT use raw git commands (use jj)"
+    - "Do NOT speculate about code you haven't read"
+    - "Do NOT invent APIs that don't exist"
+    - "Do NOT use placeholder values"
+    - "Do NOT over-engineer beyond what's specified"
+
+  # Claude 4.x specific: Avoid the word "think" (use alternatives)
+  language_guidance:
+    avoid: ["think", "thinking"]
+    use_instead: ["consider", "evaluate", "analyze", "determine"]
+
+  # Claude 4.x specific: Be explicit about action vs suggestion
+  action_guidance: |
+    When implementing, TAKE ACTION rather than suggesting changes.
+    Don't say "you could change X to Y" - just CHANGE X to Y.
+    Be direct: "I will now modify..." not "I could modify..."
+
+  # Claude 4.x specific: Parallel execution guidance
+  parallel_execution: |
+    When reading multiple files for research, read them ALL in parallel.
+    When writing multiple independent tests, write them ALL in parallel.
+    Only serialize when there are true dependencies.
+
+  # Claude 4.x specific: Incremental progress
+  incremental_progress: |
+    Focus on completing ONE task fully before moving to the next.
+    After each task: update progress.txt, run tests, commit if passing.
+    Don't try to implement everything at once.
 
   code_patterns:
     - name: "[Pattern]"
       use_when: "[When to use]"
       example: |
         [Code example]
+
+  # Constitutional principles (project-level invariants)
+  constitution:
+    - "Zero unwrap law: NEVER use .unwrap() or .expect()"
+    - "Functional first: Prefer map/and_then over if-else chains"
+    - "Moon only: NEVER use raw cargo commands"
+    - "JJ only: NEVER use raw git commands"
+    - "Test first: Tests MUST exist before implementation"
+    - "Real data only: NO mocks, NO fake data in tests"
 ```
 
 ---
@@ -753,34 +1142,54 @@ ai_hints:
 
 ---
 
-## Quick Reference: The 10 Sections
+## Quick Reference: The 16 Sections
 
 | Section | Purpose | Must Answer |
 |---------|---------|-------------|
+| **0. Clarifications** | Anti-assumption gate | All ambiguities resolved? |
 | **1. EARS** | What must happen | All 6 patterns covered? |
 | **2. KIRK Contracts** | Pre/post/invariants | What's guaranteed? |
+| **2.5 Research** | What to investigate | Files/patterns to read? |
 | **3. Inversions** | What could go wrong | Every failure mode? |
 | **4. ATDD Tests** | Acceptance criteria | Tests before code? |
 | **5. E2E Tests** | Full pipeline proof | Real data, no mocks? |
-| **6. Task List** | Implementation steps | Atomic 30-min tasks? |
+| **5.5 Verification** | Quality gates | All gates defined? |
+| **6. Task List** | Implementation steps | Parallel/sequential marked? |
 | **7. Failure Modes** | Debugging guide | Where to look? |
+| **7.5 Anti-Hallucination** | Ground truth rules | Read-before-write enforced? |
+| **7.6 Context Survival** | Long-running support | Progress files defined? |
 | **8. Completion** | Definition of done | All boxes checked? |
 | **9. Context** | Background info | Related files? |
-| **10. AI Hints** | Implementation guidance | Do/Don't clear? |
+| **10. AI Hints** | Claude 4.x guidance | Constitution clear? |
 
 ---
 
-## The Litmus Tests
+## The Litmus Tests (Extended)
 
 Before submitting a bead, verify:
 
+### Specification Quality
 1. **GPT-4 Test**: Could GPT-4 implement this without asking clarifying questions?
 2. **High School Senior Test**: Could a competent CS student implement this?
-3. **90% Coverage Test**: Are there tests for 90%+ of code paths?
-4. **No Mocks Test**: Are ALL tests using real data and real commands?
-5. **Soup-to-Nuts Test**: Is there an E2E test proving the full pipeline works?
-6. **Inversion Test**: Have you defined what must NOT happen?
-7. **30-Minute Task Test**: Is every task completable in under 30 minutes?
+3. **Clarification Test**: Are ALL ambiguities explicitly resolved (Section 0)?
+4. **EARS Coverage Test**: Are all 6 EARS patterns considered?
+
+### Test Quality
+5. **90% Coverage Test**: Are there tests for 90%+ of code paths?
+6. **No Mocks Test**: Are ALL tests using real data and real commands?
+7. **Soup-to-Nuts Test**: Is there an E2E test proving the full pipeline works?
+8. **Inversion Test**: Have you defined what must NOT happen?
+
+### Task Quality
+9. **30-Minute Task Test**: Is every task completable in under 30 minutes?
+10. **Parallelization Test**: Are parallel vs sequential tasks explicitly marked?
+11. **Gate Test**: Are verification checkpoints defined between phases?
+
+### AI-Readiness
+12. **Research Test**: Are all files-to-read and patterns-to-find specified?
+13. **Anti-Hallucination Test**: Are read-before-write rules specified?
+14. **Context Survival Test**: Can AI resume from progress.txt if context clears?
+15. **API Existence Test**: Are actual APIs listed (not invented ones)?
 
 If any answer is "no", the bead is incomplete.
 
