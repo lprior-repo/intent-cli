@@ -15,7 +15,7 @@ zjj add <bead-id>          # Create isolated workspace
 zjj done <workspace>       # Complete and merge
 
 # Session completion (MANDATORY)
-git pull --rebase && bd sync && git push
+bd sync --from-main  # Use bd sync, not git (ephemeral branch workflow)
 ```
 
-**Tech Stack:** Gleam (compiles to Erlang/OTP), CUE for specifications
+**Tech Stack:** Rust (functional, zero-unwrap), Moon build system, CUE for specifications

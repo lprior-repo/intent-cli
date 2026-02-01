@@ -1,42 +1,8 @@
 $schema: './.moon/cache/schemas/project.json'
 
-stack: unknown
+# Rust workspace root
+# All tasks defined in .moon/tasks.yml (workspace-level)
+stack: system
 
-tasks:
-  build:
-    command: gleam build
-    outputs:
-      - build/dev/erlang/**/*
-
-  test:
-    command: gleam test
-    deps:
-      - build
-
-  run:
-    command: gleam run --
-
-  clean:
-    command: gleam clean
-
-  install:
-    command: bash scripts/install.sh
-    deps:
-      - build
-
-  format:
-    command: gleam format
-
-  lint:
-    command: gleam check
-    deps:
-      - build
-
-  doctor:
-    command: gleam doctor
-
-  update:
-    command: gleam update
-
-  ci:
-    command: bash -c 'moon run build && moon run test && moon run lint'
+# Empty tasks - defer to workspace configuration
+tasks: {}

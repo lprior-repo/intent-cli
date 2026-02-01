@@ -124,6 +124,41 @@ docs/
 ## Quick Reference
 
 ### Issue Tracking (Beads)
+
+**MANDATORY: All beads MUST use the Enhanced Template**
+
+When creating beads, you MUST include ALL 10 sections from `.beads/BEAD_TEMPLATE.md`:
+
+1. **EARS Requirements** - THE SYSTEM SHALL patterns
+2. **KIRK Contracts** - Preconditions, postconditions, invariants
+3. **Inversion Analysis** - What could go wrong + prevention
+4. **ATDD Tests** - Real input/output, no mocks
+5. **E2E Tests** - Full pipeline test with real data
+6. **Implementation Tasks** - Phase 1: Tests first, Phase 2: Implementation
+7. **Failure Modes** - Symptoms, causes, where to look
+8. **Completion Checklist** - All checkboxes for done
+9. **Context** - Related files, similar implementations
+10. **AI Hints** - Do/don't patterns
+
+**Validation**:
+```bash
+.beads/validate-bead.sh <bead-id>  # Validate a bead
+```
+
+**Creating Enhanced Beads**:
+```bash
+# Write description to file first
+vim /tmp/bead-desc.md
+
+# Create with validation
+.beads/bd-create-enhanced.sh \
+  --title "Component: Description" \
+  --description-file /tmp/bead-desc.md \
+  --type feature \
+  --priority 2
+```
+
+**Quick Reference**:
 ```bash
 bd ready              # Find available work
 bd show <id>          # View issue details

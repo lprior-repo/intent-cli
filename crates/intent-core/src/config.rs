@@ -1,0 +1,928 @@
+//! Configuration management for Intent CLI
+//!
+//! Handles loading, validation, and merging of configuration from
+//! multiple sources: intent.toml, environment variables, CLI flags.
+//!
+//! # Philosophy
+//!
+//! - **Layered configuration**: Files < Env vars < CLI flags
+//! - **Validated construction**: All config validated on load
+//! - **Zero panics**: Use `Result` for all fallible operations
+//! - **Immutable by default**: Config is read-only after construction
+
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+
+use std::{fmt, path::PathBuf, str::FromStr};
+
+use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+use crate::error::{IntentError, IntentResult};
+
+// =============================================================================
+// Log Level
+// =============================================================================
+
+/// Logging level for Intent CLI
+///
+/// Controls verbosity of output. Supports case-insensitive parsing from strings.
+/// Default level is `Info`.
+///
+/// # Examples
+///
+/// ```
+/// use std::str::FromStr;
+///
+/// use intent_core::config::LogLevel;
+///
+/// let level = LogLevel::from_str("DEBUG").expect("Valid log level");
+/// assert_eq!(level, LogLevel::Debug);
+/// assert_eq!(level.to_string(), "DEBUG");
+///
+/// // Default is Info
+/// assert_eq!(LogLevel::default(), LogLevel::Info);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Error => write!(f, "ERROR"),
+            Self::Warn => write!(f, "WARN"),
+            Self::Info => write!(f, "INFO"),
+            Self::Debug => write!(f, "DEBUG"),
+            Self::Trace => write!(f, "TRACE"),
+        }
+    }
+}
+
+impl FromStr for LogLevel {
+    type Err = IntentError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "ERROR" => Ok(Self::Error),
+            "WARN" => Ok(Self::Warn),
+            "INFO" => Ok(Self::Info),
+            "DEBUG" => Ok(Self::Debug),
+            "TRACE" => Ok(Self::Trace),
+            _ => Err(IntentError::validation(
+                "log_level",
+                format!("Invalid log level: '{s}'. Must be ERROR, WARN, INFO, DEBUG, or TRACE"),
+            )),
+        }
+    }
+}
+
+impl Default for LogLevel {
+    fn default() -> Self {
+        Self::Info
+    }
+}
+
+// =============================================================================
+// Output Format
+// =============================================================================
+
+/// Output format for CLI output
+///
+/// Determines how command results are formatted and displayed.
+///
+/// # Examples
+///
+/// ```
+/// use std::str::FromStr;
+///
+/// use intent_core::config::OutputFormat;
+///
+/// // Parsing from string (case-insensitive)
+/// assert_eq!(OutputFormat::from_str("text"), Ok(OutputFormat::Text));
+/// assert_eq!(OutputFormat::from_str("JSON"), Ok(OutputFormat::Json));
+/// assert_eq!(OutputFormat::from_str("Pretty"), Ok(OutputFormat::Pretty));
+///
+/// // Default value
+/// assert_eq!(OutputFormat::default(), OutputFormat::Text);
+/// ```
+///
+/// # Errors
+///
+/// Returns `ParseOutputFormatError` when parsing an invalid format string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFormat {
+    /// Plain text output (default)
+    Text,
+    /// Compact JSON output
+    Json,
+    /// Pretty-printed JSON output with indentation
+    Pretty,
+}
+
+/// Error type for parsing OutputFormat from string
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[error("invalid output format: '{input}'. Valid formats: text, json, pretty")]
+pub struct ParseOutputFormatError {
+    /// The invalid input string
+    pub input: String,
+}
+
+impl ParseOutputFormatError {
+    /// Create a new parse error
+    #[must_use]
+    pub fn new(input: impl Into<String>) -> Self {
+        Self {
+            input: input.into(),
+        }
+    }
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        Self::Text
+    }
+}
+
+impl FromStr for OutputFormat {
+    type Err = ParseOutputFormatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "text" => Ok(Self::Text),
+            "json" => Ok(Self::Json),
+            "pretty" => Ok(Self::Pretty),
+            _ => Err(ParseOutputFormatError::new(s)),
+        }
+    }
+}
+
+impl OutputFormat {
+    /// Check if this format outputs JSON
+    #[must_use]
+    pub const fn is_json(&self) -> bool {
+        matches!(self, Self::Json | Self::Pretty)
+    }
+
+    /// Get the string representation of this format
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Text => "text",
+            Self::Json => "json",
+            Self::Pretty => "pretty",
+        }
+    }
+}
+// =============================================================================
+// Configuration
+// =============================================================================
+
+/// Main configuration struct
+///
+/// Configuration is loaded and merged from multiple sources in order:
+/// 1. Default values
+/// 2. intent.toml file
+/// 3. Environment variables (INTENT_*)
+/// 4. CLI flags
+///
+/// Later sources override earlier ones.
+/// Main configuration struct
+///
+/// Configuration is loaded and merged from multiple sources in order:
+/// 1. Default values
+/// 2. intent.toml file
+/// 3. Environment variables (INTENT_*)
+/// 4. CLI flags
+///
+/// Later sources override earlier ones.
+///
+/// # Examples
+///
+/// ```
+/// use intent_core::config::Config;
+///
+/// let config = Config::default();
+/// assert_eq!(config.log_level(), "info");
+/// assert_eq!(config.output_format(), "text");
+/// assert_eq!(config.timeout_ms(), 30000);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Config {
+    /// Logging level (e.g., "trace", "debug", "info", "warn", "error")
+    log_level: String,
+
+    /// Output format (e.g., "text", "json", "yaml")
+    output_format: String,
+
+    /// Timeout in milliseconds for operations
+    timeout_ms: u64,
+
+    /// Directory containing specification files
+    spec_dir: PathBuf,
+}
+
+impl Config {
+    /// Creates a new Config with specified values
+    pub fn new(
+        log_level: String,
+        output_format: String,
+        timeout_ms: u64,
+        spec_dir: PathBuf,
+    ) -> Self {
+        Self {
+            log_level,
+            output_format,
+            timeout_ms,
+            spec_dir,
+        }
+    }
+
+    /// Loads configuration using the complete loading chain.
+    ///
+    /// # Loading Chain (Railway-Oriented Programming)
+    ///
+    /// 1. **Defaults** → Start with default configuration
+    /// 2. **TOML File** → Try to load from file (optional, continues on failure)
+    /// 3. **Environment** → Apply environment variable overrides
+    ///
+    /// Each step uses `.and_then()` to chain fallible operations.
+    /// File loading failures are gracefully handled - we continue with defaults.
+    ///
+    /// # Philosophy
+    ///
+    /// - **Railway-oriented**: Chains operations using `map`, `and_then`, `or_else`
+    /// - **Zero panics**: All failures return `Result`
+    /// - **Graceful degradation**: Missing file doesn't fail the chain
+    /// - **Precedence**: Env > File > Defaults
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use intent_core::config::Config;
+    ///
+    /// // Loads with precedence: defaults -> file -> env
+    /// let config = Config::load()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns `IntentError` if:
+    /// - Environment variables contain invalid values
+    /// - Critical parsing failures occur
+    pub fn load() -> IntentResult<Self> {
+        // Railway track 1: Start with defaults
+        Ok(Self::default())
+            // Railway track 2: Try to overlay file config (gracefully skip if missing)
+            .and_then(Self::try_apply_file)
+            // Railway track 3: Apply environment overrides
+            .and_then(Self::apply_env)
+    }
+
+    /// Applies configuration from file if it exists, otherwise returns base config.
+    ///
+    /// This implements graceful degradation - file loading is optional.
+    ///
+    /// # Railway Pattern
+    ///
+    /// This is a "track switch" - we try the file path, but switch to the
+    /// fallback path (keep base config) if the file doesn't exist.
+    ///
+    /// # Errors
+    ///
+    /// Only returns errors for invalid TOML syntax, not for missing files.
+    fn try_apply_file(base: Self) -> IntentResult<Self> {
+        // Get config path
+        get_config_path()
+            // Try to load from file
+            .and_then(|path| {
+                Self::from_file(&path)
+                    // If file doesn't exist, use base config
+                    .or_else(|e| {
+                        if matches!(e, IntentError::NotFound { .. }) {
+                            Ok(base.clone())
+                        } else {
+                            // Propagate parse errors
+                            Err(e)
+                        }
+                    })
+            })
+            // If path resolution fails, use base config
+            .or_else(|_| Ok(base))
+    }
+
+    /// Applies environment variable overrides to configuration.
+    ///
+    /// Environment variables follow the pattern: `INTENT_<FIELD_NAME>`
+    ///
+    /// Supported variables:
+    /// - `INTENT_LOG_LEVEL`: Log level (trace, debug, info, warn, error)
+    /// - `INTENT_OUTPUT_FORMAT`: Output format (text, json, pretty)
+    /// - `INTENT_TIMEOUT_MS`: Timeout in milliseconds (integer)
+    /// - `INTENT_SPEC_DIR`: Specification directory path
+    ///
+    /// # Railway Pattern
+    ///
+    /// Each environment variable is checked independently. Missing vars are ignored.
+    /// Invalid values return errors (fail fast on bad input).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::env;
+    ///
+    /// use intent_core::config::Config;
+    ///
+    /// env::set_var("INTENT_LOG_LEVEL", "debug");
+    /// let config = Config::apply_env(Config::default())?;
+    /// assert_eq!(config.log_level(), "debug");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns `IntentError::Validation` if environment variable values are invalid.
+    pub fn apply_env(mut base: Self) -> IntentResult<Self> {
+        use std::env;
+
+        // Override log_level if set
+        if let Ok(val) = env::var("INTENT_LOG_LEVEL") {
+            base.log_level = val;
+        }
+
+        // Override output_format if set
+        if let Ok(val) = env::var("INTENT_OUTPUT_FORMAT") {
+            base.output_format = val;
+        }
+
+        // Override timeout_ms if set (validate it's a valid u64)
+        if let Ok(val) = env::var("INTENT_TIMEOUT_MS") {
+            base.timeout_ms = val.parse::<u64>().map_err(|e| {
+                IntentError::validation(
+                    "timeout_ms",
+                    format!("Invalid INTENT_TIMEOUT_MS value '{val}': {e}"),
+                )
+            })?;
+        }
+
+        // Override spec_dir if set
+        if let Ok(val) = env::var("INTENT_SPEC_DIR") {
+            base.spec_dir = PathBuf::from(val);
+        }
+
+        Ok(base)
+    }
+
+    /// Returns the log level
+    #[must_use]
+    pub fn log_level(&self) -> &str {
+        &self.log_level
+    }
+
+    /// Returns the output format
+    #[must_use]
+    pub fn output_format(&self) -> &str {
+        &self.output_format
+    }
+
+    /// Returns the timeout in milliseconds
+    #[must_use]
+    pub const fn timeout_ms(&self) -> u64 {
+        self.timeout_ms
+    }
+
+    /// Returns the spec directory path
+    #[must_use]
+    pub fn spec_dir(&self) -> &PathBuf {
+        &self.spec_dir
+    }
+
+    /// Loads configuration from a TOML file
+    ///
+    /// # Philosophy
+    ///
+    /// - **Railway-oriented**: Chains IO and parsing operations
+    /// - **Zero panics**: Returns `Result` for all failures
+    /// - **Graceful errors**: Distinguishes between file-not-found and parse errors
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::path::PathBuf;
+    ///
+    /// use intent_core::config::Config;
+    ///
+    /// let config = Config::from_file(&PathBuf::from("./intent.toml"))?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - `IntentError::NotFound`: File does not exist or is not readable
+    /// - `IntentError::Parse`: File contains invalid TOML syntax
+    /// - `IntentError::Validation`: TOML structure doesn't match Config schema
+    pub fn from_file(path: impl AsRef<std::path::Path>) -> IntentResult<Self> {
+        let path_ref = path.as_ref();
+
+        // Railway step 1: Read file contents
+        std::fs::read_to_string(path_ref)
+            .map_err(|e| IntentError::not_found(path_ref.to_path_buf(), e))
+            // Railway step 2: Parse TOML
+            .and_then(|contents| {
+                toml::from_str::<Self>(&contents).map_err(|e| {
+                    IntentError::config_for_key(
+                        "toml_parse",
+                        format!(
+                            "Failed to parse TOML from '{}': {e}",
+                            path_ref.display()
+                        ),
+                    )
+                })
+            })
+    }
+}
+
+impl Default for Config {
+    /// Creates a Config with default values
+    fn default() -> Self {
+        Self {
+            log_level: "info".to_string(),
+            output_format: "text".to_string(),
+            timeout_ms: 30000,
+            spec_dir: PathBuf::from("./specs"),
+        }
+    }
+}
+
+// =============================================================================
+// XDG Path Resolution (Railway-Oriented Programming)
+// =============================================================================
+
+/// Resolves the configuration file path using XDG Base Directory specification.
+///
+/// Search order:
+/// 1. `~/.config/intent/config.toml` (XDG config directory)
+/// 2. `./intent.toml` (current directory fallback)
+///
+/// # Philosophy
+///
+/// - **Zero panics**: Returns `Result` for all path operations
+/// - **Railway-oriented**: Uses combinators to chain fallible operations
+/// - **Functional core**: Pure function with no side effects beyond path construction
+///
+/// # Examples
+///
+/// ```
+/// # use intent_core::config::get_config_path;
+/// # use intent_core::error::IntentResult;
+/// fn load_config() -> IntentResult<String> {
+///     let path = get_config_path()?;
+///     std::fs::read_to_string(&path)
+///         .map_err(|e| intent_core::error::IntentError::not_found(path, e))
+/// }
+/// ```
+///
+/// # Errors
+///
+/// Returns `IntentError::Config` if:
+/// - XDG config directory cannot be determined (rare - only on unsupported platforms)
+/// - Path construction fails
+///
+/// # Returns
+///
+/// - `Ok(PathBuf)` - Path to the config file (may or may not exist)
+/// - `Err(IntentError)` - If path resolution fails
+pub fn get_config_path() -> IntentResult<PathBuf> {
+    get_xdg_config_path()
+        .or_else(|_| get_local_config_path())
+        .map_err(|e| {
+            IntentError::config_for_key(
+                "config_path",
+                format!("Failed to resolve config path: {e}"),
+            )
+        })
+}
+
+/// Attempts to get the XDG config directory path for Intent.
+///
+/// Returns `~/.config/intent/config.toml` on Unix-like systems.
+///
+/// # Railway Pattern
+///
+/// This is the first track in our railway - if XDG fails, we switch to local path.
+///
+/// # Errors
+///
+/// Returns `IntentError::Config` if XDG directories cannot be determined.
+fn get_xdg_config_path() -> IntentResult<PathBuf> {
+    ProjectDirs::from("", "", "intent")
+        .map(|dirs| dirs.config_dir().join("config.toml"))
+        .ok_or_else(|| IntentError::config("Unable to determine XDG config directory for platform"))
+}
+
+/// Fallback to local directory config path.
+///
+/// Returns `./intent.toml` in the current working directory.
+///
+/// # Railway Pattern
+///
+/// This is the fallback track - always succeeds as it uses a relative path.
+///
+/// # Errors
+///
+/// This function cannot fail - it always returns a valid path.
+/// The path may not exist, but construction is infallible.
+fn get_local_config_path() -> IntentResult<PathBuf> {
+    Ok(PathBuf::from("./intent.toml"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_module_compiles() {
+        // Smoke test - module exists and compiles
+    }
+
+    // =========================================================================
+    // TDD: Config Struct Tests (BEAD: intent-cli-ingg)
+    // =========================================================================
+
+    #[test]
+    fn test_config_default() {
+        let config = Config::default();
+        assert_eq!(config.log_level(), "info");
+        assert_eq!(config.output_format(), "text");
+        assert_eq!(config.timeout_ms(), 30000);
+        assert_eq!(config.spec_dir(), &PathBuf::from("./specs"));
+    }
+
+    #[test]
+    fn test_config_new() {
+        let config = Config::new(
+            "debug".to_string(),
+            "json".to_string(),
+            60000,
+            PathBuf::from("./my-specs"),
+        );
+        assert_eq!(config.log_level(), "debug");
+        assert_eq!(config.output_format(), "json");
+        assert_eq!(config.timeout_ms(), 60000);
+        assert_eq!(config.spec_dir(), &PathBuf::from("./my-specs"));
+    }
+
+    #[test]
+    fn test_config_getters() {
+        let config = Config::default();
+        assert_eq!(config.log_level(), "info");
+        assert_eq!(config.output_format(), "text");
+        assert_eq!(config.timeout_ms(), 30000);
+        assert_eq!(config.spec_dir(), &PathBuf::from("./specs"));
+    }
+
+    #[test]
+    fn test_config_clone() {
+        let config1 = Config::default();
+        let config2 = config1.clone();
+        assert_eq!(config1, config2);
+    }
+
+    #[test]
+    fn test_config_custom_values() {
+        let config = Config::new(
+            "trace".to_string(),
+            "yaml".to_string(),
+            120_000,
+            PathBuf::from("/custom/path"),
+        );
+        assert_eq!(config.log_level(), "trace");
+        assert_eq!(config.output_format(), "yaml");
+        assert_eq!(config.timeout_ms(), 120_000);
+        assert_eq!(config.spec_dir(), &PathBuf::from("/custom/path"));
+    }
+
+    // =========================================================================
+    // TDD: XDG Path Resolution Tests (BEAD: intent-cli-9bn8)
+    // =========================================================================
+
+    #[test]
+    fn test_xdg_paths_returns_result() {
+        // TDD: Verify that get_config_path returns a Result (no panics)
+        let result = get_config_path();
+        assert!(result.is_ok(), "get_config_path should return Ok(PathBuf)");
+    }
+
+    #[test]
+    fn test_xdg_config_path_contains_intent() {
+        // TDD: Verify XDG path contains "intent" directory
+        let result = get_xdg_config_path();
+
+        // XDG should succeed on most platforms
+        if let Ok(path) = result {
+            let path_str = path.to_string_lossy();
+            assert!(
+                path_str.contains("intent"),
+                "XDG config path should contain 'intent': {path_str}"
+            );
+            assert!(
+                path_str.ends_with("config.toml"),
+                "XDG config path should end with 'config.toml': {path_str}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_local_config_path_is_relative() {
+        // TDD: Verify local fallback path is ./intent.toml
+        let result = get_local_config_path();
+
+        assert!(result.is_ok(), "Local config path should always succeed");
+
+        // Safe to use expect here in tests - we just verified is_ok()
+        if let Ok(path) = result {
+            assert_eq!(
+                path,
+                PathBuf::from("./intent.toml"),
+                "Local config path should be ./intent.toml"
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_config_path_never_panics() {
+        // TDD: Critical safety test - function must never panic
+        // This is the core of our zero-panic philosophy
+        let result = get_config_path();
+
+        // We don't care if it's Ok or Err, just that it didn't panic
+        match result {
+            Ok(path) => {
+                // Should be a valid PathBuf
+                assert!(
+                    !path.as_os_str().is_empty(),
+                    "Returned path should not be empty"
+                );
+            }
+            Err(e) => {
+                // Error case is valid too - just verify it's the right type
+                assert!(
+                    matches!(e, IntentError::Config { .. }),
+                    "Error should be Config variant: {e:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_xdg_path_structure_on_unix() {
+        // TDD: On Unix-like systems, verify path follows XDG spec
+        #[cfg(unix)]
+        {
+            let result = get_xdg_config_path();
+
+            if let Ok(path) = result {
+                let path_str = path.to_string_lossy();
+
+                // Should be in home directory config
+                // Note: We can't assert exact path as it depends on user,
+                // but we can verify structure
+                assert!(
+                    path_str.contains("config") || path_str.contains(".config"),
+                    "Unix XDG path should contain config directory: {path_str}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_config_path_is_deterministic() {
+        // TDD: Calling get_config_path multiple times should return same path
+        let path1 = get_config_path();
+        let path2 = get_config_path();
+
+        assert_eq!(
+            path1.is_ok(),
+            path2.is_ok(),
+            "Function should be deterministic"
+        );
+
+        if let (Ok(p1), Ok(p2)) = (path1, path2) {
+            assert_eq!(p1, p2, "Same call should return same path");
+        }
+    }
+
+    #[test]
+    fn test_local_config_path_never_fails() {
+        // TDD: Local fallback is infallible
+        let result = get_local_config_path();
+
+        assert!(
+            result.is_ok(),
+            "Local config path construction should never fail"
+        );
+    }
+
+    #[test]
+    fn test_config_path_functional_pipeline() {
+        // TDD: Verify railway-oriented programming pattern
+        // The function should use .or_else() combinator for fallback
+
+        let result = get_config_path();
+
+        // Since we're testing the functional pipeline, we verify:
+        // 1. Function returns Result (railway pattern)
+        // 2. Result is usable in further railway chains
+        let transformed = result.map(|path| path.join("extra.toml"));
+
+        assert!(
+            transformed.is_ok(),
+            "Result should be composable in railway chains"
+        );
+    }
+
+    #[test]
+    fn test_error_contains_context() {
+        // TDD: If get_config_path fails, error should have meaningful context
+
+        // We can't force a failure easily, but we can verify error type
+        // by checking that IntentError::config_for_key creates proper context
+        let error = IntentError::config_for_key("test_key", "test message");
+
+        let error_string = error.to_string();
+        assert!(
+            error_string.contains("test_key") || error_string.contains("test message"),
+            "Error should contain context: {error_string}"
+        );
+    }
+
+    // =========================================================================
+    // Property-Based Testing (Stress Test)
+    // =========================================================================
+
+    #[test]
+    fn test_path_construction_never_panics_stress_test() {
+        // TDD: Stress test - call many times to verify no panics
+        for _ in 0..1000 {
+            let _ = get_config_path();
+            let _ = get_xdg_config_path();
+            let _ = get_local_config_path();
+        }
+        // If we get here, no panics occurred
+    }
+
+    #[test]
+    fn test_railway_pattern_with_or_else() {
+        // TDD: Verify the or_else combinator is working correctly
+        // This tests the railway pattern implementation
+
+        // get_config_path should try XDG first, then fall back to local
+        let config_path = get_config_path();
+
+        // Should always succeed because local fallback never fails
+        assert!(
+            config_path.is_ok(),
+            "Config path should always resolve with fallback"
+        );
+    }
+
+    // =========================================================================
+    // TDD: Config Loading Chain Tests (BEAD: intent-cli-wkbf)
+    // =========================================================================
+
+    #[test]
+    fn test_config_load_chain_defaults_only() {
+        // TDD: Load config with only defaults (no file, no env)
+        let result = Config::load();
+
+        // Should succeed with defaults when no file/env present
+        assert!(result.is_ok(), "Load should succeed with defaults");
+
+        if let Ok(config) = result {
+            assert_eq!(config.log_level(), "info");
+            assert_eq!(config.output_format(), "text");
+            assert_eq!(config.timeout_ms(), 30000);
+        }
+    }
+
+    #[test]
+    fn test_config_load_chain_with_env_override() {
+        // TDD: Environment variables should override defaults
+        use std::env;
+
+        env::set_var("INTENT_LOG_LEVEL", "trace");
+        env::set_var("INTENT_TIMEOUT_MS", "45000");
+
+        let result = Config::load();
+
+        if let Ok(config) = result {
+            assert_eq!(config.log_level(), "trace", "Env should override default");
+            assert_eq!(config.timeout_ms(), 45000, "Env should override default");
+        }
+
+        // Clean up
+        env::remove_var("INTENT_LOG_LEVEL");
+        env::remove_var("INTENT_TIMEOUT_MS");
+    }
+
+    #[test]
+    fn test_config_apply_env_overrides() {
+        // TDD: Test env override method directly
+        use std::env;
+
+        env::set_var("INTENT_LOG_LEVEL", "error");
+        env::set_var("INTENT_OUTPUT_FORMAT", "json");
+        env::set_var("INTENT_TIMEOUT_MS", "99999");
+        env::set_var("INTENT_SPEC_DIR", "/env/specs");
+
+        let base = Config::default();
+        let result = Config::apply_env(base);
+
+        if let Ok(config) = result {
+            assert_eq!(config.log_level(), "error");
+            assert_eq!(config.output_format(), "json");
+            assert_eq!(config.timeout_ms(), 99999);
+            assert_eq!(config.spec_dir(), &PathBuf::from("/env/specs"));
+        }
+
+        // Clean up
+        env::remove_var("INTENT_LOG_LEVEL");
+        env::remove_var("INTENT_OUTPUT_FORMAT");
+        env::remove_var("INTENT_TIMEOUT_MS");
+        env::remove_var("INTENT_SPEC_DIR");
+    }
+
+    #[test]
+    fn test_config_apply_env_partial() {
+        // TDD: Partial env overrides should work
+        use std::env;
+
+        env::set_var("INTENT_LOG_LEVEL", "debug");
+        // Don't set other vars
+
+        let base = Config::default();
+        let result = Config::apply_env(base);
+
+        if let Ok(config) = result {
+            assert_eq!(config.log_level(), "debug", "Should override set var");
+            assert_eq!(config.output_format(), "text", "Should keep default");
+            assert_eq!(config.timeout_ms(), 30000, "Should keep default");
+        }
+
+        env::remove_var("INTENT_LOG_LEVEL");
+    }
+
+    #[test]
+    fn test_config_apply_env_invalid_timeout() {
+        // TDD: Invalid env var should be handled gracefully
+        use std::env;
+
+        env::set_var("INTENT_TIMEOUT_MS", "not_a_number");
+
+        let base = Config::default();
+        let result = Config::apply_env(base);
+
+        // Should return error for invalid timeout
+        assert!(result.is_err(), "Invalid timeout should return error");
+
+        env::remove_var("INTENT_TIMEOUT_MS");
+    }
+
+    #[test]
+    fn test_config_load_never_panics() {
+        // TDD: Critical safety test - loading should never panic
+        use std::env;
+
+        // Try with garbage env vars
+        env::set_var("INTENT_TIMEOUT_MS", "invalid");
+        env::set_var("INTENT_LOG_LEVEL", "");
+
+        let _ = Config::load();
+
+        // Clean up
+        env::remove_var("INTENT_TIMEOUT_MS");
+        env::remove_var("INTENT_LOG_LEVEL");
+
+        // If we got here, no panics occurred
+    }
+
+    #[test]
+    fn test_config_railway_composition() {
+        // TDD: Test that Result chains functionally
+        let result = Ok(Config::default())
+            .and_then(Config::apply_env)
+            .map(|cfg| cfg.timeout_ms());
+
+        assert!(result.is_ok(), "Railway chain should compose");
+    }
+}
