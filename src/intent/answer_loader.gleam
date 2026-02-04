@@ -1,6 +1,5 @@
 // Answer loader module - loads pre-filled answers from files
 import gleam/dict.{type Dict}
-import gleam/result
 import simplifile
 
 pub type AnswerLoaderError {
@@ -12,7 +11,9 @@ pub type AnswerLoaderError {
 }
 
 /// Load answers from a file (JSON format)
-pub fn load_from_file(path: String) -> Result(Dict(String, String), AnswerLoaderError) {
+pub fn load_from_file(
+  path: String,
+) -> Result(Dict(String, String), AnswerLoaderError) {
   case simplifile.read(path) {
     Error(_) -> Error(FileNotFound(path))
     Ok(_contents) -> {

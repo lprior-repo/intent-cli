@@ -3,7 +3,6 @@
 
 import gleam/dict
 import gleam/json
-import gleam/option.{None}
 import intent/types.{
   type Behavior, type Config, type Feature, type Request, type Spec, AIHints,
   Behavior, Config, Feature, ImplementationHints, Request, Response,
@@ -104,7 +103,11 @@ pub fn make_test_behavior_with_status(
 
 /// Create a feature from a list of behaviors
 pub fn make_test_feature(name: String, behaviors: List(Behavior)) -> Feature {
-  Feature(name: name, description: "Test feature: " <> name, behaviors: behaviors)
+  Feature(
+    name: name,
+    description: "Test feature: " <> name,
+    behaviors: behaviors,
+  )
 }
 
 // ============================================================================
@@ -157,7 +160,11 @@ pub fn make_test_spec_from_behaviors(behaviors: List(Behavior)) -> Spec {
 
 /// Create a minimal config for testing
 pub fn make_test_config() -> Config {
-  Config(base_url: "http://localhost:8080", timeout_ms: 5000, headers: dict.new())
+  Config(
+    base_url: "http://localhost:8080",
+    timeout_ms: 5000,
+    headers: dict.new(),
+  )
 }
 
 /// Create a config with custom base URL

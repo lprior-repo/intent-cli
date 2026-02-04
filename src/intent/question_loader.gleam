@@ -13,7 +13,6 @@ import intent/question_types.{
 }
 import intent/security
 import shellout
-import simplifile
 
 /// Error types for question loading
 pub type QuestionLoadError {
@@ -84,11 +83,13 @@ const custom_questions_path = ".intent/custom-questions.cue"
 pub fn load_questions(
   path: String,
 ) -> Result(QuestionsDatabase, QuestionLoadError) {
-  // Validate path for security
-  case security.validate_file_path(path) {
-    Ok(validated_path) -> export_and_parse(validated_path)
-    Error(security_error) ->
-      Error(SecurityError(security.format_security_error(security_error)))
+  case string.is_empty(path) {
+    True -> Error(FileNotFound(path))
+    False ->
+      case security.validate_file_path(path) {
+        Ok(validated_path) -> export_and_parse(validated_path)
+        Error(security_error) -> Error(map_security_error(security_error))
+      }
   }
 }
 
@@ -112,11 +113,13 @@ pub fn load_default_questions() -> Result(QuestionsDatabase, QuestionLoadError) 
 pub fn load_custom_questions(
   path: String,
 ) -> Result(CustomQuestions, QuestionLoadError) {
-  // Validate path for security
-  case security.validate_file_path(path) {
-    Ok(validated_path) -> export_and_parse_custom(validated_path)
-    Error(security_error) ->
-      Error(SecurityError(security.format_security_error(security_error)))
+  case string.is_empty(path) {
+    True -> Error(FileNotFound(path))
+    False ->
+      case security.validate_file_path(path) {
+        Ok(validated_path) -> export_and_parse_custom(validated_path)
+        Error(security_error) -> Error(map_security_error(security_error))
+      }
   }
 }
 
@@ -137,6 +140,15 @@ fn parse_custom_questions_json(
   case json.decode(json_str, dynamic.dynamic) {
     Ok(data) -> parse_custom_database(data)
     Error(_) -> Error(JsonParseError("Failed to decode custom questions JSON"))
+  }
+}
+
+fn map_security_error(error: security.SecurityError) -> QuestionLoadError {
+  case error {
+    security.FileNotAccessible(path) -> FileNotFound(path)
+    security.InvalidPath(path, _) -> FileNotFound(path)
+    security.ShellMetacharactersDetected(path) -> FileNotFound(path)
+    _ -> SecurityError(security.format_security_error(error))
   }
 }
 
