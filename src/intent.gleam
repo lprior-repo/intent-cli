@@ -1208,7 +1208,14 @@ fn plan_command() -> glint.Command(Nil) {
           Ok(plan) -> {
             let output = case format {
               "json" -> plan_mode.format_plan_json(plan)
-              _ -> plan_mode.format_plan_human(plan)
+              "ai" -> plan_mode.format_plan_ai(plan)
+              "human" -> plan_mode.format_plan_human(plan)
+              _ -> {
+                io.println_error("Invalid format: " <> format)
+                io.println_error("Valid formats: human, json, ai")
+                halt(exit_error)
+                ""
+              }
             }
             io.println(output)
             halt(exit_pass)
@@ -1217,7 +1224,7 @@ fn plan_command() -> glint.Command(Nil) {
       }
       [] -> {
         io.println_error(
-          "Usage: intent plan <session_id> [--format human|json]",
+          "Usage: intent plan <session_id> [--format human|json|ai]",
         )
         io.println_error("")
         io.println_error("Display execution plan from session beads.")
@@ -1227,6 +1234,9 @@ fn plan_command() -> glint.Command(Nil) {
           "  intent plan abc123              # Human-readable output",
         )
         io.println_error("  intent plan abc123 --format json  # JSON output")
+        io.println_error(
+          "  intent plan abc123 --format ai    # AI-ready output",
+        )
         halt(exit_error)
       }
     }
@@ -1236,7 +1246,7 @@ fn plan_command() -> glint.Command(Nil) {
     "format",
     flag.string()
       |> flag.default("human")
-      |> flag.description("Output format: human or json"),
+      |> flag.description("Output format: human, json, or ai"),
   )
 }
 
@@ -1552,7 +1562,9 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                         halt(exit_pass)
                       }
                       Error(err) -> {
-                        io.println_error("✗ Failed to update session: " <> err)
+                        io.println_error(
+                          "✗ Failed to update session: " <> err,
+                        )
                         halt(exit_error)
                       }
                     }
@@ -2250,7 +2262,9 @@ fn kirk_compact_command() -> glint.Command(Nil) {
                 let #(full, compact_tokens, savings) =
                   compact_format.compare_token_usage(spec)
                 io.println("")
-                io.println("─────────────────────────────────────")
+                io.println(
+                  "─────────────────────────────────────",
+                )
                 io.println("Token Analysis:")
                 io.println(
                   "  Full JSON:    ~" <> string.inspect(full) <> " tokens",
