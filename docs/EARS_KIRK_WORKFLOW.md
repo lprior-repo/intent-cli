@@ -644,11 +644,11 @@ intent plan abc123
 intent plan-approve abc123
 
 # Step 8: Execute (AI picks up beads)
-bd ready --json | jq '.beads[0].id' | xargs bd claim
+br ready --json | jq '.beads[0].id' | xargs br claim
 
 # Step 9: Mark complete/failed
-bd close <id> --reason "Implemented with tests"
-bd update <id> --status failed --reason "Need clarification on X"
+br close <id> --reason "Implemented with tests"
+br update <id> --status failed --reason "Need clarification on X"
 ```
 
 ---

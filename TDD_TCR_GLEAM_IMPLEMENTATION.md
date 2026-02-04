@@ -361,9 +361,11 @@ Unit tests for each module. Integration tests for actor communication. End-to-en
 
 ## Phase 10: Bead Integration
 
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
 **File**: `src/tdd_tcr/bead.gleam`
 
-Link TDD-TCR loop to bd issue tracking.
+Link TDD-TCR loop to br issue tracking.
 
 ---
 
@@ -398,7 +400,7 @@ Phase 4 (Telemetry) → Phase 10 (Beads)
 
 ## Next Steps
 
-1. **Claim Phase 1 bead** via `bd update intent-cli-{phase1} --status in_progress`
+1. **Claim Phase 1 bead** via `br update intent-cli-{phase1} --status in_progress`
 2. **Implement protocol.gleam** and config.gleam
 3. **Move to Phase 2** once Phase 1 beads close
 4. **Parallel Phase 7a-7d** once Phases 1-6 complete
@@ -416,13 +418,13 @@ bv --robot-triage
 bv --robot-plan
 
 # Claim a bead
-bd update <bead-id> --status in_progress
+br update <bead-id> --status in_progress
 
 # Close completed bead
-bd close <bead-id> --reason "Completed"
+br close <bead-id> --reason "Completed"
 
 # Create new discovered bead
-bd create "Found issue" -p 1 --deps discovered-from:<parent-id>
+br create "Found issue" -p 1 --deps discovered-from:<parent-id>
 
 # Run the TDD-TCR loop (once implemented)
 gleam run -- tdd-tcr "Feature description"

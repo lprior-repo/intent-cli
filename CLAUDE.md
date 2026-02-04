@@ -1,13 +1,14 @@
 # Claude Instructions for Intent CLI
 
-**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
+**Note**: This project uses [br (beads_rust)](https://github.com/steveyegge/beads) for issue tracking. Use `br` commands instead of markdown TODOs. See AGENTS.md for workflow details.
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
 
 ## Quick Reference
 
 ```bash
-bd ready --json           # Find ready work
-bd update <id> --status in_progress --json  # Claim work
-bd close <id> --reason "Done" --json        # Complete work
+br ready --json           # Find ready work
+br update <id> --status in_progress --json  # Claim work
+br close <id> --reason "Done" --json        # Complete work
 ```
 
 ## Beads Viewer (bv) - Robot Commands Only

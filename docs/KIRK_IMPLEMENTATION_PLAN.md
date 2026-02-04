@@ -579,10 +579,12 @@ intent interview --perspective security  # Security-focused
 
 ## Beads Integration
 
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
 Create beads for each implementation item:
 
 ```bash
-bd create --json << 'EOF'
+br create --json << 'EOF'
 {
   "title": "Implement why field enforcement in validator",
   "type": "feature",

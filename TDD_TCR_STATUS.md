@@ -146,7 +146,7 @@
 
 **Deliverables**:
 - `src/tdd_tcr/bead.gleam`
-- Link to bd CLI for issue tracking
+- Link to br CLI for issue tracking
 
 ---
 
@@ -208,22 +208,21 @@ Phases 7a, 7b, 7c, 7d ──→ PARALLEL (after dependencies met)
 
 ## Beads Molecule Structure
 
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
 **Epic**: intent-cli-rbo
 **Title**: TDD-TCR-REFACTOR Loop: Bash to Gleam OTP Port
 **Priority**: P0
 **Status**: Open
 
-**How to Bond Phases** (using `bd mol bond`):
+**Phase Dependencies** (use `br dep`):
 
 ```bash
-# Create molecule dependencies for sequential execution
-bd mol bond phase-1 phase-2          # 2 waits for 1
-bd mol bond phase-2 phase-3          # 3 waits for 2
-bd mol bond phase-3 phase-7a         # 7a waits for 3
-bd mol bond phase-4 phase-7b         # 7b waits for 4
-
-# Or use bd dep for finer control:
-bd dep add <phase-id> <dependency-id>
+# Create dependencies for sequential execution
+br dep add phase-2 phase-1          # 2 waits for 1
+br dep add phase-3 phase-2          # 3 waits for 2
+br dep add phase-7a phase-3         # 7a waits for 3
+br dep add phase-7b phase-4         # 7b waits for 4
 ```
 
 ---
@@ -234,7 +233,7 @@ bd dep add <phase-id> <dependency-id>
 
 1. **Claim Phase 3 work** (LLM Module):
    ```bash
-   bd update <phase-3-id> --status in_progress
+   br update <phase-3-id> --status in_progress
    ```
 
 2. **Parallel work** (can happen concurrently):
@@ -335,9 +334,9 @@ bv --robot-plan            # Execution plan
 bv --robot-insights        # Graph metrics
 
 # Work with Beads
-bd ready                   # Show ready work
-bd update <id> --status in_progress
-bd close <id> --reason "Completed"
+br ready                   # Show ready work
+br update <id> --status in_progress
+br close <id> --reason "Completed"
 
 # Build & test
 gleam build                # Compile

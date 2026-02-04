@@ -44,7 +44,8 @@ No improvisation. No guessing. The CLI tells the AI exactly what to do via struc
 Use Gleam's `Result` type everywhere. Pattern match exhaustively. Never panic.
 
 ### 5. Beads for Issue Tracking
-Use `bd` (beads) CLI for all work tracking. Git-friendly JSONL format. **Never use markdown TODOs.**
+Use `br` (beads_rust) CLI for all work tracking. Git-friendly JSONL format. **Never use markdown TODOs.**
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
 
 ---
 
@@ -290,9 +291,11 @@ intent compact <spec.cue>    # 50% token reduction for AI
 
 ## BEADS WORKFLOW
 
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
 ### Finding Work
 ```bash
-bd ready --json              # Show unblocked issues
+br ready --json              # Show unblocked issues
 bv --robot-triage            # Comprehensive analysis
 bv --robot-next              # Single top pick with claim command
 bv --robot-plan              # Parallel execution tracks
@@ -300,16 +303,16 @@ bv --robot-plan              # Parallel execution tracks
 
 ### Working on Issues
 ```bash
-bd update <id> --status in_progress --json   # Claim work
+br update <id> --status in_progress --json   # Claim work
 # ... do the work ...
-bd close <id> --reason "Done" --json         # Complete
+br close <id> --reason "Done" --json         # Complete
 ```
 
 ### Creating Issues
 ```bash
-bd create "Title" -t bug|feature|task -p 0-4 --json
-bd create "Subtask" --parent <epic-id> --json  # Hierarchical
-bd create "Found bug" -p 1 --deps discovered-from:<parent-id> --json
+br create "Title" -t bug|feature|task -p 0-4 --json
+br create "Subtask" --parent <epic-id> --json  # Hierarchical
+br create "Found bug" -p 1 --deps discovered-from:<parent-id> --json
 ```
 
 ### Priority Levels
@@ -319,7 +322,7 @@ bd create "Found bug" -p 1 --deps discovered-from:<parent-id> --json
 - **P3**: Low (polish, optimization)
 - **P4**: Backlog (future ideas)
 
-**NEVER use markdown TODOs. Always use bd.**
+**NEVER use markdown TODOs. Always use br.**
 
 ---
 
@@ -371,7 +374,7 @@ gleam run -- check examples/user-api.cue --target http://localhost:8080
 
 When working on this codebase, always:
 
-- [ ] Use `bd` for all issue tracking
+- [ ] Use `br` for all issue tracking
 - [ ] Write specs with ALL required fields
 - [ ] Include `why` for every check
 - [ ] Apply the 5 mental lattices to new features
