@@ -83,10 +83,10 @@ full_reset() {
     rm -f "$SRC_LOCK_FILE" "$TEST_LOCK_FILE" 2>/dev/null || true
 
     # Reset any in-progress beads back to open
-    if command -v bd >/dev/null 2>&1; then
+    if command -v br >/dev/null 2>&1; then
         echo "Resetting in-progress beads to open..."
-        bd list --status in-progress --json 2>/dev/null | jq -r '.[].id' 2>/dev/null | while read bead_id; do
-            [ -n "$bead_id" ] && bd update "$bead_id" --status open 2>/dev/null || true
+        br list --status in-progress --json 2>/dev/null | jq -r '.[].id' 2>/dev/null | while read bead_id; do
+            [ -n "$bead_id" ] && br update "$bead_id" --status open 2>/dev/null || true
         done
     fi
 
@@ -138,10 +138,10 @@ find_bead() {
     local bead_id="$1"
     local bead_json=""
 
-    # Try bd command (if available) for better integration
-    # Note: bd show --json returns an array, so extract first element
-    if command -v bd >/dev/null 2>&1; then
-        bead_json=$(bd show "$bead_id" --json 2>/dev/null | jq '.[0]' 2>/dev/null)
+    # Try br command (if available) for better integration
+    # Note: br show --json returns an array, so extract first element
+    if command -v br >/dev/null 2>&1; then
+        bead_json=$(br show "$bead_id" --json 2>/dev/null | jq '.[0]' 2>/dev/null)
         if [ -n "$bead_json" ] && [ "$bead_json" != "null" ]; then
             echo "$bead_json"
             return 0
@@ -172,9 +172,9 @@ get_all_open_beads() {
             jq -r '.plan.tracks[].items[].id' 2>/dev/null && return 0
     fi
 
-    # Fallback to bd ready command
-    if command -v bd >/dev/null 2>&1; then
-        bd ready --json 2>/dev/null | jq -r '.[].id' 2>/dev/null && return 0
+    # Fallback to br ready command
+    if command -v br >/dev/null 2>&1; then
+        br ready --json 2>/dev/null | jq -r '.[].id' 2>/dev/null && return 0
     fi
 
     # Final fallback: manual search
@@ -209,25 +209,25 @@ update_bead_status() {
     local new_status="$2"
     local close_reason="${3:-}"
 
-    # Note: bv is read-only (graph analysis), use bd for updates
-    # Try bd command first (if available)
-    if command -v bd >/dev/null 2>&1; then
+    # Note: bv is read-only (graph analysis), use br for updates
+    # Try br command first (if available)
+    if command -v br >/dev/null 2>&1; then
         case "$new_status" in
             closed)
-                bd close "$bead_id" ${close_reason:+--reason "$close_reason"} 2>/dev/null && return 0
+                br close "$bead_id" ${close_reason:+--reason "$close_reason"} 2>/dev/null && return 0
                 ;;
             in_progress|in-progress)
-                bd update "$bead_id" --status in-progress 2>/dev/null && return 0
+                br update "$bead_id" --status in-progress 2>/dev/null && return 0
                 ;;
             failed)
                 # Add comment about failure, keep open for manual review
                 if [ -n "$close_reason" ]; then
-                    bd comment "$bead_id" "AUTOMATED FAILURE: $close_reason" 2>/dev/null || true
+                    br comment "$bead_id" "AUTOMATED FAILURE: $close_reason" 2>/dev/null || true
                 fi
-                bd update "$bead_id" --status open 2>/dev/null && return 0
+                br update "$bead_id" --status open 2>/dev/null && return 0
                 ;;
             *)
-                bd update "$bead_id" --status "$new_status" 2>/dev/null && return 0
+                br update "$bead_id" --status "$new_status" 2>/dev/null && return 0
                 ;;
         esac
     fi
@@ -303,8 +303,8 @@ This is a FOCUSED refactoring task. Should be completable in one TDD-TCR session
 - Discovered while working on: $current_bead_id"
     fi
 
-    # Try bd command first
-    if command -v bd >/dev/null 2>&1; then
+    # Try br command first
+    if command -v br >/dev/null 2>&1; then
         local create_args=(
             --title "$title"
             --description "$enhanced_desc"
@@ -317,7 +317,7 @@ This is a FOCUSED refactoring task. Should be completable in one TDD-TCR session
             create_args+=(--related-to "$current_bead_id")
         fi
 
-        local new_bead_id=$(bd create "${create_args[@]}" --json 2>/dev/null | jq -r '.id' 2>/dev/null)
+        local new_bead_id=$(br create "${create_args[@]}" --json 2>/dev/null | jq -r '.id' 2>/dev/null)
 
         if [ -n "$new_bead_id" ] && [ "$new_bead_id" != "null" ]; then
             log_success "Created bead $new_bead_id: $title"
@@ -457,7 +457,7 @@ check_dependencies() {
     # Optional tools (warn but don't fail)
     local optional_missing=()
     command -v bv >/dev/null 2>&1 || optional_missing+=("bv (graph-aware triage)")
-    command -v bd >/dev/null 2>&1 || optional_missing+=("bd (bead management)")
+    command -v br >/dev/null 2>&1 || optional_missing+=("br (bead management)")
     command -v codanna >/dev/null 2>&1 || optional_missing+=("codanna (semantic search)")
 
     if [ ${#optional_missing[@]} -gt 0 ]; then
@@ -1755,7 +1755,7 @@ show_usage() {
     echo ""
     echo "Tooling integration (auto-detected):"
     echo "  - bv: Graph-aware triage (PageRank, blockers, critical path)"
-    echo "  - bd: Bead updates and status management"
+    echo "  - br: Bead updates and status management"
     echo "  - codanna: Semantic code search (if initialized)"
     echo "  - Falls back to direct .beads/*.jsonl manipulation"
     echo ""
@@ -2166,11 +2166,11 @@ preflight_check() {
     # 5. Check beads are accessible (if in bead mode)
     if [ "$BEAD_MODE" = true ] || [ "$ALL_BEADS_MODE" = true ]; then
         log_info "Checking beads accessibility..."
-        if ! command -v bd >/dev/null 2>&1; then
-            log_warning "⚠️  bd command not found - beads may not be accessible"
-        else
-            log_success "✓ bd command available"
-        fi
+if ! command -v br >/dev/null 2>&1; then
+    log_warning "⚠️  br command not found - beads may not be accessible"
+else
+    log_success "✓ br command available"
+fi
     fi
 
     # Summary

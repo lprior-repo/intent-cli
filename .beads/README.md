@@ -8,26 +8,30 @@ Beads is issue tracking that lives in your repo, making it perfect for AI coding
 
 **Learn more:** [github.com/steveyegge/beads](https://github.com/steveyegge/beads)
 
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
 ## Quick Start
 
 ### Essential Commands
 
 ```bash
 # Create new issues
-bd create "Add user authentication"
+br create "Add user authentication"
 
 # View all issues
-bd list
+br list
 
 # View issue details
-bd show <issue-id>
+br show <issue-id>
 
 # Update issue status
-bd update <issue-id> --status in-progress
-bd update <issue-id> --status done
+br update <issue-id> --status in-progress
+br update <issue-id> --status done
 
 # Sync with git remote
-bd sync
+br sync --flush-only
+git add .beads/
+git commit -m "sync beads"
 ```
 
 ### Working with Issues
@@ -64,16 +68,16 @@ Try Beads in your own projects:
 curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
 
 # Initialize in your repo
-bd init
+br init
 
 # Create your first issue
-bd create "Try out Beads"
+br create "Try out Beads"
 ```
 
 ## Learn More
 
 - **Documentation**: [github.com/steveyegge/beads/docs](https://github.com/steveyegge/beads/tree/main/docs)
-- **Quick Start Guide**: Run `bd quickstart`
+- **Quick Start Guide**: Run `br quickstart`
 - **Examples**: [github.com/steveyegge/beads/examples](https://github.com/steveyegge/beads/tree/main/examples)
 
 ---
