@@ -1,1 +1,0 @@
--record(interpolation_error, {message :: binary()}).
