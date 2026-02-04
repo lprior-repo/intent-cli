@@ -65,7 +65,8 @@ pub fn check_response_various_status_codes_test() {
 
 pub fn check_response_no_checks_test() {
   let expected = make_response(200, dict.new(), dict.new())
-  let actual = make_execution_result(200, json.object([#("data", json.string("test"))]))
+  let actual =
+    make_execution_result(200, json.object([#("data", json.string("test"))]))
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -75,11 +76,13 @@ pub fn check_response_no_checks_test() {
 }
 
 pub fn check_response_single_passing_check_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "equals John", why: "Name should be John")),
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "equals John", why: "Name should be John")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(200, json.object([#("name", json.string("John"))]))
+  let actual =
+    make_execution_result(200, json.object([#("name", json.string("John"))]))
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -89,11 +92,13 @@ pub fn check_response_single_passing_check_test() {
 }
 
 pub fn check_response_single_failing_check_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "equals John", why: "Name should be John")),
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "equals John", why: "Name should be John")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(200, json.object([#("name", json.string("Jane"))]))
+  let actual =
+    make_execution_result(200, json.object([#("name", json.string("Jane"))]))
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -103,20 +108,25 @@ pub fn check_response_single_failing_check_test() {
 }
 
 pub fn check_response_multiple_checks_all_pass_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "equals John", why: "Check name")),
-    #("age", types.Check(rule: "equals 30", why: "Check age")),
-    #("email", types.Check(rule: "string containing @", why: "Check email format")),
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "equals John", why: "Check name")),
+      #("age", types.Check(rule: "equals 30", why: "Check age")),
+      #(
+        "email",
+        types.Check(rule: "string containing @", why: "Check email format"),
+      ),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([
-      #("name", json.string("John")),
-      #("age", json.int(30)),
-      #("email", json.string("john@example.com")),
-    ]),
-  )
+  let actual =
+    make_execution_result(
+      200,
+      json.object([
+        #("name", json.string("John")),
+        #("age", json.int(30)),
+        #("email", json.string("john@example.com")),
+      ]),
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -126,20 +136,27 @@ pub fn check_response_multiple_checks_all_pass_test() {
 }
 
 pub fn check_response_multiple_checks_some_fail_test() {
-  let checks = dict.from_list([
-    #("name", types.Check(rule: "equals John", why: "Check name")),
-    #("age", types.Check(rule: "equals 25", why: "Check age")),
-    #("email", types.Check(rule: "string containing @", why: "Check email format")),
-  ])
+  let checks =
+    dict.from_list([
+      #("name", types.Check(rule: "equals John", why: "Check name")),
+      #("age", types.Check(rule: "equals 25", why: "Check age")),
+      #(
+        "email",
+        types.Check(rule: "string containing @", why: "Check email format"),
+      ),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([
-      #("name", json.string("John")),
-      #("age", json.int(30)),  // Wrong age
-      #("email", json.string("invalid-email")),  // No @
-    ]),
-  )
+  let actual =
+    make_execution_result(
+      200,
+      json.object([
+        #("name", json.string("John")),
+        #("age", json.int(30)),
+        // Wrong age
+        #("email", json.string("invalid-email")),
+        // No @
+      ]),
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -153,15 +170,18 @@ pub fn check_response_multiple_checks_some_fail_test() {
 // =============================================================================
 
 pub fn check_response_header_exact_match_test() {
-  let expected_headers = dict.from_list([
-    #("content-type", "application/json"),
-  ])
+  let expected_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+    ])
   let expected = make_response(200, dict.new(), expected_headers)
 
-  let actual_headers = dict.from_list([
-    #("content-type", "application/json"),
-  ])
-  let actual = make_execution_result_with_headers(200, json.object([]), actual_headers)
+  let actual_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+    ])
+  let actual =
+    make_execution_result_with_headers(200, json.object([]), actual_headers)
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -171,15 +191,18 @@ pub fn check_response_header_exact_match_test() {
 }
 
 pub fn check_response_header_mismatch_test() {
-  let expected_headers = dict.from_list([
-    #("content-type", "application/json"),
-  ])
+  let expected_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+    ])
   let expected = make_response(200, dict.new(), expected_headers)
 
-  let actual_headers = dict.from_list([
-    #("content-type", "text/html"),
-  ])
-  let actual = make_execution_result_with_headers(200, json.object([]), actual_headers)
+  let actual_headers =
+    dict.from_list([
+      #("content-type", "text/html"),
+    ])
+  let actual =
+    make_execution_result_with_headers(200, json.object([]), actual_headers)
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -189,19 +212,22 @@ pub fn check_response_header_mismatch_test() {
 }
 
 pub fn check_response_multiple_headers_test() {
-  let expected_headers = dict.from_list([
-    #("content-type", "application/json"),
-    #("x-api-version", "v1"),
-    #("cache-control", "no-cache"),
-  ])
+  let expected_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+      #("x-api-version", "v1"),
+      #("cache-control", "no-cache"),
+    ])
   let expected = make_response(200, dict.new(), expected_headers)
 
-  let actual_headers = dict.from_list([
-    #("content-type", "application/json"),
-    #("x-api-version", "v1"),
-    #("cache-control", "no-cache"),
-  ])
-  let actual = make_execution_result_with_headers(200, json.object([]), actual_headers)
+  let actual_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+      #("x-api-version", "v1"),
+      #("cache-control", "no-cache"),
+    ])
+  let actual =
+    make_execution_result_with_headers(200, json.object([]), actual_headers)
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -211,13 +237,15 @@ pub fn check_response_multiple_headers_test() {
 }
 
 pub fn check_response_missing_header_test() {
-  let expected_headers = dict.from_list([
-    #("x-required-header", "value"),
-  ])
+  let expected_headers =
+    dict.from_list([
+      #("x-required-header", "value"),
+    ])
   let expected = make_response(200, dict.new(), expected_headers)
 
   let actual_headers = dict.new()
-  let actual = make_execution_result_with_headers(200, json.object([]), actual_headers)
+  let actual =
+    make_execution_result_with_headers(200, json.object([]), actual_headers)
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -231,55 +259,65 @@ pub fn check_response_missing_header_test() {
 // =============================================================================
 
 pub fn check_response_all_aspects_pass_test() {
-  let checks = dict.from_list([
-    #("success", types.Check(rule: "equals true", why: "Check success")),
-  ])
-  let expected_headers = dict.from_list([
-    #("content-type", "application/json"),
-  ])
+  let checks =
+    dict.from_list([
+      #("success", types.Check(rule: "equals true", why: "Check success")),
+    ])
+  let expected_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+    ])
   let expected = make_response(200, checks, expected_headers)
 
-  let actual_headers = dict.from_list([
-    #("content-type", "application/json"),
-  ])
-  let actual = make_execution_result_with_headers(
-    200,
-    json.object([#("success", json.bool(True))]),
-    actual_headers,
-  )
+  let actual_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+    ])
+  let actual =
+    make_execution_result_with_headers(
+      200,
+      json.object([#("success", json.bool(True))]),
+      actual_headers,
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
 
   result.status_ok |> should.be_true()
-  list.length(result.passed) |> should.equal(2)  // 1 body check + 1 header
+  list.length(result.passed) |> should.equal(2)
+  // 1 body check + 1 header
   list.length(result.failed) |> should.equal(0)
 }
 
 pub fn check_response_all_aspects_fail_test() {
-  let checks = dict.from_list([
-    #("success", types.Check(rule: "equals true", why: "Check success")),
-  ])
-  let expected_headers = dict.from_list([
-    #("content-type", "application/json"),
-  ])
+  let checks =
+    dict.from_list([
+      #("success", types.Check(rule: "equals true", why: "Check success")),
+    ])
+  let expected_headers =
+    dict.from_list([
+      #("content-type", "application/json"),
+    ])
   let expected = make_response(200, checks, expected_headers)
 
-  let actual_headers = dict.from_list([
-    #("content-type", "text/html"),
-  ])
-  let actual = make_execution_result_with_headers(
-    500,
-    json.object([#("success", json.bool(False))]),
-    actual_headers,
-  )
+  let actual_headers =
+    dict.from_list([
+      #("content-type", "text/html"),
+    ])
+  let actual =
+    make_execution_result_with_headers(
+      500,
+      json.object([#("success", json.bool(False))]),
+      actual_headers,
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
 
   result.status_ok |> should.be_false()
   list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(2)  // 1 body check + 1 header
+  list.length(result.failed) |> should.equal(2)
+  // 1 body check + 1 header
 }
 
 // =============================================================================
@@ -287,18 +325,26 @@ pub fn check_response_all_aspects_fail_test() {
 // =============================================================================
 
 pub fn check_response_nested_field_access_test() {
-  let checks = dict.from_list([
-    #("user.name", types.Check(rule: "equals Alice", why: "Check nested name")),
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "user.name",
+        types.Check(rule: "equals Alice", why: "Check nested name"),
+      ),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([
-      #("user", json.object([
-        #("name", json.string("Alice")),
-      ])),
-    ]),
-  )
+  let actual =
+    make_execution_result(
+      200,
+      json.object([
+        #(
+          "user",
+          json.object([
+            #("name", json.string("Alice")),
+          ]),
+        ),
+      ]),
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -308,22 +354,36 @@ pub fn check_response_nested_field_access_test() {
 }
 
 pub fn check_response_deeply_nested_field_test() {
-  let checks = dict.from_list([
-    #("data.user.profile.email", types.Check(rule: "string containing @", why: "Check email")),
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "data.user.profile.email",
+        types.Check(rule: "string containing @", why: "Check email"),
+      ),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([
-      #("data", json.object([
-        #("user", json.object([
-          #("profile", json.object([
-            #("email", json.string("test@example.com")),
-          ])),
-        ])),
-      ])),
-    ]),
-  )
+  let actual =
+    make_execution_result(
+      200,
+      json.object([
+        #(
+          "data",
+          json.object([
+            #(
+              "user",
+              json.object([
+                #(
+                  "profile",
+                  json.object([
+                    #("email", json.string("test@example.com")),
+                  ]),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ]),
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -345,14 +405,16 @@ pub fn check_response_deeply_nested_field_test() {
 // =============================================================================
 
 pub fn check_response_equals_rule_test() {
-  let checks = dict.from_list([
-    #("status", types.Check(rule: "equals active", why: "Check status")),
-  ])
+  let checks =
+    dict.from_list([
+      #("status", types.Check(rule: "equals active", why: "Check status")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([#("status", json.string("active"))]),
-  )
+  let actual =
+    make_execution_result(
+      200,
+      json.object([#("status", json.string("active"))]),
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -361,14 +423,21 @@ pub fn check_response_equals_rule_test() {
 }
 
 pub fn check_response_contains_rule_test() {
-  let checks = dict.from_list([
-    #("message", types.Check(rule: "string containing success", why: "Check message")),
-  ])
+  let checks =
+    dict.from_list([
+      #(
+        "message",
+        types.Check(rule: "string containing success", why: "Check message"),
+      ),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([#("message", json.string("Operation completed successfully"))]),
-  )
+  let actual =
+    make_execution_result(
+      200,
+      json.object([
+        #("message", json.string("Operation completed successfully")),
+      ]),
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -377,14 +446,12 @@ pub fn check_response_contains_rule_test() {
 }
 
 pub fn check_response_exists_rule_test() {
-  let checks = dict.from_list([
-    #("id", types.Check(rule: "present", why: "ID must be present")),
-  ])
+  let checks =
+    dict.from_list([
+      #("id", types.Check(rule: "present", why: "ID must be present")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([#("id", json.int(123))]),
-  )
+  let actual = make_execution_result(200, json.object([#("id", json.int(123))]))
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -393,14 +460,13 @@ pub fn check_response_exists_rule_test() {
 }
 
 pub fn check_response_absent_rule_test() {
-  let checks = dict.from_list([
-    #("error", types.Check(rule: "absent", why: "Should not have error")),
-  ])
+  let checks =
+    dict.from_list([
+      #("error", types.Check(rule: "absent", why: "Should not have error")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([#("success", json.bool(True))]),
-  )
+  let actual =
+    make_execution_result(200, json.object([#("success", json.bool(True))]))
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -413,9 +479,10 @@ pub fn check_response_absent_rule_test() {
 // =============================================================================
 
 pub fn check_response_missing_field_test() {
-  let checks = dict.from_list([
-    #("nonexistent", types.Check(rule: "equals value", why: "Check field")),
-  ])
+  let checks =
+    dict.from_list([
+      #("nonexistent", types.Check(rule: "equals value", why: "Check field")),
+    ])
   let expected = make_response(200, checks, dict.new())
   let actual = make_execution_result(200, json.object([]))
   let ctx = make_context()
@@ -426,14 +493,13 @@ pub fn check_response_missing_field_test() {
 }
 
 pub fn check_response_null_value_test() {
-  let checks = dict.from_list([
-    #("value", types.Check(rule: "equals null", why: "Should be null")),
-  ])
+  let checks =
+    dict.from_list([
+      #("value", types.Check(rule: "equals null", why: "Should be null")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([#("value", json.null())]),
-  )
+  let actual =
+    make_execution_result(200, json.object([#("value", json.null())]))
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -442,14 +508,16 @@ pub fn check_response_null_value_test() {
 }
 
 pub fn check_response_empty_array_test() {
-  let checks = dict.from_list([
-    #("items", types.Check(rule: "equals []", why: "Should be empty array")),
-  ])
+  let checks =
+    dict.from_list([
+      #("items", types.Check(rule: "equals []", why: "Should be empty array")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([#("items", json.array([], fn(x) { x }))]),
-  )
+  let actual =
+    make_execution_result(
+      200,
+      json.object([#("items", json.array([], fn(x) { x }))]),
+    )
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -458,14 +526,13 @@ pub fn check_response_empty_array_test() {
 }
 
 pub fn check_response_empty_object_test() {
-  let checks = dict.from_list([
-    #("data", types.Check(rule: "equals {}", why: "Should be empty object")),
-  ])
+  let checks =
+    dict.from_list([
+      #("data", types.Check(rule: "equals {}", why: "Should be empty object")),
+    ])
   let expected = make_response(200, checks, dict.new())
-  let actual = make_execution_result(
-    200,
-    json.object([#("data", json.object([]))]),
-  )
+  let actual =
+    make_execution_result(200, json.object([#("data", json.object([]))]))
   let ctx = make_context()
 
   let result = checker.check_response(expected, actual, ctx)
@@ -490,7 +557,10 @@ fn make_response(
   )
 }
 
-fn make_execution_result(status: Int, body: json.Json) -> http_client.ExecutionResult {
+fn make_execution_result(
+  status: Int,
+  body: json.Json,
+) -> http_client.ExecutionResult {
   http_client.ExecutionResult(
     status: status,
     headers: dict.new(),

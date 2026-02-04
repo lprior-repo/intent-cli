@@ -1,6 +1,5 @@
 /// Intent CLI - Human-writes, AI-verifies, AI-implements
 /// Contract-driven API testing tool
-
 import argv
 import gleam/dict
 import gleam/io
@@ -11,31 +10,31 @@ import gleam/result
 import gleam/string
 import glint
 import glint/flag
-import intent/loader
-import intent/output
-import intent/runner
-import intent/types
-import intent/quality_analyzer
-import intent/spec_linter
-import intent/improver
 import intent/answer_loader
 import intent/bead_feedback
-import intent/interview
-import intent/interview_storage
-import intent/interview_questions
-import intent/question_types.{type Question}
-import intent/spec_builder
 import intent/bead_templates
-import intent/stdin
 import intent/cli_ui
-import intent/kirk/quality_analyzer as kirk_quality
-import intent/kirk/inversion_checker
-import intent/kirk/coverage_analyzer
-import intent/kirk/gap_detector
+import intent/improver
+import intent/interview
+import intent/interview_questions
+import intent/interview_storage
 import intent/kirk/compact_format
+import intent/kirk/coverage_analyzer
 import intent/kirk/ears_parser
 import intent/kirk/effects_analyzer
+import intent/kirk/gap_detector
+import intent/kirk/inversion_checker
+import intent/kirk/quality_analyzer as kirk_quality
+import intent/loader
+import intent/output
 import intent/plan_mode
+import intent/quality_analyzer
+import intent/question_types.{type Question}
+import intent/runner
+import intent/spec_builder
+import intent/spec_linter
+import intent/stdin
+import intent/types
 import simplifile
 
 /// Exit codes
@@ -106,10 +105,11 @@ fn check_command() -> glint.Command(Nil) {
 
     let output_level = case flag.get_bool(input.flags, "verbose") {
       Ok(True) -> runner.Verbose
-      _ -> case flag.get_bool(input.flags, "quiet") {
-        Ok(True) -> runner.Quiet
-        _ -> runner.Normal
-      }
+      _ ->
+        case flag.get_bool(input.flags, "quiet") {
+          Ok(True) -> runner.Quiet
+          _ -> runner.Normal
+        }
     }
 
     case input.args {
@@ -131,12 +131,40 @@ fn check_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Run spec against a target URL and verify behaviors")
-  |> glint.flag("target", flag.string() |> flag.default("") |> flag.description("Target base URL to test against"))
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output results as JSON"))
-  |> glint.flag("feature", flag.string() |> flag.default("") |> flag.description("Filter to a specific feature"))
-  |> glint.flag("only", flag.string() |> flag.default("") |> flag.description("Run only a specific behavior"))
-  |> glint.flag("verbose", flag.bool() |> flag.default(False) |> flag.description("Verbose output"))
-  |> glint.flag("quiet", flag.bool() |> flag.default(False) |> flag.description("Quiet output (errors only)"))
+  |> glint.flag(
+    "target",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Target base URL to test against"),
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output results as JSON"),
+  )
+  |> glint.flag(
+    "feature",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Filter to a specific feature"),
+  )
+  |> glint.flag(
+    "only",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Run only a specific behavior"),
+  )
+  |> glint.flag(
+    "verbose",
+    flag.bool() |> flag.default(False) |> flag.description("Verbose output"),
+  )
+  |> glint.flag(
+    "quiet",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Quiet output (errors only)"),
+  )
 }
 
 fn run_check(
@@ -273,7 +301,10 @@ fn show_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Pretty print a parsed spec")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 fn print_spec_summary(spec: types.Spec) -> Nil {
@@ -423,7 +454,9 @@ fn analyze_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Analyze spec quality and provide improvement suggestions")
+  |> glint.description(
+    "Analyze spec quality and provide improvement suggestions",
+  )
 }
 
 /// The `improve` command - suggest improvements
@@ -458,7 +491,9 @@ fn improve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Suggest improvements based on quality analysis and linting")
+  |> glint.description(
+    "Suggest improvements based on quality analysis and linting",
+  )
 }
 
 /// The `interview` command - guided specification discovery
@@ -488,16 +523,25 @@ fn interview_command() -> glint.Command(Nil) {
       // Resume an existing session
       "" ->
         case string.lowercase(profile_str) {
-          "api" -> run_interview(interview.Api, answers_file, strict_mode, export_to)
-          "cli" -> run_interview(interview.Cli, answers_file, strict_mode, export_to)
-          "event" -> run_interview(interview.Event, answers_file, strict_mode, export_to)
-          "data" -> run_interview(interview.Data, answers_file, strict_mode, export_to)
-          "workflow" -> run_interview(interview.Workflow, answers_file, strict_mode, export_to)
-          "ui" -> run_interview(interview.UI, answers_file, strict_mode, export_to)
-          _ -> {
-            io.println_error(
-              "Error: unknown profile '" <> profile_str <> "'",
+          "api" ->
+            run_interview(interview.Api, answers_file, strict_mode, export_to)
+          "cli" ->
+            run_interview(interview.Cli, answers_file, strict_mode, export_to)
+          "event" ->
+            run_interview(interview.Event, answers_file, strict_mode, export_to)
+          "data" ->
+            run_interview(interview.Data, answers_file, strict_mode, export_to)
+          "workflow" ->
+            run_interview(
+              interview.Workflow,
+              answers_file,
+              strict_mode,
+              export_to,
             )
+          "ui" ->
+            run_interview(interview.UI, answers_file, strict_mode, export_to)
+          _ -> {
+            io.println_error("Error: unknown profile '" <> profile_str <> "'")
             io.println_error(
               "Valid profiles: api, cli, event, data, workflow, ui",
             )
@@ -509,38 +553,44 @@ fn interview_command() -> glint.Command(Nil) {
       id -> run_resume_interview(id, export_to)
     }
   })
-  |> glint.description("Guided specification discovery through structured interview")
+  |> glint.description(
+    "Guided specification discovery through structured interview",
+  )
   |> glint.flag(
     "profile",
     flag.string()
-    |> flag.default("api")
-    |> flag.description(
-      "System profile: api, cli, event, data, workflow, or ui",
-    ),
+      |> flag.default("api")
+      |> flag.description(
+        "System profile: api, cli, event, data, workflow, or ui",
+      ),
   )
   |> glint.flag(
     "resume",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Resume existing interview session by ID"),
+      |> flag.default("")
+      |> flag.description("Resume existing interview session by ID"),
   )
   |> glint.flag(
     "answers",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Path to CUE file with pre-filled answers for non-interactive mode"),
+      |> flag.default("")
+      |> flag.description(
+        "Path to CUE file with pre-filled answers for non-interactive mode",
+      ),
   )
   |> glint.flag(
     "strict",
     flag.bool()
-    |> flag.default(False)
-    |> flag.description("Strict mode: fail if answers file is missing required answers (requires --answers)"),
+      |> flag.default(False)
+      |> flag.description(
+        "Strict mode: fail if answers file is missing required answers (requires --answers)",
+      ),
   )
   |> glint.flag(
     "export",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Export completed interview to spec file"),
+      |> flag.default("")
+      |> flag.description("Export completed interview to spec file"),
   )
 }
 
@@ -563,18 +613,30 @@ fn run_interview(
       case answer_loader.load_from_file(answers_file) {
         Ok(dict) -> {
           io.println("")
-          io.println("✓ Loaded " <> string.inspect(dict.size(dict)) <> " pre-filled answers from: " <> answers_file)
+          io.println(
+            "✓ Loaded "
+            <> string.inspect(dict.size(dict))
+            <> " pre-filled answers from: "
+            <> answers_file,
+          )
           option.Some(dict)
         }
         Error(err) -> {
           case strict_mode {
             True -> {
-              io.println_error("✗ Failed to load answers file: " <> answer_loader_error_to_string(err))
+              io.println_error(
+                "✗ Failed to load answers file: "
+                <> answer_loader_error_to_string(err),
+              )
               halt(exit_error)
-              option.None  // unreachable, but needed for type consistency
+              option.None
+              // unreachable, but needed for type consistency
             }
             False -> {
-              io.println("⚠ Failed to load answers file: " <> answer_loader_error_to_string(err))
+              io.println(
+                "⚠ Failed to load answers file: "
+                <> answer_loader_error_to_string(err),
+              )
               io.println("  Continuing in interactive mode...")
               option.None
             }
@@ -586,9 +648,13 @@ fn run_interview(
 
   // Print welcome message
   io.println("")
-  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
   io.println("                    INTENT INTERVIEW")
-  io.println("═══════════════════════════════════════════════════════════════════")
+  io.println(
+    "═══════════════════════════════════════════════════════════════════",
+  )
   io.println("")
   io.println("Profile: " <> profile_to_display_string(profile))
   io.println("Session: " <> session_id)
@@ -617,10 +683,11 @@ fn run_interview(
   let final_session = interview_loop(session, 1)
 
   // Save session to JSONL
-  let save_result = interview_storage.append_session_to_jsonl(
-    final_session,
-    ".interview/sessions.jsonl",
-  )
+  let save_result =
+    interview_storage.append_session_to_jsonl(
+      final_session,
+      ".interview/sessions.jsonl",
+    )
 
   case save_result {
     Ok(Nil) -> {
@@ -663,17 +730,23 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
     }
     Ok(session) -> {
       cli_ui.print_header("Resuming Interview: " <> session.id)
-      cli_ui.print_info("Profile: " <> profile_to_display_string(session.profile))
+      cli_ui.print_info(
+        "Profile: " <> profile_to_display_string(session.profile),
+      )
       io.println("")
 
       // Show progress
       io.println("Progress:")
-      io.println("  • Answers collected: " <> string.inspect(list.length(session.answers)))
+      io.println(
+        "  • Answers collected: "
+        <> string.inspect(list.length(session.answers)),
+      )
       io.println(
         "  • Gaps detected: " <> string.inspect(list.length(session.gaps)),
       )
       io.println(
-        "  • Conflicts detected: " <> string.inspect(list.length(session.conflicts)),
+        "  • Conflicts detected: "
+        <> string.inspect(list.length(session.conflicts)),
       )
       io.println("")
 
@@ -691,10 +764,8 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
       let final_session = interview_loop(session, next_round)
 
       // Save updated session
-      let save_result = interview_storage.append_session_to_jsonl(
-        final_session,
-        jsonl_path,
-      )
+      let save_result =
+        interview_storage.append_session_to_jsonl(final_session, jsonl_path)
 
       case save_result {
         Ok(Nil) -> {
@@ -716,7 +787,9 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
               cli_ui.print_success("Spec exported to: " <> path)
             }
             Error(err) -> {
-              cli_ui.print_error("Failed to export spec: " <> string.inspect(err))
+              cli_ui.print_error(
+                "Failed to export spec: " <> string.inspect(err),
+              )
             }
           }
         }
@@ -728,14 +801,21 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
 }
 
 /// Main interview loop - asks questions round by round
-fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.InterviewSession {
+fn interview_loop(
+  session: interview.InterviewSession,
+  round: Int,
+) -> interview.InterviewSession {
   case round > 5 {
     True -> session
     False -> {
       io.println("")
-      io.println("═══════════════════════════════════════════════════════════════════")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
       io.println("ROUND " <> string.inspect(round) <> "/5")
-      io.println("═══════════════════════════════════════════════════════════════════")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
       io.println("")
 
       // Get questions for this round
@@ -746,7 +826,8 @@ fn interview_loop(session: interview.InterviewSession, round: Int) -> interview.
         }
         Ok(first_question) -> {
           // Ask all questions in this round
-          let updated_session = ask_questions_in_round(session, round, first_question)
+          let updated_session =
+            ask_questions_in_round(session, round, first_question)
 
           // Check for blocking gaps before proceeding
           let blocking_gaps = interview.get_blocking_gaps(updated_session)
@@ -778,13 +859,13 @@ fn ask_questions_in_round(
   let profile_str = profile_to_string(session.profile)
 
   // Get all questions for this round
-  let questions = interview_questions.get_questions_for_round(profile_str, round)
+  let questions =
+    interview_questions.get_questions_for_round(profile_str, round)
   let answered_ids = list.map(session.answers, fn(a) { a.question_id })
 
   // Filter to unanswered questions
-  let unanswered = list.filter(questions, fn(q) {
-    !list.contains(answered_ids, q.id)
-  })
+  let unanswered =
+    list.filter(questions, fn(q) { !list.contains(answered_ids, q.id) })
 
   // Ask each unanswered question
   list.fold(unanswered, session, fn(sess, question) {
@@ -826,27 +907,30 @@ fn ask_single_question(
   }
 
   // Extract fields from answer
-  let extracted = interview.extract_from_answer(
-    question.id,
-    answer_text,
-    question.extract_into,
-  )
+  let extracted =
+    interview.extract_from_answer(
+      question.id,
+      answer_text,
+      question.extract_into,
+    )
 
   // Calculate confidence
-  let confidence = interview.calculate_confidence(question.id, answer_text, extracted)
+  let confidence =
+    interview.calculate_confidence(question.id, answer_text, extracted)
 
   // Create answer record
-  let answer = interview.Answer(
-    question_id: question.id,
-    question_text: question.question,
-    perspective: question.perspective,
-    round: round,
-    response: answer_text,
-    extracted: extracted,
-    confidence: confidence,
-    notes: "",
-    timestamp: current_timestamp(),
-  )
+  let answer =
+    interview.Answer(
+      question_id: question.id,
+      question_text: question.question,
+      perspective: question.perspective,
+      round: round,
+      response: answer_text,
+      extracted: extracted,
+      confidence: confidence,
+      notes: "",
+      timestamp: current_timestamp(),
+    )
 
   // Add to session
   let updated_session = interview.add_answer(session, answer)
@@ -890,10 +974,12 @@ fn beads_command() -> glint.Command(Nil) {
     case input.args {
       [session_id, ..] -> {
         // Load session from JSONL
-        case interview_storage.get_session_from_jsonl(
-          ".interview/sessions.jsonl",
-          session_id,
-        ) {
+        case
+          interview_storage.get_session_from_jsonl(
+            ".interview/sessions.jsonl",
+            session_id,
+          )
+        {
           Error(err) -> {
             io.println_error("Error: " <> err)
             halt(exit_error)
@@ -904,17 +990,28 @@ fn beads_command() -> glint.Command(Nil) {
             let bead_count = list.length(beads)
 
             io.println("")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("                    BEAD GENERATION")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("")
-            io.println("Generated " <> string.inspect(bead_count) <> " work items from session: " <> session_id)
+            io.println(
+              "Generated "
+              <> string.inspect(bead_count)
+              <> " work items from session: "
+              <> session_id,
+            )
             io.println("")
 
             // Export to .beads/issues.jsonl
             let jsonl_output = bead_templates.beads_to_jsonl(beads)
 
-            case simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n") {
+            case
+              simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
+            {
               Ok(Nil) -> {
                 io.println("✓ Beads exported to: .beads/issues.jsonl")
                 io.println("")
@@ -927,7 +1024,9 @@ fn beads_command() -> glint.Command(Nil) {
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error("✗ Failed to write beads: " <> string.inspect(err))
+                io.println_error(
+                  "✗ Failed to write beads: " <> string.inspect(err),
+                )
                 halt(exit_error)
               }
             }
@@ -966,31 +1065,57 @@ fn bead_status_command() -> glint.Command(Nil) {
 
     case string.is_empty(bead_id) {
       True -> {
-        io.println_error("Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]")
+        io.println_error(
+          "Usage: intent bead-status --bead-id <id> --status success|failed|blocked [--reason 'text'] [--session <id>]",
+        )
         halt(exit_error)
       }
       False -> {
         case status {
           "success" -> {
-            case bead_feedback.mark_bead_executed(session_id, bead_id, bead_feedback.Success, reason, 0) {
+            case
+              bead_feedback.mark_bead_executed(
+                session_id,
+                bead_id,
+                bead_feedback.Success,
+                reason,
+                0,
+              )
+            {
               Ok(Nil) -> {
                 io.println("✓ Bead " <> bead_id <> " marked as success")
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                io.println_error(
+                  "✗ Failed to mark bead: "
+                  <> bead_feedback_error_to_string(err),
+                )
                 halt(exit_error)
               }
             }
           }
           "failed" -> {
-            case bead_feedback.mark_bead_failed(session_id, bead_id, reason, "execution_error", "Bead execution failed", option.None, 0) {
+            case
+              bead_feedback.mark_bead_failed(
+                session_id,
+                bead_id,
+                reason,
+                "execution_error",
+                "Bead execution failed",
+                option.None,
+                0,
+              )
+            {
               Ok(Nil) -> {
                 io.println("✓ Bead " <> bead_id <> " marked as failed")
                 halt(exit_pass)
               }
               Error(err) -> {
-                io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                io.println_error(
+                  "✗ Failed to mark bead: "
+                  <> bead_feedback_error_to_string(err),
+                )
                 halt(exit_error)
               }
             }
@@ -1002,13 +1127,28 @@ fn bead_status_command() -> glint.Command(Nil) {
                 halt(exit_error)
               }
               False -> {
-                case bead_feedback.mark_bead_blocked(session_id, bead_id, reason, "user_action", "User blocked this bead", "Manual resume required", 0) {
+                case
+                  bead_feedback.mark_bead_blocked(
+                    session_id,
+                    bead_id,
+                    reason,
+                    "user_action",
+                    "User blocked this bead",
+                    "Manual resume required",
+                    0,
+                  )
+                {
                   Ok(Nil) -> {
-                    io.println("✓ Bead " <> bead_id <> " marked as blocked: " <> reason)
+                    io.println(
+                      "✓ Bead " <> bead_id <> " marked as blocked: " <> reason,
+                    )
                     halt(exit_pass)
                   }
                   Error(err) -> {
-                    io.println_error("✗ Failed to mark bead: " <> bead_feedback_error_to_string(err))
+                    io.println_error(
+                      "✗ Failed to mark bead: "
+                      <> bead_feedback_error_to_string(err),
+                    )
                     halt(exit_error)
                   }
                 }
@@ -1025,10 +1165,26 @@ fn bead_status_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Mark bead execution status (success/failed/blocked)")
-  |> glint.flag("bead-id", flag.string() |> flag.default("") |> flag.description("Bead ID (required)"))
-  |> glint.flag("status", flag.string() |> flag.default("") |> flag.description("Status: success, failed, or blocked (required)"))
-  |> glint.flag("reason", flag.string() |> flag.default("") |> flag.description("Reason for status (required for blocked)"))
-  |> glint.flag("session", flag.string() |> flag.default("") |> flag.description("Session ID"))
+  |> glint.flag(
+    "bead-id",
+    flag.string() |> flag.default("") |> flag.description("Bead ID (required)"),
+  )
+  |> glint.flag(
+    "status",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Status: success, failed, or blocked (required)"),
+  )
+  |> glint.flag(
+    "reason",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Reason for status (required for blocked)"),
+  )
+  |> glint.flag(
+    "session",
+    flag.string() |> flag.default("") |> flag.description("Session ID"),
+  )
 }
 
 // =============================================================================
@@ -1060,19 +1216,28 @@ fn plan_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent plan <session_id> [--format human|json]")
+        io.println_error(
+          "Usage: intent plan <session_id> [--format human|json]",
+        )
         io.println_error("")
         io.println_error("Display execution plan from session beads.")
         io.println_error("")
         io.println_error("Examples:")
-        io.println_error("  intent plan abc123              # Human-readable output")
+        io.println_error(
+          "  intent plan abc123              # Human-readable output",
+        )
         io.println_error("  intent plan abc123 --format json  # JSON output")
         halt(exit_error)
       }
     }
   })
   |> glint.description("Display execution plan from session beads")
-  |> glint.flag("format", flag.string() |> flag.default("human") |> flag.description("Output format: human or json"))
+  |> glint.flag(
+    "format",
+    flag.string()
+      |> flag.default("human")
+      |> flag.description("Output format: human or json"),
+  )
 }
 
 /// The `plan-approve` command - approve execution plan for CI/automation
@@ -1097,9 +1262,13 @@ fn plan_approve_command() -> glint.Command(Nil) {
           Ok(plan) -> {
             // Show plan summary
             io.println("")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("                    PLAN APPROVAL")
-            io.println("═══════════════════════════════════════════════════════════════════")
+            io.println(
+              "═══════════════════════════════════════════════════════════════════",
+            )
             io.println("")
             io.println("Session: " <> plan.session_id)
             io.println("Total Beads: " <> string.inspect(plan.total_beads))
@@ -1144,7 +1313,9 @@ fn plan_approve_command() -> glint.Command(Nil) {
                             halt(exit_pass)
                           }
                           Error(err) -> {
-                            io.println_error("✗ Failed to approve plan: " <> err)
+                            io.println_error(
+                              "✗ Failed to approve plan: " <> err,
+                            )
                             halt(exit_error)
                           }
                         }
@@ -1154,7 +1325,9 @@ fn plan_approve_command() -> glint.Command(Nil) {
                         halt(exit_fail)
                       }
                       _ -> {
-                        io.println_error("Invalid response. Please enter 'yes' or 'no'")
+                        io.println_error(
+                          "Invalid response. Please enter 'yes' or 'no'",
+                        )
                         halt(exit_error)
                       }
                     }
@@ -1170,28 +1343,48 @@ fn plan_approve_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent plan-approve <session_id> [--yes] [--notes 'text']")
+        io.println_error(
+          "Usage: intent plan-approve <session_id> [--yes] [--notes 'text']",
+        )
         io.println_error("")
         io.println_error("Approve execution plan for a session.")
         io.println_error("")
         io.println_error("Flags:")
-        io.println_error("  --yes      Auto-approve for CI pipelines (non-interactive)")
+        io.println_error(
+          "  --yes      Auto-approve for CI pipelines (non-interactive)",
+        )
         io.println_error("  --notes    Optional approval notes")
         io.println_error("")
         io.println_error("Examples:")
-        io.println_error("  intent plan-approve abc123           # Interactive approval")
-        io.println_error("  intent plan-approve abc123 --yes     # CI auto-approval")
+        io.println_error(
+          "  intent plan-approve abc123           # Interactive approval",
+        )
+        io.println_error(
+          "  intent plan-approve abc123 --yes     # CI auto-approval",
+        )
         halt(exit_error)
       }
     }
   })
   |> glint.description("Approve execution plan for session")
-  |> glint.flag("yes", flag.bool() |> flag.default(False) |> flag.description("Auto-approve for CI (non-interactive)"))
-  |> glint.flag("notes", flag.string() |> flag.default("") |> flag.description("Approval notes"))
+  |> glint.flag(
+    "yes",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Auto-approve for CI (non-interactive)"),
+  )
+  |> glint.flag(
+    "notes",
+    flag.string() |> flag.default("") |> flag.description("Approval notes"),
+  )
 }
 
 /// Write plan approval to session CUE file
-fn approve_plan(session_id: String, approved_by: String, notes: String) -> Result(Nil, String) {
+fn approve_plan(
+  session_id: String,
+  approved_by: String,
+  notes: String,
+) -> Result(Nil, String) {
   let session_path = ".intent/session-" <> session_id <> ".cue"
   let timestamp = current_iso8601_timestamp()
 
@@ -1261,7 +1454,10 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
             // Load feedback
             case bead_feedback.load_feedback_for_session(session_id) {
               Error(err) -> {
-                io.println_error("Failed to load feedback: " <> bead_feedback_error_to_string(err))
+                io.println_error(
+                  "Failed to load feedback: "
+                  <> bead_feedback_error_to_string(err),
+                )
                 halt(exit_error)
               }
               Ok(feedback) -> {
@@ -1277,19 +1473,30 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                   })
 
                 io.println("")
-                io.println("═══════════════════════════════════════════════════════════════════")
+                io.println(
+                  "═══════════════════════════════════════════════════════════════════",
+                )
                 io.println("                    BEAD REGENERATION")
-                io.println("═══════════════════════════════════════════════════════════════════")
+                io.println(
+                  "═══════════════════════════════════════════════════════════════════",
+                )
                 io.println("")
                 io.println("Session: " <> session_id)
                 io.println("Strategy: " <> strategy)
-                io.println("Feedback entries: " <> string.inspect(list.length(feedback)))
-                io.println("Beads needing regeneration: " <> string.inspect(list.length(needs_regen)))
+                io.println(
+                  "Feedback entries: " <> string.inspect(list.length(feedback)),
+                )
+                io.println(
+                  "Beads needing regeneration: "
+                  <> string.inspect(list.length(needs_regen)),
+                )
                 io.println("")
 
                 case list.is_empty(needs_regen) {
                   True -> {
-                    io.println("✓ No beads need regeneration - all passed or skipped")
+                    io.println(
+                      "✓ No beads need regeneration - all passed or skipped",
+                    )
                     halt(exit_pass)
                   }
                   False -> {
@@ -1301,23 +1508,46 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
                         bead_feedback.Blocked -> "⊘"
                         _ -> "?"
                       }
-                      io.println("  " <> status_icon <> " " <> fb.bead_id <> ": " <> fb.reason)
+                      io.println(
+                        "  "
+                        <> status_icon
+                        <> " "
+                        <> fb.bead_id
+                        <> ": "
+                        <> fb.reason,
+                      )
                     })
                     io.println("")
 
                     // Generate regeneration entries
-                    let regen_entries = generate_regeneration_entries(needs_regen, strategy)
+                    let regen_entries =
+                      generate_regeneration_entries(needs_regen, strategy)
 
                     // Append regeneration metadata to session
-                    case append_regeneration_to_session(session_path, regen_entries) {
+                    case
+                      append_regeneration_to_session(
+                        session_path,
+                        regen_entries,
+                      )
+                    {
                       Ok(Nil) -> {
                         io.println("✓ Regeneration metadata added to session")
                         io.println("  Strategy: " <> strategy)
-                        io.println("  Beads marked for regeneration: " <> string.inspect(list.length(needs_regen)))
+                        io.println(
+                          "  Beads marked for regeneration: "
+                          <> string.inspect(list.length(needs_regen)),
+                        )
                         io.println("")
                         io.println("Next steps:")
-                        io.println("  1. Review regeneration suggestions in " <> session_path)
-                        io.println("  2. Run 'intent plan " <> session_id <> "' to see updated plan")
+                        io.println(
+                          "  1. Review regeneration suggestions in "
+                          <> session_path,
+                        )
+                        io.println(
+                          "  2. Run 'intent plan "
+                          <> session_id
+                          <> "' to see updated plan",
+                        )
                         io.println("  3. Execute regenerated beads")
                         halt(exit_pass)
                       }
@@ -1334,9 +1564,13 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         }
       }
       [] -> {
-        io.println_error("Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]")
+        io.println_error(
+          "Usage: intent beads-regenerate <session_id> [--strategy hybrid|inversion|premortem]",
+        )
         io.println_error("")
-        io.println_error("Regenerate failed/blocked beads with adjusted approach.")
+        io.println_error(
+          "Regenerate failed/blocked beads with adjusted approach.",
+        )
         io.println_error("")
         io.println_error("Strategies:")
         io.println_error("  hybrid     - Use all analysis methods (default)")
@@ -1345,13 +1579,22 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
         io.println_error("")
         io.println_error("Examples:")
         io.println_error("  intent beads-regenerate abc123")
-        io.println_error("  intent beads-regenerate abc123 --strategy inversion")
+        io.println_error(
+          "  intent beads-regenerate abc123 --strategy inversion",
+        )
         halt(exit_error)
       }
     }
   })
   |> glint.description("Regenerate failed/blocked beads with adjusted approach")
-  |> glint.flag("strategy", flag.string() |> flag.default("hybrid") |> flag.description("Regeneration strategy: hybrid, inversion, or premortem"))
+  |> glint.flag(
+    "strategy",
+    flag.string()
+      |> flag.default("hybrid")
+      |> flag.description(
+        "Regeneration strategy: hybrid, inversion, or premortem",
+      ),
+  )
 }
 
 /// Generate regeneration entries based on failed beads and strategy
@@ -1370,10 +1613,18 @@ fn generate_regeneration_entries(
       }
 
       "  {\n"
-      <> "    bead_id: \"" <> fb.bead_id <> "\"\n"
-      <> "    strategy: \"" <> strategy <> "\"\n"
-      <> "    root_cause: \"" <> escape_cue_string(root_cause) <> "\"\n"
-      <> "    regenerated_at: \"" <> timestamp <> "\"\n"
+      <> "    bead_id: \""
+      <> fb.bead_id
+      <> "\"\n"
+      <> "    strategy: \""
+      <> strategy
+      <> "\"\n"
+      <> "    root_cause: \""
+      <> escape_cue_string(root_cause)
+      <> "\"\n"
+      <> "    regenerated_at: \""
+      <> timestamp
+      <> "\"\n"
       <> "  }"
     })
     |> string.join(",\n")
@@ -1402,7 +1653,8 @@ fn append_regeneration_to_session(
 fn bead_feedback_error_to_string(err: bead_feedback.FeedbackError) -> String {
   case err {
     bead_feedback.SessionNotFound(id) -> "Session not found: " <> id
-    bead_feedback.WriteError(path, msg) -> "Write error to " <> path <> ": " <> msg
+    bead_feedback.WriteError(path, msg) ->
+      "Write error to " <> path <> ": " <> msg
     bead_feedback.ValidationError(msg) -> "Validation error: " <> msg
   }
 }
@@ -1422,7 +1674,9 @@ fn history_command() -> glint.Command(Nil) {
           Ok([]) -> {
             cli_ui.print_warning("No history found for session: " <> session_id)
             io.println("")
-            io.println("Tip: Session history is recorded when you save snapshots")
+            io.println(
+              "Tip: Session history is recorded when you save snapshots",
+            )
             io.println("during an interview with --snapshot flag.")
             halt(exit_pass)
           }
@@ -1435,9 +1689,13 @@ fn history_command() -> glint.Command(Nil) {
               io.println("│  Time: " <> snapshot.timestamp)
               io.println("│  Stage: " <> snapshot.stage)
               io.println("│  Description: " <> snapshot.description)
-              io.println("│  Answers: " <> string.inspect(dict.size(snapshot.answers)))
+              io.println(
+                "│  Answers: " <> string.inspect(dict.size(snapshot.answers)),
+              )
               io.println("│  Gaps: " <> string.inspect(snapshot.gaps_count))
-              io.println("│  Conflicts: " <> string.inspect(snapshot.conflicts_count))
+              io.println(
+                "│  Conflicts: " <> string.inspect(snapshot.conflicts_count),
+              )
               io.println("└─")
               io.println("")
             })
@@ -1480,7 +1738,8 @@ fn diff_command() -> glint.Command(Nil) {
               }
               Ok(to_session) -> {
                 // Compute and display diff
-                let diff = interview_storage.diff_sessions(from_session, to_session)
+                let diff =
+                  interview_storage.diff_sessions(from_session, to_session)
                 cli_ui.print_header("Session Comparison")
                 io.println("")
                 io.println(interview_storage.format_diff(diff))
@@ -1494,7 +1753,10 @@ fn diff_command() -> glint.Command(Nil) {
 
                 case total_changes {
                   0 -> cli_ui.print_info("No answer changes between sessions")
-                  n -> cli_ui.print_info(string.inspect(n) <> " total answer changes")
+                  n ->
+                    cli_ui.print_info(
+                      string.inspect(n) <> " total answer changes",
+                    )
                 }
 
                 halt(exit_pass)
@@ -1563,14 +1825,16 @@ fn sessions_command() -> glint.Command(Nil) {
         // Filter by profile if specified
         let filtered = case profile_filter {
           "" -> sessions
-          p -> list.filter(sessions, fn(s) {
-            profile_to_string(s.profile) == string.lowercase(p)
-          })
+          p ->
+            list.filter(sessions, fn(s) {
+              profile_to_string(s.profile) == string.lowercase(p)
+            })
         }
 
         case is_json {
           True -> {
-            let json_sessions = json.array(filtered, interview_storage.session_to_json)
+            let json_sessions =
+              json.array(filtered, interview_storage.session_to_json)
             io.println(json.to_string(json_sessions))
           }
           False -> {
@@ -1585,16 +1849,26 @@ fn sessions_command() -> glint.Command(Nil) {
               }
 
               io.println(status_icon <> " " <> session.id)
-              io.println("  Profile: " <> profile_to_display_string(session.profile))
+              io.println(
+                "  Profile: " <> profile_to_display_string(session.profile),
+              )
               io.println("  Stage: " <> stage_to_display_string(session.stage))
-              io.println("  Rounds: " <> string.inspect(session.rounds_completed) <> "/5")
-              io.println("  Answers: " <> string.inspect(list.length(session.answers)))
+              io.println(
+                "  Rounds: " <> string.inspect(session.rounds_completed) <> "/5",
+              )
+              io.println(
+                "  Answers: " <> string.inspect(list.length(session.answers)),
+              )
               io.println("  Created: " <> session.created_at)
               io.println("  Updated: " <> session.updated_at)
               io.println("")
             })
 
-            io.println("Total: " <> string.inspect(list.length(filtered)) <> " session(s)")
+            io.println(
+              "Total: "
+              <> string.inspect(list.length(filtered))
+              <> " session(s)",
+            )
           }
         }
 
@@ -1606,14 +1880,14 @@ fn sessions_command() -> glint.Command(Nil) {
   |> glint.flag(
     "json",
     flag.bool()
-    |> flag.default(False)
-    |> flag.description("Output as JSON"),
+      |> flag.default(False)
+      |> flag.description("Output as JSON"),
   )
   |> glint.flag(
     "profile",
     flag.string()
-    |> flag.default("")
-    |> flag.description("Filter by profile (api, cli, event, etc.)"),
+      |> flag.default("")
+      |> flag.description("Filter by profile (api, cli, event, etc.)"),
   )
 }
 
@@ -1645,21 +1919,30 @@ fn kirk_quality_command() -> glint.Command(Nil) {
             let report = kirk_quality.analyze_quality(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("completeness", json.float(report.completeness)),
-                  #("consistency", json.float(report.consistency)),
-                  #("testability", json.float(report.testability)),
-                  #("clarity", json.float(report.clarity)),
-                  #("security", json.float(report.security)),
-                  #("overall", json.float(report.overall)),
-                  #("issues", json.array(report.issues, fn(i) {
-                    json.object([
-                      #("field", json.string(i.field)),
-                      #("issue", json.string(i.issue)),
-                      #("severity", json.string(kirk_quality.severity_to_string(i.severity))),
-                    ])
-                  })),
-                ])
+                let json_obj =
+                  json.object([
+                    #("completeness", json.float(report.completeness)),
+                    #("consistency", json.float(report.consistency)),
+                    #("testability", json.float(report.testability)),
+                    #("clarity", json.float(report.clarity)),
+                    #("security", json.float(report.security)),
+                    #("overall", json.float(report.overall)),
+                    #(
+                      "issues",
+                      json.array(report.issues, fn(i) {
+                        json.object([
+                          #("field", json.string(i.field)),
+                          #("issue", json.string(i.issue)),
+                          #(
+                            "severity",
+                            json.string(kirk_quality.severity_to_string(
+                              i.severity,
+                            )),
+                          ),
+                        ])
+                      }),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(kirk_quality.format_report(report))
@@ -1680,7 +1963,10 @@ fn kirk_quality_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Analyze spec quality across multiple dimensions")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `invert` command - KIRK inversion analysis
@@ -1697,20 +1983,33 @@ fn kirk_invert_command() -> glint.Command(Nil) {
             let report = inversion_checker.analyze_inversions(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("score", json.float(report.score)),
-                  #("security_gaps", json.array(report.security_gaps, gap_to_json)),
-                  #("usability_gaps", json.array(report.usability_gaps, gap_to_json)),
-                  #("integration_gaps", json.array(report.integration_gaps, gap_to_json)),
-                  #("suggested_behaviors", json.array(report.suggested_behaviors, fn(s) {
-                    json.object([
-                      #("name", json.string(s.name)),
-                      #("intent", json.string(s.intent)),
-                      #("expected_status", json.int(s.expected_status)),
-                      #("category", json.string(s.category)),
-                    ])
-                  })),
-                ])
+                let json_obj =
+                  json.object([
+                    #("score", json.float(report.score)),
+                    #(
+                      "security_gaps",
+                      json.array(report.security_gaps, gap_to_json),
+                    ),
+                    #(
+                      "usability_gaps",
+                      json.array(report.usability_gaps, gap_to_json),
+                    ),
+                    #(
+                      "integration_gaps",
+                      json.array(report.integration_gaps, gap_to_json),
+                    ),
+                    #(
+                      "suggested_behaviors",
+                      json.array(report.suggested_behaviors, fn(s) {
+                        json.object([
+                          #("name", json.string(s.name)),
+                          #("intent", json.string(s.intent)),
+                          #("expected_status", json.int(s.expected_status)),
+                          #("category", json.string(s.category)),
+                        ])
+                      }),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(inversion_checker.format_report(report))
@@ -1730,15 +2029,23 @@ fn kirk_invert_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Inversion analysis - what failure cases are missing?")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.description(
+    "KIRK: Inversion analysis - what failure cases are missing?",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 fn gap_to_json(gap: inversion_checker.InversionGap) -> json.Json {
   json.object([
     #("category", json.string(gap.category)),
     #("description", json.string(gap.description)),
-    #("severity", json.string(inversion_checker.severity_to_string(gap.severity))),
+    #(
+      "severity",
+      json.string(inversion_checker.severity_to_string(gap.severity)),
+    ),
     #("what_could_fail", json.string(gap.what_could_fail)),
   ])
 }
@@ -1757,21 +2064,31 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
             let report = coverage_analyzer.analyze_coverage(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("overall_score", json.float(report.overall_score)),
-                  #("methods", json.object(
-                    report.methods
-                    |> dict.to_list()
-                    |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) })
-                  )),
-                  #("status_codes", json.object(
-                    report.status_codes
-                    |> dict.to_list()
-                    |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) })
-                  )),
-                  #("owasp_score", json.float(report.owasp.score)),
-                  #("owasp_missing", json.array(report.owasp.missing, json.string)),
-                ])
+                let json_obj =
+                  json.object([
+                    #("overall_score", json.float(report.overall_score)),
+                    #(
+                      "methods",
+                      json.object(
+                        report.methods
+                        |> dict.to_list()
+                        |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
+                      ),
+                    ),
+                    #(
+                      "status_codes",
+                      json.object(
+                        report.status_codes
+                        |> dict.to_list()
+                        |> list.map(fn(pair) { #(pair.0, json.int(pair.1)) }),
+                      ),
+                    ),
+                    #("owasp_score", json.float(report.owasp.score)),
+                    #(
+                      "owasp_missing",
+                      json.array(report.owasp.missing, json.string),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(coverage_analyzer.format_report(report))
@@ -1792,7 +2109,10 @@ fn kirk_coverage_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Coverage analysis including OWASP Top 10")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 /// The `gaps` command - KIRK gap detection
@@ -1809,20 +2129,42 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
             let report = gap_detector.detect_gaps(spec)
             case is_json {
               True -> {
-                let json_obj = json.object([
-                  #("total_gaps", json.int(report.total_gaps)),
-                  #("severity_breakdown", json.object([
-                    #("critical", json.int(report.severity_breakdown.critical)),
-                    #("high", json.int(report.severity_breakdown.high)),
-                    #("medium", json.int(report.severity_breakdown.medium)),
-                    #("low", json.int(report.severity_breakdown.low)),
-                  ])),
-                  #("inversion_gaps", json.array(report.inversion_gaps, detected_gap_to_json)),
-                  #("second_order_gaps", json.array(report.second_order_gaps, detected_gap_to_json)),
-                  #("checklist_gaps", json.array(report.checklist_gaps, detected_gap_to_json)),
-                  #("coverage_gaps", json.array(report.coverage_gaps, detected_gap_to_json)),
-                  #("security_gaps", json.array(report.security_gaps, detected_gap_to_json)),
-                ])
+                let json_obj =
+                  json.object([
+                    #("total_gaps", json.int(report.total_gaps)),
+                    #(
+                      "severity_breakdown",
+                      json.object([
+                        #(
+                          "critical",
+                          json.int(report.severity_breakdown.critical),
+                        ),
+                        #("high", json.int(report.severity_breakdown.high)),
+                        #("medium", json.int(report.severity_breakdown.medium)),
+                        #("low", json.int(report.severity_breakdown.low)),
+                      ]),
+                    ),
+                    #(
+                      "inversion_gaps",
+                      json.array(report.inversion_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "second_order_gaps",
+                      json.array(report.second_order_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "checklist_gaps",
+                      json.array(report.checklist_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "coverage_gaps",
+                      json.array(report.coverage_gaps, detected_gap_to_json),
+                    ),
+                    #(
+                      "security_gaps",
+                      json.array(report.security_gaps, detected_gap_to_json),
+                    ),
+                  ])
                 io.println(json.to_string(json_obj))
               }
               False -> io.println(gap_detector.format_report(report))
@@ -1843,7 +2185,10 @@ fn kirk_gaps_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("KIRK: Detect gaps using mental models")
-  |> glint.flag("json", flag.bool() |> flag.default(False) |> flag.description("Output as JSON"))
+  |> glint.flag(
+    "json",
+    flag.bool() |> flag.default(False) |> flag.description("Output as JSON"),
+  )
 }
 
 fn detected_gap_to_json(gap: gap_detector.Gap) -> json.Json {
@@ -1880,7 +2225,9 @@ fn kirk_effects_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Analyze second-order effects (consequence tracing)")
+  |> glint.description(
+    "KIRK: Analyze second-order effects (consequence tracing)",
+  )
 }
 
 /// The `compact` command - KIRK compact format (CIN)
@@ -1900,13 +2247,24 @@ fn kirk_compact_command() -> glint.Command(Nil) {
 
             case show_tokens {
               True -> {
-                let #(full, compact_tokens, savings) = compact_format.compare_token_usage(spec)
+                let #(full, compact_tokens, savings) =
+                  compact_format.compare_token_usage(spec)
                 io.println("")
                 io.println("─────────────────────────────────────")
                 io.println("Token Analysis:")
-                io.println("  Full JSON:    ~" <> string.inspect(full) <> " tokens")
-                io.println("  Compact CIN:  ~" <> string.inspect(compact_tokens) <> " tokens")
-                io.println("  Savings:      " <> string.inspect(float.round(savings)) <> "%")
+                io.println(
+                  "  Full JSON:    ~" <> string.inspect(full) <> " tokens",
+                )
+                io.println(
+                  "  Compact CIN:  ~"
+                  <> string.inspect(compact_tokens)
+                  <> " tokens",
+                )
+                io.println(
+                  "  Savings:      "
+                  <> string.inspect(float.round(savings))
+                  <> "%",
+                )
               }
               False -> Nil
             }
@@ -1926,8 +2284,15 @@ fn kirk_compact_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("KIRK: Convert to Compact Intent Notation (token-efficient)")
-  |> glint.flag("tokens", flag.bool() |> flag.default(False) |> flag.description("Show token comparison"))
+  |> glint.description(
+    "KIRK: Convert to Compact Intent Notation (token-efficient)",
+  )
+  |> glint.flag(
+    "tokens",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Show token comparison"),
+  )
 }
 
 /// The `prototext` command - KIRK protobuf text format output
@@ -1984,33 +2349,46 @@ fn kirk_ears_command() -> glint.Command(Nil) {
               }
               "json" -> {
                 let behaviors = ears_parser.to_behaviors(result)
-                let json_obj = json.object([
-                  #("requirements", json.array(result.requirements, fn(r) {
-                    json.object([
-                      #("id", json.string(r.id)),
-                      #("pattern", json.string(ears_parser.pattern_to_string(r.pattern))),
-                      #("system_shall", json.string(r.system_shall)),
-                      #("raw_text", json.string(r.raw_text)),
-                    ])
-                  })),
-                  #("behaviors", json.array(behaviors, fn(b) {
-                    json.object([
-                      #("name", json.string(b.name)),
-                      #("intent", json.string(b.intent)),
-                      #("method", json.string(b.method)),
-                      #("path", json.string(b.path)),
-                      #("status", json.int(b.status)),
-                    ])
-                  })),
-                  #("errors", json.array(result.errors, fn(e) {
-                    json.object([
-                      #("line", json.int(e.line)),
-                      #("message", json.string(e.message)),
-                      #("suggestion", json.string(e.suggestion)),
-                    ])
-                  })),
-                  #("warnings", json.array(result.warnings, json.string)),
-                ])
+                let json_obj =
+                  json.object([
+                    #(
+                      "requirements",
+                      json.array(result.requirements, fn(r) {
+                        json.object([
+                          #("id", json.string(r.id)),
+                          #(
+                            "pattern",
+                            json.string(ears_parser.pattern_to_string(r.pattern)),
+                          ),
+                          #("system_shall", json.string(r.system_shall)),
+                          #("raw_text", json.string(r.raw_text)),
+                        ])
+                      }),
+                    ),
+                    #(
+                      "behaviors",
+                      json.array(behaviors, fn(b) {
+                        json.object([
+                          #("name", json.string(b.name)),
+                          #("intent", json.string(b.intent)),
+                          #("method", json.string(b.method)),
+                          #("path", json.string(b.path)),
+                          #("status", json.int(b.status)),
+                        ])
+                      }),
+                    ),
+                    #(
+                      "errors",
+                      json.array(result.errors, fn(e) {
+                        json.object([
+                          #("line", json.int(e.line)),
+                          #("message", json.string(e.message)),
+                          #("suggestion", json.string(e.suggestion)),
+                        ])
+                      }),
+                    ),
+                    #("warnings", json.array(result.warnings, json.string)),
+                  ])
                 json.to_string(json_obj)
               }
               _ -> ears_parser.format_result(result)
@@ -2036,22 +2414,47 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       }
       [] -> {
         cli_ui.print_error("requirements file path required")
-        io.println("Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]")
+        io.println(
+          "Usage: intent ears <requirements.md> [--output text|cue|json] [--out <file>]",
+        )
         io.println("")
         io.println("EARS Patterns:")
-        io.println("  THE SYSTEM SHALL [behavior]                    - Ubiquitous")
-        io.println("  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven")
-        io.println("  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven")
-        io.println("  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional")
-        io.println("  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted")
+        io.println(
+          "  THE SYSTEM SHALL [behavior]                    - Ubiquitous",
+        )
+        io.println(
+          "  WHEN [trigger] THE SYSTEM SHALL [behavior]     - Event-Driven",
+        )
+        io.println(
+          "  WHILE [state] THE SYSTEM SHALL [behavior]      - State-Driven",
+        )
+        io.println(
+          "  WHERE [condition] THE SYSTEM SHALL [behavior]  - Optional",
+        )
+        io.println(
+          "  IF [condition] THEN THE SYSTEM SHALL NOT       - Unwanted",
+        )
         halt(exit_error)
       }
     }
   })
   |> glint.description("KIRK: Parse EARS requirements to Intent behaviors")
-  |> glint.flag("output", flag.string() |> flag.default("text") |> flag.description("Output format: text, cue, json"))
-  |> glint.flag("out", flag.string() |> flag.default("") |> flag.description("Output file path"))
-  |> glint.flag("name", flag.string() |> flag.default("GeneratedSpec") |> flag.description("Spec name for CUE output"))
+  |> glint.flag(
+    "output",
+    flag.string()
+      |> flag.default("text")
+      |> flag.description("Output format: text, cue, json"),
+  )
+  |> glint.flag(
+    "out",
+    flag.string() |> flag.default("") |> flag.description("Output file path"),
+  )
+  |> glint.flag(
+    "name",
+    flag.string()
+      |> flag.default("GeneratedSpec")
+      |> flag.description("Spec name for CUE output"),
+  )
 }
 
 import gleam/float
@@ -2063,8 +2466,10 @@ import gleam/float
 fn answer_loader_error_to_string(err: answer_loader.AnswerLoaderError) -> String {
   case err {
     answer_loader.FileNotFound(path) -> "File not found: " <> path
-    answer_loader.PermissionDenied(path) -> "Permission denied reading: " <> path
-    answer_loader.ParseError(path, msg) -> "Parse error in " <> path <> ": " <> msg
+    answer_loader.PermissionDenied(path) ->
+      "Permission denied reading: " <> path
+    answer_loader.ParseError(path, msg) ->
+      "Parse error in " <> path <> ": " <> msg
     answer_loader.SchemaError(msg) -> "Schema validation failed: " <> msg
     answer_loader.IoError(msg) -> "I/O error: " <> msg
   }

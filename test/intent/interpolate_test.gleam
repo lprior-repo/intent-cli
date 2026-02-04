@@ -234,7 +234,8 @@ pub fn interpolate_string_request_body_test() {
   let body = json.object([#("token", json.string("abc123"))])
   let ctx = interpolate.set_request_body(ctx, body)
 
-  let result = interpolate.interpolate_string(ctx, "Token: ${request.body.token}")
+  let result =
+    interpolate.interpolate_string(ctx, "Token: ${request.body.token}")
 
   result |> should.equal(Ok("Token: abc123"))
 }
@@ -510,7 +511,8 @@ pub fn interpolate_string_adjacent_variables_test() {
 
 pub fn interpolate_string_with_special_chars_test() {
   let ctx = interpolate.new_context()
-  let ctx = interpolate.set_variable(ctx, "email", json.string("test@example.com"))
+  let ctx =
+    interpolate.set_variable(ctx, "email", json.string("test@example.com"))
 
   let result = interpolate.interpolate_string(ctx, "Email: ${email}")
 

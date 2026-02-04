@@ -57,7 +57,8 @@ pub fn validate_spec_with_valid_captures_test() {
 }
 
 pub fn validate_spec_with_missing_capture_test() {
-  let behavior = make_behavior("get_user", [], "GET", "/users/${user_id}", dict.new())
+  let behavior =
+    make_behavior("get_user", [], "GET", "/users/${user_id}", dict.new())
   let spec = make_minimal_spec([behavior])
 
   let result = validator.validate_spec(spec)
@@ -75,14 +76,16 @@ pub fn validate_spec_with_missing_capture_test() {
 }
 
 pub fn validate_spec_with_multiple_missing_captures_test() {
-  let behavior = make_behavior("get_data", [], "GET", "/api/${id}/${version}", dict.new())
+  let behavior =
+    make_behavior("get_data", [], "GET", "/api/${id}/${version}", dict.new())
   let spec = make_minimal_spec([behavior])
 
   let result = validator.validate_spec(spec)
 
   case result {
     validator.ValidationInvalid(issues) -> {
-      list.length(issues) |> should.equal(2)  // Both id and version are missing
+      list.length(issues) |> should.equal(2)
+      // Both id and version are missing
     }
     _ -> should.fail()
   }
@@ -113,7 +116,14 @@ pub fn validate_spec_capture_order_matters_test() {
 pub fn validate_spec_capture_in_headers_test() {
   let behaviors = [
     make_behavior_with_capture("login", [], "POST", "/auth/login", "auth_token"),
-    make_behavior_with_header("get_profile", [], "GET", "/profile", "Authorization", "Bearer ${auth_token}"),
+    make_behavior_with_header(
+      "get_profile",
+      [],
+      "GET",
+      "/profile",
+      "Authorization",
+      "Bearer ${auth_token}",
+    ),
   ]
   let spec = make_minimal_spec(behaviors)
 
@@ -123,7 +133,15 @@ pub fn validate_spec_capture_in_headers_test() {
 }
 
 pub fn validate_spec_missing_capture_in_headers_test() {
-  let behavior = make_behavior_with_header("get_profile", [], "GET", "/profile", "X-Token", "${missing_token}")
+  let behavior =
+    make_behavior_with_header(
+      "get_profile",
+      [],
+      "GET",
+      "/profile",
+      "X-Token",
+      "${missing_token}",
+    )
   let spec = make_minimal_spec([behavior])
 
   let result = validator.validate_spec(spec)
@@ -132,7 +150,8 @@ pub fn validate_spec_missing_capture_in_headers_test() {
     validator.ValidationInvalid(issues) -> {
       list.length(issues) |> should.equal(1)
       case list.first(issues) {
-        Ok(validator.MissingCapture(_, "request.headers", "missing_token", _)) -> Nil
+        Ok(validator.MissingCapture(_, "request.headers", "missing_token", _)) ->
+          Nil
         _ -> should.fail()
       }
     }
@@ -157,7 +176,14 @@ pub fn validate_spec_with_valid_dependency_test() {
 }
 
 pub fn validate_spec_with_missing_dependency_test() {
-  let behavior = make_behavior("get_profile", ["nonexistent_behavior"], "GET", "/profile", dict.new())
+  let behavior =
+    make_behavior(
+      "get_profile",
+      ["nonexistent_behavior"],
+      "GET",
+      "/profile",
+      dict.new(),
+    )
   let spec = make_minimal_spec([behavior])
 
   let result = validator.validate_spec(spec)
@@ -178,7 +204,13 @@ pub fn validate_spec_with_multiple_dependencies_test() {
   let behaviors = [
     make_behavior("setup", [], "POST", "/setup", dict.new()),
     make_behavior("login", ["setup"], "POST", "/auth/login", dict.new()),
-    make_behavior("get_profile", ["setup", "login"], "GET", "/profile", dict.new()),
+    make_behavior(
+      "get_profile",
+      ["setup", "login"],
+      "GET",
+      "/profile",
+      dict.new(),
+    ),
   ]
   let spec = make_minimal_spec(behaviors)
 
@@ -188,7 +220,14 @@ pub fn validate_spec_with_multiple_dependencies_test() {
 }
 
 pub fn validate_spec_with_some_missing_dependencies_test() {
-  let behavior = make_behavior("complex", ["exists", "missing1", "missing2"], "GET", "/api", dict.new())
+  let behavior =
+    make_behavior(
+      "complex",
+      ["exists", "missing1", "missing2"],
+      "GET",
+      "/api",
+      dict.new(),
+    )
   let other = make_behavior("exists", [], "GET", "/exists", dict.new())
   let spec = make_minimal_spec([other, behavior])
 
@@ -196,7 +235,8 @@ pub fn validate_spec_with_some_missing_dependencies_test() {
 
   case result {
     validator.ValidationInvalid(issues) -> {
-      list.length(issues) |> should.equal(2)  // missing1 and missing2
+      list.length(issues) |> should.equal(2)
+      // missing1 and missing2
     }
     _ -> should.fail()
   }
@@ -207,7 +247,8 @@ pub fn validate_spec_with_some_missing_dependencies_test() {
 // =============================================================================
 
 pub fn validate_spec_circular_dependency_self_test() {
-  let behavior = make_behavior("circular", ["circular"], "GET", "/api", dict.new())
+  let behavior =
+    make_behavior("circular", ["circular"], "GET", "/api", dict.new())
   let spec = make_minimal_spec([behavior])
 
   let result = validator.validate_spec(spec)
@@ -219,7 +260,8 @@ pub fn validate_spec_circular_dependency_self_test() {
           validator.CircularDependency(_) -> True
           _ -> False
         }
-      }) |> should.be_true()
+      })
+      |> should.be_true()
     }
     _ -> should.fail()
   }
@@ -241,7 +283,8 @@ pub fn validate_spec_circular_dependency_two_behaviors_test() {
           validator.CircularDependency(_) -> True
           _ -> False
         }
-      }) |> should.be_true()
+      })
+      |> should.be_true()
     }
     _ -> should.fail()
   }
@@ -264,7 +307,8 @@ pub fn validate_spec_circular_dependency_three_behaviors_test() {
           validator.CircularDependency(_) -> True
           _ -> False
         }
-      }) |> should.be_true()
+      })
+      |> should.be_true()
     }
     _ -> should.fail()
   }
@@ -311,7 +355,11 @@ pub fn format_issues_multiple_issues_test() {
 }
 
 pub fn format_missing_capture_with_hint_test() {
-  let issue = validator.MissingCapture("get_user", "request.path", "user_id", ["create_user", "update_user"])
+  let issue =
+    validator.MissingCapture("get_user", "request.path", "user_id", [
+      "create_user",
+      "update_user",
+    ])
   let issues = [issue]
 
   let formatted = validator.format_issues(issues)
@@ -323,7 +371,8 @@ pub fn format_missing_capture_with_hint_test() {
 }
 
 pub fn format_missing_capture_no_hint_test() {
-  let issue = validator.MissingCapture("get_user", "request.path", "unknown_var", [])
+  let issue =
+    validator.MissingCapture("get_user", "request.path", "unknown_var", [])
   let issues = [issue]
 
   let formatted = validator.format_issues(issues)
@@ -349,10 +398,35 @@ pub fn format_circular_dependency_test() {
 pub fn validate_spec_realistic_workflow_test() {
   let behaviors = [
     make_behavior_with_capture("create_user", [], "POST", "/users", "user_id"),
-    make_behavior("verify_user", ["create_user"], "GET", "/users/${user_id}", dict.new()),
-    make_behavior_with_capture("login", ["create_user"], "POST", "/auth/login", "auth_token"),
-    make_behavior_with_header("get_profile", ["login"], "GET", "/profile", "Authorization", "Bearer ${auth_token}"),
-    make_behavior("update_profile", ["login", "get_profile"], "PUT", "/profile", dict.new()),
+    make_behavior(
+      "verify_user",
+      ["create_user"],
+      "GET",
+      "/users/${user_id}",
+      dict.new(),
+    ),
+    make_behavior_with_capture(
+      "login",
+      ["create_user"],
+      "POST",
+      "/auth/login",
+      "auth_token",
+    ),
+    make_behavior_with_header(
+      "get_profile",
+      ["login"],
+      "GET",
+      "/profile",
+      "Authorization",
+      "Bearer ${auth_token}",
+    ),
+    make_behavior(
+      "update_profile",
+      ["login", "get_profile"],
+      "PUT",
+      "/profile",
+      dict.new(),
+    ),
   ]
   let spec = make_minimal_spec(behaviors)
 
@@ -363,8 +437,20 @@ pub fn validate_spec_realistic_workflow_test() {
 
 pub fn validate_spec_multiple_errors_test() {
   let behaviors = [
-    make_behavior("bad1", ["missing_dep"], "GET", "/api/${missing_var}", dict.new()),
-    make_behavior("bad2", ["bad1"], "GET", "/api/${another_missing}", dict.new()),
+    make_behavior(
+      "bad1",
+      ["missing_dep"],
+      "GET",
+      "/api/${missing_var}",
+      dict.new(),
+    ),
+    make_behavior(
+      "bad2",
+      ["bad1"],
+      "GET",
+      "/api/${another_missing}",
+      dict.new(),
+    ),
   ]
   let spec = make_minimal_spec(behaviors)
 
@@ -384,11 +470,12 @@ pub fn validate_spec_multiple_errors_test() {
 // =============================================================================
 
 fn make_minimal_spec(behaviors: List(types.Behavior)) -> types.Spec {
-  let feature = types.Feature(
-    name: "Test Feature",
-    description: "Test feature description",
-    behaviors: behaviors,
-  )
+  let feature =
+    types.Feature(
+      name: "Test Feature",
+      description: "Test feature description",
+      behaviors: behaviors,
+    )
 
   types.Spec(
     name: "Test Spec",
@@ -466,7 +553,13 @@ fn make_behavior_with_capture(
   path: String,
   capture_name: String,
 ) -> types.Behavior {
-  make_behavior(name, requires, method, path, dict.from_list([#(capture_name, "$.id")]))
+  make_behavior(
+    name,
+    requires,
+    method,
+    path,
+    dict.from_list([#(capture_name, "$.id")]),
+  )
 }
 
 fn make_behavior_with_header(

@@ -312,25 +312,32 @@ pub fn executor_receives_target_url_override_test() {
   let options = runner.default_options()
 
   // Create executor that checks base_url
-  let executor = BehaviorExecutor(execute: fn(config, _request, _ctx) {
-    // Verify the config has the overridden URL
-    case config.base_url {
-      "http://override.test:9999" -> {
-        Ok(ExecutionResult(
-          status: 200,
-          headers: dict.new(),
-          body: json.object([]),
-          raw_body: "{}",
-          elapsed_ms: 5,
-          request_method: types.Get,
-          request_path: "/test",
-        ))
+  let executor =
+    BehaviorExecutor(execute: fn(config, _request, _ctx) {
+      // Verify the config has the overridden URL
+      case config.base_url {
+        "http://override.test:9999" -> {
+          Ok(ExecutionResult(
+            status: 200,
+            headers: dict.new(),
+            body: json.object([]),
+            raw_body: "{}",
+            elapsed_ms: 5,
+            request_method: types.Get,
+            request_path: "/test",
+          ))
+        }
+        _ -> Error(RequestError("Wrong base_url: " <> config.base_url))
       }
-      _ -> Error(RequestError("Wrong base_url: " <> config.base_url))
-    }
-  })
+    })
 
-  let result = runner.run_spec_with_executor(spec, "http://override.test:9999", options, executor)
+  let result =
+    runner.run_spec_with_executor(
+      spec,
+      "http://override.test:9999",
+      options,
+      executor,
+    )
 
   result.passed
   |> should.equal(1)

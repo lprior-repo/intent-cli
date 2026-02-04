@@ -25,11 +25,12 @@ pub fn ssrf_blocks_localhost_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -59,11 +60,12 @@ pub fn ssrf_blocks_127_0_0_1_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -92,15 +94,17 @@ pub fn ssrf_blocks_127_subnet_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
-    Error(http_client.SSRFBlocked(_)) -> Nil  // Test passes
+    Error(http_client.SSRFBlocked(_)) -> Nil
+    // Test passes
     _ -> should.fail()
   }
 }
@@ -123,11 +127,12 @@ pub fn ssrf_blocks_10_network_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -157,11 +162,12 @@ pub fn ssrf_blocks_192_168_network_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -190,11 +196,12 @@ pub fn ssrf_blocks_172_16_network_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -223,15 +230,17 @@ pub fn ssrf_blocks_172_31_network_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
-    Error(http_client.SSRFBlocked(_)) -> Nil  // Test passes
+    Error(http_client.SSRFBlocked(_)) -> Nil
+    // Test passes
     _ -> should.fail()
   }
 }
@@ -254,11 +263,12 @@ pub fn ssrf_blocks_aws_metadata_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -287,11 +297,12 @@ pub fn ssrf_blocks_local_domain_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -321,11 +332,12 @@ pub fn ssrf_blocks_internal_domain_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -354,11 +366,12 @@ pub fn ssrf_blocks_gcp_metadata_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -387,11 +400,12 @@ pub fn ssrf_blocks_ipv6_localhost_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -420,11 +434,12 @@ pub fn ssrf_blocks_ipv6_link_local_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -453,11 +468,12 @@ pub fn ssrf_blocks_ipv6_unique_local_fc_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -486,11 +502,12 @@ pub fn ssrf_blocks_ipv6_unique_local_fd_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -519,11 +536,12 @@ pub fn ssrf_blocks_file_protocol_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   case result {
@@ -553,16 +571,18 @@ pub fn ssrf_allows_public_domain_test() {
       body: json.null(),
     )
 
-  let ctx = interpolate.Context(
-    variables: dict.new(),
-    request_body: option.None,
-    response_body: option.None,
-  )
+  let ctx =
+    interpolate.Context(
+      variables: dict.new(),
+      request_body: option.None,
+      response_body: option.None,
+    )
   let result = http_client.execute_request(config, request, ctx)
 
   // Should either succeed or fail with a network error, but NOT SSRFBlocked
   case result {
     Error(http_client.SSRFBlocked(_)) -> should.fail()
-    _ -> Nil  // Test passes - not blocked
+    _ -> Nil
+    // Test passes - not blocked
   }
 }

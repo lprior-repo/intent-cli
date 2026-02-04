@@ -1,6 +1,5 @@
 /// Rule expression parser and types
 /// Parses human-friendly rule strings like "equals foo" or "integer >= 5"
-
 import gleam/float
 import gleam/int
 import gleam/list
@@ -325,7 +324,8 @@ fn try_parse_array(rule: String) -> Option(RuleExpr) {
                         True -> string.drop_left(inner, 3)
                         False ->
                           case string.starts_with(inner, "matches ") {
-                            True -> "string matching " <> string.drop_left(inner, 8)
+                            True ->
+                              "string matching " <> string.drop_left(inner, 8)
                             False -> inner
                           }
                       }

@@ -6,8 +6,8 @@
 import gleam/string
 import gleeunit/should
 import intent/loader.{
-  CueExportError, CueValidationError, FileNotFound,
-  JsonParseError, SpecParseError,
+  CueExportError, CueValidationError, FileNotFound, JsonParseError,
+  SpecParseError,
 }
 
 // ============================================================================
