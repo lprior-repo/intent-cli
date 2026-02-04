@@ -9,14 +9,19 @@
 //// - Supports both human (ASCII tree) and JSON output
 
 import gleam/dict.{type Dict}
+import gleam/dynamic
 import gleam/int
+import gleam/json
 import gleam/list
 
 // Option not used - all fields required
+import gleam/option
 import gleam/result
 
 // Set not needed - using dict for lookups
 import gleam/string
+import intent/security
+import shellout
 import simplifile
 
 // =============================================================================
@@ -41,7 +46,7 @@ pub type ExecutionPhase {
   ExecutionPhase(
     phase_number: Int,
     title: String,
-    beads: List(String),
+    beads: List(PlanBead),
     can_parallel: Bool,
     effort: String,
   )
@@ -87,6 +92,8 @@ pub type PlanBead {
 pub type PlanError {
   SessionNotFound(session_id: String)
   ParseError(message: String)
+  CueExportError(message: String)
+  JsonParseError(message: String)
   CyclicDependency(beads: List(String))
   MissingDependency(bead: String, missing: String)
 }
@@ -99,10 +106,9 @@ pub type PlanError {
 pub fn compute_plan(session_id: String) -> Result(ExecutionPlan, PlanError) {
   let session_path = ".intent/session-" <> session_id <> ".cue"
 
-  case simplifile.read(session_path) {
-    Error(_) -> Error(SessionNotFound(session_id))
-    Ok(content) -> {
-      use beads <- result.try(parse_beads_from_cue(content))
+  case simplifile.verify_is_file(session_path) {
+    Ok(True) -> {
+      use beads <- result.try(parse_beads_from_cue(session_path))
       use phases <- result.try(detect_dependency_graph(beads))
 
       let total_effort = calculate_total_effort(beads)
@@ -120,6 +126,7 @@ pub fn compute_plan(session_id: String) -> Result(ExecutionPlan, PlanError) {
         blockers: blockers,
       ))
     }
+    _ -> Error(SessionNotFound(session_id))
   }
 }
 
@@ -218,6 +225,31 @@ pub fn format_plan_json(plan: ExecutionPlan) -> String {
   <> "}"
 }
 
+/// Format plan as AI-friendly JSON with bead details
+pub fn format_plan_ai(plan: ExecutionPlan) -> String {
+  let phases_json =
+    plan.phases
+    |> list.map(fn(phase) {
+      json.object([
+        #("phase_number", json.int(phase.phase_number)),
+        #("title", json.string(phase.title)),
+        #("can_parallel", json.bool(phase.can_parallel)),
+        #("effort", json.string(phase.effort)),
+        #("beads", json.array(phase.beads, plan_bead_to_json)),
+      ])
+    })
+
+  json.object([
+    #("session_id", json.string(plan.session_id)),
+    #("total_beads", json.int(plan.total_beads)),
+    #("total_effort", json.string(plan.total_effort)),
+    #("risk", json.string(risk_to_string(plan.risk))),
+    #("blockers", json.array(plan.blockers, json.string)),
+    #("phases", json.array(phases_json, fn(phase) { phase })),
+  ])
+  |> json.to_string
+}
+
 /// Format error as human-readable string
 pub fn format_error(error: PlanError) -> String {
   case error {
@@ -229,6 +261,8 @@ pub fn format_error(error: PlanError) -> String {
       <> id
       <> ".cue"
     ParseError(msg) -> "Failed to parse session: " <> msg
+    CueExportError(msg) -> "CUE export failed:\n" <> msg
+    JsonParseError(msg) -> "JSON parse error: " <> msg
     CyclicDependency(beads) ->
       "Cyclic dependency detected involving: " <> string.join(beads, ", ")
     MissingDependency(bead, missing) ->
@@ -291,8 +325,8 @@ fn build_phases(
           ExecutionPhase(
             phase_number: idx + 1,
             title: "Phase " <> int.to_string(idx + 1),
-            beads: bead_ids,
-            can_parallel: list.length(bead_ids) > 1,
+            beads: phase_beads,
+            can_parallel: list.length(phase_beads) > 1,
             effort: calculate_phase_effort(phase_beads),
           )
         })
@@ -399,6 +433,16 @@ fn calculate_phase_effort(beads: List(PlanBead)) -> String {
   format_duration(minutes)
 }
 
+fn effort_to_label(effort: Effort) -> String {
+  case effort {
+    Effort5min -> "5min"
+    Effort10min -> "10min"
+    Effort15min -> "15min"
+    Effort20min -> "20min"
+    Effort30min -> "30min"
+  }
+}
+
 fn effort_to_minutes(effort: Effort) -> Int {
   case effort {
     Effort5min -> 5
@@ -478,10 +522,11 @@ fn format_phase_human(phase: ExecutionPhase) -> String {
 
   let beads_list =
     phase.beads
-    |> list.map(fn(id) { "│  • " <> id })
+    |> list.map(format_bead_line)
     |> string.join("\n")
 
-  let footer = "└────────────────────────────────────────\n"
+  let footer =
+    "└────────────────────────────────────────\n"
 
   header <> beads_list <> "\n" <> footer
 }
@@ -489,7 +534,7 @@ fn format_phase_human(phase: ExecutionPhase) -> String {
 fn format_phase_json(phase: ExecutionPhase) -> String {
   let beads_json =
     phase.beads
-    |> list.map(fn(id) { "\"" <> id <> "\"" })
+    |> list.map(fn(bead) { "\"" <> escape_json_string(bead.id) <> "\"" })
     |> string.join(", ")
 
   "{\n"
@@ -509,6 +554,38 @@ fn format_phase_json(phase: ExecutionPhase) -> String {
   <> phase.effort
   <> "\"\n"
   <> "    }"
+}
+
+fn plan_bead_to_json(bead: PlanBead) -> json.Json {
+  json.object([
+    #("id", json.string(bead.id)),
+    #("title", json.string(bead.title)),
+    #("requires", json.array(bead.requires, json.string)),
+    #("effort", json.string(effort_to_label(bead.effort))),
+    #("status", json.string(bead_status_to_string(bead.status))),
+  ])
+}
+
+fn bead_status_to_string(status: BeadStatus) -> String {
+  case status {
+    Pending -> "pending"
+    InProgress -> "in_progress"
+    Blocked -> "blocked"
+    Completed -> "completed"
+    Failed -> "failed"
+  }
+}
+
+fn format_bead_line(bead: PlanBead) -> String {
+  "│  • "
+  <> bead.id
+  <> " - "
+  <> bead.title
+  <> " ["
+  <> bead_status_to_string(bead.status)
+  <> ", "
+  <> effort_to_label(bead.effort)
+  <> "]"
 }
 
 fn risk_to_string(risk: RiskLevel) -> String {
@@ -547,31 +624,227 @@ fn escape_json_string(s: String) -> String {
 // PRIVATE: CUE Parsing (Simplified)
 // =============================================================================
 
-/// Parse beads from CUE session content
-/// This is a simplified parser - for full CUE support, use cue export
-fn parse_beads_from_cue(content: String) -> Result(List(PlanBead), PlanError) {
-  // Look for beads array in the CUE content
-  // Format: beads: [{ id: "...", ... }, ...]
+/// Parse beads from a session CUE file using cue export
+fn parse_beads_from_cue(
+  session_path: String,
+) -> Result(List(PlanBead), PlanError) {
+  case security.validate_file_path(session_path) {
+    Ok(validated_path) -> export_beads_from_cue(validated_path)
+    Error(err) -> Error(ParseError(security.format_security_error(err)))
+  }
+}
 
-  case string.contains(content, "beads:") {
-    False -> Ok([])
-    // No beads section
-    True -> {
-      // Simple extraction - look for bead patterns
-      // In production, we'd use cue export for proper parsing
-      extract_beads_simple(content)
+fn export_beads_from_cue(path: String) -> Result(List(PlanBead), PlanError) {
+  case
+    shellout.command("cue", ["export", path, "-e", "session.beads"], ".", [])
+  {
+    Ok(json_str) -> decode_beads_json(json_str)
+    Error(#(_, stderr)) -> {
+      case shellout.command("cue", ["export", path, "-e", "beads"], ".", []) {
+        Ok(json_str) -> decode_beads_json(json_str)
+        Error(#(_, stderr_fallback)) ->
+          Error(CueExportError(stderr <> "\n" <> stderr_fallback))
+      }
     }
   }
 }
 
-fn extract_beads_simple(_content: String) -> Result(List(PlanBead), PlanError) {
-  // This is a placeholder - real implementation would:
-  // 1. Call `cue export .intent/session-{id}.cue -e session.beads --out json`
-  // 2. Parse the JSON output
-  //
-  // For now, return empty list to allow module to compile
-  // The CLI command will call cue export directly
-  Ok([])
+/// Decode beads from JSON (exported via cue)
+pub fn decode_beads_json(json_str: String) -> Result(List(PlanBead), PlanError) {
+  use data <- result.try(
+    json.decode(json_str, dynamic.dynamic)
+    |> result.map_error(fn(_) { JsonParseError("Failed to decode beads JSON") }),
+  )
+
+  use bead_values <- result.try(extract_bead_values(data))
+  list_try_map(bead_values, parse_plan_bead)
+}
+
+fn list_try_map(
+  list: List(a),
+  fun: fn(a) -> Result(b, PlanError),
+) -> Result(List(b), PlanError) {
+  case list {
+    [] -> Ok([])
+    [head, ..tail] -> {
+      use value <- result.try(fun(head))
+      use rest <- result.try(list_try_map(tail, fun))
+      Ok([value, ..rest])
+    }
+  }
+}
+
+fn extract_bead_values(
+  data: dynamic.Dynamic,
+) -> Result(List(dynamic.Dynamic), PlanError) {
+  case dynamic.list(dynamic.dynamic)(data) {
+    Ok(values) -> Ok(values)
+    Error(_) -> {
+      case dynamic.field("beads", dynamic.list(dynamic.dynamic))(data) {
+        Ok(values) -> Ok(values)
+        Error(_) ->
+          case
+            dynamic.field(
+              "session",
+              dynamic.field("beads", dynamic.list(dynamic.dynamic)),
+            )(data)
+          {
+            Ok(values) -> Ok(values)
+            Error(_) -> Error(ParseError("Beads list not found in JSON"))
+          }
+      }
+    }
+  }
+}
+
+fn parse_plan_bead(data: dynamic.Dynamic) -> Result(PlanBead, PlanError) {
+  use id <- result.try(require_string_field(data, ["id", "bead_id", "name"]))
+
+  let title =
+    get_string_field(data, ["title", "summary", "name"])
+    |> option.unwrap(id)
+
+  let requires =
+    get_string_list_field(data, ["requires", "dependencies", "depends_on"])
+    |> option.unwrap([])
+
+  let effort = get_effort_field(data)
+  let status = get_status_field(data)
+
+  Ok(PlanBead(
+    id: id,
+    title: title,
+    requires: requires,
+    effort: effort,
+    status: status,
+  ))
+}
+
+fn require_string_field(
+  data: dynamic.Dynamic,
+  keys: List(String),
+) -> Result(String, PlanError) {
+  case get_string_field(data, keys) {
+    option.Some(value) -> Ok(value)
+    option.None -> Error(ParseError("Bead is missing required id field"))
+  }
+}
+
+fn get_string_field(
+  data: dynamic.Dynamic,
+  keys: List(String),
+) -> option.Option(String) {
+  keys
+  |> list.fold(option.None, fn(acc, key) {
+    case acc {
+      option.Some(_) -> acc
+      option.None ->
+        case dynamic.field(key, dynamic.string)(data) {
+          Ok(value) -> option.Some(value)
+          Error(_) -> option.None
+        }
+    }
+  })
+}
+
+fn get_string_list_field(
+  data: dynamic.Dynamic,
+  keys: List(String),
+) -> option.Option(List(String)) {
+  keys
+  |> list.fold(option.None, fn(acc, key) {
+    case acc {
+      option.Some(_) -> acc
+      option.None ->
+        case dynamic.field(key, dynamic.list(dynamic.string))(data) {
+          Ok(value) -> option.Some(value)
+          Error(_) -> option.None
+        }
+    }
+  })
+}
+
+fn get_effort_field(data: dynamic.Dynamic) -> Effort {
+  case dynamic.field("effort", dynamic.string)(data) {
+    Ok(value) -> parse_effort_string(value)
+    Error(_) ->
+      case dynamic.field("effort_minutes", dynamic.int)(data) {
+        Ok(minutes) -> effort_from_minutes(minutes)
+        Error(_) -> Effort15min
+      }
+  }
+}
+
+fn parse_effort_string(value: String) -> Effort {
+  let cleaned =
+    value
+    |> string.lowercase
+    |> string.replace(" ", "")
+
+  case cleaned {
+    "5min" -> Effort5min
+    "10min" -> Effort10min
+    "15min" -> Effort15min
+    "20min" -> Effort20min
+    "30min" -> Effort30min
+    _ -> {
+      let digits =
+        cleaned
+        |> string.to_graphemes
+        |> list.filter(fn(char) {
+          case char {
+            "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
+            _ -> False
+          }
+        })
+        |> string.join("")
+
+      case int.parse(digits) {
+        Ok(minutes) -> effort_from_minutes(minutes)
+        Error(_) -> Effort15min
+      }
+    }
+  }
+}
+
+fn effort_from_minutes(minutes: Int) -> Effort {
+  case minutes {
+    m if m <= 7 -> Effort5min
+    m if m <= 12 -> Effort10min
+    m if m <= 17 -> Effort15min
+    m if m <= 25 -> Effort20min
+    _ -> Effort30min
+  }
+}
+
+fn get_status_field(data: dynamic.Dynamic) -> BeadStatus {
+  case get_string_field(data, ["status", "state"]) {
+    option.Some(value) -> bead_status_from_string(value)
+    option.None -> Pending
+  }
+}
+
+fn bead_status_from_string(value: String) -> BeadStatus {
+  case string.lowercase(value) {
+    "open" -> Pending
+    "pending" -> Pending
+    "ready" -> Pending
+    "in_progress" -> InProgress
+    "in-progress" -> InProgress
+    "inprogress" -> InProgress
+    "in progress" -> InProgress
+    "blocked" -> Blocked
+    "completed" -> Completed
+    "complete" -> Completed
+    "closed" -> Completed
+    "done" -> Completed
+    "success" -> Completed
+    "succeeded" -> Completed
+    "skipped" -> Completed
+    "failed" -> Failed
+    "error" -> Failed
+    _ -> Pending
+  }
 }
 
 // =============================================================================
