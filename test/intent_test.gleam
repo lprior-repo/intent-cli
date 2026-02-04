@@ -216,10 +216,7 @@ pub fn resolver_cross_feature_deps_test() {
   let b2 = make_behavior("dependent", ["base"])
 
   let spec =
-    make_spec([
-      make_feature("Feature A", [b1]),
-      make_feature("Feature B", [b2]),
-    ])
+    make_spec([make_feature("Feature A", [b1]), make_feature("Feature B", [b2])])
 
   let result = resolver.resolve_execution_order(spec)
 
@@ -362,9 +359,7 @@ pub fn interview_extract_entities_test() {
 
 pub fn interview_extract_audience_mobile_test() {
   let extracted =
-    interview.extract_from_answer("q1", "Mainly mobile app users", [
-      "audience",
-    ])
+    interview.extract_from_answer("q1", "Mainly mobile app users", ["audience"])
   let audience = dict.get(extracted, "audience")
   audience |> should.equal(Ok("mobile"))
 }
@@ -476,10 +471,7 @@ pub fn interview_detect_conflicts_cap_theorem_test() {
 
 pub fn interview_calculate_confidence_high_test() {
   let extracted =
-    dict.from_list([
-      #("auth_method", "jwt"),
-      #("audience", "mobile"),
-    ])
+    dict.from_list([#("auth_method", "jwt"), #("audience", "mobile")])
   let confidence =
     interview.calculate_confidence(
       "q1",
@@ -1828,6 +1820,7 @@ pub fn boolean_to_status_test() {
   let passed = True
   let status = case passed {
     True -> "PASS"
+    False -> "FAIL"
   }
 
   status |> should.equal("PASS")
@@ -3848,10 +3841,7 @@ pub fn diff_sessions_answer_added_test() {
   let session2 =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Answer 1"),
-        make_test_answer("q2", "Answer 2"),
-      ],
+      [make_test_answer("q1", "Answer 1"), make_test_answer("q2", "Answer 2")],
       [],
       [],
       interview.Discovery,
@@ -3904,10 +3894,7 @@ pub fn diff_sessions_answer_removed_test() {
   let session1 =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Answer 1"),
-        make_test_answer("q2", "Answer 2"),
-      ],
+      [make_test_answer("q1", "Answer 1"), make_test_answer("q2", "Answer 2")],
       [],
       [],
       interview.Discovery,
@@ -4002,10 +3989,7 @@ pub fn create_snapshot_test() {
   let session =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Answer 1"),
-        make_test_answer("q2", "Answer 2"),
-      ],
+      [make_test_answer("q1", "Answer 1"), make_test_answer("q2", "Answer 2")],
       [make_test_gap("gap1", False)],
       [],
       interview.Discovery,
@@ -4032,10 +4016,7 @@ pub fn format_diff_produces_output_test() {
   let session2 =
     make_test_interview_session(
       "session-1",
-      [
-        make_test_answer("q1", "Modified"),
-        make_test_answer("q2", "New answer"),
-      ],
+      [make_test_answer("q1", "Modified"), make_test_answer("q2", "New answer")],
       [],
       [],
       interview.Refinement,
