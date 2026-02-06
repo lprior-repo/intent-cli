@@ -11,6 +11,7 @@ import intent/formats
 import intent/http_client
 import intent/interpolate
 import intent/interview
+import intent/interview_contract
 import intent/interview_questions
 import intent/interview_storage
 import intent/kirk/effects_analyzer
@@ -547,6 +548,30 @@ pub fn interview_format_question_critical_test() {
   let formatted = interview.format_question(question)
   formatted |> string.contains("[CRITICAL]") |> should.be_true()
   formatted |> string.contains("What should this do?") |> should.be_true()
+}
+
+pub fn interview_contract_accepts_ask_question_payload_test() {
+  let payload =
+    "{\"action\":\"ask_question\",\"session\":{\"id\":\"interview-1\",\"profile\":\"api\",\"created_at\":\"2026-02-06T00:00:00Z\",\"updated_at\":\"2026-02-06T00:00:00Z\",\"stage\":\"discovery\"},\"progress\":{\"current_round\":1,\"total_rounds\":5,\"questions_asked\":0,\"questions_remaining\":18,\"percent_complete\":0},\"agent_protocol\":{\"target\":\"claude_code\",\"contract_version\":\"v1\",\"goal\":\"turn user intent into plan-ready requirements\"},\"question\":{\"id\":\"r1-user-api-1\",\"round\":1,\"text\":\"In one sentence, what should this API do?\",\"pattern\":\"ubiquitous\",\"context\":\"Start simple\",\"examples\":[\"Allow users to log in\"],\"priority\":\"critical\",\"perspective\":\"user\",\"extract_into\":[\"name\"]},\"guidance\":{\"ask_exactly\":true,\"next_command\":\"intent interview --session interview-1 --answer \\\"<human answer>\\\"\",\"planning_focus\":\"Define the core user outcome and canonical happy path\"}}"
+
+  interview_contract.validate_ai_directive_json(payload)
+  |> should.be_ok()
+}
+
+pub fn interview_contract_accepts_generate_beads_payload_test() {
+  let payload =
+    "{\"action\":\"generate_beads\",\"session\":{\"id\":\"interview-1\",\"profile\":\"api\",\"created_at\":\"2026-02-06T00:00:00Z\",\"updated_at\":\"2026-02-06T00:00:00Z\",\"stage\":\"complete\"},\"progress\":{\"current_round\":5,\"total_rounds\":5,\"questions_asked\":18,\"questions_remaining\":0,\"percent_complete\":100},\"agent_protocol\":{\"target\":\"claude_code\",\"contract_version\":\"v1\",\"goal\":\"turn user intent into plan-ready requirements\"},\"guidance\":{\"next_command\":\"intent beads interview-1\",\"planning_focus\":\"Turn this captured intent into atomic, dependency-aware work items\"}}"
+
+  interview_contract.validate_ai_directive_json(payload)
+  |> should.be_ok()
+}
+
+pub fn interview_contract_rejects_missing_protocol_test() {
+  let payload =
+    "{\"action\":\"ask_question\",\"session\":{\"id\":\"interview-1\",\"profile\":\"api\",\"created_at\":\"2026-02-06T00:00:00Z\",\"updated_at\":\"2026-02-06T00:00:00Z\",\"stage\":\"discovery\"},\"progress\":{\"current_round\":1,\"total_rounds\":5,\"questions_asked\":0,\"questions_remaining\":18,\"percent_complete\":0},\"question\":{\"id\":\"r1-user-api-1\",\"round\":1,\"text\":\"In one sentence, what should this API do?\",\"pattern\":\"ubiquitous\",\"context\":\"Start simple\",\"examples\":[\"Allow users to log in\"],\"priority\":\"critical\",\"perspective\":\"user\",\"extract_into\":[\"name\"]},\"guidance\":{\"ask_exactly\":true,\"next_command\":\"intent interview --session interview-1 --answer \\\"<human answer>\\\"\",\"planning_focus\":\"Define the core user outcome and canonical happy path\"}}"
+
+  interview_contract.validate_ai_directive_json(payload)
+  |> should.be_error()
 }
 
 // ============================================================================
