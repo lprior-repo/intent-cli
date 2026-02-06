@@ -2,6 +2,8 @@
 /// Contract-driven API testing tool
 import argv
 import gleam/dict
+import gleam/float
+import gleam/int
 import gleam/io
 import gleam/json
 import gleam/list
@@ -10,7 +12,6 @@ import gleam/result
 import gleam/string
 import glint
 import glint/flag
-import intent/answer_loader
 import intent/bead_feedback
 import intent/bead_templates
 import intent/cli_ui
@@ -160,7 +161,6 @@ fn is_known_bool_flag(flag_name: String) -> Bool {
     "json" -> True
     "verbose" -> True
     "quiet" -> True
-    "strict" -> True
     "yes" -> True
     "tokens" -> True
     "draft" -> True
@@ -175,7 +175,7 @@ fn is_known_value_flag(flag_name: String) -> Bool {
     "only" -> True
     "profile" -> True
     "resume" -> True
-    "answers" -> True
+    "answer" -> True
     "export" -> True
     "bead-id" -> True
     "status" -> True
@@ -722,13 +722,13 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "export")
       |> result.unwrap("")
 
-    let answers_file =
-      flag.get_string(input.flags, "answers")
+    let session_id =
+      flag.get_string(input.flags, "session")
       |> result.unwrap("")
 
-    let strict_mode =
-      flag.get_bool(input.flags, "strict")
-      |> result.unwrap(False)
+    let answer_text =
+      flag.get_string(input.flags, "answer")
+      |> result.unwrap("")
 
     let export_answers_template =
       flag.get_string(input.flags, "export-answers-template")
@@ -757,42 +757,10 @@ fn interview_command() -> glint.Command(Nil) {
       }
     }
 
-    case resume_id {
-      // Resume an existing session
-      "" ->
-        case string.lowercase(profile_str) {
-          "api" ->
-            run_interview(interview.Api, answers_file, strict_mode, export_to)
-          "cli" ->
-            run_interview(interview.Cli, answers_file, strict_mode, export_to)
-          "event" ->
-            run_interview(interview.Event, answers_file, strict_mode, export_to)
-          "data" ->
-            run_interview(interview.Data, answers_file, strict_mode, export_to)
-          "workflow" ->
-            run_interview(
-              interview.Workflow,
-              answers_file,
-              strict_mode,
-              export_to,
-            )
-          "ui" ->
-            run_interview(interview.UI, answers_file, strict_mode, export_to)
-          _ -> {
-            io.println_error("Error: unknown profile '" <> profile_str <> "'")
-            io.println_error(
-              "Valid profiles: api, cli, event, data, workflow, ui",
-            )
-            halt(exit_error)
-          }
-        }
-
-      // Resume an existing session
-      id -> run_resume_interview(id, export_to)
-    }
+    run_ai_interview(profile_str, resume_id, session_id, answer_text, export_to)
   })
   |> glint.description(
-    "Guided specification discovery through structured interview",
+    "AI-guided specification discovery for plan-ready requirements",
   )
   |> glint.flag(
     "profile",
@@ -809,20 +777,18 @@ fn interview_command() -> glint.Command(Nil) {
       |> flag.description("Resume existing interview session by ID"),
   )
   |> glint.flag(
-    "answers",
+    "session",
     flag.string()
       |> flag.default("")
       |> flag.description(
-        "Path to CUE file with pre-filled answers for non-interactive mode",
+        "Existing interview session ID to continue (alias of --resume)",
       ),
   )
   |> glint.flag(
-    "strict",
-    flag.bool()
-      |> flag.default(False)
-      |> flag.description(
-        "Strict mode: fail if answers file is missing required answers (requires --answers)",
-      ),
+    "answer",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Submit answer text for the next question"),
   )
   |> glint.flag(
     "export",
@@ -908,392 +874,164 @@ fn dedupe_template_entries(
   |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
 }
 
-fn run_interview(
-  profile: interview.Profile,
-  answers_file: String,
-  strict_mode: Bool,
+fn run_ai_interview(
+  profile_str: String,
+  resume_id: String,
+  session_id: String,
+  answer_text: String,
   export_to: String,
 ) -> Nil {
-  // Initialize session
-  let session_id = "interview-" <> generate_uuid()
-  let timestamp = current_timestamp()
-
-  let session = interview.create_session(session_id, profile, timestamp)
-
-  // Load answers from file if provided
-  let answers_dict = case string.is_empty(answers_file) {
-    True -> option.None
+  case session_id != "" && resume_id != "" && session_id != resume_id {
+    True -> {
+      io.println(
+        json.to_string(
+          json.object([
+            #("action", json.string("validation_error")),
+            #(
+              "error",
+              json.object([
+                #(
+                  "message",
+                  json.string(
+                    "--session and --resume refer to different sessions",
+                  ),
+                ),
+                #(
+                  "suggestion",
+                  json.string(
+                    "Use only one session selector, or provide matching IDs",
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      )
+      halt(exit_error)
+    }
     False -> {
-      case answer_loader.load_from_file(answers_file) {
-        Ok(dict) -> {
-          io.println("")
-          io.println(
-            "✓ Loaded "
-            <> string.inspect(dict.size(dict))
-            <> " pre-filled answers from: "
-            <> answers_file,
+      let selected_session_id = case string.trim(session_id) {
+        "" -> string.trim(resume_id)
+        value -> value
+      }
+
+      let session_result = case selected_session_id {
+        "" -> {
+          case interview.string_to_profile(profile_str) {
+            Error(err) -> Error(err)
+            Ok(profile) -> {
+              let now = current_timestamp()
+              let created =
+                interview.create_session(
+                  "interview-" <> generate_uuid(),
+                  profile,
+                  now,
+                )
+              case save_interview_session(created) {
+                Ok(Nil) -> Ok(created)
+                Error(err) -> Error(err)
+              }
+            }
+          }
+        }
+        id ->
+          interview_storage.get_session_from_jsonl(
+            ".interview/sessions.jsonl",
+            id,
           )
-          option.Some(dict)
-        }
+      }
+
+      case session_result {
         Error(err) -> {
-          case strict_mode {
-            True -> {
-              io.println_error(
-                "✗ Failed to load answers file: "
-                <> answer_loader_error_to_string(err),
-              )
-              halt(exit_error)
-              option.None
-              // unreachable, but needed for type consistency
-            }
-            False -> {
-              io.println(
-                "⚠ Failed to load answers file: "
-                <> answer_loader_error_to_string(err),
-              )
-              io.println("  Continuing in interactive mode...")
-              option.None
-            }
-          }
-        }
-      }
-    }
-  }
-
-  case strict_mode, answers_dict {
-    True, None -> {
-      io.println_error(
-        "✗ Strict mode requires --answers with a valid answers file",
-      )
-      halt(exit_error)
-    }
-    _, _ -> Nil
-  }
-
-  // Print welcome message
-  io.println("")
-  io.println(
-    "═══════════════════════════════════════════════════════════════════",
-  )
-  io.println("                    INTENT INTERVIEW")
-  io.println(
-    "═══════════════════════════════════════════════════════════════════",
-  )
-  io.println("")
-  io.println("Profile: " <> profile_to_display_string(profile))
-  io.println("Session: " <> session_id)
-  case answers_dict {
-    option.None -> Nil
-    option.Some(_) -> io.println("Mode: Non-interactive (answers from file)")
-  }
-  io.println("")
-  io.println("This guided interview will help us discover and refine your")
-  io.println("specification through structured questioning.")
-  io.println("")
-  io.println("We'll ask questions across 5 rounds × multiple perspectives:")
-  io.println("  • Round 1: Core Intent (what are you building?)")
-  io.println("  • Round 2: Scope & Boundaries (what's in/out?)")
-  io.println("  • Round 3: Error Cases (what can go wrong?)")
-  io.println("  • Round 4: Security & Compliance (how do we keep it safe?)")
-  io.println("  • Round 5: Operations (how does it run in production?)")
-  io.println("")
-  io.println("Press Ctrl+C to save and exit at any time.")
-  io.println("Session will be saved to: .interview/sessions.jsonl")
-  io.println("")
-  io.println("Ready? Let's begin.")
-  io.println("")
-
-  // Run the interview loop
-  let final_session = interview_loop(session, 1, answers_dict, strict_mode)
-
-  // Save session to JSONL
-  let save_result =
-    interview_storage.append_session_to_jsonl(
-      final_session,
-      ".interview/sessions.jsonl",
-    )
-
-  case save_result {
-    Ok(Nil) -> {
-      io.println("")
-      io.println("✓ Session saved: " <> session_id)
-    }
-    Error(err) -> {
-      io.println_error("✗ Failed to save session: " <> err)
-    }
-  }
-
-  // Export to spec if requested
-  case export_to {
-    "" -> Nil
-    path -> {
-      let spec_cue = spec_builder.build_spec_from_session(final_session)
-      case simplifile.write(path, spec_cue) {
-        Ok(Nil) -> {
-          io.println("✓ Spec exported to: " <> path)
-        }
-        Error(err) -> {
-          io.println_error("✗ Failed to export spec: " <> string.inspect(err))
-        }
-      }
-    }
-  }
-
-  halt(exit_pass)
-}
-
-/// Resume an existing interview session
-fn run_resume_interview(session_id: String, export_to: String) -> Nil {
-  let jsonl_path = ".interview/sessions.jsonl"
-
-  // Load the session from JSONL
-  case interview_storage.get_session_from_jsonl(jsonl_path, session_id) {
-    Error(err) -> {
-      cli_ui.print_error(err)
-      halt(exit_error)
-    }
-    Ok(session) -> {
-      cli_ui.print_header("Resuming Interview: " <> session.id)
-      cli_ui.print_info(
-        "Profile: " <> profile_to_display_string(session.profile),
-      )
-      io.println("")
-
-      // Show progress
-      io.println("Progress:")
-      io.println(
-        "  • Answers collected: "
-        <> string.inspect(list.length(session.answers)),
-      )
-      io.println(
-        "  • Gaps detected: " <> string.inspect(list.length(session.gaps)),
-      )
-      io.println(
-        "  • Conflicts detected: "
-        <> string.inspect(list.length(session.conflicts)),
-      )
-      io.println("")
-
-      // Determine which round to resume from using recorded answers.
-      // rounds_completed can be stale in older session snapshots.
-      let last_answered_round =
-        list.fold(session.answers, 0, fn(acc, answer) {
-          case answer.round > acc {
-            True -> answer.round
-            False -> acc
-          }
-        })
-
-      let next_round = case last_answered_round {
-        0 -> 1
-        r if r < 5 -> r + 1
-        _ -> 5
-      }
-
-      io.println("Resuming from Round " <> string.inspect(next_round))
-      io.println("")
-
-      // Continue the interview from the next round
-      let final_session = interview_loop(session, next_round, None, False)
-
-      // Save updated session
-      let save_result =
-        interview_storage.append_session_to_jsonl(final_session, jsonl_path)
-
-      case save_result {
-        Ok(Nil) -> {
-          io.println("")
-          cli_ui.print_success("Session updated: " <> session.id)
-        }
-        Error(err) -> {
-          cli_ui.print_error("Failed to save session: " <> err)
-        }
-      }
-
-      // Export to spec if requested
-      case export_to {
-        "" -> Nil
-        path -> {
-          let spec_cue = spec_builder.build_spec_from_session(final_session)
-          case simplifile.write(path, spec_cue) {
-            Ok(Nil) -> {
-              cli_ui.print_success("Spec exported to: " <> path)
-            }
-            Error(err) -> {
-              cli_ui.print_error(
-                "Failed to export spec: " <> string.inspect(err),
-              )
-            }
-          }
-        }
-      }
-
-      halt(exit_pass)
-    }
-  }
-}
-
-/// Main interview loop - asks questions round by round
-fn interview_loop(
-  session: interview.InterviewSession,
-  round: Int,
-  answers_dict: option.Option(dict.Dict(String, String)),
-  strict_mode: Bool,
-) -> interview.InterviewSession {
-  case round > 5 {
-    True -> session
-    False -> {
-      io.println("")
-      io.println(
-        "═══════════════════════════════════════════════════════════════════",
-      )
-      io.println("ROUND " <> string.inspect(round) <> "/5")
-      io.println(
-        "═══════════════════════════════════════════════════════════════════",
-      )
-      io.println("")
-
-      // Get questions for this round
-      case interview.get_first_question_for_round(session, round) {
-        Error(_) -> {
-          io.println("(No questions for this round)")
-          interview_loop(session, round + 1, answers_dict, strict_mode)
-        }
-        Ok(first_question) -> {
-          // Ask all questions in this round
-          let updated_session =
-            ask_questions_in_round(
-              session,
-              round,
-              first_question,
-              answers_dict,
-              strict_mode,
-            )
-
-          // Check for blocking gaps before proceeding
-          let blocking_gaps = interview.get_blocking_gaps(updated_session)
-          case blocking_gaps {
-            [] ->
-              interview_loop(
-                updated_session,
-                round + 1,
-                answers_dict,
-                strict_mode,
-              )
-            gaps -> {
-              io.println("")
-              io.println("⚠️ BLOCKING GAPS DETECTED:")
-              list.each(gaps, fn(gap) {
-                io.println("  • " <> gap.description)
-                io.println("    " <> gap.why_needed)
-              })
-              io.println("")
-              interview_loop(
-                updated_session,
-                round + 1,
-                answers_dict,
-                strict_mode,
-              )
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-/// Ask all unanswered questions in a round
-fn ask_questions_in_round(
-  session: interview.InterviewSession,
-  round: Int,
-  _current_question: Question,
-  answers_dict: option.Option(dict.Dict(String, String)),
-  strict_mode: Bool,
-) -> interview.InterviewSession {
-  let profile_str = profile_to_string(session.profile)
-
-  // Get all questions for this round
-  let questions =
-    interview_questions.get_questions_for_round(profile_str, round)
-  let answered_ids = list.map(session.answers, fn(a) { a.question_id })
-
-  // Filter to unanswered questions
-  let unanswered =
-    list.filter(questions, fn(q) { !list.contains(answered_ids, q.id) })
-
-  // Ask each unanswered question
-  list.fold(unanswered, session, fn(sess, question) {
-    ask_single_question(sess, question, round, answers_dict, strict_mode)
-  })
-}
-
-/// Ask a single question and collect answer
-fn ask_single_question(
-  session: interview.InterviewSession,
-  question: Question,
-  round: Int,
-  answers_dict: option.Option(dict.Dict(String, String)),
-  strict_mode: Bool,
-) -> interview.InterviewSession {
-  io.println("")
-  io.print("Q" <> string.inspect(question.priority) <> ": ")
-  io.println(question.question)
-
-  case string.length(question.context) > 0 {
-    True -> io.println("   Context: " <> question.context)
-    False -> Nil
-  }
-
-  case string.length(question.example) > 0 {
-    True -> io.println("   Example: " <> question.example)
-    False -> Nil
-  }
-
-  io.print("")
-
-  // Resolve answer from pre-filled data first, then fallback to stdin
-  let answer_text = case prefilled_answer_for_question(question, answers_dict) {
-    Some(answer) -> {
-      io.println("   Pre-filled: " <> answer)
-      answer
-    }
-    None -> {
-      case strict_mode {
-        True -> {
-          io.println_error("")
-          io.println_error("✗ Missing required answer in strict mode")
-          io.println_error("  Question ID: " <> question.id)
-          io.println_error("  Question: " <> question.question)
-          io.println_error(
-            "  Add this key to your answers file and re-run interview",
+          io.println(
+            json.to_string(
+              json.object([
+                #("action", json.string("validation_error")),
+                #(
+                  "error",
+                  json.object([
+                    #("message", json.string(err)),
+                    #(
+                      "suggestion",
+                      json.string(
+                        "Start a session: intent interview --profile api",
+                      ),
+                    ),
+                  ]),
+                ),
+              ]),
+            ),
           )
           halt(exit_error)
-          ""
         }
-        False -> {
-          case answers_dict {
-            Some(_) -> {
-              let fallback = default_answer_for_question(question)
-              io.println("   Defaulted: " <> fallback)
-              fallback
+        Ok(session) -> {
+          let maybe_next = next_unanswered_question(session)
+
+          let result_session = case non_empty_answer(answer_text), maybe_next {
+            Some(answer), Some(#(round, question)) -> {
+              let updated =
+                apply_ai_answer_to_session(session, question, round, answer)
+              mark_session_complete_if_finished(updated)
             }
-            None -> {
-              case stdin.prompt_for_answer("> ") {
-                Ok(text) -> text
+            Some(_), None -> mark_session_complete_if_finished(session)
+            None, _ -> session
+          }
+
+          case save_interview_session(result_session) {
+            Error(err) -> {
+              io.println(
+                json.to_string(
+                  json.object([
+                    #("action", json.string("validation_error")),
+                    #(
+                      "error",
+                      json.object([
+                        #("message", json.string(err)),
+                        #(
+                          "suggestion",
+                          json.string("Ensure .interview/ is writable"),
+                        ),
+                      ]),
+                    ),
+                  ]),
+                ),
+              )
+              halt(exit_error)
+            }
+            Ok(Nil) -> {
+              case maybe_export_completed_spec(result_session, export_to) {
                 Error(err) -> {
-                  case string.contains(err, "EOF") {
-                    True -> {
-                      let fallback = default_answer_for_question(question)
-                      io.println("   Defaulted (EOF): " <> fallback)
-                      fallback
-                    }
-                    False -> {
-                      io.println_error("Error reading input: " <> err)
-                      io.println("")
-                      // Return placeholder if input fails
-                      "(input error - please try again)"
-                    }
-                  }
+                  io.println(
+                    json.to_string(
+                      json.object([
+                        #("action", json.string("validation_error")),
+                        #("session", session_json(result_session)),
+                        #(
+                          "error",
+                          json.object([
+                            #("message", json.string(err)),
+                            #(
+                              "suggestion",
+                              json.string("Check --export path permissions"),
+                            ),
+                          ]),
+                        ),
+                      ]),
+                    ),
+                  )
+                  halt(exit_error)
+                }
+                Ok(spec_path) -> {
+                  let next_after_update =
+                    next_unanswered_question(result_session)
+                  io.println(
+                    json.to_string(ai_directive_json(
+                      result_session,
+                      next_after_update,
+                      spec_path,
+                    )),
+                  )
+                  halt(exit_pass)
                 }
               }
             }
@@ -1302,20 +1040,264 @@ fn ask_single_question(
       }
     }
   }
+}
 
-  // Extract fields from answer
+fn save_interview_session(
+  session: interview.InterviewSession,
+) -> Result(Nil, String) {
+  interview_storage.append_session_to_jsonl(
+    session,
+    ".interview/sessions.jsonl",
+  )
+}
+
+fn maybe_export_completed_spec(
+  session: interview.InterviewSession,
+  export_to: String,
+) -> Result(option.Option(String), String) {
+  case session.stage == interview.Complete && string.trim(export_to) != "" {
+    False -> Ok(option.None)
+    True -> {
+      let spec_cue = spec_builder.build_spec_from_session(session)
+      simplifile.write(export_to, spec_cue)
+      |> result.map(fn(_) { option.Some(export_to) })
+      |> result.map_error(fn(err) {
+        "Failed to export spec: " <> string.inspect(err)
+      })
+    }
+  }
+}
+
+fn ai_directive_json(
+  session: interview.InterviewSession,
+  next_question: option.Option(#(Int, Question)),
+  spec_path: option.Option(String),
+) -> json.Json {
+  let base_fields = [
+    #(
+      "action",
+      json.string(case next_question {
+        Some(_) -> "ask_question"
+        None -> "generate_beads"
+      }),
+    ),
+    #("session", session_json(session)),
+    #("progress", interview_progress_json(session)),
+    #(
+      "agent_protocol",
+      json.object([
+        #("target", json.string("claude_code")),
+        #("contract_version", json.string("v1")),
+        #("goal", json.string("turn user intent into plan-ready requirements")),
+      ]),
+    ),
+  ]
+
+  let with_question = case next_question {
+    Some(#(round, question)) ->
+      list.append(base_fields, [
+        #("question", question_json(question, round)),
+        #(
+          "guidance",
+          json.object([
+            #("ask_exactly", json.bool(True)),
+            #(
+              "next_command",
+              json.string(
+                "intent interview --session "
+                <> session.id
+                <> " --answer \"<human answer>\"",
+              ),
+            ),
+            #("planning_focus", json.string(planning_focus_for_round(round))),
+          ]),
+        ),
+      ])
+    None -> {
+      let completion_fields = [
+        #(
+          "guidance",
+          json.object([
+            #("next_command", json.string("intent beads " <> session.id)),
+            #(
+              "planning_focus",
+              json.string(
+                "Turn this captured intent into atomic, dependency-aware work items",
+              ),
+            ),
+          ]),
+        ),
+      ]
+
+      case spec_path {
+        Some(path) ->
+          list.append(
+            base_fields,
+            list.append(completion_fields, [
+              #("output", json.object([#("spec_path", json.string(path))])),
+            ]),
+          )
+        None -> list.append(base_fields, completion_fields)
+      }
+    }
+  }
+
+  json.object(with_question)
+}
+
+fn session_json(session: interview.InterviewSession) -> json.Json {
+  json.object([
+    #("id", json.string(session.id)),
+    #("profile", json.string(profile_to_string(session.profile))),
+    #("created_at", json.string(session.created_at)),
+    #("updated_at", json.string(session.updated_at)),
+    #("stage", json.string(string.lowercase(string.inspect(session.stage)))),
+  ])
+}
+
+fn interview_progress_json(session: interview.InterviewSession) -> json.Json {
+  let profile = profile_to_string(session.profile)
+  let total = total_questions_for_profile(profile)
+  let asked = list.length(session.answers)
+  let remain = case total - asked < 0 {
+    True -> 0
+    False -> total - asked
+  }
+  let percent = case total {
+    0 -> 100
+    _ -> {
+      int.to_float(asked) /. int.to_float(total) *. 100.0
+      |> float.round
+    }
+  }
+
+  json.object([
+    #("current_round", json.int(current_round_for_progress(session))),
+    #("total_rounds", json.int(5)),
+    #("questions_asked", json.int(asked)),
+    #("questions_remaining", json.int(remain)),
+    #("percent_complete", json.int(percent)),
+  ])
+}
+
+fn current_round_for_progress(session: interview.InterviewSession) -> Int {
+  case next_unanswered_question(session) {
+    Some(#(round, _)) -> round
+    None -> 5
+  }
+}
+
+fn total_questions_for_profile(profile: String) -> Int {
+  [1, 2, 3, 4, 5]
+  |> list.fold(0, fn(acc, round) {
+    acc
+    + list.length(interview_questions.get_questions_for_round(profile, round))
+  })
+}
+
+fn question_json(question: Question, round: Int) -> json.Json {
+  let examples = case non_empty_answer(question.example) {
+    Some(example) -> [example]
+    None -> []
+  }
+
+  json.object([
+    #("id", json.string(question.id)),
+    #("round", json.int(round)),
+    #("text", json.string(question.question)),
+    #("pattern", json.string(pattern_for_category(question.category))),
+    #("context", json.string(question.context)),
+    #("examples", json.array(examples, json.string)),
+    #(
+      "priority",
+      json.string(string.lowercase(string.inspect(question.priority))),
+    ),
+    #(
+      "perspective",
+      json.string(string.lowercase(string.inspect(question.perspective))),
+    ),
+    #("extract_into", json.array(question.extract_into, json.string)),
+  ])
+}
+
+fn pattern_for_category(category: question_types.QuestionCategory) -> String {
+  case category {
+    question_types.HappyPath -> "ubiquitous"
+    question_types.ErrorCase -> "event_driven"
+    question_types.EdgeCase -> "unwanted"
+    question_types.Constraint -> "state_driven"
+    question_types.Dependency -> "optional"
+    question_types.NonFunctional -> "complex"
+  }
+}
+
+fn planning_focus_for_round(round: Int) -> String {
+  case round {
+    1 -> "Define the core user outcome and canonical happy path"
+    2 -> "Pin down failure boundaries and status semantics"
+    3 -> "Capture scale limits, abuse resistance, and adversarial behavior"
+    4 -> "Lock security and compliance constraints before implementation"
+    _ -> "Set production-readiness requirements: deployment, SLA, observability"
+  }
+}
+
+fn next_unanswered_question(
+  session: interview.InterviewSession,
+) -> option.Option(#(Int, Question)) {
+  let profile = profile_to_string(session.profile)
+  let answered_ids =
+    list.map(session.answers, fn(answer) { answer.question_id })
+  find_next_question_for_round(profile, answered_ids, 1)
+}
+
+fn find_next_question_for_round(
+  profile: String,
+  answered_ids: List(String),
+  round: Int,
+) -> option.Option(#(Int, Question)) {
+  case round > 5 {
+    True -> option.None
+    False -> {
+      let questions =
+        interview_questions.get_questions_for_round(profile, round)
+      case first_unanswered_question(questions, answered_ids) {
+        Some(question) -> option.Some(#(round, question))
+        None -> find_next_question_for_round(profile, answered_ids, round + 1)
+      }
+    }
+  }
+}
+
+fn first_unanswered_question(
+  questions: List(Question),
+  answered_ids: List(String),
+) -> option.Option(Question) {
+  case questions {
+    [] -> option.None
+    [question, ..rest] -> {
+      case list.contains(answered_ids, question.id) {
+        True -> first_unanswered_question(rest, answered_ids)
+        False -> option.Some(question)
+      }
+    }
+  }
+}
+
+fn apply_ai_answer_to_session(
+  session: interview.InterviewSession,
+  question: Question,
+  round: Int,
+  answer_text: String,
+) -> interview.InterviewSession {
   let extracted =
     interview.extract_from_answer(
       question.id,
       answer_text,
       question.extract_into,
     )
-
-  // Calculate confidence
   let confidence =
     interview.calculate_confidence(question.id, answer_text, extracted)
 
-  // Create answer record
   let answer =
     interview.Answer(
       question_id: question.id,
@@ -1329,51 +1311,45 @@ fn ask_single_question(
       timestamp: current_timestamp(),
     )
 
-  // Add to session
-  let updated_session = interview.add_answer(session, answer)
-
-  // Check for gaps and conflicts
-  let #(sess_with_gaps, _gaps) =
-    interview.check_for_gaps(updated_session, question, answer)
-
-  let #(sess_final, _conflicts) =
-    interview.check_for_conflicts(sess_with_gaps, answer)
-
-  sess_final
+  let updated = interview.add_answer(session, answer)
+  let #(with_gaps, _) = interview.check_for_gaps(updated, question, answer)
+  let #(with_conflicts, _) = interview.check_for_conflicts(with_gaps, answer)
+  maybe_mark_round_complete(with_conflicts, round)
 }
 
-fn prefilled_answer_for_question(
-  question: Question,
-  answers_dict: option.Option(dict.Dict(String, String)),
-) -> option.Option(String) {
-  case answers_dict {
-    None -> None
-    Some(answers) -> {
-      case dict.get(answers, question.id) {
-        Ok(value) -> non_empty_answer(value)
-        Error(_) ->
-          prefilled_answer_from_extract_keys(question.extract_into, answers)
-      }
-    }
+fn maybe_mark_round_complete(
+  session: interview.InterviewSession,
+  round: Int,
+) -> interview.InterviewSession {
+  let profile = profile_to_string(session.profile)
+  let total_round_questions =
+    list.length(interview_questions.get_questions_for_round(profile, round))
+  let answered_in_round =
+    session.answers
+    |> list.filter(fn(answer) { answer.round == round })
+    |> list.length
+
+  case total_round_questions > 0 && answered_in_round >= total_round_questions {
+    True -> interview.complete_round(session)
+    False -> session
   }
 }
 
-fn prefilled_answer_from_extract_keys(
-  keys: List(String),
-  answers: dict.Dict(String, String),
-) -> option.Option(String) {
-  case keys {
-    [] -> None
-    [key, ..rest] -> {
-      case dict.get(answers, key) {
-        Ok(value) -> {
-          case non_empty_answer(value) {
-            Some(answer) -> Some(answer)
-            None -> prefilled_answer_from_extract_keys(rest, answers)
-          }
-        }
-        Error(_) -> prefilled_answer_from_extract_keys(rest, answers)
+fn mark_session_complete_if_finished(
+  session: interview.InterviewSession,
+) -> interview.InterviewSession {
+  case next_unanswered_question(session) {
+    Some(_) -> session
+    None -> {
+      let completed_at = case string.trim(session.completed_at) {
+        "" -> current_timestamp()
+        value -> value
       }
+      interview.InterviewSession(
+        ..session,
+        stage: interview.Complete,
+        completed_at: completed_at,
+      )
     }
   }
 }
@@ -1383,13 +1359,6 @@ fn non_empty_answer(value: String) -> option.Option(String) {
   case normalized == "" {
     True -> None
     False -> Some(normalized)
-  }
-}
-
-fn default_answer_for_question(question: Question) -> String {
-  case non_empty_answer(question.example) {
-    Some(example) -> example
-    None -> "(not specified)"
   }
 }
 
@@ -3068,24 +3037,6 @@ fn kirk_ears_command() -> glint.Command(Nil) {
       |> flag.default("GeneratedSpec")
       |> flag.description("Spec name for CUE output"),
   )
-}
-
-import gleam/float
-
-// =============================================================================
-// ANSWER LOADER ERROR FORMATTING
-// =============================================================================
-
-fn answer_loader_error_to_string(err: answer_loader.AnswerLoaderError) -> String {
-  case err {
-    answer_loader.FileNotFound(path) -> "File not found: " <> path
-    answer_loader.PermissionDenied(path) ->
-      "Permission denied reading: " <> path
-    answer_loader.ParseError(path, msg) ->
-      "Parse error in " <> path <> ": " <> msg
-    answer_loader.SchemaError(msg) -> "Schema validation failed: " <> msg
-    answer_loader.IoError(msg) -> "I/O error: " <> msg
-  }
 }
 
 @external(erlang, "intent_ffi", "halt")

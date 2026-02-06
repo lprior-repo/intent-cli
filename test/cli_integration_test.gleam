@@ -70,6 +70,19 @@ pub fn given_export_template_value_flag_when_normalizing_then_equals_syntax_is_u
   ])
 }
 
+pub fn given_interview_session_and_answer_flags_when_normalizing_then_values_are_encoded_test() {
+  let args = [
+    "interview", "--session", "interview-123", "--answer",
+    "THE SYSTEM SHALL authenticate users",
+  ]
+
+  intent.normalize_cli_args(args)
+  |> should.equal([
+    "interview", "--session=interview-123",
+    "--answer=THE SYSTEM SHALL authenticate users",
+  ])
+}
+
 pub fn command_inventory_count_is_current_test() {
   let commands = [
     "analyze", "bead-status", "beads", "beads-regenerate", "check", "compact",
