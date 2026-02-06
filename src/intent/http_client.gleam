@@ -5,6 +5,7 @@ import gleam/http
 import gleam/http/request.{type Request as HttpRequest}
 import gleam/http/response.{type Response as HttpResponse}
 import gleam/httpc
+import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{None, Some}
@@ -192,7 +193,7 @@ fn execute_with_timing(
   case httpc.send(req) {
     Ok(resp) -> {
       let elapsed = erlang_now_ms() - start
-      Ok(parse_response(resp, elapsed, method, path))
+      parse_response(resp, elapsed, method, path)
     }
     Error(e) -> Error(RequestError(format_httpc_error(e)))
   }
@@ -203,30 +204,40 @@ fn parse_response(
   elapsed_ms: Int,
   method: types.Method,
   path: String,
-) -> ExecutionResult {
+) -> Result(ExecutionResult, ExecutionError) {
   let headers =
     resp.headers
     |> list.map(fn(pair) { #(pair.0, pair.1) })
     |> dict.from_list
 
   let body = case string.is_empty(resp.body) {
-    True -> json.null()
+    True -> Ok(json.null())
     False ->
       case json.decode(resp.body, dynamic.dynamic) {
-        Ok(data) -> parser.dynamic_to_json(data)
-        Error(_) -> json.null()
+        Ok(data) -> Ok(parser.dynamic_to_json(data))
+        Error(_) ->
+          Error(ResponseParseError(
+            "Failed to parse response body as JSON: "
+            <> resp.body
+            <> "\nStatus: "
+            <> int.to_string(resp.status),
+          ))
       }
   }
 
-  ExecutionResult(
-    status: resp.status,
-    headers: headers,
-    body: body,
-    raw_body: resp.body,
-    elapsed_ms: elapsed_ms,
-    request_method: method,
-    request_path: path,
-  )
+  case body {
+    Ok(parsed_body) ->
+      Ok(ExecutionResult(
+        status: resp.status,
+        headers: headers,
+        body: parsed_body,
+        raw_body: resp.body,
+        elapsed_ms: elapsed_ms,
+        request_method: method,
+        request_path: path,
+      ))
+    Error(err) -> Error(err)
+  }
 }
 
 fn format_httpc_error(error: dynamic.Dynamic) -> String {

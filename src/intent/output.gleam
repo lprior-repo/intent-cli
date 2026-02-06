@@ -2,6 +2,7 @@
 /// Generates JSON and human-readable output
 import gleam/dict.{type Dict}
 import gleam/int
+import gleam/io
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option}
@@ -151,10 +152,7 @@ fn request_summary_to_json(req: RequestSummary) -> Json {
 }
 
 fn response_summary_to_json(resp: ResponseSummary) -> Json {
-  json.object([
-    #("status", json.int(resp.status)),
-    #("body", resp.body),
-  ])
+  json.object([#("status", json.int(resp.status)), #("body", resp.body)])
 }
 
 fn blocked_behavior_to_json(blocked: BlockedBehavior) -> Json {
@@ -324,12 +322,22 @@ pub fn create_failure(
 ) -> BehaviorFailure {
   let problems =
     check_result.failed
+    |> list.filter(fn(check) {
+      case check {
+        checker.CheckFailed(_, _, _, _, _) -> True
+        checker.CheckPassed(_, _) -> {
+          io.println_error(
+            "WARNING: CheckPassed in failed list - this should not happen",
+          )
+          False
+        }
+      }
+    })
     |> list.map(fn(check) {
       case check {
         checker.CheckFailed(field, rule, expected, actual, explanation) ->
           Problem(field, rule, expected, actual, explanation)
         checker.CheckPassed(_, _) -> Problem("", "", "", "", "")
-        // Shouldn't happen
       }
     })
 

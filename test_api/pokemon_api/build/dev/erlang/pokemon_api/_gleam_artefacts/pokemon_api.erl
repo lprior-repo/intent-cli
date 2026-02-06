@@ -1,6 +1,6 @@
 -module(pokemon_api).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/pokemon_api.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([init_store/0, main/0, handle_request/4]).
 -export_type([pokemon/0, trainer/0, store/0]).
 
@@ -19,7 +19,6 @@
         gleam@dict:dict(binary(), trainer()),
         integer()}.
 
--file("src/pokemon_api.gleam", 63).
 -spec init_store() -> store().
 init_store() ->
     Pikachu = {pokemon,
@@ -62,7 +61,6 @@ init_store() ->
         ),
         4}.
 
--file("src/pokemon_api.gleam", 45).
 -spec main() -> nil.
 main() ->
     Store = init_store(),
@@ -70,7 +68,6 @@ main() ->
     _ = pokemon_server:start(8080, Store),
     gleam_erlang_ffi:sleep_forever().
 
--file("src/pokemon_api.gleam", 203).
 -spec parse_pokemon_create(binary()) -> {ok,
         {binary(), binary(), integer(), binary()}} |
     {error, binary()}.
@@ -102,7 +99,6 @@ parse_pokemon_create(Body_str) ->
             {error, <<"Invalid JSON"/utf8>>}
     end.
 
--file("src/pokemon_api.gleam", 287).
 -spec error_response(integer(), binary(), binary()) -> {integer(), binary()}.
 error_response(Status, Code, Message) ->
     Response = gleam@json:object(
@@ -114,12 +110,10 @@ error_response(Status, Code, Message) ->
     ),
     {Status, gleam@json:to_string(Response)}.
 
--file("src/pokemon_api.gleam", 283).
 -spec not_found() -> {integer(), binary()}.
 not_found() ->
     error_response(404, <<"NOT_FOUND"/utf8>>, <<"Endpoint not found"/utf8>>).
 
--file("src/pokemon_api.gleam", 305).
 -spec pokemon_to_json(pokemon()) -> gleam@json:json().
 pokemon_to_json(Pokemon) ->
     gleam@json:object(
@@ -132,7 +126,6 @@ pokemon_to_json(Pokemon) ->
                 gleam@json:string(erlang:element(7, Pokemon))}]
     ).
 
--file("src/pokemon_api.gleam", 145).
 -spec list_pokemon(store()) -> {integer(), binary()}.
 list_pokemon(Store) ->
     Pokemon_list = begin
@@ -145,7 +138,6 @@ list_pokemon(Store) ->
     ),
     {200, gleam@json:to_string(Response)}.
 
--file("src/pokemon_api.gleam", 156).
 -spec get_pokemon(store(), binary()) -> {integer(), binary()}.
 get_pokemon(Store, Id) ->
     case gleam@dict:get(erlang:element(2, Store), Id) of
@@ -161,7 +153,6 @@ get_pokemon(Store, Id) ->
             )
     end.
 
--file("src/pokemon_api.gleam", 255).
 -spec get_trainer_pokemon(store(), binary()) -> {integer(), binary()}.
 get_trainer_pokemon(Store, Id) ->
     case gleam@dict:get(erlang:element(3, Store), Id) of
@@ -196,7 +187,6 @@ get_trainer_pokemon(Store, Id) ->
             )
     end.
 
--file("src/pokemon_api.gleam", 316).
 -spec trainer_to_json(trainer()) -> gleam@json:json().
 trainer_to_json(Trainer) ->
     gleam@json:object(
@@ -206,7 +196,6 @@ trainer_to_json(Trainer) ->
                 gleam@json:int(erlang:length(erlang:element(4, Trainer)))}]
     ).
 
--file("src/pokemon_api.gleam", 232).
 -spec list_trainers(store()) -> {integer(), binary()}.
 list_trainers(Store) ->
     Trainer_list = begin
@@ -219,7 +208,6 @@ list_trainers(Store) ->
     ),
     {200, gleam@json:to_string(Response)}.
 
--file("src/pokemon_api.gleam", 243).
 -spec get_trainer(store(), binary()) -> {integer(), binary()}.
 get_trainer(Store, Id) ->
     case gleam@dict:get(erlang:element(3, Store), Id) of
@@ -235,7 +223,6 @@ get_trainer(Store, Id) ->
             )
     end.
 
--file("src/pokemon_api.gleam", 328).
 -spec pad_id(integer()) -> binary().
 pad_id(N) ->
     S = gleam@int:to_string(N),
@@ -250,7 +237,6 @@ pad_id(N) ->
             S
     end.
 
--file("src/pokemon_api.gleam", 168).
 -spec create_pokemon(binary(), store()) -> {integer(), binary()}.
 create_pokemon(Body, Store) ->
     case parse_pokemon_create(Body) of
@@ -291,7 +277,6 @@ create_pokemon(Body, Store) ->
             error_response(400, <<"INVALID_REQUEST"/utf8>>, Msg)
     end.
 
--file("src/pokemon_api.gleam", 119).
 -spec handle_request(binary(), binary(), binary(), store()) -> {integer(),
     binary()}.
 handle_request(Method, Path, Body, Store) ->

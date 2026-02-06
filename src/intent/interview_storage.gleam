@@ -4,6 +4,8 @@
 /// Includes answer history tracking and diff comparison
 import gleam/dict.{type Dict}
 import gleam/dynamic
+import gleam/int
+import gleam/io
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -377,6 +379,98 @@ fn truncate(s: String, max_len: Int) -> String {
 }
 
 // =============================================================================
+// JSON Decode Error Handling (RED-03 fix)
+// =============================================================================
+
+fn warn_json_decode_error(
+  line: String,
+  path: String,
+  index: Int,
+  error: json.DecodeError,
+) -> Nil {
+  io.println_error("")
+  io.println_error(
+    "Warning: Failed to parse JSON line "
+    <> int.to_string(index)
+    <> " from "
+    <> path,
+  )
+  io.println_error("")
+
+  let sanitized = sanitize_for_display(line, 200)
+  io.println_error("Corrupted data preview:")
+  io.println_error("  " <> sanitized)
+  io.println_error("")
+
+  io.println_error("Parse error:")
+  let error_msg = format_json_error(error)
+  io.println_error(error_msg)
+  io.println_error("")
+  io.println_error(
+    "This line has been skipped. Other valid data will be loaded.",
+  )
+  io.println_error("")
+}
+
+fn sanitize_for_display(s: String, max_len: Int) -> String {
+  let trimmed = string.trim(s)
+  case string.length(trimmed) > max_len {
+    True -> string.slice(trimmed, 0, max_len - 3) <> "..."
+    False -> trimmed
+  }
+}
+
+fn format_json_error(error: json.DecodeError) -> String {
+  case error {
+    json.UnexpectedEndOfInput ->
+      "Unexpected end of input - JSON is incomplete or truncated.\n"
+      <> "  - Check that your JSON is properly closed with matching braces/brackets"
+    json.UnexpectedByte(b) ->
+      "Unexpected byte: '"
+      <> b
+      <> "' in JSON at this position.\n"
+      <> "  - Check for syntax errors like missing commas, quotes, or brackets\n"
+      <> "  - Ensure strings are properly quoted"
+    json.UnexpectedSequence(s) ->
+      "Unexpected sequence: '"
+      <> s
+      <> "' in JSON.\n"
+      <> "  - This sequence is not valid JSON syntax\n"
+      <> "  - Check for typos or invalid characters"
+    json.UnexpectedFormat(errs) ->
+      "JSON format error:\n" <> format_decode_errors(errs)
+  }
+}
+
+fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
+  case errors {
+    [] -> "Unknown decode error"
+    [error] -> format_single_decode_error(error)
+    multiple -> {
+      "Multiple decode errors:\n"
+      <> string.join(
+        list.map(multiple, fn(e) { "  - " <> format_single_decode_error(e) }),
+        "\n",
+      )
+    }
+  }
+}
+
+fn format_single_decode_error(error: dynamic.DecodeError) -> String {
+  let path_str = case error.path {
+    [] -> "at root"
+    path_parts -> "at " <> string.join(path_parts, ".")
+  }
+
+  "Expected "
+  <> error.expected
+  <> " but found "
+  <> error.found
+  <> " "
+  <> path_str
+}
+
+// =============================================================================
 // Session History JSONL
 // =============================================================================
 
@@ -444,14 +538,18 @@ pub fn list_session_history(
     _ -> {
       let lines = string.split(content, "\n")
       let snapshots =
-        list.filter_map(lines, fn(line) {
+        list.index_map(lines, fn(line, index) {
           case string.length(string.trim(line)) {
             0 -> Error(Nil)
             _ ->
               json.decode(line, snapshot_decoder)
-              |> result.map_error(fn(_) { Nil })
+              |> result.map_error(fn(err) {
+                warn_json_decode_error(line, history_path, index + 1, err)
+                Nil
+              })
           }
         })
+        |> list.filter_map(fn(result) { result })
         |> list.filter(fn(s) { s.session_id == session_id })
       Ok(snapshots)
     }
@@ -661,14 +759,18 @@ pub fn list_sessions_from_jsonl(
     _ -> {
       let lines = string.split(content, "\n")
       let sessions =
-        list.filter_map(lines, fn(line) {
+        list.index_map(lines, fn(line, index) {
           case string.length(string.trim(line)) {
             0 -> Error(Nil)
             _ ->
               json.decode(line, session_decoder)
-              |> result.map_error(fn(_) { Nil })
+              |> result.map_error(fn(err) {
+                warn_json_decode_error(line, jsonl_path, index + 1, err)
+                Nil
+              })
           }
         })
+        |> list.filter_map(fn(result) { result })
       Ok(sessions)
     }
   }

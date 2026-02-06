@@ -7,6 +7,7 @@
 /// - checker/headers: HTTP header checking
 /// - checker/rules: Rule expression evaluation
 import gleam/dict
+import gleam/io
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{None, Some}
@@ -135,7 +136,12 @@ fn check_field(
 fn interpolate_rule(rule_str: String, ctx: Context) -> String {
   case interpolate.interpolate_string(ctx, rule_str) {
     Ok(interpolated) -> interpolated
-    Error(_) -> rule_str
+    Error(e) -> {
+      io.println_error(
+        "WARNING: Interpolation failed for rule '" <> rule_str <> "': " <> e,
+      )
+      rule_str
+    }
   }
 }
 

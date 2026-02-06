@@ -50,69 +50,84 @@ pub fn is_safe_path(path: String) -> Bool {
 /// }
 /// ```
 pub fn validate_file_path(path: String) -> Result(String, SecurityError) {
-  // First check for shell metacharacters to prevent command injection
+  check_shell_metacharacters(path)
+  |> and_then(check_literal_traversal)
+  |> and_then(check_url_encoded)
+  |> and_then(check_backslash_traversal)
+  |> and_then(check_null_byte)
+  |> and_then(check_double_encoded)
+  |> and_then(check_alternative_dots)
+  |> and_then(check_file_exists)
+}
+
+fn and_then(result: Result(a, e), fun: fn(a) -> Result(b, e)) -> Result(b, e) {
+  case result {
+    Ok(value) -> fun(value)
+    Error(e) -> Error(e)
+  }
+}
+
+fn check_shell_metacharacters(path: String) -> Result(String, SecurityError) {
   case is_safe_path(path) {
     False -> Error(ShellMetacharactersDetected(path))
-    True -> {
-      // Normalize to lowercase for case-insensitive checks
-      let path_lower = string.lowercase(path)
+    True -> Ok(path)
+  }
+}
 
-      // Check for literal path traversal
-      case string.contains(path, "..") {
-        True -> Error(PathTraversalAttempt(path))
-        False -> {
-          // Check for URL-encoded dot sequences
-          // %2e = . (dot)
-          // %2f = / (forward slash)
-          // %5c = \ (backslash)
-          case
-            string.contains(path_lower, "%2e")
-            || string.contains(path_lower, "%2f")
-            || string.contains(path_lower, "%5c")
-          {
-            True -> Error(PathTraversalAttempt(path))
-            False -> {
-              // Check for backslash path traversal (Windows-style)
-              case
-                string.contains(path, "..\\\\")
-                || string.contains(path, "\\\\..")
-              {
-                True -> Error(PathTraversalAttempt(path))
-                False -> {
-                  // Check for null byte injection (URL-encoded only)
-                  case string.contains(path_lower, "%00") {
-                    True -> Error(PathTraversalAttempt(path))
-                    False -> {
-                      // Check for double-encoded sequences
-                      // %25 = % (percent sign, used for double encoding)
-                      case string.contains(path_lower, "%25") {
-                        True -> Error(PathTraversalAttempt(path))
-                        False -> {
-                          // Check for alternative dot representations
-                          // .... can be interpreted as .. in some parsers
-                          case string.contains(path, "....") {
-                            True -> Error(PathTraversalAttempt(path))
-                            False -> {
-                              // Verify file exists
-                              case simplifile.verify_is_file(path) {
-                                Ok(True) -> Ok(path)
-                                Ok(False) ->
-                                  Error(InvalidPath(path, "Not a regular file"))
-                                Error(_) -> Error(FileNotAccessible(path))
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+fn check_literal_traversal(path: String) -> Result(String, SecurityError) {
+  case string.contains(path, "..") {
+    True -> Error(PathTraversalAttempt(path))
+    False -> Ok(path)
+  }
+}
+
+fn check_url_encoded(path: String) -> Result(String, SecurityError) {
+  let path_lower = string.lowercase(path)
+  case
+    string.contains(path_lower, "%2e")
+    || string.contains(path_lower, "%2f")
+    || string.contains(path_lower, "%5c")
+  {
+    True -> Error(PathTraversalAttempt(path))
+    False -> Ok(path)
+  }
+}
+
+fn check_backslash_traversal(path: String) -> Result(String, SecurityError) {
+  case string.contains(path, "..\\") || string.contains(path, "\\..") {
+    True -> Error(PathTraversalAttempt(path))
+    False -> Ok(path)
+  }
+}
+
+fn check_null_byte(path: String) -> Result(String, SecurityError) {
+  let path_lower = string.lowercase(path)
+  case string.contains(path_lower, "%00") {
+    True -> Error(PathTraversalAttempt(path))
+    False -> Ok(path)
+  }
+}
+
+fn check_double_encoded(path: String) -> Result(String, SecurityError) {
+  let path_lower = string.lowercase(path)
+  case string.contains(path_lower, "%25") {
+    True -> Error(PathTraversalAttempt(path))
+    False -> Ok(path)
+  }
+}
+
+fn check_alternative_dots(path: String) -> Result(String, SecurityError) {
+  case string.contains(path, "....") {
+    True -> Error(PathTraversalAttempt(path))
+    False -> Ok(path)
+  }
+}
+
+fn check_file_exists(path: String) -> Result(String, SecurityError) {
+  case simplifile.verify_is_file(path) {
+    Ok(True) -> Ok(path)
+    Ok(False) -> Error(InvalidPath(path, "Not a regular file"))
+    Error(_) -> Error(FileNotAccessible(path))
   }
 }
 

@@ -222,6 +222,10 @@ fn field_exists(body: Json, field_path: String) -> Bool {
 }
 
 fn navigate_and_check(value: Json, path: List(String)) -> Bool {
+  navigate_and_check_loop(value, path)
+}
+
+fn navigate_and_check_loop(value: Json, path: List(String)) -> Bool {
   case path {
     [] -> True
     [key, ..rest] -> {
@@ -231,10 +235,8 @@ fn navigate_and_check(value: Json, path: List(String)) -> Bool {
       {
         Ok(obj) ->
           case dict.get(obj, key) {
-            Ok(next) -> {
-              let next_json = parser.dynamic_to_json(next)
-              navigate_and_check(next_json, rest)
-            }
+            Ok(next) ->
+              navigate_and_check_loop(parser.dynamic_to_json(next), rest)
             Error(_) -> False
           }
         Error(_) -> False

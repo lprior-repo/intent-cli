@@ -1,16 +1,8 @@
 -module(gleam@dynamic).
--compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch, inline]).
--define(FILEPATH, "src/gleam/dynamic.gleam").
+-compile([no_auto_import, nowarn_unused_vars, nowarn_unused_function, nowarn_nomatch]).
+
 -export([from/1, unsafe_coerce/1, dynamic/1, bit_array/1, classify/1, int/1, float/1, bool/1, shallow_list/1, optional/1, any/1, decode1/2, result/2, list/1, string/1, field/2, optional_field/2, element/2, tuple2/2, tuple3/3, tuple4/4, tuple5/5, tuple6/6, dict/2, decode2/3, decode3/4, decode4/5, decode5/6, decode6/7, decode7/8, decode8/9, decode9/10]).
 -export_type([dynamic_/0, decode_error/0, unknown_tuple/0]).
-
--if(?OTP_RELEASE >= 27).
--define(MODULEDOC(Str), -moduledoc(Str)).
--define(DOC(Str), -doc(Str)).
--else.
--define(MODULEDOC(Str), -compile([])).
--define(DOC(Str), -compile([])).
--endif.
 
 -type dynamic_() :: any().
 
@@ -18,211 +10,53 @@
 
 -type unknown_tuple() :: any().
 
--file("src/gleam/dynamic.gleam", 29).
-?DOC(" Converts any Gleam data into `Dynamic` data.\n").
 -spec from(any()) -> dynamic_().
 from(A) ->
     gleam_stdlib:identity(A).
 
--file("src/gleam/dynamic.gleam", 38).
 -spec unsafe_coerce(dynamic_()) -> any().
 unsafe_coerce(A) ->
     gleam_stdlib:identity(A).
 
--file("src/gleam/dynamic.gleam", 52).
-?DOC(
-    " Decodes a `Dynamic` value from a `Dynamic` value.\n"
-    "\n"
-    " This function doesn't seem very useful at first, but it can be convenient\n"
-    " when you need to give a decoder function but you don't actually care what\n"
-    " the to-decode value is.\n"
-).
 -spec dynamic(dynamic_()) -> {ok, dynamic_()} | {error, list(decode_error())}.
 dynamic(Value) ->
     {ok, Value}.
 
--file("src/gleam/dynamic.gleam", 73).
-?DOC(
-    " Checks to see whether a `Dynamic` value is a bit array, and returns that bit\n"
-    " array if it is.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " import gleam/bit_array\n"
-    "\n"
-    " bit_array(from(\"Hello\")) == bit_array.from_string(\"Hello\")\n"
-    " // -> True\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " bit_array(from(123))\n"
-    " // -> Error([DecodeError(expected: \"BitArray\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec bit_array(dynamic_()) -> {ok, bitstring()} | {error, list(decode_error())}.
 bit_array(Data) ->
     gleam_stdlib:decode_bit_array(Data).
 
--file("src/gleam/dynamic.gleam", 120).
 -spec put_expected(decode_error(), binary()) -> decode_error().
 put_expected(Error, Expected) ->
-    {decode_error, Expected, erlang:element(3, Error), erlang:element(4, Error)}.
+    erlang:setelement(2, Error, Expected).
 
--file("src/gleam/dynamic.gleam", 131).
-?DOC(
-    " Return a string indicating the type of the dynamic value.\n"
-    "\n"
-    " ```gleam\n"
-    " classify(from(\"Hello\"))\n"
-    " // -> \"String\"\n"
-    " ```\n"
-).
 -spec classify(dynamic_()) -> binary().
 classify(Data) ->
     gleam_stdlib:classify_dynamic(Data).
 
--file("src/gleam/dynamic.gleam", 154).
-?DOC(
-    " Checks to see whether a `Dynamic` value is an int, and returns that int if it\n"
-    " is.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " int(from(123))\n"
-    " // -> Ok(123)\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " int(from(\"Hello\"))\n"
-    " // -> Error([DecodeError(expected: \"Int\", found: \"String\", path: [])])\n"
-    " ```\n"
-).
 -spec int(dynamic_()) -> {ok, integer()} | {error, list(decode_error())}.
 int(Data) ->
     gleam_stdlib:decode_int(Data).
 
--file("src/gleam/dynamic.gleam", 177).
-?DOC(
-    " Checks to see whether a `Dynamic` value is a float, and returns that float if\n"
-    " it is.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " float(from(2.0))\n"
-    " // -> Ok(2.0)\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " float(from(123))\n"
-    " // -> Error([DecodeError(expected: \"Float\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec float(dynamic_()) -> {ok, float()} | {error, list(decode_error())}.
 float(Data) ->
     gleam_stdlib:decode_float(Data).
 
--file("src/gleam/dynamic.gleam", 200).
-?DOC(
-    " Checks to see whether a `Dynamic` value is a bool, and returns that bool if\n"
-    " it is.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " bool(from(True))\n"
-    " // -> Ok(True)\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " bool(from(123))\n"
-    " // -> Error([DecodeError(expected: \"Bool\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec bool(dynamic_()) -> {ok, boolean()} | {error, list(decode_error())}.
 bool(Data) ->
     gleam_stdlib:decode_bool(Data).
 
--file("src/gleam/dynamic.gleam", 226).
-?DOC(
-    " Checks to see whether a `Dynamic` value is a list, and returns that list if it\n"
-    " is. The types of the elements are not checked.\n"
-    "\n"
-    " If you wish to decode all the elements in the list use the `list` function\n"
-    " instead.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " shallow_list(from([\"a\", \"b\", \"c\"]))\n"
-    " // -> Ok([from(\"a\"), from(\"b\"), from(\"c\")])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " shallow_list(1)\n"
-    " // -> Error([DecodeError(expected: \"List\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec shallow_list(dynamic_()) -> {ok, list(dynamic_())} |
     {error, list(decode_error())}.
 shallow_list(Value) ->
     gleam_stdlib:decode_list(Value).
 
--file("src/gleam/dynamic.gleam", 369).
-?DOC(
-    " Checks to see if a `Dynamic` value is a nullable version of a particular\n"
-    " type, and returns a corresponding `Option` if it is.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"Hello\") |> optional(string)\n"
-    " // -> Ok(Some(\"Hello\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"Hello\") |> optional(string)\n"
-    " // -> Ok(Some(\"Hello\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " // `gleam/erlang/*` is available via the `gleam_erlang` package\n"
-    " import gleam/erlang/atom\n"
-    "\n"
-    " from(atom.from_string(\"null\")) |> optional(string)\n"
-    " // -> Ok(None)\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " // `gleam/erlang/*` is available via the `gleam_erlang` package\n"
-    " import gleam/erlang/atom\n"
-    "\n"
-    " from(atom.from_string(\"nil\")) |> optional(string)\n"
-    " // -> Ok(None)\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " // `gleam/erlang/*` is available via the `gleam_erlang` package\n"
-    " import gleam/erlang/atom\n"
-    "\n"
-    " from(atom.from_string(\"undefined\")) |> optional(string)\n"
-    " // -> Ok(None)\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(123) |> optional(string)\n"
-    " // -> Error([DecodeError(expected: \"String\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
--spec optional(fun((dynamic_()) -> {ok, DLS} | {error, list(decode_error())})) -> fun((dynamic_()) -> {ok,
-        gleam@option:option(DLS)} |
+-spec optional(fun((dynamic_()) -> {ok, DON} | {error, list(decode_error())})) -> fun((dynamic_()) -> {ok,
+        gleam@option:option(DON)} |
     {error, list(decode_error())}).
 optional(Decode) ->
     fun(Value) -> gleam_stdlib:decode_option(Value, Decode) end.
 
--file("src/gleam/dynamic.gleam", 504).
 -spec at_least_decode_tuple_error(integer(), dynamic_()) -> {ok, any()} |
     {error, list(decode_error())}.
 at_least_decode_tuple_error(Size, Data) ->
@@ -244,33 +78,8 @@ at_least_decode_tuple_error(Size, Data) ->
     end,
     {error, [Error]}.
 
--file("src/gleam/dynamic.gleam", 1034).
-?DOC(
-    " Joins multiple decoders into one. When run they will each be tried in turn\n"
-    " until one succeeds, or they all fail.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " import gleam/result\n"
-    "\n"
-    " let bool_or_string = any(of: [\n"
-    "   string,\n"
-    "   fn(x) { result.map(bool(x), fn(_) { \"a bool\" }) }\n"
-    " ])\n"
-    "\n"
-    " bool_or_string(from(\"ok\"))\n"
-    " // -> Ok(\"ok\")\n"
-    "\n"
-    " bool_or_string(from(True))\n"
-    " // -> Ok(\"a bool\")\n"
-    "\n"
-    " bool_or_string(from(1))\n"
-    " // -> Error(DecodeError(expected: \"another type\", found: \"Int\", path: []))\n"
-    " ```\n"
-).
--spec any(list(fun((dynamic_()) -> {ok, DPS} | {error, list(decode_error())}))) -> fun((dynamic_()) -> {ok,
-        DPS} |
+-spec any(list(fun((dynamic_()) -> {ok, DSN} | {error, list(decode_error())}))) -> fun((dynamic_()) -> {ok,
+        DSN} |
     {error, list(decode_error())}).
 any(Decoders) ->
     fun(Data) -> case Decoders of
@@ -288,7 +97,6 @@ any(Decoders) ->
                 end
         end end.
 
--file("src/gleam/dynamic.gleam", 1530).
 -spec all_errors({ok, any()} | {error, list(decode_error())}) -> list(decode_error()).
 all_errors(Result) ->
     case Result of
@@ -299,28 +107,10 @@ all_errors(Result) ->
             Errors
     end.
 
--file("src/gleam/dynamic.gleam", 1067).
-?DOC(
-    " Decode 1 value from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0, \"3\")) |> decode1(MyRecord, element(0, int))\n"
-    " // -> Ok(MyRecord(1))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\")) |> decode1(MyRecord, element(0, int))\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode1(
-    fun((DPW) -> DPX),
-    fun((dynamic_()) -> {ok, DPW} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DPX} | {error, list(decode_error())}).
+    fun((DSR) -> DSS),
+    fun((dynamic_()) -> {ok, DSR} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DSS} | {error, list(decode_error())}).
 decode1(Constructor, T1) ->
     fun(Value) -> case T1(Value) of
             {ok, A} ->
@@ -330,7 +120,6 @@ decode1(Constructor, T1) ->
                 {error, all_errors(A@1)}
         end end.
 
--file("src/gleam/dynamic.gleam", 576).
 -spec push_path(decode_error(), any()) -> decode_error().
 push_path(Error, Name) ->
     Name@1 = from(Name),
@@ -347,40 +136,12 @@ push_path(Error, Name) ->
             _pipe@1 = gleam@string_builder:from_strings(_pipe),
             gleam@string_builder:to_string(_pipe@1)
     end,
-    {decode_error,
-        erlang:element(2, Error),
-        erlang:element(3, Error),
-        [Name@3 | erlang:element(4, Error)]}.
+    erlang:setelement(4, Error, [Name@3 | erlang:element(4, Error)]).
 
--file("src/gleam/dynamic.gleam", 261).
-?DOC(
-    " Checks to see whether a `Dynamic` value is a result of a particular type, and\n"
-    " returns that result if it is.\n"
-    "\n"
-    " The `ok` and `error` arguments are decoders for decoding the `Ok` and\n"
-    " `Error` values of the result.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(Ok(1)) |> result(ok: int, error: string)\n"
-    " // -> Ok(Ok(1))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(Error(\"boom\")) |> result(ok: int, error: string)\n"
-    " // -> Ok(Error(\"boom\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(123) |> result(ok: int, error: string)\n"
-    " // -> Error([DecodeError(expected: \"Result\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec result(
-    fun((dynamic_()) -> {ok, DLG} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DLI} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, {ok, DLG} | {error, DLI}} |
+    fun((dynamic_()) -> {ok, DOB} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DOD} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, {ok, DOB} | {error, DOD}} |
     {error, list(decode_error())}).
 result(Decode_ok, Decode_error) ->
     fun(Value) ->
@@ -418,37 +179,8 @@ result(Decode_ok, Decode_error) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 314).
-?DOC(
-    " Checks to see whether a `Dynamic` value is a list of a particular type, and\n"
-    " returns that list if it is.\n"
-    "\n"
-    " The second argument is a decoder function used to decode the elements of\n"
-    " the list. The list is only decoded if all elements in the list can be\n"
-    " successfully decoded using this function.\n"
-    "\n"
-    " If you do not wish to decode all the elements in the list use the `shallow_list`\n"
-    " function instead.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from([\"a\", \"b\", \"c\"]) |> list(of: string)\n"
-    " // -> Ok([\"a\", \"b\", \"c\"])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([1, 2, 3]) |> list(of: string)\n"
-    " // -> Error([DecodeError(expected: \"String\", found: \"Int\", path: [\"*\"])])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"ok\") |> list(of: string)\n"
-    " // -> Error([DecodeError(expected: \"List\", found: \"String\", path: [])])\n"
-    " ```\n"
-).
--spec list(fun((dynamic_()) -> {ok, DLN} | {error, list(decode_error())})) -> fun((dynamic_()) -> {ok,
-        list(DLN)} |
+-spec list(fun((dynamic_()) -> {ok, DOI} | {error, list(decode_error())})) -> fun((dynamic_()) -> {ok,
+        list(DOI)} |
     {error, list(decode_error())}).
 list(Decoder_type) ->
     fun(Dynamic) ->
@@ -460,18 +192,16 @@ list(Decoder_type) ->
                 ) end)
     end.
 
--file("src/gleam/dynamic.gleam", 100).
 -spec map_errors(
-    {ok, DKB} | {error, list(decode_error())},
+    {ok, DMW} | {error, list(decode_error())},
     fun((decode_error()) -> decode_error())
-) -> {ok, DKB} | {error, list(decode_error())}.
+) -> {ok, DMW} | {error, list(decode_error())}.
 map_errors(Result, F) ->
     gleam@result:map_error(
         Result,
         fun(_capture) -> gleam@list:map(_capture, F) end
     ).
 
--file("src/gleam/dynamic.gleam", 108).
 -spec decode_string(dynamic_()) -> {ok, binary()} |
     {error, list(decode_error())}.
 decode_string(Data) ->
@@ -495,54 +225,14 @@ decode_string(Data) ->
             end end
     ).
 
--file("src/gleam/dynamic.gleam", 96).
-?DOC(
-    " Checks to see whether a `Dynamic` value is a string, and returns that string if\n"
-    " it is.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " string(from(\"Hello\"))\n"
-    " // -> Ok(\"Hello\")\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " string(from(123))\n"
-    " // -> Error([DecodeError(expected: \"String\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec string(dynamic_()) -> {ok, binary()} | {error, list(decode_error())}.
 string(Data) ->
     decode_string(Data).
 
--file("src/gleam/dynamic.gleam", 398).
-?DOC(
-    " Checks to see if a `Dynamic` value is a map with a specific field, and returns\n"
-    " the value of that field if it is.\n"
-    "\n"
-    " This will not succeed on a record.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " import gleam/dict\n"
-    " dict.new()\n"
-    " |> dict.insert(\"Hello\", \"World\")\n"
-    " |> from\n"
-    " |> field(named: \"Hello\", of: string)\n"
-    " // -> Ok(\"World\")\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(123) |> field(\"Hello\", string)\n"
-    " // -> Error([DecodeError(expected: \"Map\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec field(
     any(),
-    fun((dynamic_()) -> {ok, DMC} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DMC} | {error, list(decode_error())}).
+    fun((dynamic_()) -> {ok, DOX} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DOX} | {error, list(decode_error())}).
 field(Name, Inner_type) ->
     fun(Value) ->
         Missing_field_error = {decode_error,
@@ -561,41 +251,10 @@ field(Name, Inner_type) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 440).
-?DOC(
-    " Checks to see if a `Dynamic` value is a map with a specific field.\n"
-    " If the map does not have the specified field, returns an `Ok(None)` instead of failing; otherwise,\n"
-    " returns the decoded field wrapped in `Some(_)`.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " import gleam/dict\n"
-    " dict.new()\n"
-    " |> dict.insert(\"Hello\", \"World\")\n"
-    " |> from\n"
-    " |> optional_field(named: \"Hello\", of: string)\n"
-    " // -> Ok(Some(\"World\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " import gleam/dict\n"
-    " dict.new()\n"
-    " |> from\n"
-    " |> optional_field(named: \"Hello\", of: string)\n"
-    " // -> Ok(None)\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(123)\n"
-    " |> optional_field(\"Hello\", string)\n"
-    " // -> Error([DecodeError(expected: \"Map\", found: \"Int\", path: [])])\n"
-    " ```\n"
-).
 -spec optional_field(
     any(),
-    fun((dynamic_()) -> {ok, DMG} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, gleam@option:option(DMG)} |
+    fun((dynamic_()) -> {ok, DPB} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, gleam@option:option(DPB)} |
     {error, list(decode_error())}).
 optional_field(Name, Inner_type) ->
     fun(Value) ->
@@ -616,35 +275,10 @@ optional_field(Name, Inner_type) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 483).
-?DOC(
-    " Checks to see if a `Dynamic` value is a tuple large enough to have a certain\n"
-    " index, and returns the value of that index if it is.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2))\n"
-    " |> element(0, int)\n"
-    " // -> Ok(from(1))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2))\n"
-    " |> element(2, int)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of at least 3 elements\",\n"
-    " //     found: \"Tuple of 2 elements\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec element(
     integer(),
-    fun((dynamic_()) -> {ok, DMO} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DMO} | {error, list(decode_error())}).
+    fun((dynamic_()) -> {ok, DPJ} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DPJ} | {error, list(decode_error())}).
 element(Index, Inner_type) ->
     fun(Data) ->
         gleam@result:'try'(
@@ -681,7 +315,6 @@ element(Index, Inner_type) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 566).
 -spec tuple_errors({ok, any()} | {error, list(decode_error())}, binary()) -> list(decode_error()).
 tuple_errors(Result, Name) ->
     case Result of
@@ -695,65 +328,10 @@ tuple_errors(Result, Name) ->
             )
     end.
 
--file("src/gleam/dynamic.gleam", 642).
-?DOC(
-    " Checks to see if a `Dynamic` value is a 2-element tuple, list or array containing\n"
-    " specifically typed elements.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2))\n"
-    " |> tuple2(int, int)\n"
-    " // -> Ok(#(1, 2))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0))\n"
-    " |> tuple2(int, float)\n"
-    " // -> Ok(#(1, 2.0))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([1, 2])\n"
-    " |> tuple2(int, int)\n"
-    " // -> Ok(#(1, 2))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([from(1), from(2.0)])\n"
-    " |> tuple2(int, float)\n"
-    " // -> Ok(#(1, 2.0))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2, 3))\n"
-    " |> tuple2(int, float)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 2 elements\",\n"
-    " //     found: \"Tuple of 3 elements\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"\")\n"
-    " |> tuple2(int, float)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 2 elements\",\n"
-    " //     found: \"String\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec tuple2(
-    fun((dynamic_()) -> {ok, DNO} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DNQ} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, {DNO, DNQ}} | {error, list(decode_error())}).
+    fun((dynamic_()) -> {ok, DQJ} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DQL} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, {DQJ, DQL}} | {error, list(decode_error())}).
 tuple2(Decode1, Decode2) ->
     fun(Value) ->
         gleam@result:'try'(
@@ -776,66 +354,11 @@ tuple2(Decode1, Decode2) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 711).
-?DOC(
-    " Checks to see if a `Dynamic` value is a 3-element tuple, list or array containing\n"
-    " specifically typed elements.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2, 3))\n"
-    " |> tuple3(int, int, int)\n"
-    " // -> Ok(#(1, 2, 3))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0, \"3\"))\n"
-    " |> tuple3(int, float, string)\n"
-    " // -> Ok(#(1, 2.0, \"3\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([1, 2, 3])\n"
-    " |> tuple3(int, int, int)\n"
-    " // -> Ok(#(1, 2, 3))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([from(1), from(2.0), from(\"3\")])\n"
-    " |> tuple3(int, float, string)\n"
-    " // -> Ok(#(1, 2.0, \"3\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2))\n"
-    " |> tuple3(int, float, string)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 3 elements\",\n"
-    " //     found: \"Tuple of 2 elements\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"\")\n"
-    " |> tuple3(int, float, string)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 3 elements\",\n"
-    " //     found: \"String\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec tuple3(
-    fun((dynamic_()) -> {ok, DNT} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DNV} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DNX} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, {DNT, DNV, DNX}} | {error, list(decode_error())}).
+    fun((dynamic_()) -> {ok, DQO} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DQQ} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DQS} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, {DQO, DQQ, DQS}} | {error, list(decode_error())}).
 tuple3(Decode1, Decode2, Decode3) ->
     fun(Value) ->
         gleam@result:'try'(
@@ -862,67 +385,12 @@ tuple3(Decode1, Decode2, Decode3) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 782).
-?DOC(
-    " Checks to see if a `Dynamic` value is a 4-element tuple, list or array containing\n"
-    " specifically typed elements.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2, 3, 4))\n"
-    " |> tuple4(int, int, int, int)\n"
-    " // -> Ok(#(1, 2, 3, 4))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0, \"3\", 4))\n"
-    " |> tuple4(int, float, string, int)\n"
-    " // -> Ok(#(1, 2.0, \"3\", 4))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([1, 2, 3, 4])\n"
-    " |> tuple4(int, int, int, int)\n"
-    " // -> Ok(#(1, 2, 3, 4))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([from(1), from(2.0), from(\"3\"), from(4)])\n"
-    " |> tuple4(int, float, string, int)\n"
-    " // -> Ok(#(1, 2.0, \"3\", 4))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2))\n"
-    " |> tuple4(int, float, string, int)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 4 elements\",\n"
-    " //     found: \"Tuple of 2 elements\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"\")\n"
-    " |> tuple4(int, float, string, int)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 4 elements\",\n"
-    " //     found: \"String\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec tuple4(
-    fun((dynamic_()) -> {ok, DOA} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOC} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOE} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOG} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, {DOA, DOC, DOE, DOG}} |
+    fun((dynamic_()) -> {ok, DQV} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DQX} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DQZ} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRB} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, {DQV, DQX, DQZ, DRB}} |
     {error, list(decode_error())}).
 tuple4(Decode1, Decode2, Decode3, Decode4) ->
     fun(Value) ->
@@ -954,68 +422,13 @@ tuple4(Decode1, Decode2, Decode3, Decode4) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 855).
-?DOC(
-    " Checks to see if a `Dynamic` value is a 5-element tuple, list or array containing\n"
-    " specifically typed elements.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2, 3, 4, 5))\n"
-    " |> tuple5(int, int, int, int, int)\n"
-    " // -> Ok(#(1, 2, 3, 4, 5))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0, \"3\", 4, 5))\n"
-    " |> tuple5(int, float, string, int, int)\n"
-    " // -> Ok(#(1, 2.0, \"3\", 4, 5))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([1, 2, 3, 4, 5])\n"
-    " |> tuple5(int, int, int, int, int)\n"
-    " // -> Ok(#(1, 2, 3, 4, 5))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([from(1), from(2.0), from(\"3\"), from(4), from(True)])\n"
-    " |> tuple5(int, float, string, int, bool)\n"
-    " // -> Ok(#(1, 2.0, \"3\", 4, True))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2))\n"
-    " |> tuple5(int, float, string, int, int)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 5 elements\",\n"
-    " //     found: \"Tuple of 2 elements\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"\")\n"
-    " |> tuple5(int, float, string, int, int)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 5 elements\",\n"
-    " //     found: \"String\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec tuple5(
-    fun((dynamic_()) -> {ok, DOJ} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOL} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DON} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOP} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOR} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, {DOJ, DOL, DON, DOP, DOR}} |
+    fun((dynamic_()) -> {ok, DRE} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRG} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRI} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRK} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRM} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, {DRE, DRG, DRI, DRK, DRM}} |
     {error, list(decode_error())}).
 tuple5(Decode1, Decode2, Decode3, Decode4, Decode5) ->
     fun(Value) ->
@@ -1055,69 +468,14 @@ tuple5(Decode1, Decode2, Decode3, Decode4, Decode5) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 930).
-?DOC(
-    " Checks to see if a `Dynamic` value is a 6-element tuple, list or array containing\n"
-    " specifically typed elements.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2, 3, 4, 5, 6))\n"
-    " |> tuple6(int, int, int, int, int, int)\n"
-    " // -> Ok(#(1, 2, 3, 4, 5, 6))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0, \"3\", 4, 5, 6))\n"
-    " |> tuple6(int, float, string, int, int, int)\n"
-    " // -> Ok(#(1, 2.0, \"3\", 4, 5, 6))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([1, 2, 3, 4, 5, 6])\n"
-    " |> tuple6(int, int, int, int, int, int)\n"
-    " // -> Ok(#(1, 2, 3, 4, 5, 6))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from([from(1), from(2.0), from(\"3\"), from(4), from(True), from(False)])\n"
-    " |> tuple6(int, float, string, int, bool, bool)\n"
-    " // -> Ok(#(1, 2.0, \"3\", 4, True, False))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2))\n"
-    " |> tuple6(int, float, string, int, int, int)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 6 elements\",\n"
-    " //     found: \"Tuple of 2 elements\",\n"
-    " //     path: [],\n"
-    " //   ),\n"
-    " // ])\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"\")\n"
-    " |> tuple6(int, float, string, int, int, int)\n"
-    " // -> Error([\n"
-    " //   DecodeError(\n"
-    " //     expected: \"Tuple of 6 elements\",\n"
-    " //     found: \"String\",\n"
-    " //     path: [],\n"
-    " //  ),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec tuple6(
-    fun((dynamic_()) -> {ok, DOU} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOW} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DOY} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DPA} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DPC} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DPE} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, {DOU, DOW, DOY, DPA, DPC, DPE}} |
+    fun((dynamic_()) -> {ok, DRP} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRR} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRT} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRV} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRX} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DRZ} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, {DRP, DRR, DRT, DRV, DRX, DRZ}} |
     {error, list(decode_error())}).
 tuple6(Decode1, Decode2, Decode3, Decode4, Decode5, Decode6) ->
     fun(Value) ->
@@ -1167,32 +525,10 @@ tuple6(Decode1, Decode2, Decode3, Decode4, Decode5, Decode6) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 981).
-?DOC(
-    " Checks to see if a `Dynamic` value is a dict.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " import gleam/dict\n"
-    " dict.new() |> from |> dict(string, int)\n"
-    " // -> Ok(dict.new())\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(1) |> dict(string, int)\n"
-    " // -> Error(DecodeError(expected: \"Map\", found: \"Int\", path: []))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(\"\") |> dict(string, int)\n"
-    " // -> Error(DecodeError(expected: \"Map\", found: \"String\", path: []))\n"
-    " ```\n"
-).
 -spec dict(
-    fun((dynamic_()) -> {ok, DPH} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DPJ} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, gleam@dict:dict(DPH, DPJ)} |
+    fun((dynamic_()) -> {ok, DSC} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DSE} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, gleam@dict:dict(DSC, DSE)} |
     {error, list(decode_error())}).
 dict(Key_type, Value_type) ->
     fun(Value) ->
@@ -1247,32 +583,11 @@ dict(Key_type, Value_type) ->
         )
     end.
 
--file("src/gleam/dynamic.gleam", 1095).
-?DOC(
-    " Decode 2 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0, \"3\"))\n"
-    " |> decode2(MyRecord, element(0, int), element(1, float))\n"
-    " // -> Ok(MyRecord(1, 2.0))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\"))\n"
-    " |> decode2(MyRecord, element(0, int), element(1, float))\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode2(
-    fun((DQA, DQB) -> DQC),
-    fun((dynamic_()) -> {ok, DQA} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DQB} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DQC} | {error, list(decode_error())}).
+    fun((DSV, DSW) -> DSX),
+    fun((dynamic_()) -> {ok, DSV} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DSW} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DSX} | {error, list(decode_error())}).
 decode2(Constructor, T1, T2) ->
     fun(Value) -> case {T1(Value), T2(Value)} of
             {{ok, A}, {ok, B}} ->
@@ -1282,33 +597,12 @@ decode2(Constructor, T1, T2) ->
                 {error, gleam@list:concat([all_errors(A@1), all_errors(B@1)])}
         end end.
 
--file("src/gleam/dynamic.gleam", 1127).
-?DOC(
-    " Decode 3 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.0, \"3\"))\n"
-    " |> decode3(MyRecord, element(0, int), element(1, float), element(2, string))\n"
-    " // -> Ok(MyRecord(1, 2.0, \"3\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\"))\n"
-    " |> decode3(MyRecord, element(0, int), element(1, float), element(2, string))\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode3(
-    fun((DQG, DQH, DQI) -> DQJ),
-    fun((dynamic_()) -> {ok, DQG} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DQH} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DQI} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DQJ} | {error, list(decode_error())}).
+    fun((DTB, DTC, DTD) -> DTE),
+    fun((dynamic_()) -> {ok, DTB} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTC} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTD} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DTE} | {error, list(decode_error())}).
 decode3(Constructor, T1, T2, T3) ->
     fun(Value) -> case {T1(Value), T2(Value), T3(Value)} of
             {{ok, A}, {ok, B}, {ok, C}} ->
@@ -1321,46 +615,13 @@ decode3(Constructor, T1, T2, T3) ->
                     )}
         end end.
 
--file("src/gleam/dynamic.gleam", 1173).
-?DOC(
-    " Decode 4 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.1, \"3\", \"4\"))\n"
-    " |> decode4(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    " )\n"
-    " // -> Ok(MyRecord(1, 2.1, \"3\", \"4\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\", \"\"))\n"
-    " |> decode4(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    " )\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode4(
-    fun((DQO, DQP, DQQ, DQR) -> DQS),
-    fun((dynamic_()) -> {ok, DQO} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DQP} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DQQ} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DQR} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DQS} | {error, list(decode_error())}).
+    fun((DTJ, DTK, DTL, DTM) -> DTN),
+    fun((dynamic_()) -> {ok, DTJ} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTK} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTL} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTM} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DTN} | {error, list(decode_error())}).
 decode4(Constructor, T1, T2, T3, T4) ->
     fun(X) -> case {T1(X), T2(X), T3(X), T4(X)} of
             {{ok, A}, {ok, B}, {ok, C}, {ok, D}} ->
@@ -1376,49 +637,14 @@ decode4(Constructor, T1, T2, T3, T4) ->
                     )}
         end end.
 
--file("src/gleam/dynamic.gleam", 1229).
-?DOC(
-    " Decode 5 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.1, \"3\", \"4\", \"5\"))\n"
-    " |> decode5(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    " )\n"
-    " // -> Ok(MyRecord(1, 2.1, \"3\", \"4\", \"5\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\", \"\", \"\"))\n"
-    " |> decode5(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    " )\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode5(
-    fun((DQY, DQZ, DRA, DRB, DRC) -> DRD),
-    fun((dynamic_()) -> {ok, DQY} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DQZ} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRA} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRB} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRC} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DRD} | {error, list(decode_error())}).
+    fun((DTT, DTU, DTV, DTW, DTX) -> DTY),
+    fun((dynamic_()) -> {ok, DTT} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTU} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTV} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTW} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DTX} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DTY} | {error, list(decode_error())}).
 decode5(Constructor, T1, T2, T3, T4, T5) ->
     fun(X) -> case {T1(X), T2(X), T3(X), T4(X), T5(X)} of
             {{ok, A}, {ok, B}, {ok, C}, {ok, D}, {ok, E}} ->
@@ -1435,52 +661,15 @@ decode5(Constructor, T1, T2, T3, T4, T5) ->
                     )}
         end end.
 
--file("src/gleam/dynamic.gleam", 1289).
-?DOC(
-    " Decode 6 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.1, \"3\", \"4\", \"5\", \"6\"))\n"
-    " |> decode6(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    " )\n"
-    " // -> Ok(MyRecord(1, 2.1, \"3\", \"4\", \"5\", \"6\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\", \"\", \"\", \"\"))\n"
-    " |> decode6(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    " )\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode6(
-    fun((DRK, DRL, DRM, DRN, DRO, DRP) -> DRQ),
-    fun((dynamic_()) -> {ok, DRK} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRL} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRM} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRN} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRO} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRP} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DRQ} | {error, list(decode_error())}).
+    fun((DUF, DUG, DUH, DUI, DUJ, DUK) -> DUL),
+    fun((dynamic_()) -> {ok, DUF} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUG} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUH} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUI} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUJ} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUK} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DUL} | {error, list(decode_error())}).
 decode6(Constructor, T1, T2, T3, T4, T5, T6) ->
     fun(X) -> case {T1(X), T2(X), T3(X), T4(X), T5(X), T6(X)} of
             {{ok, A}, {ok, B}, {ok, C}, {ok, D}, {ok, E}, {ok, F}} ->
@@ -1498,55 +687,16 @@ decode6(Constructor, T1, T2, T3, T4, T5, T6) ->
                     )}
         end end.
 
--file("src/gleam/dynamic.gleam", 1354).
-?DOC(
-    " Decode 7 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.1, \"3\", \"4\", \"5\", \"6\"))\n"
-    " |> decode7(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    "   element(6, string),\n"
-    " )\n"
-    " // -> Ok(MyRecord(1, 2.1, \"3\", \"4\", \"5\", \"6\", \"7\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\", \"\", \"\", \"\", \"\"))\n"
-    " |> decode7(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    "   element(6, string),\n"
-    " )\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode7(
-    fun((DRY, DRZ, DSA, DSB, DSC, DSD, DSE) -> DSF),
-    fun((dynamic_()) -> {ok, DRY} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DRZ} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSA} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSB} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSC} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSD} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSE} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DSF} | {error, list(decode_error())}).
+    fun((DUT, DUU, DUV, DUW, DUX, DUY, DUZ) -> DVA),
+    fun((dynamic_()) -> {ok, DUT} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUU} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUV} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUW} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUX} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUY} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DUZ} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DVA} | {error, list(decode_error())}).
 decode7(Constructor, T1, T2, T3, T4, T5, T6, T7) ->
     fun(X) -> case {T1(X), T2(X), T3(X), T4(X), T5(X), T6(X), T7(X)} of
             {{ok, A}, {ok, B}, {ok, C}, {ok, D}, {ok, E}, {ok, F}, {ok, G}} ->
@@ -1565,58 +715,17 @@ decode7(Constructor, T1, T2, T3, T4, T5, T6, T7) ->
                     )}
         end end.
 
--file("src/gleam/dynamic.gleam", 1423).
-?DOC(
-    " Decode 8 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.1, \"3\", \"4\", \"5\", \"6\", \"7\", \"8\"))\n"
-    " |> decode8(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    "   element(6, string),\n"
-    "   element(7, string),\n"
-    " )\n"
-    " // -> Ok(MyRecord(1, 2.1, \"3\", \"4\", \"5\", \"6\", \"7\", \"8\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\", \"\", \"\", \"\", \"\", \"\"))\n"
-    " |> decode8(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    "   element(6, string),\n"
-    "   element(7, string),\n"
-    " )\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode8(
-    fun((DSO, DSP, DSQ, DSR, DSS, DST, DSU, DSV) -> DSW),
-    fun((dynamic_()) -> {ok, DSO} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSP} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSQ} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSR} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSS} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DST} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSU} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DSV} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DSW} | {error, list(decode_error())}).
+    fun((DVJ, DVK, DVL, DVM, DVN, DVO, DVP, DVQ) -> DVR),
+    fun((dynamic_()) -> {ok, DVJ} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DVK} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DVL} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DVM} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DVN} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DVO} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DVP} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DVQ} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DVR} | {error, list(decode_error())}).
 decode8(Constructor, T1, T2, T3, T4, T5, T6, T7, T8) ->
     fun(X) -> case {T1(X), T2(X), T3(X), T4(X), T5(X), T6(X), T7(X), T8(X)} of
             {{ok, A},
@@ -1643,61 +752,18 @@ decode8(Constructor, T1, T2, T3, T4, T5, T6, T7, T8) ->
                     )}
         end end.
 
--file("src/gleam/dynamic.gleam", 1496).
-?DOC(
-    " Decode 9 values from a `Dynamic` value.\n"
-    "\n"
-    " ## Examples\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(1, 2.1, \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\"))\n"
-    " |> decode9(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    "   element(6, string),\n"
-    "   element(7, string),\n"
-    "   element(8, string),\n"
-    " )\n"
-    " // -> Ok(MyRecord(1, 2.1, \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\"))\n"
-    " ```\n"
-    "\n"
-    " ```gleam\n"
-    " from(#(\"\", \"\", \"\", \"\", \"\", \"\", \"\", \"\", \"\"))\n"
-    " |> decode9(\n"
-    "   MyRecord,\n"
-    "   element(0, int),\n"
-    "   element(1, float),\n"
-    "   element(2, string),\n"
-    "   element(3, string),\n"
-    "   element(4, string),\n"
-    "   element(5, string),\n"
-    "   element(6, string),\n"
-    "   element(7, string),\n"
-    "   element(8, string),\n"
-    " )\n"
-    " // -> Error([\n"
-    " //   DecodeError(expected: \"Int\", found: \"String\", path: [\"0\"]),\n"
-    " //   DecodeError(expected: \"Float\", found: \"String\", path: [\"1\"]),\n"
-    " // ])\n"
-    " ```\n"
-).
 -spec decode9(
-    fun((DTG, DTH, DTI, DTJ, DTK, DTL, DTM, DTN, DTO) -> DTP),
-    fun((dynamic_()) -> {ok, DTG} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTH} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTI} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTJ} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTK} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTL} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTM} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTN} | {error, list(decode_error())}),
-    fun((dynamic_()) -> {ok, DTO} | {error, list(decode_error())})
-) -> fun((dynamic_()) -> {ok, DTP} | {error, list(decode_error())}).
+    fun((DWB, DWC, DWD, DWE, DWF, DWG, DWH, DWI, DWJ) -> DWK),
+    fun((dynamic_()) -> {ok, DWB} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWC} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWD} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWE} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWF} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWG} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWH} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWI} | {error, list(decode_error())}),
+    fun((dynamic_()) -> {ok, DWJ} | {error, list(decode_error())})
+) -> fun((dynamic_()) -> {ok, DWK} | {error, list(decode_error())}).
 decode9(Constructor, T1, T2, T3, T4, T5, T6, T7, T8, T9) ->
     fun(X) ->
         case {T1(X), T2(X), T3(X), T4(X), T5(X), T6(X), T7(X), T8(X), T9(X)} of

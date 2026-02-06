@@ -73,19 +73,24 @@ fn check_duplicates(
   behaviors: List(ResolvedBehavior),
 ) -> Result(Nil, ResolveError) {
   let names = list.map(behaviors, fn(rb) { rb.behavior.name })
-  check_duplicates_loop(names, set.new())
+  case check_duplicates_loop(names, set.new(), []) {
+    Ok(_) -> Ok(Nil)
+    Error(e) -> Error(e)
+  }
 }
 
 fn check_duplicates_loop(
   names: List(String),
   seen: Set(String),
-) -> Result(Nil, ResolveError) {
-  case names {
-    [] -> Ok(Nil)
-    [name, ..rest] ->
+  acc: List(String),
+) -> Result(List(String), ResolveError) {
+  case names, acc {
+    [], _ -> Ok(list.reverse(acc))
+    [name, ..rest], _ ->
       case set.contains(seen, name) {
         True -> Error(DuplicateBehaviorName(name))
-        False -> check_duplicates_loop(rest, set.insert(seen, name))
+        False ->
+          check_duplicates_loop(rest, set.insert(seen, name), [name, ..acc])
       }
   }
 }

@@ -357,8 +357,7 @@ pub fn format_issues_multiple_issues_test() {
 pub fn format_missing_capture_with_hint_test() {
   let issue =
     validator.MissingCapture("get_user", "request.path", "user_id", [
-      "create_user",
-      "update_user",
+      "create_user", "update_user",
     ])
   let issues = [issue]
 
@@ -389,6 +388,102 @@ pub fn format_circular_dependency_test() {
 
   string.contains(formatted, "Circular dependency") |> should.be_true()
   string.contains(formatted, " -> ") |> should.be_true()
+}
+
+// =============================================================================
+// Shell Metacharacter Validation Tests
+// =============================================================================
+
+pub fn validate_path_shell_metacharacter_semicolon_test() {
+  let behavior = make_behavior("test", [], "GET", "/test; rm -rf /", dict.new())
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  case result {
+    validator.ValidationInvalid(issues) -> {
+      case list.length(issues) {
+        0 -> should.fail()
+        _ -> Nil
+      }
+      list.any(issues, fn(issue) {
+        case issue {
+          validator.InvalidPath(_, path, error) -> {
+            string.contains(path, ";")
+            && string.contains(error, "shell metacharacter")
+          }
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn validate_path_shell_metacharacter_pipe_test() {
+  let behavior =
+    make_behavior("test", [], "GET", "/test| cat /etc/passwd", dict.new())
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  case result {
+    validator.ValidationInvalid(issues) -> {
+      list.any(issues, fn(issue) {
+        case issue {
+          validator.InvalidPath(_, _, error) ->
+            string.contains(error, "shell metacharacter")
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn validate_path_shell_metacharacter_backtick_test() {
+  let behavior = make_behavior("test", [], "GET", "/test`whoami`", dict.new())
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  case result {
+    validator.ValidationInvalid(issues) -> {
+      list.any(issues, fn(issue) {
+        case issue {
+          validator.InvalidPath(_, _, error) ->
+            string.contains(error, "shell metacharacter")
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn validate_path_traversal_detected_test() {
+  let behavior =
+    make_behavior("test", [], "GET", "/../../etc/passwd", dict.new())
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  case result {
+    validator.ValidationInvalid(issues) -> {
+      list.any(issues, fn(issue) {
+        case issue {
+          validator.InvalidPath(_, _, error) ->
+            string.contains(error, "Path traversal")
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail()
+  }
 }
 
 // =============================================================================

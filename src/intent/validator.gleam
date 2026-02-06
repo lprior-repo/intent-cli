@@ -144,6 +144,10 @@ fn validate_variable_references(
 
   let mut_issues = list.append(mut_issues, path_issues)
 
+  // Validate path for traversal attempts
+  let path_traversal_issues = validate_path_traversal(behavior)
+  let mut_issues = list.append(mut_issues, path_traversal_issues)
+
   // Check variables in request headers
   let header_vars =
     behavior.request.headers
@@ -234,6 +238,48 @@ fn extract_variables(s: String) -> List(String) {
   })
 }
 
+/// Validate path for traversal attempts and shell metacharacters
+fn validate_path_traversal(behavior: Behavior) -> List(ValidationIssue) {
+  let path = behavior.request.path
+  let mut_issues = []
+
+  // Check for shell metacharacters
+  let shell_metachars = [";", "&", "|", ">", "<", "`", "$(", "\n", "\r", "\t"]
+
+  let shell_issues =
+    shell_metachars
+    |> list.filter_map(fn(char) {
+      case string.contains(path, char) {
+        True ->
+          Ok(InvalidPath(
+            behavior.name,
+            path,
+            "Path contains shell metacharacter '"
+              <> char
+              <> "' which may be unsafe",
+          ))
+        False -> Error(Nil)
+      }
+    })
+
+  let mut_issues = list.append(mut_issues, shell_issues)
+
+  // Check for path traversal patterns
+  case
+    string.contains(path, "../")
+    || string.contains(path, "..\\")
+    || string.contains(path, "%2e%2e%2f")
+    || string.contains(path, "%2e%2e%5c")
+  {
+    True -> {
+      let traversal_issue =
+        InvalidPath(behavior.name, path, "Path traversal detected")
+      list.append(mut_issues, [traversal_issue])
+    }
+    False -> mut_issues
+  }
+}
+
 /// Check for circular dependencies
 fn check_circular_dependencies(
   behaviors: List(Behavior),
@@ -253,24 +299,43 @@ fn has_circular_dependency(
   visited: List(String),
   all_behaviors: List(Behavior),
 ) -> Bool {
+  has_circular_loop(behavior_name, visited, all_behaviors)
+}
+
+/// Tail-recursive circular dependency check
+fn has_circular_loop(
+  behavior_name: String,
+  visited: List(String),
+  all_behaviors: List(Behavior),
+) -> Bool {
   case list.contains(visited, behavior_name) {
     True -> True
-    False -> {
-      // Find the behavior
+    False ->
       case list.find(all_behaviors, fn(b) { b.name == behavior_name }) {
         Error(_) -> False
-        Ok(behavior) -> {
-          // Check each dependency
-          list.any(behavior.requires, fn(dep) {
-            has_circular_dependency(
-              dep,
-              list.append(visited, [behavior_name]),
-              all_behaviors,
-            )
-          })
-        }
+        Ok(behavior) ->
+          has_circular_loop_deps(
+            behavior.requires,
+            list.append(visited, [behavior_name]),
+            all_behaviors,
+          )
       }
-    }
+  }
+}
+
+/// Tail-recursive helper to check all dependencies
+fn has_circular_loop_deps(
+  deps: List(String),
+  visited: List(String),
+  all_behaviors: List(Behavior),
+) -> Bool {
+  case deps {
+    [] -> False
+    [dep, ..rest] ->
+      case has_circular_loop(dep, visited, all_behaviors) {
+        True -> True
+        False -> has_circular_loop_deps(rest, visited, all_behaviors)
+      }
   }
 }
 

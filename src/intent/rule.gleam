@@ -72,33 +72,28 @@ pub type RuleExpr {
 pub fn parse(rule: String) -> RuleExpr {
   let rule = string.trim(rule)
 
-  // Try each parser in order
-  case try_parse_equals(rule) {
-    Some(expr) -> expr
-    None ->
-      case try_parse_type(rule) {
+  rule
+  |> try_parse_first([
+    try_parse_equals,
+    try_parse_type,
+    try_parse_string_pattern,
+    try_parse_number,
+    try_parse_presence,
+    try_parse_array,
+    try_parse_compound,
+  ])
+}
+
+fn try_parse_first(
+  rule: String,
+  parsers: List(fn(String) -> Option(RuleExpr)),
+) -> RuleExpr {
+  case parsers {
+    [] -> Raw(rule)
+    [parser, ..rest] ->
+      case parser(rule) {
         Some(expr) -> expr
-        None ->
-          case try_parse_string_pattern(rule) {
-            Some(expr) -> expr
-            None ->
-              case try_parse_number(rule) {
-                Some(expr) -> expr
-                None ->
-                  case try_parse_presence(rule) {
-                    Some(expr) -> expr
-                    None ->
-                      case try_parse_array(rule) {
-                        Some(expr) -> expr
-                        None ->
-                          case try_parse_compound(rule) {
-                            Some(expr) -> expr
-                            None -> Raw(rule)
-                          }
-                      }
-                  }
-              }
-          }
+        None -> try_parse_first(rule, rest)
       }
   }
 }
@@ -107,31 +102,48 @@ fn try_parse_equals(rule: String) -> Option(RuleExpr) {
   case string.starts_with(rule, "equals ") {
     True -> {
       let value = string.drop_left(rule, 7)
-      case string.starts_with(value, "${") && string.ends_with(value, "}") {
-        True -> {
-          let var_name =
-            value
-            |> string.drop_left(2)
-            |> string.drop_right(1)
-          Some(EqualsVariable(var_name))
-        }
-        False ->
-          case value {
-            "true" -> Some(EqualsBool(True))
-            "false" -> Some(EqualsBool(False))
-            _ ->
-              case int.parse(value) {
-                Ok(n) -> Some(EqualsInt(n))
-                Error(_) ->
-                  case float.parse(value) {
-                    Ok(f) -> Some(EqualsFloat(f))
-                    Error(_) -> Some(Equals(value))
-                  }
-              }
-          }
-      }
+      parse_equals_value(value)
     }
     False -> None
+  }
+}
+
+fn parse_equals_value(value: String) -> Option(RuleExpr) {
+  parse_equals_variable(value)
+  |> option.lazy_or(fn() { parse_equals_bool(value) })
+  |> option.lazy_or(fn() { parse_equals_number(value) })
+  |> option.lazy_or(fn() { Some(Equals(value)) })
+}
+
+fn parse_equals_variable(value: String) -> Option(RuleExpr) {
+  case string.starts_with(value, "${") && string.ends_with(value, "}") {
+    True -> {
+      let var_name =
+        value
+        |> string.drop_left(2)
+        |> string.drop_right(1)
+      Some(EqualsVariable(var_name))
+    }
+    False -> None
+  }
+}
+
+fn parse_equals_bool(value: String) -> Option(RuleExpr) {
+  case value {
+    "true" -> Some(EqualsBool(True))
+    "false" -> Some(EqualsBool(False))
+    _ -> None
+  }
+}
+
+fn parse_equals_number(value: String) -> Option(RuleExpr) {
+  case int.parse(value) {
+    Ok(n) -> Some(EqualsInt(n))
+    Error(_) ->
+      case float.parse(value) {
+        Ok(f) -> Some(EqualsFloat(f))
+        Error(_) -> None
+      }
   }
 }
 
@@ -156,93 +168,118 @@ fn try_parse_string_pattern(rule: String) -> Option(RuleExpr) {
     "uri" -> Some(IsUri)
     "jwt" -> Some(IsJwt)
     "iso8601 datetime" -> Some(IsIso8601)
-    _ -> {
-      case string.starts_with(rule, "string matching ") {
-        True -> Some(StringMatching(string.drop_left(rule, 16)))
-        False ->
-          case string.starts_with(rule, "string starting with ") {
-            True -> Some(StringStartingWith(string.drop_left(rule, 21)))
-            False ->
-              case string.starts_with(rule, "string ending with ") {
-                True -> Some(StringEndingWith(string.drop_left(rule, 19)))
-                False ->
-                  case string.starts_with(rule, "string containing ") {
-                    True -> Some(StringContaining(string.drop_left(rule, 18)))
-                    False ->
-                      case string.starts_with(rule, "contains ${") {
-                        True -> {
-                          let var =
-                            rule
-                            |> string.drop_left(11)
-                            |> string.drop_right(1)
-                          Some(ContainsVariable(var))
-                        }
-                        False -> None
-                      }
-                  }
-              }
-          }
-      }
+    _ -> try_parse_prefix_string_pattern(rule)
+  }
+}
+
+fn try_parse_prefix_string_pattern(rule: String) -> Option(RuleExpr) {
+  parse_prefix_pattern(rule, "string matching ", 16, StringMatching)
+  |> option.lazy_or(fn() {
+    parse_prefix_pattern(rule, "string starting with ", 21, StringStartingWith)
+  })
+  |> option.lazy_or(fn() {
+    parse_prefix_pattern(rule, "string ending with ", 19, StringEndingWith)
+  })
+  |> option.lazy_or(fn() {
+    parse_prefix_pattern(rule, "string containing ", 18, StringContaining)
+  })
+  |> option.lazy_or(fn() { parse_contains_variable(rule) })
+}
+
+fn parse_prefix_pattern(
+  rule: String,
+  prefix: String,
+  drop_len: Int,
+  constructor: fn(String) -> RuleExpr,
+) -> Option(RuleExpr) {
+  case string.starts_with(rule, prefix) {
+    True -> Some(constructor(string.drop_left(rule, drop_len)))
+    False -> None
+  }
+}
+
+fn parse_contains_variable(rule: String) -> Option(RuleExpr) {
+  case string.starts_with(rule, "contains ${") {
+    True -> {
+      let var =
+        rule
+        |> string.drop_left(11)
+        |> string.drop_right(1)
+      Some(ContainsVariable(var))
     }
+    False -> None
   }
 }
 
 fn try_parse_number(rule: String) -> Option(RuleExpr) {
-  // integer >= N
-  case string.starts_with(rule, "integer >= ") {
+  parse_integer_comparison(rule)
+  |> option.lazy_or(fn() { parse_number_between(rule) })
+}
+
+fn parse_integer_comparison(rule: String) -> Option(RuleExpr) {
+  parse_integer_gte(rule)
+  |> option.lazy_or(fn() { parse_integer_gt(rule) })
+  |> option.lazy_or(fn() { parse_integer_lte(rule) })
+  |> option.lazy_or(fn() { parse_integer_lt(rule) })
+}
+
+fn parse_integer_gte(rule: String) -> Option(RuleExpr) {
+  parse_int_comparison(rule, "integer >= ", 11, IntegerGte)
+}
+
+fn parse_integer_gt(rule: String) -> Option(RuleExpr) {
+  case string.starts_with(rule, "integer > ") {
     True -> {
-      let num_str = string.drop_left(rule, 11)
+      let rest = string.drop_left(rule, 10)
+      case parse_range(rest, " and < ") {
+        Some(#(low, high)) -> Some(IntegerBetween(low + 1, high - 1))
+        None ->
+          case int.parse(rest) {
+            Ok(n) -> Some(IntegerGt(n))
+            Error(_) -> None
+          }
+      }
+    }
+    False -> None
+  }
+}
+
+fn parse_integer_lte(rule: String) -> Option(RuleExpr) {
+  parse_int_comparison(rule, "integer <= ", 11, IntegerLte)
+}
+
+fn parse_integer_lt(rule: String) -> Option(RuleExpr) {
+  parse_int_comparison(rule, "integer < ", 10, IntegerLt)
+}
+
+fn parse_int_comparison(
+  rule: String,
+  prefix: String,
+  drop_len: Int,
+  constructor: fn(Int) -> RuleExpr,
+) -> Option(RuleExpr) {
+  case string.starts_with(rule, prefix) {
+    True -> {
+      let num_str = string.drop_left(rule, drop_len)
       case int.parse(num_str) {
-        Ok(n) -> Some(IntegerGte(n))
+        Ok(n) -> Some(constructor(n))
         Error(_) -> None
       }
     }
-    False ->
-      case string.starts_with(rule, "integer > ") {
-        True -> {
-          let rest = string.drop_left(rule, 10)
-          // Check for "integer > X and < Y"
-          case parse_range(rest, " and < ") {
-            Some(#(low, high)) -> Some(IntegerBetween(low + 1, high - 1))
-            None ->
-              case int.parse(rest) {
-                Ok(n) -> Some(IntegerGt(n))
-                Error(_) -> None
-              }
-          }
-        }
-        False ->
-          case string.starts_with(rule, "integer <= ") {
-            True -> {
-              let num_str = string.drop_left(rule, 11)
-              case int.parse(num_str) {
-                Ok(n) -> Some(IntegerLte(n))
-                Error(_) -> None
-              }
-            }
-            False ->
-              case string.starts_with(rule, "integer < ") {
-                True -> {
-                  let num_str = string.drop_left(rule, 10)
-                  case int.parse(num_str) {
-                    Ok(n) -> Some(IntegerLt(n))
-                    Error(_) -> None
-                  }
-                }
-                False ->
-                  case string.starts_with(rule, "number between ") {
-                    True -> {
-                      let rest = string.drop_left(rule, 15)
-                      case parse_float_range(rest) {
-                        Some(#(low, high)) -> Some(NumberBetween(low, high))
-                        None -> None
-                      }
-                    }
-                    False -> None
-                  }
-              }
-          }
+    False -> None
+  }
+}
+
+fn parse_number_between(rule: String) -> Option(RuleExpr) {
+  case string.starts_with(rule, "number between ") {
+    True -> {
+      let rest = string.drop_left(rule, 15)
+      case parse_float_range(rest) {
+        Some(#(low, high)) -> Some(NumberBetween(low, high))
+        None -> None
       }
+    }
+    False -> None
   }
 }
 
@@ -280,61 +317,78 @@ fn try_parse_presence(rule: String) -> Option(RuleExpr) {
 fn try_parse_array(rule: String) -> Option(RuleExpr) {
   case rule {
     "non-empty array" -> Some(NonEmptyArray)
-    _ ->
-      case string.starts_with(rule, "array of length ") {
-        True -> {
-          let num_str = string.drop_left(rule, 16)
+    _ -> try_parse_prefix_array(rule)
+  }
+}
+
+fn try_parse_prefix_array(rule: String) -> Option(RuleExpr) {
+  parse_array_of_length(rule)
+  |> option.lazy_or(fn() { parse_array_with_min(rule) })
+  |> option.lazy_or(fn() { parse_array_with_max(rule) })
+  |> option.lazy_or(fn() { parse_array_where_each(rule) })
+}
+
+fn parse_array_of_length(rule: String) -> Option(RuleExpr) {
+  case string.starts_with(rule, "array of length ") {
+    True -> {
+      let num_str = string.drop_left(rule, 16)
+      case int.parse(num_str) {
+        Ok(n) -> Some(ArrayOfLength(n))
+        Error(_) -> None
+      }
+    }
+    False -> None
+  }
+}
+
+fn parse_array_with_min(rule: String) -> Option(RuleExpr) {
+  parse_array_with_items(rule, "array with min ", 15, ArrayWithMinItems)
+}
+
+fn parse_array_with_max(rule: String) -> Option(RuleExpr) {
+  parse_array_with_items(rule, "array with max ", 15, ArrayWithMaxItems)
+}
+
+fn parse_array_with_items(
+  rule: String,
+  prefix: String,
+  drop_len: Int,
+  constructor: fn(Int) -> RuleExpr,
+) -> Option(RuleExpr) {
+  case string.starts_with(rule, prefix) {
+    True -> {
+      let rest = string.drop_left(rule, drop_len)
+      case string.split(rest, " item") {
+        [num_str, ..] ->
           case int.parse(num_str) {
-            Ok(n) -> Some(ArrayOfLength(n))
+            Ok(n) -> Some(constructor(n))
             Error(_) -> None
           }
-        }
-        False ->
-          case string.starts_with(rule, "array with min ") {
-            True -> {
-              let rest = string.drop_left(rule, 15)
-              case string.split(rest, " item") {
-                [num_str, ..] ->
-                  case int.parse(num_str) {
-                    Ok(n) -> Some(ArrayWithMinItems(n))
-                    Error(_) -> None
-                  }
-                _ -> None
-              }
-            }
-            False ->
-              case string.starts_with(rule, "array with max ") {
-                True -> {
-                  let rest = string.drop_left(rule, 15)
-                  case string.split(rest, " item") {
-                    [num_str, ..] ->
-                      case int.parse(num_str) {
-                        Ok(n) -> Some(ArrayWithMaxItems(n))
-                        Error(_) -> None
-                      }
-                    _ -> None
-                  }
-                }
-                False ->
-                  case string.starts_with(rule, "array where each ") {
-                    True -> {
-                      let inner = string.drop_left(rule, 17)
-                      // Handle "is X" or "matches X"
-                      let inner_rule = case string.starts_with(inner, "is ") {
-                        True -> string.drop_left(inner, 3)
-                        False ->
-                          case string.starts_with(inner, "matches ") {
-                            True ->
-                              "string matching " <> string.drop_left(inner, 8)
-                            False -> inner
-                          }
-                      }
-                      Some(ArrayWhereEach(parse(inner_rule)))
-                    }
-                    False -> None
-                  }
-              }
-          }
+        _ -> None
+      }
+    }
+    False -> None
+  }
+}
+
+fn parse_array_where_each(rule: String) -> Option(RuleExpr) {
+  case string.starts_with(rule, "array where each ") {
+    True -> {
+      let inner = string.drop_left(rule, 17)
+      let inner_rule = normalize_inner_rule(inner)
+      Some(ArrayWhereEach(parse(inner_rule)))
+    }
+    False -> None
+  }
+}
+
+fn normalize_inner_rule(inner: String) -> String {
+  case string.starts_with(inner, "is ") {
+    True -> string.drop_left(inner, 3)
+    False ->
+      case string.starts_with(inner, "matches ") {
+        True -> "string matching " <> string.drop_left(inner, 8)
+        False -> inner
       }
   }
 }
