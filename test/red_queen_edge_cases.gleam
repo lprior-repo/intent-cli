@@ -1,11 +1,11 @@
+import gleam/int
 import gleam/io
 import gleam/json
 import gleam/list
 import gleam/string
-import gleam/int
-import intent/interpolate
 import intent/case_insensitive
 import intent/formats
+import intent/interpolate
 
 pub fn main() {
   io.println("=== RED-07 Edge Case Testing ===")
@@ -17,7 +17,8 @@ pub fn main() {
   io.println("Test 1: Empty variable path: " <> format_result(result))
 
   // Test 2: interpolate.gleam - array index 0
-  let ctx = interpolate.new_context()
+  let ctx =
+    interpolate.new_context()
     |> interpolate.set_variable(
       "items",
       json.array([json.string("first"), json.string("second")], fn(x) { x }),
@@ -30,27 +31,33 @@ pub fn main() {
   io.println("Test 3: Array index -1: " <> format_result(result))
 
   // Test 4: interpolate.gleam - empty array
-  let ctx = interpolate.new_context()
+  let ctx =
+    interpolate.new_context()
     |> interpolate.set_variable("empty", json.array([], fn(x) { x }))
   let result = interpolate.interpolate_string(ctx, "${empty[0]}")
   io.println("Test 4: Empty array access: " <> format_result(result))
 
   // Test 5: interpolate.gleam - large string (10K)
-  let large_str = list.repeat("x", 10000) |> string.join("")
-  let ctx = interpolate.new_context()
+  let large_str = list.repeat("x", 10_000) |> string.join("")
+  let ctx =
+    interpolate.new_context()
     |> interpolate.set_variable("large", json.string(large_str))
   let result = interpolate.interpolate_string(ctx, "${large}")
   let test5_len = case result {
     Ok(s) -> string.length(s)
     Error(_) -> 0
   }
-  io.println("Test 5: Large string 10K: " <> case test5_len {
-    10000 -> "OK (length: 10000)"
-    n -> case n == 0 {
-      True -> "ERROR"
-      False -> "OK but wrong length: " <> int.to_string(n)
-    }
-  })
+  io.println(
+    "Test 5: Large string 10K: "
+    <> case test5_len {
+      10_000 -> "OK (length: 10000)"
+      n ->
+        case n == 0 {
+          True -> "ERROR"
+          False -> "OK but wrong length: " <> int.to_string(n)
+        }
+    },
+  )
 
   // Test 6: case_insensitive.gleam - empty strings
   let result = case_insensitive.contains_ignore_case("", "")
@@ -83,13 +90,15 @@ pub fn main() {
   io.println("Test 12: Email consecutive dots: " <> format_result3(result))
 
   // Test 13: interpolate.gleam - null value
-  let ctx = interpolate.new_context()
+  let ctx =
+    interpolate.new_context()
     |> interpolate.set_variable("nothing", json.null())
   let result = interpolate.interpolate_string(ctx, "${nothing}")
   io.println("Test 13: Null value: " <> format_result(result))
 
   // Test 14: interpolate.gleam - boolean value
-  let ctx = interpolate.new_context()
+  let ctx =
+    interpolate.new_context()
     |> interpolate.set_variable("flag", json.bool(True))
   let result = interpolate.interpolate_string(ctx, "${flag}")
   io.println("Test 14: Boolean value: " <> format_result(result))
@@ -107,20 +116,25 @@ pub fn main() {
   io.println("Test 17: UUID max values: " <> format_result3(result))
 
   // Test 18: interpolate.gleam - special chars
-  let ctx = interpolate.new_context()
+  let ctx =
+    interpolate.new_context()
     |> interpolate.set_variable("special", json.string("a\u{200B}b"))
   let result = interpolate.interpolate_string(ctx, "${special}")
   let test18_len = case result {
     Ok(s) -> string.length(s)
     Error(_) -> 0
   }
-  io.println("Test 18: Zero-width chars: " <> case test18_len {
-    3 -> "OK (length: 3)"
-    n -> case n == 0 {
-      True -> "ERROR"
-      False -> "OK but wrong length: " <> int.to_string(n)
-    }
-  })
+  io.println(
+    "Test 18: Zero-width chars: "
+    <> case test18_len {
+      3 -> "OK (length: 3)"
+      n ->
+        case n == 0 {
+          True -> "ERROR"
+          False -> "OK but wrong length: " <> int.to_string(n)
+        }
+    },
+  )
 
   // Test 19: formats.gleam - hour 24 (should fail)
   let result = formats.validate_iso8601("2024-01-01T24:00:00")

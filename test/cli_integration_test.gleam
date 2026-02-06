@@ -68,10 +68,8 @@ pub fn total_command_count_test() {
 pub fn working_specs_exist_test() {
   // These specs are known to work without parse errors
   let working_specs = [
-    "examples/user-api.cue",
-    "examples/regex-rules.cue",
-    "examples/meal-planner-api.cue",
-    "intent-self.cue",
+    "examples/user-api.cue", "examples/regex-rules.cue",
+    "examples/meal-planner-api.cue", "intent-self.cue",
   ]
   should.equal(list.length(working_specs), 4)
 }

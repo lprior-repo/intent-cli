@@ -170,16 +170,10 @@ pub fn check_response_multiple_checks_some_fail_test() {
 // =============================================================================
 
 pub fn check_response_header_exact_match_test() {
-  let expected_headers =
-    dict.from_list([
-      #("content-type", "application/json"),
-    ])
+  let expected_headers = dict.from_list([#("content-type", "application/json")])
   let expected = make_response(200, dict.new(), expected_headers)
 
-  let actual_headers =
-    dict.from_list([
-      #("content-type", "application/json"),
-    ])
+  let actual_headers = dict.from_list([#("content-type", "application/json")])
   let actual =
     make_execution_result_with_headers(200, json.object([]), actual_headers)
   let ctx = make_context()
@@ -191,16 +185,10 @@ pub fn check_response_header_exact_match_test() {
 }
 
 pub fn check_response_header_mismatch_test() {
-  let expected_headers =
-    dict.from_list([
-      #("content-type", "application/json"),
-    ])
+  let expected_headers = dict.from_list([#("content-type", "application/json")])
   let expected = make_response(200, dict.new(), expected_headers)
 
-  let actual_headers =
-    dict.from_list([
-      #("content-type", "text/html"),
-    ])
+  let actual_headers = dict.from_list([#("content-type", "text/html")])
   let actual =
     make_execution_result_with_headers(200, json.object([]), actual_headers)
   let ctx = make_context()
@@ -237,10 +225,7 @@ pub fn check_response_multiple_headers_test() {
 }
 
 pub fn check_response_missing_header_test() {
-  let expected_headers =
-    dict.from_list([
-      #("x-required-header", "value"),
-    ])
+  let expected_headers = dict.from_list([#("x-required-header", "value")])
   let expected = make_response(200, dict.new(), expected_headers)
 
   let actual_headers = dict.new()
@@ -263,16 +248,10 @@ pub fn check_response_all_aspects_pass_test() {
     dict.from_list([
       #("success", types.Check(rule: "equals true", why: "Check success")),
     ])
-  let expected_headers =
-    dict.from_list([
-      #("content-type", "application/json"),
-    ])
+  let expected_headers = dict.from_list([#("content-type", "application/json")])
   let expected = make_response(200, checks, expected_headers)
 
-  let actual_headers =
-    dict.from_list([
-      #("content-type", "application/json"),
-    ])
+  let actual_headers = dict.from_list([#("content-type", "application/json")])
   let actual =
     make_execution_result_with_headers(
       200,
@@ -294,16 +273,10 @@ pub fn check_response_all_aspects_fail_test() {
     dict.from_list([
       #("success", types.Check(rule: "equals true", why: "Check success")),
     ])
-  let expected_headers =
-    dict.from_list([
-      #("content-type", "application/json"),
-    ])
+  let expected_headers = dict.from_list([#("content-type", "application/json")])
   let expected = make_response(200, checks, expected_headers)
 
-  let actual_headers =
-    dict.from_list([
-      #("content-type", "text/html"),
-    ])
+  let actual_headers = dict.from_list([#("content-type", "text/html")])
   let actual =
     make_execution_result_with_headers(
       500,
@@ -336,14 +309,7 @@ pub fn check_response_nested_field_access_test() {
   let actual =
     make_execution_result(
       200,
-      json.object([
-        #(
-          "user",
-          json.object([
-            #("name", json.string("Alice")),
-          ]),
-        ),
-      ]),
+      json.object([#("user", json.object([#("name", json.string("Alice"))]))]),
     )
   let ctx = make_context()
 
@@ -374,9 +340,7 @@ pub fn check_response_deeply_nested_field_test() {
               json.object([
                 #(
                   "profile",
-                  json.object([
-                    #("email", json.string("test@example.com")),
-                  ]),
+                  json.object([#("email", json.string("test@example.com"))]),
                 ),
               ]),
             ),

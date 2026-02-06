@@ -430,7 +430,8 @@ fn format_issue(issue: QualityIssue) -> String {
     MissingErrorTests -> "  • Missing error status code tests (4xx, 5xx)"
     MissingAuthenticationTest -> "  • Missing authentication tests"
     MissingEdgeCases -> "  • Missing edge case tests (empty, invalid, etc)"
-    VagueRules -> "  • Vague validation rules ('valid data', 'correct format')"
+    VagueRules ->
+      "  • Vague validation rules ('valid data', 'correct format')"
     NoExamples -> "  • No response examples provided"
     MissingExplanations -> "  • Missing 'why' explanations in checks"
     UntestedRules -> "  • Global rules not tested in behaviors"

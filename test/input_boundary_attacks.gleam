@@ -1,21 +1,21 @@
 /// RED-02: Input Boundary Attacks - Bug Discovery Report
 /// Direct EARS format reporting of discovered bugs
-
 import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/string
 import gleeunit/should
 import intent/parser
-import intent/validator
 import intent/types
+import intent/validator
 
 /// BUG 1: Empty string accepted for required 'name' field
 /// SEVERITY: MEDIUM
 /// EVIDENCE: parser.gleam:20 accepts "" after dynamic.string validation
 /// RISK: Empty specs break downstream processing
 pub fn bug_1_empty_string_for_required_name_test() {
-  let bad_json = "{\"name\":\"\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":5000,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
+  let bad_json =
+    "{\"name\":\"\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":5000,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
 
   case json.decode(bad_json, dynamic.dynamic) {
     Ok(data) -> {
@@ -36,7 +36,8 @@ pub fn bug_1_empty_string_for_required_name_test() {
 /// EVIDENCE: parser.gleam:58 accepts 0 via dynamic.int
 /// RISK: Infinite hangs or immediate timeouts
 pub fn bug_2_zero_timeout_accepted_test() {
-  let bad_json = "{\"name\":\"test\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":0,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
+  let bad_json =
+    "{\"name\":\"test\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":0,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
 
   case json.decode(bad_json, dynamic.dynamic) {
     Ok(data) -> {
@@ -57,7 +58,8 @@ pub fn bug_2_zero_timeout_accepted_test() {
 /// EVIDENCE: parser.gleam:58 accepts -100 via dynamic.int  
 /// RISK: Integer overflow or undefined behavior
 pub fn bug_3_negative_timeout_accepted_test() {
-  let bad_json = "{\"name\":\"test\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":-100,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
+  let bad_json =
+    "{\"name\":\"test\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":-100,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
 
   case json.decode(bad_json, dynamic.dynamic) {
     Ok(data) -> {
@@ -78,7 +80,8 @@ pub fn bug_3_negative_timeout_accepted_test() {
 /// EVIDENCE: json.decode + parser.gleam:20 accepts \u0000 in strings
 /// RISK: String truncation, buffer overflows, C API issues
 pub fn bug_4_null_byte_sanitization_test() {
-  let bad_json = "{\"name\":\"test\\u0000\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":5000,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
+  let bad_json =
+    "{\"name\":\"test\\u0000\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":5000,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
 
   case json.decode(bad_json, dynamic.dynamic) {
     Ok(data) -> {
@@ -120,32 +123,34 @@ pub fn bug_6_shell_metacharacter_validation_test() {
 }
 
 fn make_minimal_spec_with_path(path: String) -> types.Spec {
-  let behavior = types.Behavior(
-    name: "test_behavior",
-    intent: "test intent",
-    notes: "",
-    requires: [],
-    tags: [],
-    request: types.Request(
-      method: types.Get,
-      path: path,
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    ),
-    response: types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.new(),
-    ),
-    captures: dict.new(),
-  )
-  let feature = types.Feature(
-    name: "Test Feature",
-    description: "Test description",
-    behaviors: [behavior],
-  )
+  let behavior =
+    types.Behavior(
+      name: "test_behavior",
+      intent: "test intent",
+      notes: "",
+      requires: [],
+      tags: [],
+      request: types.Request(
+        method: types.Get,
+        path: path,
+        headers: dict.new(),
+        query: dict.new(),
+        body: json.null(),
+      ),
+      response: types.Response(
+        status: 200,
+        example: json.null(),
+        checks: dict.new(),
+        headers: dict.new(),
+      ),
+      captures: dict.new(),
+    )
+  let feature =
+    types.Feature(
+      name: "Test Feature",
+      description: "Test description",
+      behaviors: [behavior],
+    )
   types.Spec(
     name: "Test Spec",
     description: "Test spec",

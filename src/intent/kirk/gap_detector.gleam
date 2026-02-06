@@ -435,7 +435,11 @@ pub fn format_report(report: GapReport) -> String {
   let severity_section = format_severity_breakdown(report.severity_breakdown)
 
   let inversion_section =
-    format_gap_section("🔄 Inversion Gaps", report.inversion_gaps, "Inversion")
+    format_gap_section(
+      "🔄 Inversion Gaps",
+      report.inversion_gaps,
+      "Inversion",
+    )
   let second_order_section =
     format_gap_section(
       "🎯 Second-Order Gaps",
@@ -506,7 +510,13 @@ fn format_gap(gap: Gap) -> String {
     Medium -> "⚠️"
     Low -> "ℹ️"
   }
-  "  " <> icon <> " " <> gap.description <> "\n" <> "     💡 " <> gap.suggestion
+  "  "
+  <> icon
+  <> " "
+  <> gap.description
+  <> "\n"
+  <> "     💡 "
+  <> gap.suggestion
 }
 
 pub fn gap_type_to_string(gt: GapType) -> String {

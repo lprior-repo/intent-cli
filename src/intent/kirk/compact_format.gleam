@@ -404,9 +404,7 @@ fn spec_to_json(spec: Spec) -> json.Json {
                 ),
                 #(
                   "response",
-                  json.object([
-                    #("status", json.int(b.response.status)),
-                  ]),
+                  json.object([#("status", json.int(b.response.status))]),
                 ),
               ])
             }),
