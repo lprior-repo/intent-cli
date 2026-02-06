@@ -27,7 +27,9 @@ pub fn given_non_bool_flag_when_normalizing_then_arguments_are_preserved_test() 
   ]
 
   intent.normalize_cli_args(args)
-  |> should.equal(args)
+  |> should.equal([
+    "check", "examples/user-api.cue", "--feature=Users", "--only=login",
+  ])
 }
 
 pub fn given_mixed_flags_when_normalizing_then_only_known_bool_flags_change_test() {
@@ -37,8 +39,34 @@ pub fn given_mixed_flags_when_normalizing_then_only_known_bool_flags_change_test
 
   intent.normalize_cli_args(args)
   |> should.equal([
-    "plan-approve", "session-123", "--yes=true", "--notes", "ship it",
+    "plan-approve", "session-123", "--yes=true", "--notes=ship it",
     "--json=true",
+  ])
+}
+
+pub fn given_draft_bool_flag_when_normalizing_then_true_is_assumed_test() {
+  let args = ["validate-bead", "sample.cue", "--draft"]
+
+  intent.normalize_cli_args(args)
+  |> should.equal(["validate-bead", "sample.cue", "--draft=true"])
+}
+
+pub fn given_value_flag_missing_value_when_normalizing_then_flag_is_preserved_test() {
+  let args = ["check", "examples/user-api.cue", "--target", "--json"]
+
+  intent.normalize_cli_args(args)
+  |> should.equal(["check", "examples/user-api.cue", "--target", "--json=true"])
+}
+
+pub fn given_export_template_value_flag_when_normalizing_then_equals_syntax_is_used_test() {
+  let args = [
+    "interview", "--profile", "api", "--export-answers-template",
+    "/tmp/answers.json",
+  ]
+
+  intent.normalize_cli_args(args)
+  |> should.equal([
+    "interview", "--profile=api", "--export-answers-template=/tmp/answers.json",
   ])
 }
 

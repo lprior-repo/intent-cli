@@ -39,12 +39,12 @@ print_test() {
 
 print_pass() {
 	echo -e "${GREEN}✓ Pass: $1${NC}"
-	((PASSED_TESTS++))
+	((PASSED_TESTS += 1))
 }
 
 print_fail() {
 	echo -e "${RED}✗ Fail: $1${NC}"
-	((FAILED_TESTS++))
+	((FAILED_TESTS += 1))
 	FAILED_TEST_NAMES+=("Test ${TOTAL_TESTS}: $1")
 }
 
@@ -54,7 +54,7 @@ print_section() {
 }
 
 run_test() {
-	((TOTAL_TESTS++))
+	((TOTAL_TESTS += 1))
 	local test_name="$1"
 	shift
 	local command=("$@")
@@ -108,12 +108,12 @@ run_unit_tests() {
 		if ! gleam run -- validate "$spec" >/dev/null 2>&1; then
 			echo -e "${RED}✗ Failed: $spec${NC}"
 			all_specs_pass=false
-			((FAILED_TESTS++))
+			((FAILED_TESTS += 1))
 		else
 			echo -e "${GREEN}✓ Valid: $spec${NC}"
-			((PASSED_TESTS++))
+			((PASSED_TESTS += 1))
 		fi
-		((TOTAL_TESTS++))
+		((TOTAL_TESTS += 1))
 	done
 
 	# Test 8: show without args
