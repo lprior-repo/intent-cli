@@ -22,3 +22,6 @@ Thumbs.db
 
 # Test outputs
 *.test
+.beads/issues.jsonl.backup
+.zjj/state.db
+erl_crash.dump

@@ -3,7 +3,6 @@
 ///
 /// Target: interview_storage.gleam, loader.gleam, runner.gleam, http_client.gleam
 /// Attack Patterns: Race Conditions, Data Races, Resource Contention
-import gleam/string
 import gleeunit/should
 
 // ============================================================================
