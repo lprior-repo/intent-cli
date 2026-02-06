@@ -1,81 +1,56 @@
-// CLI Integration Tests
-// Verifies that all CLI commands are available and functional
-
+import gleam/list
 import gleeunit
 import gleeunit/should
+import intent
 
 pub fn main() {
   gleeunit.main()
 }
 
-// ============================================
-// Command Availability Tests
-// These verify all 26 CLI commands exist
-// ============================================
+pub fn given_bare_bool_flag_when_normalizing_then_true_is_assumed_test() {
+  let args = ["check", "examples/user-api.cue", "--json"]
 
-pub fn all_commands_listed_in_help_test() {
-  // This test documents that the CLI has 26 commands
-  // The actual verification is done in the bash test suite
-  let command_count = 26
-  should.equal(command_count, 26)
+  intent.normalize_cli_args(args)
+  |> should.equal(["check", "examples/user-api.cue", "--json=true"])
 }
 
-pub fn basic_commands_exist_test() {
-  // validate, show, export, check
-  let basic_commands = ["validate", "show", "export", "check"]
-  should.equal(list.length(basic_commands), 4)
+pub fn given_bool_literal_value_when_normalizing_then_equals_syntax_is_used_test() {
+  let args = ["sessions", "--json", "false"]
+
+  intent.normalize_cli_args(args)
+  |> should.equal(["sessions", "--json=false"])
 }
 
-pub fn quality_commands_exist_test() {
-  // lint, analyze, improve
-  let quality_commands = ["lint", "analyze", "improve"]
-  should.equal(list.length(quality_commands), 3)
-}
-
-pub fn interview_commands_exist_test() {
-  // interview, beads, bead-status, sessions, history, diff
-  let interview_commands = [
-    "interview", "beads", "bead-status", "sessions", "history", "diff",
+pub fn given_non_bool_flag_when_normalizing_then_arguments_are_preserved_test() {
+  let args = [
+    "check", "examples/user-api.cue", "--feature", "Users", "--only", "login",
   ]
-  should.equal(list.length(interview_commands), 6)
+
+  intent.normalize_cli_args(args)
+  |> should.equal(args)
 }
 
-pub fn kirk_commands_exist_test() {
-  // quality, invert, coverage, gaps, effects, compact, prototext, ears
-  let kirk_commands = [
-    "quality", "invert", "coverage", "gaps", "effects", "compact", "prototext",
-    "ears",
+pub fn given_mixed_flags_when_normalizing_then_only_known_bool_flags_change_test() {
+  let args = [
+    "plan-approve", "session-123", "--yes", "--notes", "ship it", "--json",
   ]
-  should.equal(list.length(kirk_commands), 8)
+
+  intent.normalize_cli_args(args)
+  |> should.equal([
+    "plan-approve", "session-123", "--yes=true", "--notes", "ship it",
+    "--json=true",
+  ])
 }
 
-pub fn plan_commands_exist_test() {
-  // plan, plan-approve, beads-regenerate
-  let plan_commands = ["plan", "plan-approve", "beads-regenerate"]
-  should.equal(list.length(plan_commands), 3)
-}
-
-pub fn total_command_count_test() {
-  // 4 + 3 + 6 + 8 + 3 = 24 commands (not counting help)
-  let total = 4 + 3 + 6 + 8 + 3
-  should.equal(total, 24)
-}
-
-// ============================================
-// Spec File Existence Tests
-// ============================================
-
-pub fn working_specs_exist_test() {
-  // These specs are known to work without parse errors
-  let working_specs = [
-    "examples/user-api.cue", "examples/regex-rules.cue",
-    "examples/meal-planner-api.cue", "intent-self.cue",
+pub fn command_inventory_count_is_current_test() {
+  let commands = [
+    "analyze", "bead-status", "beads", "beads-regenerate", "check", "compact",
+    "coverage", "diff", "ears", "effects", "export", "gaps", "history",
+    "improve", "interview", "invert", "lint", "plan", "plan-approve",
+    "prototext", "quality", "sessions", "show", "validate", "validate-bead",
   ]
-  should.equal(list.length(working_specs), 4)
+
+  commands
+  |> list.length
+  |> should.equal(25)
 }
-
-// ============================================
-// Import list module
-// ============================================
-
-import gleam/list

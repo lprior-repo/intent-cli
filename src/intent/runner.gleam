@@ -114,25 +114,36 @@ pub fn run_spec_with_executor(
       let filtered = apply_filters(resolved, options)
       let total = list.length(filtered)
 
-      // Start spinner for execution
-      let sp =
-        spinner.new("Running " <> string.inspect(total) <> " behaviors...")
-        |> spinner.with_colour(ansi.cyan)
-        |> spinner.start
-
       // Execute behaviors in order with the provided executor
-      let #(results, _ctx, _failed_set) =
-        execute_behaviors_with_spinner(
-          filtered,
-          config,
-          spec,
-          set.new(),
-          sp,
-          executor,
-        )
+      let #(results, _ctx, _failed_set) = case is_quiet(options) {
+        True ->
+          execute_behaviors_without_spinner(
+            filtered,
+            config,
+            spec,
+            set.new(),
+            executor,
+          )
+        False -> {
+          let sp =
+            spinner.new("Running " <> string.inspect(total) <> " behaviors...")
+            |> spinner.with_colour(ansi.cyan)
+            |> spinner.start
 
-      // Stop spinner
-      spinner.stop(sp)
+          let output =
+            execute_behaviors_with_spinner(
+              filtered,
+              config,
+              spec,
+              set.new(),
+              sp,
+              executor,
+            )
+
+          spinner.stop(sp)
+          output
+        }
+      }
 
       // Collect results
       let passed =
@@ -261,6 +272,29 @@ fn execute_behaviors_with_spinner(
       let #(results, ctx, failed) = acc
       // Update spinner text with current behavior
       spinner.set_text(sp, "Testing: " <> rb.behavior.name)
+      let #(result, new_ctx, new_failed) =
+        execute_single_behavior(rb, config, spec, ctx, failed, executor)
+      #([result, ..results], new_ctx, new_failed)
+    },
+  )
+  |> fn(tuple) {
+    let #(results, ctx, failed) = tuple
+    #(list.reverse(results), ctx, failed)
+  }
+}
+
+fn execute_behaviors_without_spinner(
+  behaviors: List(ResolvedBehavior),
+  config: Config,
+  spec: Spec,
+  failed_set: Set(String),
+  executor: BehaviorExecutor,
+) -> #(List(BehaviorResult), Context, Set(String)) {
+  list.fold(
+    behaviors,
+    #([], interpolate.new_context(), failed_set),
+    fn(acc, rb) {
+      let #(results, ctx, failed) = acc
       let #(result, new_ctx, new_failed) =
         execute_single_behavior(rb, config, spec, ctx, failed, executor)
       #([result, ..results], new_ctx, new_failed)

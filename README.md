@@ -135,6 +135,16 @@ gleam build
 gleam run -- check examples/user-api.cue --target http://localhost:8080
 ```
 
+## Release Smoke Tests
+
+Run the BDD-style CLI smoke matrix locally:
+
+```bash
+scripts/cli-smoke-bdd.sh
+```
+
+This matrix exercises all public CLI subcommands with expected exit codes for release sanity checks.
+
 ## Project Structure
 
 ```

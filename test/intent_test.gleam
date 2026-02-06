@@ -13,6 +13,7 @@ import intent/interpolate
 import intent/interview
 import intent/interview_questions
 import intent/interview_storage
+import intent/kirk/effects_analyzer
 import intent/question_loader
 import intent/question_types.{
   type Question, Business, Critical, Developer, HappyPath, Ops, Question,
@@ -85,6 +86,18 @@ fn make_spec(features: List(types.Feature)) -> types.Spec {
       pitfalls: [],
     ),
   )
+}
+
+pub fn effects_analyzer_format_report_completes_test() {
+  let behavior = make_behavior("read-user", [])
+  let feature = make_feature("users", [behavior])
+  let spec = make_spec([feature])
+
+  let report = effects_analyzer.analyze_effects(spec)
+  let rendered = effects_analyzer.format_report(report)
+
+  rendered |> string.contains("Verification coverage:") |> should.be_true()
+  rendered |> string.contains("BEHAVIOR: read-user") |> should.be_true()
 }
 
 pub fn resolver_simple_no_deps_test() {
@@ -1995,6 +2008,77 @@ pub fn beads_to_jsonl_multiple_test() {
   jsonl |> string.contains("Second Bead") |> should.be_true()
   jsonl |> string.contains("First task") |> should.be_true()
   jsonl |> string.contains("Second task") |> should.be_true()
+}
+
+pub fn beads_to_enhanced_cue_contains_schema_entries_test() {
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "Implement CLI command",
+      description: "Add a command for release checks",
+      profile_type: "cli",
+      priority: 2,
+      issue_type: "cli_command",
+      labels: ["cli"],
+      ai_hints: "Follow existing command patterns",
+      acceptance_criteria: ["Command runs"],
+      dependencies: [],
+    ),
+  ]
+
+  let cue_payload = bead_templates.beads_to_enhanced_cue(beads)
+
+  cue_payload |> string.contains("package schema") |> should.be_true()
+  cue_payload |> string.contains("#EnhancedBead") |> should.be_true()
+  cue_payload
+  |> string.contains("CLI: Implement CLI command")
+  |> should.be_true()
+}
+
+pub fn beads_to_enhanced_cue_normalizes_out_of_range_priority_test() {
+  let beads = [
+    bead_templates.BeadRecord(
+      title: "Out of range priority",
+      description: "Should clamp priority to schema range",
+      profile_type: "api",
+      priority: 99,
+      issue_type: "api_endpoint",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    ),
+  ]
+
+  let cue_payload = bead_templates.beads_to_enhanced_cue(beads)
+
+  cue_payload |> string.contains("priority: 4") |> should.be_true()
+}
+
+pub fn bead_validation_header_includes_cue_vet_instructions_test() {
+  let bead =
+    bead_templates.BeadRecord(
+      title: "CLI smoke",
+      description: "Run command matrix",
+      profile_type: "cli",
+      priority: 1,
+      issue_type: "task",
+      labels: [],
+      ai_hints: "",
+      acceptance_criteria: [],
+      dependencies: [],
+    )
+
+  let updated =
+    bead_templates.with_validation_header(
+      bead,
+      ".beads/schemas/intent-cli-cli1.cue",
+    )
+
+  updated.description
+  |> string.contains(
+    "cue vet .beads/schemas/intent-cli-cli1.cue implementation.cue",
+  )
+  |> should.be_true()
 }
 
 pub fn bead_stats_calculation_test() {

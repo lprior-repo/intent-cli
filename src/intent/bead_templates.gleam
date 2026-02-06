@@ -240,6 +240,476 @@ pub fn beads_to_jsonl(beads: List(BeadRecord)) -> String {
   |> string.join("\n")
 }
 
+/// Render generated beads as schema-validated CUE entries.
+/// Each entry is typed as #EnhancedBead so `cue vet schema/enhanced-bead.cue <file>`
+/// validates every generated bead before persistence.
+pub fn beads_to_enhanced_cue(beads: List(BeadRecord)) -> String {
+  let entries =
+    beads
+    |> list.fold(#(1, []), fn(acc, bead) {
+      let #(index, rendered) = acc
+      #(index + 1, [render_enhanced_bead(bead, index), ..rendered])
+    })
+    |> fn(acc) {
+      let #(_, rendered) = acc
+      list.reverse(rendered)
+    }
+
+  "package schema\n\n" <> string.join(entries, "\n\n") <> "\n"
+}
+
+/// Deterministic bead ID used for schema files and validation references.
+pub fn bead_id_for_index(bead: BeadRecord, index: Int) -> String {
+  let component = profile_component(bead.profile_type)
+  "intent-cli-" <> string.lowercase(component) <> string.inspect(index)
+}
+
+/// Render one bead entry suitable for a standalone CUE file.
+pub fn enhanced_bead_entry(bead: BeadRecord, index: Int) -> String {
+  render_enhanced_bead(bead, index)
+}
+
+/// Prefix description with planner-style CUE validation instructions.
+pub fn with_validation_header(
+  bead: BeadRecord,
+  schema_path: String,
+) -> BeadRecord {
+  let prefixed =
+    "# CUE Validation Schema\n"
+    <> "# Validate implementation: cue vet "
+    <> schema_path
+    <> " implementation.cue\n"
+    <> "# Schema location: "
+    <> schema_path
+    <> "\n\n"
+    <> bead.description
+
+  BeadRecord(..bead, description: prefixed)
+}
+
+fn render_enhanced_bead(bead: BeadRecord, index: Int) -> String {
+  let component = profile_component(bead.profile_type)
+  let normalized_title = component <> ": " <> fallback_title(bead.title)
+  let id = bead_id_for_index(bead, index)
+  let description = fallback_description(bead.description)
+  let priority = normalize_priority(bead.priority)
+  let labels = case bead.labels {
+    [] -> [bead.profile_type, "generated"]
+    existing -> existing
+  }
+
+  "bead_"
+  <> string.inspect(index)
+  <> ": #EnhancedBead & {\n"
+  <> "  id: "
+  <> cue_string(id)
+  <> "\n"
+  <> "  title: "
+  <> cue_string(normalized_title)
+  <> "\n"
+  <> "  type: \"task\"\n"
+  <> "  priority: "
+  <> string.inspect(priority)
+  <> "\n"
+  <> "  effort_estimate: \"1hr\"\n"
+  <> "  labels: "
+  <> cue_string_list(labels)
+  <> "\n\n"
+  <> "  clarifications: {\n"
+  <> "    clarification_status: \"RESOLVED\"\n"
+  <> "  }\n\n"
+  <> "  ears_requirements: {\n"
+  <> "    ubiquitous: ["
+  <> cue_string(
+    "THE SYSTEM SHALL implement " <> string.lowercase(component) <> " behavior",
+  )
+  <> "]\n"
+  <> "    event_driven: [{trigger: "
+  <> cue_string("WHEN " <> string.lowercase(component) <> " work is executed")
+  <> ", shall: "
+  <> cue_string("THE SYSTEM SHALL complete the requested outcome")
+  <> "}]\n"
+  <> "    unwanted: [{condition: "
+  <> cue_string("IF required inputs are missing")
+  <> ", shall_not: "
+  <> cue_string("THE SYSTEM SHALL NOT continue with invalid state")
+  <> ", because: "
+  <> cue_string("Invalid state causes unreliable execution")
+  <> "}]\n"
+  <> "  }\n\n"
+  <> "  contracts: {\n"
+  <> "    preconditions: {\n"
+  <> "      auth_required: false\n"
+  <> "      required_inputs: []\n"
+  <> "      system_state: ["
+  <> cue_string("Target codebase is available")
+  <> "]\n"
+  <> "    }\n"
+  <> "    postconditions: {\n"
+  <> "      state_changes: ["
+  <> cue_string("Implementation state updated")
+  <> "]\n"
+  <> "      return_guarantees: []\n"
+  <> "    }\n"
+  <> "    invariants: ["
+  <> cue_string("No silent failures are accepted")
+  <> "]\n"
+  <> "  }\n\n"
+  <> "  research_requirements: {\n"
+  <> "    files_to_read: [{\n"
+  <> "      path: "
+  <> cue_string("src/intent.gleam")
+  <> "\n"
+  <> "      what_to_extract: "
+  <> cue_string("Existing CLI flow and command behavior")
+  <> "\n"
+  <> "      document_in: "
+  <> cue_string("research_notes.md")
+  <> "\n"
+  <> "    }]\n"
+  <> "    research_questions: [{\n"
+  <> "      question: "
+  <> cue_string("What existing pattern should this bead follow?")
+  <> "\n"
+  <> "      answered: false\n"
+  <> "    }]\n"
+  <> "    research_complete_when: ["
+  <> cue_string("Key patterns are documented before changes")
+  <> "]\n"
+  <> "  }\n\n"
+  <> "  inversions: {\n"
+  <> "    usability_failures: [{\n"
+  <> "      failure: "
+  <> cue_string("User receives unclear output")
+  <> "\n"
+  <> "      prevention: "
+  <> cue_string("Return actionable error and usage guidance")
+  <> "\n"
+  <> "      test_for_it: "
+  <> cue_string("test_error_output_is_actionable")
+  <> "\n"
+  <> "    }]\n"
+  <> "  }\n\n"
+  <> "  acceptance_tests: {\n"
+  <> "    happy_paths: [{\n"
+  <> "      name: "
+  <> cue_string("test_happy_path")
+  <> "\n"
+  <> "      given: "
+  <> cue_string("Valid inputs")
+  <> "\n"
+  <> "      when: "
+  <> cue_string("User runs the command")
+  <> "\n"
+  <> "      then: ["
+  <> cue_string("Exit code is 0")
+  <> ", "
+  <> cue_string("Output matches expected behavior")
+  <> "]\n"
+  <> "      real_input: "
+  <> cue_string(description)
+  <> "\n"
+  <> "      expected_output: "
+  <> cue_string("Expected successful execution")
+  <> "\n"
+  <> "    }]\n"
+  <> "    error_paths: [{\n"
+  <> "      name: "
+  <> cue_string("test_error_path")
+  <> "\n"
+  <> "      given: "
+  <> cue_string("Invalid input")
+  <> "\n"
+  <> "      when: "
+  <> cue_string("User runs the command")
+  <> "\n"
+  <> "      then: ["
+  <> cue_string("Exit code is non-zero")
+  <> ", "
+  <> cue_string("Error message is clear")
+  <> "]\n"
+  <> "      real_input: "
+  <> cue_string("invalid input")
+  <> "\n"
+  <> "      expected_output: null\n"
+  <> "      expected_error: "
+  <> cue_string("Actionable validation error")
+  <> "\n"
+  <> "    }]\n"
+  <> "  }\n\n"
+  <> "  e2e_tests: {\n"
+  <> "    pipeline_test: {\n"
+  <> "      name: "
+  <> cue_string("test_full_pipeline")
+  <> "\n"
+  <> "      description: "
+  <> cue_string("Validate full CLI workflow")
+  <> "\n"
+  <> "      setup: {}\n"
+  <> "      execute: { command: "
+  <> cue_string(
+    "intent check examples/user-api.cue --target http://localhost:8080",
+  )
+  <> " }\n"
+  <> "      verify: { exit_code: 0 }\n"
+  <> "    }\n"
+  <> "  }\n\n"
+  <> "  verification_checkpoints: {\n"
+  <> "    gate_0_research: {\n"
+  <> "      name: "
+  <> cue_string("Research Gate")
+  <> "\n"
+  <> "      must_pass_before: "
+  <> cue_string("Writing code")
+  <> "\n"
+  <> "      checks: ["
+  <> cue_string("Relevant files reviewed")
+  <> "]\n"
+  <> "      evidence_required: ["
+  <> cue_string("Research notes recorded")
+  <> "]\n"
+  <> "    }\n"
+  <> "    gate_1_tests: {\n"
+  <> "      name: "
+  <> cue_string("Test Gate")
+  <> "\n"
+  <> "      must_pass_before: "
+  <> cue_string("Implementation")
+  <> "\n"
+  <> "      checks: ["
+  <> cue_string("Failing tests exist")
+  <> "]\n"
+  <> "      evidence_required: ["
+  <> cue_string("Test file added")
+  <> "]\n"
+  <> "    }\n"
+  <> "    gate_2_implementation: {\n"
+  <> "      name: "
+  <> cue_string("Implementation Gate")
+  <> "\n"
+  <> "      must_pass_before: "
+  <> cue_string("Completion")
+  <> "\n"
+  <> "      checks: ["
+  <> cue_string("Tests pass")
+  <> "]\n"
+  <> "      evidence_required: ["
+  <> cue_string("Test output captured")
+  <> "]\n"
+  <> "    }\n"
+  <> "    gate_3_integration: {\n"
+  <> "      name: "
+  <> cue_string("Integration Gate")
+  <> "\n"
+  <> "      must_pass_before: "
+  <> cue_string("Closing bead")
+  <> "\n"
+  <> "      checks: ["
+  <> cue_string("Integration flow verified")
+  <> "]\n"
+  <> "      evidence_required: ["
+  <> cue_string("Manual verification complete")
+  <> "]\n"
+  <> "    }\n"
+  <> "  }\n\n"
+  <> "  implementation_tasks: {\n"
+  <> "    phase_0_research: {\n"
+  <> "      parallelizable: true\n"
+  <> "      tasks: [{ task: "
+  <> cue_string("Review existing behavior")
+  <> ", done_when: "
+  <> cue_string("Research complete")
+  <> ", parallel_group: "
+  <> cue_string("research")
+  <> " }]\n"
+  <> "    }\n"
+  <> "    phase_1_tests_first: {\n"
+  <> "      parallelizable: true\n"
+  <> "      gate_required: "
+  <> cue_string("gate_0_research")
+  <> "\n"
+  <> "      tasks: [{ task: "
+  <> cue_string("Write failing tests")
+  <> ", done_when: "
+  <> cue_string("Tests fail for expected reason")
+  <> ", parallel_group: "
+  <> cue_string("tests")
+  <> " }]\n"
+  <> "    }\n"
+  <> "    phase_2_implementation: {\n"
+  <> "      parallelizable: false\n"
+  <> "      gate_required: "
+  <> cue_string("gate_1_tests")
+  <> "\n"
+  <> "      tasks: [{ task: "
+  <> cue_string("Implement required behavior")
+  <> ", done_when: "
+  <> cue_string("Tests pass")
+  <> " }]\n"
+  <> "    }\n"
+  <> "    phase_4_verification: {\n"
+  <> "      parallelizable: true\n"
+  <> "      gate_required: "
+  <> cue_string("gate_2_implementation")
+  <> "\n"
+  <> "      tasks: [{ task: "
+  <> cue_string("Run CI verification")
+  <> ", done_when: "
+  <> cue_string("CI passes")
+  <> ", parallel_group: "
+  <> cue_string("verification")
+  <> " }]\n"
+  <> "    }\n"
+  <> "  }\n\n"
+  <> "  failure_modes: {\n"
+  <> "    failure_modes: [{\n"
+  <> "      symptom: "
+  <> cue_string("Feature does not behave as expected")
+  <> "\n"
+  <> "      likely_cause: "
+  <> cue_string("Implementation diverged from contract")
+  <> "\n"
+  <> "      where_to_look: [{\n"
+  <> "        file: "
+  <> cue_string("src/intent.gleam")
+  <> "\n"
+  <> "        what_to_check: "
+  <> cue_string("Command execution logic")
+  <> "\n"
+  <> "      }]\n"
+  <> "      fix_pattern: "
+  <> cue_string("Align implementation with tests and contracts")
+  <> "\n"
+  <> "    }]\n"
+  <> "  }\n\n"
+  <> "  anti_hallucination: {\n"
+  <> "    read_before_write: [{\n"
+  <> "      file: "
+  <> cue_string("src/intent.gleam")
+  <> "\n"
+  <> "      must_read_first: true\n"
+  <> "      key_sections_to_understand: ["
+  <> cue_string("Command registration and handlers")
+  <> "]\n"
+  <> "    }]\n"
+  <> "    apis_that_exist: []\n"
+  <> "    no_placeholder_values: ["
+  <> cue_string("All values must be derived from real code context")
+  <> "]\n"
+  <> "    git_verification: {\n"
+  <> "      before_claiming_done: "
+  <> cue_string("git status && git diff && gleam test")
+  <> "\n"
+  <> "    }\n"
+  <> "  }\n\n"
+  <> "  context_survival: {\n"
+  <> "    progress_file: {\n"
+  <> "      path: "
+  <> cue_string(".bead-progress/" <> id <> "/progress.txt")
+  <> "\n"
+  <> "      format: "
+  <> cue_string("Markdown checklist")
+  <> "\n"
+  <> "    }\n"
+  <> "    recovery_instructions: "
+  <> cue_string("Read progress file and continue incomplete tasks")
+  <> "\n"
+  <> "  }\n\n"
+  <> "  completion_checklist: {\n"
+  <> "    tests: [\n"
+  <> "      \"[ ] All acceptance tests written and passing\",\n"
+  <> "      \"[ ] All error path tests written and passing\",\n"
+  <> "      \"[ ] E2E pipeline test passing with real data\",\n"
+  <> "      \"[ ] No mocks or fake data in any test\"\n"
+  <> "    ]\n"
+  <> "    code: [\n"
+  <> "      \"[ ] Implementation uses Result<T, Error> throughout\",\n"
+  <> "      \"[ ] Zero unwrap() or expect() calls\"\n"
+  <> "    ]\n"
+  <> "    ci: [\n"
+  <> "      \"[ ] moon run :ci passes\"\n"
+  <> "    ]\n"
+  <> "  }\n\n"
+  <> "  context: {\n"
+  <> "    related_files: [{\n"
+  <> "      path: "
+  <> cue_string("src/intent.gleam")
+  <> "\n"
+  <> "      relevance: "
+  <> cue_string("Primary CLI flow")
+  <> "\n"
+  <> "    }]\n"
+  <> "  }\n\n"
+  <> "  ai_hints: {\n"
+  <> "    do: ["
+  <> cue_string("Follow existing command and output patterns")
+  <> "]\n"
+  <> "    do_not: ["
+  <> cue_string("Do not skip validation gates")
+  <> "]\n"
+  <> "    constitution: ["
+  <> cue_string(
+    "Coder liability is absolute: verify every bead before persistence",
+  )
+  <> "]\n"
+  <> "  }\n"
+  <> "}"
+}
+
+fn normalize_priority(priority: Int) -> Int {
+  case priority < 0 {
+    True -> 0
+    False ->
+      case priority > 4 {
+        True -> 4
+        False -> priority
+      }
+  }
+}
+
+fn profile_component(profile: String) -> String {
+  case string.lowercase(profile) {
+    "api" -> "API"
+    "cli" -> "CLI"
+    "event" -> "EVENT"
+    "data" -> "DATA"
+    "workflow" -> "WORKFLOW"
+    "ui" -> "UI"
+    _ -> "GENERAL"
+  }
+}
+
+fn fallback_title(title: String) -> String {
+  case string.is_empty(string.trim(title)) {
+    True -> "Generated work item"
+    False -> title
+  }
+}
+
+fn fallback_description(description: String) -> String {
+  case string.is_empty(string.trim(description)) {
+    True -> "Generated from interview session"
+    False -> description
+  }
+}
+
+fn cue_string(value: String) -> String {
+  let escaped =
+    value
+    |> string.replace("\\", "\\\\")
+    |> string.replace("\"", "\\\"")
+    |> string.replace("\n", "\\n")
+    |> string.replace("\t", "\\t")
+
+  "\"" <> escaped <> "\""
+}
+
+fn cue_string_list(items: List(String)) -> String {
+  let rendered = items |> list.map(cue_string) |> string.join(", ")
+
+  "[" <> rendered <> "]"
+}
+
 /// Extract beads with specific issue type
 pub fn filter_beads_by_type(
   beads: List(BeadRecord),

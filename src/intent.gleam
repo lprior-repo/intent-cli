@@ -31,10 +31,12 @@ import intent/plan_mode
 import intent/quality_analyzer
 import intent/question_types.{type Question}
 import intent/runner
+import intent/security
 import intent/spec_builder
 import intent/spec_linter
 import intent/stdin
 import intent/types
+import shellout
 import simplifile
 
 /// Exit codes
@@ -49,11 +51,14 @@ const exit_invalid = 3
 const exit_error = 4
 
 pub fn main() {
+  let normalized_args = normalize_cli_args(argv.load().arguments)
+
   glint.new()
   |> glint.with_name("intent")
   |> glint.with_pretty_help(glint.default_pretty_help())
   |> glint.add(at: ["check"], do: check_command())
   |> glint.add(at: ["validate"], do: validate_command())
+  |> glint.add(at: ["validate-bead"], do: validate_bead_command())
   |> glint.add(at: ["show"], do: show_command())
   |> glint.add(at: ["export"], do: export_command())
   |> glint.add(at: ["lint"], do: lint_command())
@@ -81,7 +86,59 @@ pub fn main() {
   // Context scanning
   // TODO: Re-enable when context_scan_command is implemented
   // |> glint.add(at: ["context-scan"], do: context_scan_command())
-  |> glint.run(argv.load().arguments)
+  |> glint.run(normalized_args)
+}
+
+pub fn normalize_cli_args(args: List(String)) -> List(String) {
+  case args {
+    [arg, next, ..rest] -> {
+      case is_bare_bool_flag(arg) {
+        True -> {
+          case is_bool_literal(next) {
+            True -> [
+              arg <> "=" <> string.lowercase(next),
+              ..normalize_cli_args(rest)
+            ]
+            False -> [arg <> "=true", ..normalize_cli_args([next, ..rest])]
+          }
+        }
+        False -> [arg, ..normalize_cli_args([next, ..rest])]
+      }
+    }
+    [arg] -> {
+      case is_bare_bool_flag(arg) {
+        True -> [arg <> "=true"]
+        False -> [arg]
+      }
+    }
+    [] -> []
+  }
+}
+
+fn is_bare_bool_flag(arg: String) -> Bool {
+  string.starts_with(arg, "--")
+  && !string.contains(arg, "=")
+  && is_known_bool_flag(string.drop_left(arg, 2))
+}
+
+fn is_known_bool_flag(flag_name: String) -> Bool {
+  case flag_name {
+    "json" -> True
+    "verbose" -> True
+    "quiet" -> True
+    "strict" -> True
+    "yes" -> True
+    "tokens" -> True
+    _ -> False
+  }
+}
+
+fn is_bool_literal(value: String) -> Bool {
+  case string.lowercase(value) {
+    "true" -> True
+    "false" -> True
+    _ -> False
+  }
 }
 
 /// The `check` command - run spec against a target
@@ -103,12 +160,16 @@ fn check_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "only")
       |> result.unwrap("")
 
-    let output_level = case flag.get_bool(input.flags, "verbose") {
-      Ok(True) -> runner.Verbose
-      _ ->
-        case flag.get_bool(input.flags, "quiet") {
-          Ok(True) -> runner.Quiet
-          _ -> runner.Normal
+    let output_level = case is_json {
+      True -> runner.Quiet
+      False ->
+        case flag.get_bool(input.flags, "verbose") {
+          Ok(True) -> runner.Verbose
+          _ ->
+            case flag.get_bool(input.flags, "quiet") {
+              Ok(True) -> runner.Quiet
+              _ -> runner.Normal
+            }
         }
     }
 
@@ -176,13 +237,21 @@ fn run_check(
   output_level: runner.OutputLevel,
 ) -> Nil {
   // Load the spec
-  case loader.load_spec(spec_path) {
+  let load_result = case is_json {
+    True -> loader.load_spec_quiet(spec_path)
+    False -> loader.load_spec(spec_path)
+  }
+
+  case load_result {
     Error(e) -> {
       cli_ui.print_error(loader.format_error(e))
       halt(exit_invalid)
     }
     Ok(spec) -> {
-      cli_ui.print_header("Checking spec: " <> spec.name)
+      case is_json {
+        True -> Nil
+        False -> cli_ui.print_header("Checking spec: " <> spec.name)
+      }
 
       // Build run options
       let options =
@@ -215,15 +284,24 @@ fn run_check(
       // Exit with appropriate code
       let exit_code = case result {
         output.SpecResult(pass: True, ..) -> {
-          cli_ui.print_success("All checks passed!")
+          case is_json {
+            True -> Nil
+            False -> cli_ui.print_success("All checks passed!")
+          }
           exit_pass
         }
         output.SpecResult(blocked: blocked, ..) if blocked > 0 -> {
-          cli_ui.print_warning("Blocked behaviors detected")
+          case is_json {
+            True -> Nil
+            False -> cli_ui.print_warning("Blocked behaviors detected")
+          }
           exit_blocked
         }
         _ -> {
-          cli_ui.print_error("Check failed")
+          case is_json {
+            True -> Nil
+            False -> cli_ui.print_error("Check failed")
+          }
           exit_fail
         }
       }
@@ -256,6 +334,76 @@ fn validate_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Validate a CUE spec file without running tests")
+}
+
+/// The `validate-bead` command - validate planner bead CUE against enhanced schema
+fn validate_bead_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let draft_mode =
+      flag.get_bool(input.flags, "draft")
+      |> result.unwrap(False)
+
+    let definition = case draft_mode {
+      True -> "#DraftBead"
+      False -> "#ValidBead"
+    }
+
+    case input.args {
+      [bead_path, ..] -> {
+        case security.validate_file_path(bead_path) {
+          Error(security_error) -> {
+            io.println_error(
+              "Error: " <> security.format_security_error(security_error),
+            )
+            halt(exit_error)
+          }
+          Ok(validated_path) -> {
+            case
+              shellout.command(
+                "cue",
+                [
+                  "vet",
+                  "schema/enhanced-bead.cue",
+                  validated_path,
+                  "-d",
+                  definition,
+                ],
+                ".",
+                [],
+              )
+            {
+              Ok(_) -> {
+                cli_ui.print_success(
+                  "Valid bead (" <> definition <> "): " <> validated_path,
+                )
+                halt(exit_pass)
+              }
+              Error(#(_, stderr)) -> {
+                cli_ui.print_error("Bead validation failed:\n" <> stderr)
+                halt(exit_invalid)
+              }
+            }
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Error: bead file path required")
+        io.println_error(
+          "Usage: intent validate-bead <bead.cue> [--draft=true]",
+        )
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description(
+    "Validate planner bead CUE against schema/enhanced-bead.cue",
+  )
+  |> glint.flag(
+    "draft",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Validate against #DraftBead instead of #ValidBead"),
+  )
 }
 
 /// The `show` command - pretty print a parsed spec
@@ -1006,8 +1154,115 @@ fn beads_command() -> glint.Command(Nil) {
             )
             io.println("")
 
+            case ensure_beads_output_dirs() {
+              Error(err) -> {
+                io.println_error(
+                  "✗ Failed to prepare .beads output directories",
+                )
+                io.println_error(err)
+                halt(exit_error)
+              }
+              Ok(Nil) -> Nil
+            }
+
+            let materialized =
+              beads
+              |> list.fold(#(1, [], []), fn(acc, bead) {
+                let #(index, with_headers_rev, schema_files_rev) = acc
+                let bead_id = bead_templates.bead_id_for_index(bead, index)
+                let schema_path = ".beads/schemas/" <> bead_id <> ".cue"
+                let schema_doc =
+                  "package schema\n\n"
+                  <> bead_templates.enhanced_bead_entry(bead, index)
+                  <> "\n"
+
+                let decorated =
+                  bead_templates.with_validation_header(bead, schema_path)
+
+                #(index + 1, [decorated, ..with_headers_rev], [
+                  #(schema_path, schema_doc),
+                  ..schema_files_rev
+                ])
+              })
+              |> fn(tuple) {
+                let #(_, with_headers_rev, schema_files_rev) = tuple
+                #(
+                  list.reverse(with_headers_rev),
+                  list.reverse(schema_files_rev),
+                )
+              }
+
+            let #(beads_with_headers, schema_files) = materialized
+
+            let schema_write_result =
+              list.fold(schema_files, Ok(Nil), fn(acc, item) {
+                case acc {
+                  Error(msg) -> Error(msg)
+                  Ok(Nil) -> {
+                    let #(path, content) = item
+                    case simplifile.write(path, content) {
+                      Ok(Nil) -> Ok(Nil)
+                      Error(err) ->
+                        Error(
+                          "Failed to write schema file "
+                          <> path
+                          <> ": "
+                          <> string.inspect(err),
+                        )
+                    }
+                  }
+                }
+              })
+
+            case schema_write_result {
+              Error(msg) -> {
+                io.println_error("✗ Failed to materialize bead schema files")
+                io.println_error(msg)
+                halt(exit_error)
+              }
+              Ok(Nil) -> Nil
+            }
+
+            // Validate generated beads against the planner schema before writing
+            // customer-facing issue output.
+            let validation_cue = bead_templates.beads_to_enhanced_cue(beads)
+            let validation_path = ".beads/generated-beads.validation.cue"
+
+            case simplifile.write(validation_path, validation_cue) {
+              Error(err) -> {
+                io.println_error(
+                  "✗ Failed to write validation payload: "
+                  <> string.inspect(err),
+                )
+                halt(exit_error)
+              }
+              Ok(Nil) -> {
+                case
+                  shellout.command(
+                    "cue",
+                    ["vet", "schema/enhanced-bead.cue", validation_path],
+                    ".",
+                    [],
+                  )
+                {
+                  Error(#(_, stderr)) -> {
+                    io.println_error(
+                      "✗ Bead schema validation failed. Nothing was exported.",
+                    )
+                    io.println_error(stderr)
+                    halt(exit_invalid)
+                  }
+                  Ok(_) -> {
+                    io.println(
+                      "✓ Generated beads validated against schema/enhanced-bead.cue",
+                    )
+                  }
+                }
+              }
+            }
+
             // Export to .beads/issues.jsonl
-            let jsonl_output = bead_templates.beads_to_jsonl(beads)
+            let jsonl_output = bead_templates.beads_to_jsonl(beads_with_headers)
 
             case
               simplifile.append(".beads/issues.jsonl", jsonl_output <> "\n")
@@ -1042,6 +1297,13 @@ fn beads_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("Generate work items (beads) from an interview session")
+}
+
+fn ensure_beads_output_dirs() -> Result(Nil, String) {
+  case shellout.command("mkdir", ["-p", ".beads/schemas"], ".", []) {
+    Ok(_) -> Ok(Nil)
+    Error(#(_, stderr)) -> Error(stderr)
+  }
 }
 
 /// Mark a bead with execution status (success/failed/blocked)
