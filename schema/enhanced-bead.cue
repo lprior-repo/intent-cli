@@ -86,10 +86,10 @@ import "strings"
 
 #EarsRequirements: {
 	// Pattern 1: Universal truths (always true)
-	ubiquitous: [...#UbiquitousRequirement]
+	ubiquitous: [...#UbiquitousRequirement] & [_, ...]
 
 	// Pattern 2: Trigger-response pairs
-	event_driven: [...#EventDrivenRequirement]
+	event_driven: [...#EventDrivenRequirement] & [_, ...]
 
 	// Pattern 3: Behavior during states
 	state_driven?: [...#StateDrivenRequirement]
@@ -98,7 +98,7 @@ import "strings"
 	optional?: [...#OptionalRequirement]
 
 	// Pattern 5: Things that must NEVER happen
-	unwanted: [...#UnwantedRequirement]  // Required - inversion thinking
+	unwanted: [...#UnwantedRequirement] & [_, ...]  // Required - inversion thinking
 
 	// Pattern 6: State + Event combinations
 	complex?: [...#ComplexRequirement]

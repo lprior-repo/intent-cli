@@ -18,6 +18,7 @@ import intent/interview.{
 import intent/question_types.{
   type Perspective, Business, Developer, Ops, Security, User,
 }
+import shellout
 import simplifile
 
 /// Session record for storage
@@ -714,10 +715,9 @@ pub fn append_session_to_jsonl(
   session: InterviewSession,
   jsonl_path: String,
 ) -> Result(Nil, String) {
-  use existing <- result.try(
-    simplifile.read(jsonl_path)
-    |> result.map_error(fn(_) { "" }),
-  )
+  use _ <- result.try(ensure_parent_directory(jsonl_path))
+
+  let existing = simplifile.read(jsonl_path) |> result.unwrap("")
 
   let lines = case existing {
     "" -> []
@@ -741,6 +741,35 @@ pub fn append_session_to_jsonl(
   |> result.map_error(fn(err) {
     "Failed to write JSONL: " <> string.inspect(err)
   })
+}
+
+fn ensure_parent_directory(path: String) -> Result(Nil, String) {
+  let path_parts = string.split(path, "/")
+
+  case list.reverse(path_parts) {
+    [] -> Ok(Nil)
+    [_file] -> Ok(Nil)
+    [_file, ..reversed_parent] -> {
+      let parent = reversed_parent |> list.reverse |> string.join("/")
+
+      case string.trim(parent) == "" {
+        True -> Ok(Nil)
+        False -> {
+          case shellout.command("mkdir", ["-p", parent], ".", []) {
+            Ok(_) -> Ok(Nil)
+            Error(#(_code, stderr)) -> {
+              Error(
+                "Failed to create parent directory '"
+                <> parent
+                <> "': "
+                <> stderr,
+              )
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /// List all sessions from JSONL file
@@ -927,6 +956,11 @@ fn session_decoder(
   )
   use stage_str <- result.try(dynamic.field("stage", dynamic.string)(json_value))
   use stage <- result.try(case stage_str {
+    "discovery" -> Ok(interview.Discovery)
+    "refinement" -> Ok(interview.Refinement)
+    "validation" -> Ok(interview.Validation)
+    "complete" -> Ok(interview.Complete)
+    "paused" -> Ok(interview.Paused)
     "Discovery" -> Ok(interview.Discovery)
     "Refinement" -> Ok(interview.Refinement)
     "Validation" -> Ok(interview.Validation)
@@ -938,6 +972,15 @@ fn session_decoder(
     "rounds_completed",
     dynamic.int,
   )(json_value))
+  let answers =
+    dynamic.field("answers", dynamic.list(answer_decoder))(json_value)
+    |> result.unwrap([])
+  let gaps =
+    dynamic.field("gaps", dynamic.list(gap_decoder))(json_value)
+    |> result.unwrap([])
+  let conflicts =
+    dynamic.field("conflicts", dynamic.list(conflict_decoder))(json_value)
+    |> result.unwrap([])
   use raw_notes <- result.try(
     dynamic.field("raw_notes", dynamic.string)(json_value)
     |> result.map_error(fn(_) { [] }),
@@ -951,9 +994,159 @@ fn session_decoder(
     completed_at: completed_at,
     stage: stage,
     rounds_completed: rounds_completed,
-    answers: [],
-    gaps: [],
-    conflicts: [],
+    answers: answers,
+    gaps: gaps,
+    conflicts: conflicts,
     raw_notes: raw_notes,
   ))
+}
+
+fn answer_decoder(
+  json_value: dynamic.Dynamic,
+) -> Result(Answer, dynamic.DecodeErrors) {
+  use question_id <- result.try(dynamic.field("question_id", dynamic.string)(
+    json_value,
+  ))
+  use question_text <- result.try(dynamic.field("question_text", dynamic.string)(
+    json_value,
+  ))
+  use perspective_str <- result.try(dynamic.field("perspective", dynamic.string)(
+    json_value,
+  ))
+  use perspective <- result.try(perspective_from_string(perspective_str))
+  use round <- result.try(dynamic.field("round", dynamic.int)(json_value))
+  use response <- result.try(dynamic.field("response", dynamic.string)(
+    json_value,
+  ))
+  let extracted =
+    dynamic.field("extracted", dynamic.dict(dynamic.string, dynamic.string))(
+      json_value,
+    )
+    |> result.unwrap(dict.new())
+  let confidence =
+    dynamic.field("confidence", dynamic.float)(json_value) |> result.unwrap(0.0)
+  let notes =
+    dynamic.field("notes", dynamic.string)(json_value) |> result.unwrap("")
+  let timestamp =
+    dynamic.field("timestamp", dynamic.string)(json_value) |> result.unwrap("")
+
+  Ok(interview.Answer(
+    question_id: question_id,
+    question_text: question_text,
+    perspective: perspective,
+    round: round,
+    response: response,
+    extracted: extracted,
+    confidence: confidence,
+    notes: notes,
+    timestamp: timestamp,
+  ))
+}
+
+fn gap_decoder(json_value: dynamic.Dynamic) -> Result(Gap, dynamic.DecodeErrors) {
+  use id <- result.try(dynamic.field("id", dynamic.string)(json_value))
+  use field <- result.try(dynamic.field("field", dynamic.string)(json_value))
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    json_value,
+  ))
+  use blocking <- result.try(dynamic.field("blocking", dynamic.bool)(json_value))
+  let suggested_default =
+    dynamic.field("suggested_default", dynamic.string)(json_value)
+    |> result.unwrap("")
+  let why_needed =
+    dynamic.field("why_needed", dynamic.string)(json_value) |> result.unwrap("")
+  let round =
+    dynamic.field("round", dynamic.int)(json_value) |> result.unwrap(0)
+  let resolved =
+    dynamic.field("resolved", dynamic.bool)(json_value) |> result.unwrap(False)
+  let resolution =
+    dynamic.field("resolution", dynamic.string)(json_value) |> result.unwrap("")
+
+  Ok(interview.Gap(
+    id: id,
+    field: field,
+    description: description,
+    blocking: blocking,
+    suggested_default: suggested_default,
+    why_needed: why_needed,
+    round: round,
+    resolved: resolved,
+    resolution: resolution,
+  ))
+}
+
+fn conflict_decoder(
+  json_value: dynamic.Dynamic,
+) -> Result(Conflict, dynamic.DecodeErrors) {
+  use id <- result.try(dynamic.field("id", dynamic.string)(json_value))
+  use between_list <- result.try(dynamic.field(
+    "between",
+    dynamic.list(dynamic.string),
+  )(json_value))
+  use between <- result.try(between_from_list(between_list))
+  use description <- result.try(dynamic.field("description", dynamic.string)(
+    json_value,
+  ))
+  let impact =
+    dynamic.field("impact", dynamic.string)(json_value) |> result.unwrap("")
+  let options =
+    dynamic.field("options", dynamic.list(conflict_resolution_decoder))(
+      json_value,
+    )
+    |> result.unwrap([])
+  let chosen =
+    dynamic.field("chosen", dynamic.int)(json_value) |> result.unwrap(-1)
+
+  Ok(interview.Conflict(
+    id: id,
+    between: between,
+    description: description,
+    impact: impact,
+    options: options,
+    chosen: chosen,
+  ))
+}
+
+fn conflict_resolution_decoder(
+  json_value: dynamic.Dynamic,
+) -> Result(ConflictResolution, dynamic.DecodeErrors) {
+  let option =
+    dynamic.field("option", dynamic.string)(json_value) |> result.unwrap("")
+  let description =
+    dynamic.field("description", dynamic.string)(json_value)
+    |> result.unwrap("")
+  let tradeoffs =
+    dynamic.field("tradeoffs", dynamic.string)(json_value) |> result.unwrap("")
+  let recommendation =
+    dynamic.field("recommendation", dynamic.string)(json_value)
+    |> result.unwrap("")
+
+  Ok(interview.ConflictResolution(
+    option: option,
+    description: description,
+    tradeoffs: tradeoffs,
+    recommendation: recommendation,
+  ))
+}
+
+fn between_from_list(
+  values: List(String),
+) -> Result(#(String, String), dynamic.DecodeErrors) {
+  case values {
+    [a, b] -> Ok(#(a, b))
+    _ -> Error([dynamic.DecodeError("between", "two strings", [])])
+  }
+}
+
+fn perspective_from_string(
+  value: String,
+) -> Result(Perspective, dynamic.DecodeErrors) {
+  case value {
+    "user" | "User" -> Ok(User)
+    "developer" | "Developer" -> Ok(Developer)
+    "ops" | "Ops" -> Ok(Ops)
+    "security" | "Security" -> Ok(Security)
+    "business" | "Business" -> Ok(Business)
+    _ -> Error([dynamic.DecodeError("perspective", "valid perspective", [])])
+  }
 }

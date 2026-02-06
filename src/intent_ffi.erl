@@ -40,4 +40,8 @@ to_hex(N, Width) ->
 %% Get current timestamp in ISO 8601 format
 current_timestamp() ->
     Now = erlang:system_time(millisecond),
-    calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]).
+    Timestamp = calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]),
+    case is_list(Timestamp) of
+        true -> list_to_binary(Timestamp);
+        false -> Timestamp
+    end.

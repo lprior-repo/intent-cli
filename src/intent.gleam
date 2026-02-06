@@ -53,47 +53,53 @@ const exit_error = 4
 pub fn main() {
   let normalized_args = normalize_cli_args(argv.load().arguments)
 
-  glint.new()
-  |> glint.with_name("intent")
-  |> glint.with_pretty_help(glint.default_pretty_help())
-  |> glint.add(at: ["check"], do: check_command())
-  |> glint.add(at: ["validate"], do: validate_command())
-  |> glint.add(at: ["validate-bead"], do: validate_bead_command())
-  |> glint.add(at: ["show"], do: show_command())
-  |> glint.add(at: ["export"], do: export_command())
-  |> glint.add(at: ["lint"], do: lint_command())
-  |> glint.add(at: ["analyze"], do: analyze_command())
-  |> glint.add(at: ["improve"], do: improve_command())
-  |> glint.add(at: ["interview"], do: interview_command())
-  |> glint.add(at: ["beads"], do: beads_command())
-  |> glint.add(at: ["bead-status"], do: bead_status_command())
-  |> glint.add(at: ["history"], do: history_command())
-  |> glint.add(at: ["diff"], do: diff_command())
-  |> glint.add(at: ["sessions"], do: sessions_command())
-  // KIRK commands
-  |> glint.add(at: ["quality"], do: kirk_quality_command())
-  |> glint.add(at: ["invert"], do: kirk_invert_command())
-  |> glint.add(at: ["coverage"], do: kirk_coverage_command())
-  |> glint.add(at: ["gaps"], do: kirk_gaps_command())
-  |> glint.add(at: ["compact"], do: kirk_compact_command())
-  |> glint.add(at: ["prototext"], do: kirk_prototext_command())
-  |> glint.add(at: ["ears"], do: kirk_ears_command())
-  |> glint.add(at: ["effects"], do: kirk_effects_command())
-  // Plan commands
-  |> glint.add(at: ["plan"], do: plan_command())
-  |> glint.add(at: ["plan-approve"], do: plan_approve_command())
-  |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
-  // Context scanning
-  // TODO: Re-enable when context_scan_command is implemented
-  // |> glint.add(at: ["context-scan"], do: context_scan_command())
-  |> glint.run(normalized_args)
+  let app =
+    glint.new()
+    |> glint.with_name("intent")
+    |> glint.with_pretty_help(glint.default_pretty_help())
+    |> glint.add(at: ["check"], do: check_command())
+    |> glint.add(at: ["validate"], do: validate_command())
+    |> glint.add(at: ["validate-bead"], do: validate_bead_command())
+    |> glint.add(at: ["show"], do: show_command())
+    |> glint.add(at: ["export"], do: export_command())
+    |> glint.add(at: ["lint"], do: lint_command())
+    |> glint.add(at: ["analyze"], do: analyze_command())
+    |> glint.add(at: ["improve"], do: improve_command())
+    |> glint.add(at: ["interview"], do: interview_command())
+    |> glint.add(at: ["beads"], do: beads_command())
+    |> glint.add(at: ["bead-status"], do: bead_status_command())
+    |> glint.add(at: ["history"], do: history_command())
+    |> glint.add(at: ["diff"], do: diff_command())
+    |> glint.add(at: ["sessions"], do: sessions_command())
+    // KIRK commands
+    |> glint.add(at: ["quality"], do: kirk_quality_command())
+    |> glint.add(at: ["invert"], do: kirk_invert_command())
+    |> glint.add(at: ["coverage"], do: kirk_coverage_command())
+    |> glint.add(at: ["gaps"], do: kirk_gaps_command())
+    |> glint.add(at: ["compact"], do: kirk_compact_command())
+    |> glint.add(at: ["prototext"], do: kirk_prototext_command())
+    |> glint.add(at: ["ears"], do: kirk_ears_command())
+    |> glint.add(at: ["effects"], do: kirk_effects_command())
+    // Plan commands
+    |> glint.add(at: ["plan"], do: plan_command())
+    |> glint.add(at: ["plan-approve"], do: plan_approve_command())
+    |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
+
+  case glint.execute(app, normalized_args) {
+    Ok(glint.Out(_)) -> Nil
+    Ok(glint.Help(help_text)) -> io.println(help_text)
+    Error(err) -> {
+      io.println_error(err)
+      halt(exit_error)
+    }
+  }
 }
 
 pub fn normalize_cli_args(args: List(String)) -> List(String) {
   case args {
     [arg, next, ..rest] -> {
-      case is_bare_bool_flag(arg) {
-        True -> {
+      case classify_flag(arg) {
+        BoolFlag -> {
           case is_bool_literal(next) {
             True -> [
               arg <> "=" <> string.lowercase(next),
@@ -102,23 +108,51 @@ pub fn normalize_cli_args(args: List(String)) -> List(String) {
             False -> [arg <> "=true", ..normalize_cli_args([next, ..rest])]
           }
         }
-        False -> [arg, ..normalize_cli_args([next, ..rest])]
+        ValueFlag -> {
+          case is_flag_token(next) {
+            True -> [arg, ..normalize_cli_args([next, ..rest])]
+            False -> [arg <> "=" <> next, ..normalize_cli_args(rest)]
+          }
+        }
+        UnknownFlag -> [arg, ..normalize_cli_args([next, ..rest])]
       }
     }
     [arg] -> {
-      case is_bare_bool_flag(arg) {
-        True -> [arg <> "=true"]
-        False -> [arg]
+      case classify_flag(arg) {
+        BoolFlag -> [arg <> "=true"]
+        _ -> [arg]
       }
     }
     [] -> []
   }
 }
 
-fn is_bare_bool_flag(arg: String) -> Bool {
-  string.starts_with(arg, "--")
-  && !string.contains(arg, "=")
-  && is_known_bool_flag(string.drop_left(arg, 2))
+type FlagKind {
+  BoolFlag
+  ValueFlag
+  UnknownFlag
+}
+
+fn classify_flag(arg: String) -> FlagKind {
+  let is_candidate = string.starts_with(arg, "--") && !string.contains(arg, "=")
+  bool_to_flag_kind(is_candidate, string.drop_left(arg, 2))
+}
+
+fn bool_to_flag_kind(is_candidate: Bool, flag_name: String) -> FlagKind {
+  case is_candidate {
+    False -> UnknownFlag
+    True -> {
+      case is_known_bool_flag(flag_name) {
+        True -> BoolFlag
+        False -> {
+          case is_known_value_flag(flag_name) {
+            True -> ValueFlag
+            False -> UnknownFlag
+          }
+        }
+      }
+    }
+  }
 }
 
 fn is_known_bool_flag(flag_name: String) -> Bool {
@@ -129,8 +163,37 @@ fn is_known_bool_flag(flag_name: String) -> Bool {
     "strict" -> True
     "yes" -> True
     "tokens" -> True
+    "draft" -> True
     _ -> False
   }
+}
+
+fn is_known_value_flag(flag_name: String) -> Bool {
+  case flag_name {
+    "target" -> True
+    "feature" -> True
+    "only" -> True
+    "profile" -> True
+    "resume" -> True
+    "answers" -> True
+    "export" -> True
+    "bead-id" -> True
+    "status" -> True
+    "reason" -> True
+    "session" -> True
+    "format" -> True
+    "notes" -> True
+    "strategy" -> True
+    "output" -> True
+    "out" -> True
+    "name" -> True
+    "export-answers-template" -> True
+    _ -> False
+  }
+}
+
+fn is_flag_token(value: String) -> Bool {
+  string.starts_with(value, "--")
 }
 
 fn is_bool_literal(value: String) -> Bool {
@@ -667,6 +730,33 @@ fn interview_command() -> glint.Command(Nil) {
       flag.get_bool(input.flags, "strict")
       |> result.unwrap(False)
 
+    let export_answers_template =
+      flag.get_string(input.flags, "export-answers-template")
+      |> result.unwrap("")
+
+    case export_answers_template {
+      "" -> Nil
+      path -> {
+        case profile_str {
+          "api" -> export_answers_template_for_profile(interview.Api, path)
+          "cli" -> export_answers_template_for_profile(interview.Cli, path)
+          "event" -> export_answers_template_for_profile(interview.Event, path)
+          "data" -> export_answers_template_for_profile(interview.Data, path)
+          "workflow" ->
+            export_answers_template_for_profile(interview.Workflow, path)
+          "ui" -> export_answers_template_for_profile(interview.UI, path)
+          _ -> {
+            io.println_error(
+              "Invalid profile: "
+              <> profile_str
+              <> " (must be api, cli, event, data, workflow, or ui)",
+            )
+            halt(exit_error)
+          }
+        }
+      }
+    }
+
     case resume_id {
       // Resume an existing session
       "" ->
@@ -740,6 +830,82 @@ fn interview_command() -> glint.Command(Nil) {
       |> flag.default("")
       |> flag.description("Export completed interview to spec file"),
   )
+  |> glint.flag(
+    "export-answers-template",
+    flag.string()
+      |> flag.default("")
+      |> flag.description(
+        "Export a JSON template of required interview answers and exit",
+      ),
+  )
+}
+
+fn export_answers_template_for_profile(
+  profile: interview.Profile,
+  output_path: String,
+) -> Nil {
+  let profile_str = profile_to_string(profile)
+  let template = build_answers_template_json(profile_str)
+
+  case output_path {
+    "-" -> io.println(template)
+    path -> {
+      case simplifile.write(path, template) {
+        Ok(Nil) -> io.println("✓ Answers template exported to: " <> path)
+        Error(err) -> {
+          io.println_error(
+            "✗ Failed to export answers template: " <> string.inspect(err),
+          )
+          halt(exit_error)
+        }
+      }
+    }
+  }
+
+  halt(exit_pass)
+}
+
+fn build_answers_template_json(profile: String) -> String {
+  let all_questions =
+    [1, 2, 3, 4, 5]
+    |> list.flat_map(fn(round) {
+      interview_questions.get_questions_for_round(profile, round)
+    })
+
+  let answer_entries =
+    all_questions
+    |> list.map(fn(q) { #(q.id, json.string("")) })
+
+  let extract_key_entries =
+    all_questions
+    |> list.flat_map(fn(q) {
+      q.extract_into
+      |> list.map(fn(k) { #(k, json.string("")) })
+    })
+
+  let combined =
+    answer_entries
+    |> list.append(extract_key_entries)
+    |> dedupe_template_entries
+
+  combined
+  |> json.object
+  |> json.to_string
+}
+
+fn dedupe_template_entries(
+  entries: List(#(String, json.Json)),
+) -> List(#(String, json.Json)) {
+  let by_key =
+    entries
+    |> list.fold(dict.new(), fn(acc, entry) {
+      let #(key, value) = entry
+      dict.insert(acc, key, value)
+    })
+
+  by_key
+  |> dict.to_list
+  |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
 }
 
 fn run_interview(
@@ -794,6 +960,16 @@ fn run_interview(
     }
   }
 
+  case strict_mode, answers_dict {
+    True, None -> {
+      io.println_error(
+        "✗ Strict mode requires --answers with a valid answers file",
+      )
+      halt(exit_error)
+    }
+    _, _ -> Nil
+  }
+
   // Print welcome message
   io.println("")
   io.println(
@@ -828,7 +1004,7 @@ fn run_interview(
   io.println("")
 
   // Run the interview loop
-  let final_session = interview_loop(session, 1)
+  let final_session = interview_loop(session, 1, answers_dict, strict_mode)
 
   // Save session to JSONL
   let save_result =
@@ -898,8 +1074,17 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
       )
       io.println("")
 
-      // Determine which round to resume from
-      let next_round = case session.rounds_completed {
+      // Determine which round to resume from using recorded answers.
+      // rounds_completed can be stale in older session snapshots.
+      let last_answered_round =
+        list.fold(session.answers, 0, fn(acc, answer) {
+          case answer.round > acc {
+            True -> answer.round
+            False -> acc
+          }
+        })
+
+      let next_round = case last_answered_round {
         0 -> 1
         r if r < 5 -> r + 1
         _ -> 5
@@ -909,7 +1094,7 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
       io.println("")
 
       // Continue the interview from the next round
-      let final_session = interview_loop(session, next_round)
+      let final_session = interview_loop(session, next_round, None, False)
 
       // Save updated session
       let save_result =
@@ -952,6 +1137,8 @@ fn run_resume_interview(session_id: String, export_to: String) -> Nil {
 fn interview_loop(
   session: interview.InterviewSession,
   round: Int,
+  answers_dict: option.Option(dict.Dict(String, String)),
+  strict_mode: Bool,
 ) -> interview.InterviewSession {
   case round > 5 {
     True -> session
@@ -970,17 +1157,29 @@ fn interview_loop(
       case interview.get_first_question_for_round(session, round) {
         Error(_) -> {
           io.println("(No questions for this round)")
-          interview_loop(session, round + 1)
+          interview_loop(session, round + 1, answers_dict, strict_mode)
         }
         Ok(first_question) -> {
           // Ask all questions in this round
           let updated_session =
-            ask_questions_in_round(session, round, first_question)
+            ask_questions_in_round(
+              session,
+              round,
+              first_question,
+              answers_dict,
+              strict_mode,
+            )
 
           // Check for blocking gaps before proceeding
           let blocking_gaps = interview.get_blocking_gaps(updated_session)
           case blocking_gaps {
-            [] -> interview_loop(updated_session, round + 1)
+            [] ->
+              interview_loop(
+                updated_session,
+                round + 1,
+                answers_dict,
+                strict_mode,
+              )
             gaps -> {
               io.println("")
               io.println("⚠️ BLOCKING GAPS DETECTED:")
@@ -989,7 +1188,12 @@ fn interview_loop(
                 io.println("    " <> gap.why_needed)
               })
               io.println("")
-              interview_loop(updated_session, round + 1)
+              interview_loop(
+                updated_session,
+                round + 1,
+                answers_dict,
+                strict_mode,
+              )
             }
           }
         }
@@ -1003,6 +1207,8 @@ fn ask_questions_in_round(
   session: interview.InterviewSession,
   round: Int,
   _current_question: Question,
+  answers_dict: option.Option(dict.Dict(String, String)),
+  strict_mode: Bool,
 ) -> interview.InterviewSession {
   let profile_str = profile_to_string(session.profile)
 
@@ -1017,7 +1223,7 @@ fn ask_questions_in_round(
 
   // Ask each unanswered question
   list.fold(unanswered, session, fn(sess, question) {
-    ask_single_question(sess, question, round)
+    ask_single_question(sess, question, round, answers_dict, strict_mode)
   })
 }
 
@@ -1026,6 +1232,8 @@ fn ask_single_question(
   session: interview.InterviewSession,
   question: Question,
   round: Int,
+  answers_dict: option.Option(dict.Dict(String, String)),
+  strict_mode: Bool,
 ) -> interview.InterviewSession {
   io.println("")
   io.print("Q" <> string.inspect(question.priority) <> ": ")
@@ -1043,14 +1251,55 @@ fn ask_single_question(
 
   io.print("")
 
-  // Read answer from stdin with validation
-  let answer_text = case stdin.prompt_for_answer("> ") {
-    Ok(text) -> text
-    Error(err) -> {
-      io.println_error("Error reading input: " <> err)
-      io.println("")
-      // Return placeholder if input fails
-      "(input error - please try again)"
+  // Resolve answer from pre-filled data first, then fallback to stdin
+  let answer_text = case prefilled_answer_for_question(question, answers_dict) {
+    Some(answer) -> {
+      io.println("   Pre-filled: " <> answer)
+      answer
+    }
+    None -> {
+      case strict_mode {
+        True -> {
+          io.println_error("")
+          io.println_error("✗ Missing required answer in strict mode")
+          io.println_error("  Question ID: " <> question.id)
+          io.println_error("  Question: " <> question.question)
+          io.println_error(
+            "  Add this key to your answers file and re-run interview",
+          )
+          halt(exit_error)
+          ""
+        }
+        False -> {
+          case answers_dict {
+            Some(_) -> {
+              let fallback = default_answer_for_question(question)
+              io.println("   Defaulted: " <> fallback)
+              fallback
+            }
+            None -> {
+              case stdin.prompt_for_answer("> ") {
+                Ok(text) -> text
+                Error(err) -> {
+                  case string.contains(err, "EOF") {
+                    True -> {
+                      let fallback = default_answer_for_question(question)
+                      io.println("   Defaulted (EOF): " <> fallback)
+                      fallback
+                    }
+                    False -> {
+                      io.println_error("Error reading input: " <> err)
+                      io.println("")
+                      // Return placeholder if input fails
+                      "(input error - please try again)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -1091,6 +1340,57 @@ fn ask_single_question(
     interview.check_for_conflicts(sess_with_gaps, answer)
 
   sess_final
+}
+
+fn prefilled_answer_for_question(
+  question: Question,
+  answers_dict: option.Option(dict.Dict(String, String)),
+) -> option.Option(String) {
+  case answers_dict {
+    None -> None
+    Some(answers) -> {
+      case dict.get(answers, question.id) {
+        Ok(value) -> non_empty_answer(value)
+        Error(_) ->
+          prefilled_answer_from_extract_keys(question.extract_into, answers)
+      }
+    }
+  }
+}
+
+fn prefilled_answer_from_extract_keys(
+  keys: List(String),
+  answers: dict.Dict(String, String),
+) -> option.Option(String) {
+  case keys {
+    [] -> None
+    [key, ..rest] -> {
+      case dict.get(answers, key) {
+        Ok(value) -> {
+          case non_empty_answer(value) {
+            Some(answer) -> Some(answer)
+            None -> prefilled_answer_from_extract_keys(rest, answers)
+          }
+        }
+        Error(_) -> prefilled_answer_from_extract_keys(rest, answers)
+      }
+    }
+  }
+}
+
+fn non_empty_answer(value: String) -> option.Option(String) {
+  let normalized = string.trim(value)
+  case normalized == "" {
+    True -> None
+    False -> Some(normalized)
+  }
+}
+
+fn default_answer_for_question(question: Question) -> String {
+  case non_empty_answer(question.example) {
+    Some(example) -> example
+    None -> "(not specified)"
+  }
 }
 
 /// Helper: convert Profile to string for questions module
@@ -1240,7 +1540,13 @@ fn beads_command() -> glint.Command(Nil) {
                 case
                   shellout.command(
                     "cue",
-                    ["vet", "schema/enhanced-bead.cue", validation_path],
+                    [
+                      "vet",
+                      "-d",
+                      "#EnhancedBead",
+                      "schema/enhanced-bead.cue",
+                      validation_path,
+                    ],
                     ".",
                     [],
                   )
@@ -1711,12 +2017,29 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "strategy")
       |> result.unwrap("hybrid")
 
+    let is_valid_strategy =
+      strategy == "hybrid" || strategy == "inversion" || strategy == "premortem"
+
+    case is_valid_strategy {
+      True -> Nil
+      False -> {
+        io.println_error("Invalid strategy: " <> strategy)
+        io.println_error("Valid strategies: hybrid, inversion, premortem")
+        halt(exit_error)
+      }
+    }
+
     case input.args {
       [session_id, ..] -> {
         let session_path = ".intent/session-" <> session_id <> ".cue"
 
         // Check session exists
         case simplifile.verify_is_file(session_path) {
+          Ok(False) -> {
+            io.println_error("Session not found: " <> session_id)
+            io.println_error("Expected file: " <> session_path)
+            halt(exit_error)
+          }
           Error(_) -> {
             io.println_error("Session not found: " <> session_id)
             io.println_error("Expected file: " <> session_path)
@@ -2604,6 +2927,20 @@ fn kirk_ears_command() -> glint.Command(Nil) {
     let output_format =
       flag.get_string(input.flags, "output")
       |> result.unwrap("text")
+
+    let is_valid_output =
+      output_format == "text"
+      || output_format == "cue"
+      || output_format == "json"
+
+    case is_valid_output {
+      True -> Nil
+      False -> {
+        io.println_error("Invalid output format: " <> output_format)
+        io.println_error("Valid formats: text, cue, json")
+        halt(exit_error)
+      }
+    }
 
     let output_file =
       flag.get_string(input.flags, "out")
