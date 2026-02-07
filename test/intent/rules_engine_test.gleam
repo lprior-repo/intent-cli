@@ -85,7 +85,7 @@ pub fn test_rule_passes_when_no_violations() {
 
   case results {
     [RulePassed(rule_name)] ->
-      assert.Equal("pass_rule", rule_name)
+      should.equal("pass_rule", rule_name)
     _ ->
       assert.fail("Expected RulePassed")
   }
@@ -116,17 +116,18 @@ pub fn test_rule_fails_when_required_string_missing() {
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
   case results {
-    [RuleFailed(rule_name, description, violations)] ->
-      assert.Equal("missing_string_rule", rule_name)
-      assert.Equal("Missing success string", description)
-      assert.Equal(1, list.length(violations))
+    [RuleFailed(rule_name, description, violations)] -> {
+      should.equal("missing_string_rule", rule_name)
+      should.equal("Missing success string", description)
+      should.equal(1, list.length(violations))
 
       case violations {
         [rules_engine.BodyMissing(required)] ->
-          assert.Equal("success", required)
+          should.equal("success", required)
         _ ->
           assert.fail("Expected BodyMissing violation")
       }
+    }
     _ ->
       assert.fail("Expected RuleFailed")
   }
@@ -160,7 +161,7 @@ pub fn test_rule_fails_when_forbidden_string_present() {
     [RuleFailed(_, _, violations)] ->
       case violations {
         [rules_engine.BodyContains(forbidden, _)] ->
-          assert.Equal("error", forbidden)
+          should.equal("error", forbidden)
         _ ->
           assert.fail("Expected BodyContains violation")
       }
@@ -273,10 +274,10 @@ pub fn test_rule_fails_when_fields_missing() {
 
   case results {
     [RuleFailed(_, _, violations)] ->
-      assert.Equal(1, list.length(violations))
+      should.equal(1, list.length(violations))
       case violations {
         [rules_engine.FieldMissing(field)] ->
-          assert.Equal("user.profile.email", field)
+          should.equal("user.profile.email", field)
         _ ->
           assert.fail("Expected FieldMissing violation")
       }
@@ -355,7 +356,7 @@ pub fn test_rule_fails_when_fields_exist_forbidden() {
     [RuleFailed(_, _, violations)] ->
       case violations {
         [rules_engine.FieldPresent(field)] ->
-          assert.Equal("password", field)
+          should.equal("password", field)
         _ ->
           assert.fail("Expected FieldPresent violation")
       }
@@ -473,7 +474,7 @@ pub fn test_rule_fails_when_header_missing() {
     [RuleFailed(_, _, violations)] ->
       case violations {
         [rules_engine.HeaderMissing(header)] ->
-          assert.Equal("Authorization", header)
+          should.equal("Authorization", header)
         _ ->
           assert.fail("Expected HeaderMissing violation")
       }
@@ -542,7 +543,7 @@ pub fn test_rule_fails_when_header_exists_forbidden() {
     [RuleFailed(_, _, violations)] ->
       case violations {
         [rules_engine.HeaderPresent(header)] ->
-          assert.Equal("X-Secret", header)
+          should.equal("X-Secret", header)
         _ ->
           assert.fail("Expected HeaderPresent violation")
       }
@@ -578,10 +579,10 @@ pub fn test_rule_uses_case_insensitive_header_matching() {
   case results {
     [RuleFailed(_, _, violations)] ->
       // Should fail because X-Secret header exists (case insensitive)
-      assert.Equal(1, list.length(violations))
+      should.equal(1, list.length(violations))
       case violations {
         [rules_engine.HeaderPresent(header)] ->
-          assert.Equal("x-secret", header)
+          should.equal("x-secret", header)
         _ ->
           assert.fail("Expected HeaderPresent violation")
       }
@@ -650,7 +651,7 @@ pub fn test_rule_does_not_apply_when_status_mismatch() {
 
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
-  assert.Equal(0, list.length(results))
+  should.equal(0, list.length(results))
 }
 
 /// Test rule doesn't apply when method doesn't match
@@ -677,7 +678,7 @@ pub fn test_rule_does_not_apply_when_method_mismatch() {
 
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
-  assert.Equal(0, list.length(results))
+  should.equal(0, list.length(results))
 }
 
 /// Test rule doesn't apply when path doesn't match
@@ -704,7 +705,7 @@ pub fn test_rule_does_not_apply_when_path_mismatch() {
 
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
-  assert.Equal(0, list.length(results))
+  should.equal(0, list.length(results))
 }
 
 /// Test rule applies when path matches exactly
@@ -795,7 +796,7 @@ pub fn test_rule_does_not_apply_when_path_regex_mismatch() {
 
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
-  assert.Equal(0, list.length(results))
+  should.equal(0, list.length(results))
 }
 
 // ============================================================================
@@ -896,7 +897,7 @@ pub fn test_rule_with_empty_string_checks() {
   case results {
     [RuleFailed(_, _, violations)] ->
       // Empty string in body_must_contain should fail
-      assert.Equal(1, list.length(violations))
+      should.equal(1, list.length(violations))
     [RulePassed(_)] ->
       assert.fail("Expected RuleFailed")
     _ ->
@@ -931,7 +932,7 @@ pub fn test_rule_with_null_json_body() {
   case results {
     [RuleFailed(_, _, violations)] ->
       // Should fail because null JSON has no fields
-      assert.Equal(1, list.length(violations))
+      should.equal(1, list.length(violations))
     _ ->
       assert.fail("Expected RuleFailed")
   }
@@ -964,7 +965,7 @@ pub fn test_rule_with_empty_json_body() {
   case results {
     [RuleFailed(_, _, violations)] ->
       // Should fail because empty JSON has no fields
-      assert.Equal(1, list.length(violations))
+      should.equal(1, list.length(violations))
     _ ->
       assert.fail("Expected RuleFailed")
   }
@@ -997,7 +998,7 @@ pub fn test_rule_with_invalid_json_field_path() {
   case results {
     [RuleFailed(_, _, violations)] ->
       // Should fail because invalid path doesn't exist
-      assert.Equal(1, list.length(violations))
+      should.equal(1, list.length(violations))
     _ ->
       assert.fail("Expected RuleFailed")
   }
@@ -1046,7 +1047,7 @@ pub fn test_rule_with_multiple_violations() {
       // 4. Authorization header missing -> HeaderMissing
       // 5. X-Secret header present -> HeaderPresent
       // That's 5 violations total
-      assert.Equal(5, list.length(violations))
+      should.equal(5, list.length(violations))
     _ ->
       assert.fail("Expected RuleFailed with multiple violations")
   }
@@ -1089,8 +1090,8 @@ pub fn test_multiple_rules_mixed_results() {
 
   case results {
     [RulePassed(pass_name), rules_engine.RuleFailed(fail_name, _, _)] ->
-      assert.Equal("pass_rule", pass_name)
-      assert.Equal("fail_rule", fail_name)
+      should.equal("pass_rule", pass_name)
+      should.equal("fail_rule", fail_name)
     _ ->
       assert.fail("Expected one passing and one failing rule")
   }
@@ -1104,42 +1105,42 @@ pub fn test_multiple_rules_mixed_results() {
 pub fn test_format_body_contains_violation() {
   let violation = rules_engine.BodyContains("error", "response body")
   let formatted = rules_engine.format_violation(violation)
-  assert.Equal("Found forbidden string 'error' in response body", formatted)
+  should.equal("Found forbidden string 'error' in response body", formatted)
 }
 
 /// Test BodyMissing violation formatting
 pub fn test_format_body_missing_violation() {
   let violation = rules_engine.BodyMissing("success")
   let formatted = rules_engine.format_violation(violation)
-  assert.Equal("Required string 'success' not found in response body", formatted)
+  should.equal("Required string 'success' not found in response body", formatted)
 }
 
 /// Test FieldMissing violation formatting
 pub fn test_format_field_missing_violation() {
   let violation = rules_engine.FieldMissing("user.id")
   let formatted = rules_engine.format_violation(violation)
-  assert.Equal("Required field 'user.id' not found", formatted)
+  should.equal("Required field 'user.id' not found", formatted)
 }
 
 /// Test FieldPresent violation formatting
 pub fn test_format_field_present_violation() {
   let violation = rules_engine.FieldPresent("password")
   let formatted = rules_engine.format_violation(violation)
-  assert.Equal("Forbidden field 'password' is present in response", formatted)
+  should.equal("Forbidden field 'password' is present in response", formatted)
 }
 
 /// Test HeaderMissing violation formatting
 pub fn test_format_header_missing_violation() {
   let violation = rules_engine.HeaderMissing("Authorization")
   let formatted = rules_engine.format_violation(violation)
-  assert.Equal("Required header 'Authorization' not found", formatted)
+  should.equal("Required header 'Authorization' not found", formatted)
 }
 
 /// Test HeaderPresent violation formatting
 pub fn test_format_header_present_violation() {
   let violation = rules_engine.HeaderPresent("X-Secret")
   let formatted = rules_engine.format_violation(violation)
-  assert.Equal("Forbidden header 'X-Secret' is present in response", formatted)
+  should.equal("Forbidden header 'X-Secret' is present in response", formatted)
 }
 
 // ============================================================================
