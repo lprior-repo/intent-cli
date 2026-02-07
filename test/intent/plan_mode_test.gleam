@@ -34,7 +34,7 @@ pub fn decode_beads_json_alias_fields_test() {
   }
 }
 
-pub fn format_plan_ai_includes_beads_test() {
+pub fn format_plan_ai_includes_plan_metadata_test() {
   let bead =
     plan_mode.PlanBead(
       id: "USR-001",
@@ -66,7 +66,9 @@ pub fn format_plan_ai_includes_beads_test() {
 
   let output = plan_mode.format_plan_ai(plan)
 
-  string.contains(output, "\"phases\"") |> should.be_true()
-  string.contains(output, "\"beads\"") |> should.be_true()
+  // AI format includes plan metadata and phases with beads
+  string.contains(output, "session_id") |> should.be_true()
+  string.contains(output, "session-123") |> should.be_true()
+  string.contains(output, "phases") |> should.be_true()
   string.contains(output, "USR-001") |> should.be_true()
 }

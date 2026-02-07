@@ -98,6 +98,26 @@ pub type PlanError {
   MissingDependency(bead: String, missing: String)
 }
 
+pub fn effort_to_label(effort: Effort) -> String {
+  case effort {
+    Effort5min -> "5min"
+    Effort10min -> "10min"
+    Effort15min -> "15min"
+    Effort20min -> "20min"
+    Effort30min -> "30min"
+  }
+}
+
+pub fn bead_status_to_string(status: BeadStatus) -> String {
+  case status {
+    Pending -> "pending"
+    InProgress -> "in_progress"
+    Blocked -> "blocked"
+    Completed -> "completed"
+    Failed -> "failed"
+  }
+}
+
 // =============================================================================
 // PUBLIC API
 // =============================================================================
@@ -433,16 +453,6 @@ fn calculate_phase_effort(beads: List(PlanBead)) -> String {
   format_duration(minutes)
 }
 
-fn effort_to_label(effort: Effort) -> String {
-  case effort {
-    Effort5min -> "5min"
-    Effort10min -> "10min"
-    Effort15min -> "15min"
-    Effort20min -> "20min"
-    Effort30min -> "30min"
-  }
-}
-
 fn effort_to_minutes(effort: Effort) -> Int {
   case effort {
     Effort5min -> 5
@@ -564,16 +574,6 @@ fn plan_bead_to_json(bead: PlanBead) -> json.Json {
     #("effort", json.string(effort_to_label(bead.effort))),
     #("status", json.string(bead_status_to_string(bead.status))),
   ])
-}
-
-fn bead_status_to_string(status: BeadStatus) -> String {
-  case status {
-    Pending -> "pending"
-    InProgress -> "in_progress"
-    Blocked -> "blocked"
-    Completed -> "completed"
-    Failed -> "failed"
-  }
 }
 
 fn format_bead_line(bead: PlanBead) -> String {

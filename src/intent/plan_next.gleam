@@ -1,3 +1,4 @@
+import gleam/json
 import intent/interview
 import intent/interview_storage
 import intent/plan_mode
@@ -14,21 +15,80 @@ pub fn plan_next_command(session_id: String) -> Result(String, String) {
           let gated_plan = interview.apply_phase_gating(session, plan)
 
           case gated_plan.blockers {
-            [blocker, ..] -> Ok("blocked: " <> blocker)
+            [blocker, ..] -> {
+              let directive =
+                json.object([
+                  #("action", json.string("blocked")),
+                  #("session_id", json.string(session_id)),
+                  #("rationale", json.string("Execution blocked: " <> blocker)),
+                  #(
+                    "next_command",
+                    json.string("intent plan-next " <> session_id),
+                  ),
+                ])
+              Ok(json.to_string(directive))
+            }
             [] -> {
               case gated_plan.phases {
-                [] -> Ok("done")
+                [] -> {
+                  let directive =
+                    json.object([
+                      #("action", json.string("done")),
+                      #("session_id", json.string(session_id)),
+                      #("rationale", json.string("All phases complete")),
+                    ])
+                  Ok(json.to_string(directive))
+                }
                 [first_phase, ..] -> {
                   case first_phase.beads {
-                    [] -> Ok("done")
+                    [] -> {
+                      let directive =
+                        json.object([
+                          #("action", json.string("done")),
+                          #("session_id", json.string(session_id)),
+                          #("rationale", json.string("Phase complete")),
+                        ])
+                      Ok(json.to_string(directive))
+                    }
                     [first_bead, ..] -> {
-                      Ok(
-                        "execute_bead: "
-                        <> first_bead.id
-                        <> " ("
-                        <> first_bead.title
-                        <> ")",
-                      )
+                      let directive =
+                        json.object([
+                          #("action", json.string("execute_bead")),
+                          #("session_id", json.string(session_id)),
+                          #(
+                            "rationale",
+                            json.string("Execute first bead in phase"),
+                          ),
+                          #("phase", json.int(first_phase.phase_number)),
+                          #(
+                            "bead",
+                            json.object([
+                              #("id", json.string(first_bead.id)),
+                              #("title", json.string(first_bead.title)),
+                              #(
+                                "requires",
+                                json.array(first_bead.requires, json.string),
+                              ),
+                              #(
+                                "effort",
+                                json.string(plan_mode.effort_to_label(
+                                  first_bead.effort,
+                                )),
+                              ),
+                              #(
+                                "status",
+                                json.string(plan_mode.bead_status_to_string(
+                                  first_bead.status,
+                                )),
+                              ),
+                            ]),
+                          ),
+                          #(
+                            "claim_command",
+                            json.string("intent execute " <> first_bead.id),
+                          ),
+                        ])
+                      Ok(json.to_string(directive))
                     }
                   }
                 }
