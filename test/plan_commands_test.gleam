@@ -731,3 +731,248 @@ pub fn plan_approval_with_blockers_warns_test() {
   output |> string.contains("BLOCKERS") |> should.be_true()
   output |> string.contains("Critical blocker") |> should.be_true()
 }
+
+// =============================================================================
+// Phase-Gate Enforcement Tests
+// =============================================================================
+
+import intent/interview
+
+pub fn phase_gate_allows_phase_one_test() {
+  // Phase 1 should always be allowed
+  let session =
+    interview.InterviewSession(
+      id: "test",
+      profile: interview.Api,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      completed_at: "",
+      stage: interview.Discovery,
+      rounds_completed: 0,
+      answers: [],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+      current_phase: 1,
+      completed_phases: [],
+    )
+
+  let bead =
+    plan_mode.PlanBead(
+      id: "B-001",
+      title: "Phase 1 bead",
+      requires: [],
+      effort: plan_mode.Effort10min,
+      status: plan_mode.Pending,
+    )
+
+  let phase =
+    plan_mode.ExecutionPhase(
+      phase_number: 1,
+      title: "Phase 1",
+      beads: [bead],
+      can_parallel: False,
+      effort: "10min",
+    )
+
+  let plan =
+    plan_mode.ExecutionPlan(
+      session_id: "test",
+      generated_at: "2026-01-01T00:00:00Z",
+      phases: [phase],
+      total_beads: 1,
+      total_effort: "10min",
+      risk: plan_mode.Low,
+      blockers: [],
+    )
+
+  let gated_plan = interview.apply_phase_gating(session, plan)
+
+  // Phase 1 should be allowed
+  list.length(gated_plan.phases) |> should.equal(1)
+  list.is_empty(gated_plan.blockers) |> should.be_true()
+}
+
+pub fn phase_gate_blocks_later_phases_test() {
+  // Later phases should be blocked if prior phases not complete
+  let session =
+    interview.InterviewSession(
+      id: "test",
+      profile: interview.Api,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      completed_at: "",
+      stage: interview.Discovery,
+      rounds_completed: 0,
+      answers: [],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+      current_phase: 1,
+      completed_phases: [],
+    )
+
+  let bead1 =
+    plan_mode.PlanBead(
+      id: "B-001",
+      title: "Phase 1 bead",
+      requires: [],
+      effort: plan_mode.Effort10min,
+      status: plan_mode.Pending,
+    )
+
+  let bead2 =
+    plan_mode.PlanBead(
+      id: "B-002",
+      title: "Phase 2 bead",
+      requires: [],
+      effort: plan_mode.Effort10min,
+      status: plan_mode.Pending,
+    )
+
+  let phase1 =
+    plan_mode.ExecutionPhase(
+      phase_number: 1,
+      title: "Phase 1",
+      beads: [bead1],
+      can_parallel: False,
+      effort: "10min",
+    )
+
+  let phase2 =
+    plan_mode.ExecutionPhase(
+      phase_number: 2,
+      title: "Phase 2",
+      beads: [bead2],
+      can_parallel: False,
+      effort: "10min",
+    )
+
+  let plan =
+    plan_mode.ExecutionPlan(
+      session_id: "test",
+      generated_at: "2026-01-01T00:00:00Z",
+      phases: [phase1, phase2],
+      total_beads: 2,
+      total_effort: "20min",
+      risk: plan_mode.Low,
+      blockers: [],
+    )
+
+  let gated_plan = interview.apply_phase_gating(session, plan)
+
+  // Only Phase 1 should be allowed, Phase 2 should be blocked
+  list.length(gated_plan.phases) |> should.equal(1)
+  { list.length(gated_plan.blockers) > 0 } |> should.be_true()
+}
+
+pub fn phase_gate_allows_after_completion_test() {
+  // Later phases should be allowed after prior phases complete
+  let session =
+    interview.InterviewSession(
+      id: "test",
+      profile: interview.Api,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      completed_at: "",
+      stage: interview.Discovery,
+      rounds_completed: 0,
+      answers: [],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+      current_phase: 2,
+      completed_phases: [1],
+    )
+
+  let bead2 =
+    plan_mode.PlanBead(
+      id: "B-002",
+      title: "Phase 2 bead",
+      requires: [],
+      effort: plan_mode.Effort10min,
+      status: plan_mode.Pending,
+    )
+
+  let phase2 =
+    plan_mode.ExecutionPhase(
+      phase_number: 2,
+      title: "Phase 2",
+      beads: [bead2],
+      can_parallel: False,
+      effort: "10min",
+    )
+
+  let plan =
+    plan_mode.ExecutionPlan(
+      session_id: "test",
+      generated_at: "2026-01-01T00:00:00Z",
+      phases: [phase2],
+      total_beads: 1,
+      total_effort: "10min",
+      risk: plan_mode.Low,
+      blockers: [],
+    )
+
+  let gated_plan = interview.apply_phase_gating(session, plan)
+
+  // Phase 2 should be allowed since Phase 1 is complete
+  list.length(gated_plan.phases) |> should.equal(1)
+}
+
+pub fn complete_phase_advances_session_test() {
+  let session =
+    interview.InterviewSession(
+      id: "test",
+      profile: interview.Api,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      completed_at: "",
+      stage: interview.Discovery,
+      rounds_completed: 0,
+      answers: [],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+      current_phase: 1,
+      completed_phases: [],
+    )
+
+  let updated_session = interview.complete_phase(session, 1)
+
+  // Should advance to phase 2
+  updated_session.current_phase |> should.equal(2)
+  // Should have phase 1 in completed_phases
+  list.contains(updated_session.completed_phases, 1) |> should.be_true()
+}
+
+pub fn can_execute_phase_checks_completion_test() {
+  let session =
+    interview.InterviewSession(
+      id: "test",
+      profile: interview.Api,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      completed_at: "",
+      stage: interview.Discovery,
+      rounds_completed: 0,
+      answers: [],
+      gaps: [],
+      conflicts: [],
+      raw_notes: "",
+      current_phase: 1,
+      completed_phases: [],
+    )
+
+  // Phase 1 should always be executable
+  interview.can_execute_phase(session, 1) |> should.be_true()
+
+  // Phase 2 should not be executable without Phase 1 complete
+  interview.can_execute_phase(session, 2) |> should.be_false()
+
+  // Complete phase 1
+  let session_with_phase1 = interview.complete_phase(session, 1)
+
+  // Now phase 2 should be executable
+  interview.can_execute_phase(session_with_phase1, 2) |> should.be_true()
+}

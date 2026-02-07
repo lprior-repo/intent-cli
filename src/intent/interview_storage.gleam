@@ -614,6 +614,7 @@ pub fn session_to_json(session: InterviewSession) -> json.Json {
     #("conflicts", json.array(session.conflicts, conflict_to_json)),
     #("raw_notes", json.string(session.raw_notes)),
     #("current_phase", json.int(session.current_phase)),
+    #("completed_phases", json.array(session.completed_phases, json.int)),
   ])
 }
 
@@ -989,6 +990,9 @@ fn session_decoder(
   let current_phase =
     dynamic.field("current_phase", dynamic.int)(json_value)
     |> result.unwrap(1)
+  let completed_phases =
+    dynamic.field("completed_phases", dynamic.list(dynamic.int))(json_value)
+    |> result.unwrap([])
 
   Ok(interview.InterviewSession(
     id: id,
@@ -1003,6 +1007,7 @@ fn session_decoder(
     conflicts: conflicts,
     raw_notes: raw_notes,
     current_phase: current_phase,
+    completed_phases: completed_phases,
   ))
 }
 

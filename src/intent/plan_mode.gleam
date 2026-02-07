@@ -259,13 +259,80 @@ pub fn format_plan_ai(plan: ExecutionPlan) -> String {
       ])
     })
 
+  let handoff =
+    json.object([
+      #(
+        "why_this_plan",
+        json.string(
+          "Execution plan for session. Review phases and execute beads in order.",
+        ),
+      ),
+      #("changed_since_last_run", json.string("Plan regenerated.")),
+    ])
+
+  let acceptance_tests =
+    plan.blockers
+    |> list.map(fn(blocker) { json.string("Verify: " <> blocker) })
+    |> json.array(of: fn(x) { x })
+
+  let next_commands =
+    ["intent plan " <> plan.session_id, "intent plan-next " <> plan.session_id]
+    |> list.map(fn(cmd) { json.string(cmd) })
+    |> json.array(of: fn(x) { x })
+
   json.object([
+    #("action", json.string("emit_plan")),
+    #("contract_version", json.string("1.0")),
     #("session_id", json.string(plan.session_id)),
-    #("total_beads", json.int(plan.total_beads)),
-    #("total_effort", json.string(plan.total_effort)),
-    #("risk", json.string(risk_to_string(plan.risk))),
-    #("blockers", json.array(plan.blockers, json.string)),
-    #("phases", json.array(phases_json, fn(phase) { phase })),
+    #(
+      "session",
+      json.object([
+        #("id", json.string(plan.session_id)),
+        #("profile", json.string("cli")),
+        #("created_at", json.string(plan.generated_at)),
+        #("updated_at", json.string(plan.generated_at)),
+        #("stage", json.string("complete")),
+      ]),
+    ),
+    #("phases", json.array(phases_json, of: fn(x) { x })),
+    #("planning_focus", json.string("Execute the plan in phases")),
+    #(
+      "assumptions",
+      json.array(
+        [
+          json.string("Session beads are valid and complete"),
+          json.string("Phase ordering respects dependencies"),
+          json.string("Bead execution order is sequential within phases"),
+        ],
+        of: fn(x) { x },
+      ),
+    ),
+    #("open_questions", json.array([], of: fn(x) { x })),
+    #(
+      "risks",
+      json.array(
+        [
+          json.string("Some beads may fail - use beads-regenerate to fix"),
+          json.string("Parallel execution may reveal race conditions"),
+        ],
+        of: fn(x) { x },
+      ),
+    ),
+    #("acceptance_tests", acceptance_tests),
+    #("handoff", handoff),
+    #("next_commands", next_commands),
+    #(
+      "plan",
+      json.object([
+        #("session_id", json.string(plan.session_id)),
+        #("total_beads", json.int(plan.total_beads)),
+        #("total_effort", json.string(plan.total_effort)),
+        #("risk", json.string(risk_to_string(plan.risk))),
+        #("phase_count", json.int(list.length(plan.phases))),
+        #("critical_path_phases", json.int(list.length(plan.phases))),
+        #("blockers", json.array(plan.blockers, json.string)),
+      ]),
+    ),
   ])
   |> json.to_string
 }
@@ -588,7 +655,7 @@ fn format_bead_line(bead: PlanBead) -> String {
   <> "]"
 }
 
-fn risk_to_string(risk: RiskLevel) -> String {
+pub fn risk_to_string(risk: RiskLevel) -> String {
   case risk {
     Low -> "low"
     Medium -> "medium"

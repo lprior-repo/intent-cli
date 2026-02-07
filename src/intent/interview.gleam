@@ -2,9 +2,9 @@
 /// Structured interrogation system for discovering and refining specifications
 /// Supports 5 rounds × multiple perspectives = comprehensive requirement capture
 import gleam/dict.{type Dict}
+import gleam/int
 import gleam/list
 import gleam/option
-import gleam/result
 import gleam/string
 import intent/interview_questions
 import intent/plan_mode
@@ -98,6 +98,7 @@ pub type InterviewSession {
     conflicts: List(Conflict),
     raw_notes: String,
     current_phase: Int,
+    completed_phases: List(Int),
   )
 }
 
@@ -399,6 +400,7 @@ pub fn create_session(
     conflicts: [],
     raw_notes: "",
     current_phase: 1,
+    completed_phases: [],
   )
 }
 
@@ -669,27 +671,120 @@ pub fn can_proceed(session: InterviewSession) -> Result(Nil, String) {
 }
 
 /// Apply phase-gate enforcement to an execution plan
+/// Ensures that later phases can only execute after prior phases complete
 pub fn apply_phase_gating(
   session: InterviewSession,
   plan: plan_mode.ExecutionPlan,
 ) -> plan_mode.ExecutionPlan {
   let current_phase = session.current_phase
+  let completed_phases = session.completed_phases
   let phases = plan.phases
-  let has_phase_two_or_higher =
-    list.any(phases, fn(phase) { phase.phase_number >= 2 })
 
-  case current_phase {
-    1 -> plan
-    0 if has_phase_two_or_higher -> {
-      plan_mode.ExecutionPlan(
-        ..plan,
-        blockers: list.append(plan.blockers, [
-          "Phase-gate: Phase 1 (Research) must complete before Phase 2+ can run",
-        ]),
-      )
-    }
-    _ -> plan
+  // Find the highest phase number in the plan
+  let max_plan_phase =
+    phases
+    |> list.map(fn(phase) { phase.phase_number })
+    |> list.fold(0, int.max)
+
+  // Check if we're trying to execute phases beyond current phase without completing prior phases
+  let can_execute_current =
+    list.contains(completed_phases, current_phase - 1) || current_phase == 1
+  let can_execute_next = list.contains(completed_phases, current_phase)
+
+  // Build list of phase gate blockers
+  let phase_blockers =
+    phases
+    |> list.filter(fn(phase) {
+      // Block phases that are ahead of current phase without completion
+      phase.phase_number > current_phase && !can_execute_next
+    })
+    |> list.map(fn(phase) {
+      "Phase-gate: Phase "
+      <> int.to_string(phase.phase_number)
+      <> " is locked. Complete Phase "
+      <> int.to_string(current_phase)
+      <> " first."
+    })
+
+  // Add general blocker if trying to skip ahead
+  let general_blocker = case
+    max_plan_phase > current_phase && !can_execute_next
+  {
+    True -> [
+      "Phase-gate: Cannot execute Phase "
+      <> int.to_string(max_plan_phase)
+      <> " while Phase "
+      <> int.to_string(current_phase)
+      <> " is incomplete",
+    ]
+    False -> []
   }
+
+  let all_blockers =
+    list.append(plan.blockers, list.append(phase_blockers, general_blocker))
+
+  // Filter phases to only include those that can be executed
+  let allowed_phases = case can_execute_current {
+    True ->
+      phases
+      |> list.filter(fn(phase) {
+        // Allow current phase and any completed phases
+        phase.phase_number <= current_phase
+        || list.contains(completed_phases, phase.phase_number)
+      })
+    False ->
+      // Can't even execute current phase - return empty phases with blocker
+      []
+  }
+
+  plan_mode.ExecutionPlan(
+    ..plan,
+    phases: allowed_phases,
+    blockers: all_blockers,
+  )
+}
+
+/// Mark a phase as completed and advance to the next phase
+pub fn complete_phase(
+  session: InterviewSession,
+  phase_number: Int,
+) -> InterviewSession {
+  let updated_completed = case
+    list.contains(session.completed_phases, phase_number)
+  {
+    True -> session.completed_phases
+    False -> [phase_number, ..session.completed_phases]
+  }
+
+  let next_phase = case session.current_phase == phase_number {
+    True -> session.current_phase + 1
+    False -> session.current_phase
+  }
+
+  InterviewSession(
+    ..session,
+    completed_phases: updated_completed,
+    current_phase: next_phase,
+  )
+}
+
+/// Check if a specific phase can be executed
+pub fn can_execute_phase(session: InterviewSession, phase_number: Int) -> Bool {
+  // Phase 1 can always be executed
+  // Other phases require all prior phases to be completed
+  case phase_number {
+    1 -> True
+    _ -> {
+      // Check that all phases before this one are completed
+      list.range(1, phase_number - 1)
+      |> list.all(fn(p) { list.contains(session.completed_phases, p) })
+    }
+  }
+}
+
+/// Get the next unlockable phase
+pub fn get_next_phase(session: InterviewSession) -> Int {
+  session.current_phase
 }
 
 /// Format progress summary
@@ -743,4 +838,3 @@ pub fn string_to_profile(s: String) -> Result(Profile, String) {
     _ -> Error("Unknown profile: " <> s)
   }
 }
-

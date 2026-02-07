@@ -1,5 +1,5 @@
-import gleam/dict.{type Dict}
-import gleam/json.{type Json}
+import gleam/dict
+import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
@@ -7,18 +7,22 @@ import gleeunit
 import gleeunit/should
 import intent/bead_templates
 import intent/checker
-import intent/formats
 import intent/http_client
 import intent/interpolate
 import intent/interview
 import intent/interview_contract
 import intent/interview_questions
-import intent/interview_storage
 import intent/kirk/effects_analyzer
 import intent/question_loader
 import intent/question_types.{
-  type Question, Business, Critical, Developer, HappyPath, Ops, Question,
-  Security, User,
+  type Question,
+  Critical,
+  Developer,
+  HappyPath,
+  Ops,
+  Question,
+  Security,
+  User,
 }
 import intent/resolver
 import intent/rules_engine
@@ -3555,18 +3559,18 @@ pub fn checker_multiple_checks_test() {
 // Helper to create a test question
 fn make_test_question(id: String, round: Int, question_text: String) -> Question {
   Question(
-    id: id,
-    round: round,
-    perspective: User,
-    category: HappyPath,
-    priority: Critical,
-    question: question_text,
-    context: "Test context",
-    example: "Test example",
-    expected_type: "text",
-    extract_into: [],
-    depends_on: [],
-    blocks: [],
+    id,
+    round,
+    User,
+    HappyPath,
+    Critical,
+    question_text,
+    "Test context",
+    "Test example",
+    "text",
+    [],
+    [],
+    [],
   )
 }
 
@@ -3769,5 +3773,6 @@ fn make_test_interview_session(
     conflicts: conflicts,
     raw_notes: "",
     current_phase: 1,
+    completed_phases: [],
   )
 }

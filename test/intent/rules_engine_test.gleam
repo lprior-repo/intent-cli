@@ -1,0 +1,1200 @@
+//// Comprehensive tests for Intent Rules Engine
+//// Tests all rule types, edge cases, and error conditions
+
+import gleam/dict
+import gleam/json
+import gleam/list
+import intent/http_client
+import intent/rules_engine
+import intent/types.{type Rule, type RuleCheck, type When, type Method}
+import intent/types.{Get, Post, Put, Delete}
+import intent/test_helpers
+
+// ============================================================================
+// Test Helper Functions
+// ============================================================================
+
+/// Create a test ExecutionResult
+fn make_test_result(
+  status: Int,
+  headers: Dict(String, String),
+  body: json.Json,
+  raw_body: String,
+  method: Method,
+  path: String,
+) -> http_client.ExecutionResult {
+  http_client.ExecutionResult(
+    status: status,
+    headers: headers,
+    body: body,
+    raw_body: raw_body,
+    elapsed_ms: 100,
+    request_method: method,
+    request_path: path,
+  )
+}
+
+/// Create a simple Rule
+fn make_rule(
+  name: String,
+  description: String,
+  when: When,
+  check: RuleCheck,
+) -> Rule {
+  types.Rule(
+    name: name,
+    description: description,
+    when: when,
+    check: check,
+    example: json.null(),
+  )
+}
+
+/// Create a When condition
+fn make_when(status: String, method: Method, path: String) -> When {
+  types.When(status: status, method: method, path: path)
+}
+
+// ============================================================================
+// Basic Rule Tests
+// ============================================================================
+
+/// Test rule that passes (empty violations)
+pub fn test_rule_passes_when_no_violations() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("pass_rule", "Should pass", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("name", json.string("John"))]),
+    raw_body: "{\"name\":\"John\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(rule_name)] ->
+      assert.Equal("pass_rule", rule_name)
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule that fails due to missing required string in body
+pub fn test_rule_fails_when_required_string_missing() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: ["success"],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("missing_string_rule", "Missing success string", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("name", json.string("John"))]),
+    raw_body: "{\"name\":\"John\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(rule_name, description, violations)] ->
+      assert.Equal("missing_string_rule", rule_name)
+      assert.Equal("Missing success string", description)
+      assert.Equal(1, list.length(violations))
+
+      case violations {
+        [rules_engine.BodyMissing(required)] ->
+          assert.Equal("success", required)
+        _ ->
+          assert.fail("Expected BodyMissing violation")
+      }
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test rule that fails due to forbidden string in body
+pub fn test_rule_fails_when_forbidden_string_present() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: ["error"],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("forbidden_string_rule", "Error string forbidden", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("message", json.string("There was an error"))]),
+    raw_body: "{\"message\":\"There was an error\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      case violations {
+        [rules_engine.BodyContains(forbidden, _)] ->
+          assert.Equal("error", forbidden)
+        _ ->
+          assert.fail("Expected BodyContains violation")
+      }
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test case insensitive string matching
+pub fn test_rule_uses_case_insensitive_matching() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: ["ERROR"],
+    body_must_contain: ["Success"],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("case_sensitive_rule", "Case insensitive matching", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("message", json.string("success! no error here"))]),
+    raw_body: "{\"message\":\"success! no error here\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      // Should pass because "success" is found and "ERROR" is not found
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+// ============================================================================
+// Field Existence Tests
+// ============================================================================
+
+/// Test rule passes when required fields exist
+pub fn test_rule_passes_when_fields_exist() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: ["user.id", "user.name"],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("field_exist_rule", "Required fields must exist", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([
+      #("user", json.object([
+        #("id", json.int(123)),
+        #("name", json.string("John")),
+      ])),
+    ]),
+    raw_body: "{\"user\":{\"id\":123,\"name\":\"John\"}}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule fails when required fields are missing
+pub fn test_rule_fails_when_fields_missing() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: ["user.id", "user.profile.email"],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("missing_field_rule", "Missing required field", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([
+      #("user", json.object([
+        #("id", json.int(123)),
+      ])),
+    ]),
+    raw_body: "{\"user\":{\"id\":123}}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      assert.Equal(1, list.length(violations))
+      case violations {
+        [rules_engine.FieldMissing(field)] ->
+          assert.Equal("user.profile.email", field)
+        _ ->
+          assert.fail("Expected FieldMissing violation")
+      }
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test rule passes when forbidden fields don't exist
+pub fn test_rule_passes_when_fields_do_not_exist() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: ["password", "credit_card"],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("field_not_exist_rule", "Forbidden fields must not exist", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([
+      #("user", json.object([
+        #("id", json.int(123)),
+        #("name", json.string("John")),
+      ])),
+    ]),
+    raw_body: "{\"user\":{\"id\":123,\"name\":\"John\"}}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule fails when forbidden fields exist
+pub fn test_rule_fails_when_fields_exist_forbidden() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: ["password"],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("field_forbidden_rule", "Forbidden field exists", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([
+      #("user", json.object([
+        #("id", json.int(123)),
+        #("password", json.string("secret123")),
+      ])),
+    ]),
+    raw_body: "{\"user\":{\"id\":123,\"password\":\"secret123\"}}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      case violations {
+        [rules_engine.FieldPresent(field)] ->
+          assert.Equal("password", field)
+        _ ->
+          assert.fail("Expected FieldPresent violation")
+      }
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test field navigation with nested JSON
+pub fn test_field_navigation_with_deep_nesting() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: ["data.users[0].profile.address.city"],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("deep_field_rule", "Deep field navigation", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([
+      #("data", json.object([
+        #("users", json.array([
+          json.object([
+            #("profile", json.object([
+              #("address", json.object([
+                #("city", json.string("New York")),
+                #("street", json.string("123 Main St")),
+              ])),
+            ])),
+          ]),
+        ])),
+      ])),
+    ]),
+    raw_body: "{\"data\":{\"users\":[{\"profile\":{\"address\":{\"city\":\"New York\",\"street\":\"123 Main St\"}}}]}}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+// ============================================================================
+// Header Tests
+// ============================================================================
+
+/// Test rule passes when required header exists
+pub fn test_rule_passes_when_header_exists() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "Content-Type",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("header_exist_rule", "Required header must exist", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.from_list([#("Content-Type", "application/json"), #("X-Custom", "value")]),
+    body: json.object([#("data", json.string("test"))]),
+    raw_body: "{\"data\":\"test\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule fails when required header is missing
+pub fn test_rule_fails_when_header_missing() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "Authorization",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("header_missing_rule", "Missing required header", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.from_list([#("Content-Type", "application/json")]),
+    body: json.object([#("data", json.string("test"))]),
+    raw_body: "{\"data\":\"test\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      case violations {
+        [rules_engine.HeaderMissing(header)] ->
+          assert.Equal("Authorization", header)
+        _ ->
+          assert.fail("Expected HeaderMissing violation")
+      }
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test rule passes when forbidden header doesn't exist
+pub fn test_rule_passes_when_header_not_forbidden() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "X-Secret",
+  )
+  let rule = make_rule("header_not_forbidden_rule", "Forbidden header not present", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.from_list([#("Content-Type", "application/json")]),
+    body: json.object([#("data", json.string("test"))]),
+    raw_body: "{\"data\":\"test\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule fails when forbidden header exists
+pub fn test_rule_fails_when_header_exists_forbidden() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "X-Secret",
+  )
+  let rule = make_rule("header_forbidden_rule", "Forbidden header exists", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.from_list([#("X-Secret", "value"), #("Content-Type", "application/json")]),
+    body: json.object([#("data", json.string("test"))]),
+    raw_body: "{\"data\":\"test\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      case violations {
+        [rules_engine.HeaderPresent(header)] ->
+          assert.Equal("X-Secret", header)
+        _ ->
+          assert.fail("Expected HeaderPresent violation")
+      }
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test case insensitive header matching
+pub fn test_rule_uses_case_insensitive_header_matching() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "content-type",
+    header_must_not_exist: "x-secret",
+  )
+  let rule = make_rule("header_case_rule", "Case insensitive header matching", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.from_list([#("Content-Type", "application/json"), #("X-SECRET", "value")]),
+    body: json.object([#("data", json.string("test"))]),
+    raw_body: "{\"data\":\"test\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      // Should fail because X-Secret header exists (case insensitive)
+      assert.Equal(1, list.length(violations))
+      case violations {
+        [rules_engine.HeaderPresent(header)] ->
+          assert.Equal("x-secret", header)
+        _ ->
+          assert.fail("Expected HeaderPresent violation")
+      }
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+// ============================================================================
+// When Condition Tests
+// ============================================================================
+
+/// Test rule applies when all conditions match
+pub fn test_rule_applies_when_all_conditions_match() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("apply_rule", "Should apply", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule doesn't apply when status doesn't match
+pub fn test_rule_does_not_apply_when_status_mismatch() {
+  let when_condition = make_when("404", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("not_apply_status_rule", "Should not apply due to status", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  assert.Equal(0, list.length(results))
+}
+
+/// Test rule doesn't apply when method doesn't match
+pub fn test_rule_does_not_apply_when_method_mismatch() {
+  let when_condition = make_when("200", Post, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("not_apply_method_rule", "Should not apply due to method", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  assert.Equal(0, list.length(results))
+}
+
+/// Test rule doesn't apply when path doesn't match
+pub fn test_rule_does_not_apply_when_path_mismatch() {
+  let when_condition = make_when("200", Get, "/posts")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("not_apply_path_rule", "Should not apply due to path", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  assert.Equal(0, list.length(results))
+}
+
+/// Test rule applies when path matches exactly
+pub fn test_rule_applies_when_path_matches_exact() {
+  let when_condition = make_when("200", Get, "/users/123")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("exact_path_rule", "Should apply with exact path", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users/123",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule applies when path matches regex
+pub fn test_rule_applies_when_path_matches_regex() {
+  let when_condition = make_when("200", Get, "/users/.+")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("regex_path_rule", "Should apply with regex path", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users/123",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RulePassed(_)] ->
+      True
+    _ ->
+      assert.fail("Expected RulePassed")
+  }
+}
+
+/// Test rule doesn't apply when path doesn't match regex
+pub fn test_rule_does_not_apply_when_path_regex_mismatch() {
+  let when_condition = make_when("200", Get, "/posts/.+")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("regex_path_fail_rule", "Should not apply with regex path", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users/123",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  assert.Equal(0, list.length(results))
+}
+
+// ============================================================================
+// Status Condition Tests
+// ============================================================================
+
+/// Test exact status match
+pub fn test_status_condition_exact_match() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition("200", response.status)
+  assert.True(matches)
+}
+
+/// Test greater than status condition
+pub fn test_status_condition_greater_than() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition("> 100", response.status)
+  assert.True(matches)
+}
+
+/// Test greater than or equal status condition
+pub fn test_status_condition_greater_than_or_equal() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition(">= 200", response.status)
+  assert.True(matches)
+}
+
+/// Test less than status condition
+pub fn test_status_condition_less_than() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition("< 300", response.status)
+  assert.True(matches)
+}
+
+/// Test less than or equal status condition
+pub fn test_status_condition_less_than_or_equal() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition("<= 200", response.status)
+  assert.True(matches)
+}
+
+/// Test equals status condition
+pub fn test_status_condition_equals() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition("== 200", response.status)
+  assert.True(matches)
+}
+
+/// Test status condition with invalid number
+pub fn test_status_condition_invalid_number() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition("> abc", response.status)
+  assert.False(matches)
+}
+
+/// Test status condition with negative number
+pub fn test_status_condition_negative_number() {
+  let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition(">= -1", response.status)
+  assert.True(matches)
+}
+
+/// Test status condition with zero
+pub fn test_status_condition_zero() {
+  let response = make_test_result(0, dict.new(), json.object([]), "{}", Get, "/test")
+  let matches = rules_engine.check_status_condition("== 0", response.status)
+  assert.True(matches)
+}
+
+// ============================================================================
+// Edge Cases and Error Conditions
+// ============================================================================
+
+/// Test rule with empty string checks
+pub fn test_rule_with_empty_string_checks() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [""],
+    body_must_contain: [""],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("empty_string_rule", "Empty string checks", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("message", json.string(""))]),
+    raw_body: "{\"message\":\"\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      // Empty string in body_must_contain should fail
+      assert.Equal(1, list.length(violations))
+    [RulePassed(_)] ->
+      assert.fail("Expected RuleFailed")
+    _ ->
+      assert.fail("Unexpected result")
+  }
+}
+
+/// Test rule with null JSON body
+pub fn test_rule_with_null_json_body() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: ["error"],
+    body_must_contain: ["success"],
+    fields_must_exist: ["data"],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("null_body_rule", "Null JSON body", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.null(),
+    raw_body: "null",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      // Should fail because null JSON has no fields
+      assert.Equal(1, list.length(violations))
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test rule with empty JSON object body
+pub fn test_rule_with_empty_json_body() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: ["error"],
+    body_must_contain: ["success"],
+    fields_must_exist: ["data"],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("empty_json_rule", "Empty JSON body", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([]),
+    raw_body: "{}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      // Should fail because empty JSON has no fields
+      assert.Equal(1, list.length(violations))
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test rule with invalid JSON field path
+pub fn test_rule_with_invalid_json_field_path() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: [],
+    fields_must_exist: ["invalid.path[0].field"],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule = make_rule("invalid_path_rule", "Invalid JSON field path", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("valid", json.string("field"))]),
+    raw_body: "{\"valid\":\"field\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      // Should fail because invalid path doesn't exist
+      assert.Equal(1, list.length(violations))
+    _ ->
+      assert.fail("Expected RuleFailed")
+  }
+}
+
+/// Test rule with multiple violations
+pub fn test_rule_with_multiple_violations() {
+  let when_condition = make_when("200", Get, "/users")
+  let check = types.RuleCheck(
+    body_must_not_contain: ["error", "fail"],
+    body_must_contain: ["success"],
+    fields_must_exist: ["id", "name"],
+    fields_must_not_exist: ["password"],
+    header_must_exist: "Authorization",
+    header_must_not_exist: "X-Secret",
+  )
+  let rule = make_rule("multiple_violations_rule", "Multiple violations", when_condition, check)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.from_list([#("Content-Type", "application/json"), #("X-Secret", "value")]),
+    body: json.object([
+      #("error", json.string("Something failed")),
+      #("id", json.int(123)),
+    ]),
+    raw_body: "{\"error\":\"Something failed\",\"id\":123}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule], response, "test_behavior")
+
+  case results {
+    [RuleFailed(_, _, violations)] ->
+      // Should have 5 violations:
+      // 1. BodyContains "error"
+      // 2. BodyMissing "success"
+      // 3. FieldMissing "name"
+      // 4. FieldPresent "password" (not actually present, so this should not be a violation)
+      // 5. HeaderMissing "Authorization"
+      // 6. HeaderPresent "X-Secret"
+      // Actually, let me count carefully:
+      // 1. error string found -> BodyContains
+      // 2. success string missing -> BodyMissing
+      // 3. name field missing -> FieldMissing
+      // 4. Authorization header missing -> HeaderMissing
+      // 5. X-Secret header present -> HeaderPresent
+      // That's 5 violations total
+      assert.Equal(5, list.length(violations))
+    _ ->
+      assert.fail("Expected RuleFailed with multiple violations")
+  }
+}
+
+/// Test multiple rules with some passing and some failing
+pub fn test_multiple_rules_mixed_results() {
+  let when_condition1 = make_when("200", Get, "/users")
+  let check1 = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: ["success"],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule1 = make_rule("pass_rule", "Should pass", when_condition1, check1)
+
+  let when_condition2 = make_when("200", Get, "/users")
+  let check2 = types.RuleCheck(
+    body_must_not_contain: [],
+    body_must_contain: ["failure"],
+    fields_must_exist: [],
+    fields_must_not_exist: [],
+    header_must_exist: "",
+    header_must_not_exist: "",
+  )
+  let rule2 = make_rule("fail_rule", "Should fail", when_condition2, check2)
+
+  let response = make_test_result(
+    status: 200,
+    headers: dict.new(),
+    body: json.object([#("message", json.string("success"))]),
+    raw_body: "{\"message\":\"success\"}",
+    method: Get,
+    path: "/users",
+  )
+
+  let results = rules_engine.check_rules([rule1, rule2], response, "test_behavior")
+
+  case results {
+    [RulePassed(pass_name), rules_engine.RuleFailed(fail_name, _, _)] ->
+      assert.Equal("pass_rule", pass_name)
+      assert.Equal("fail_rule", fail_name)
+    _ ->
+      assert.fail("Expected one passing and one failing rule")
+  }
+}
+
+// ============================================================================
+// Format Violation Tests
+// ============================================================================
+
+/// Test BodyContains violation formatting
+pub fn test_format_body_contains_violation() {
+  let violation = rules_engine.BodyContains("error", "response body")
+  let formatted = rules_engine.format_violation(violation)
+  assert.Equal("Found forbidden string 'error' in response body", formatted)
+}
+
+/// Test BodyMissing violation formatting
+pub fn test_format_body_missing_violation() {
+  let violation = rules_engine.BodyMissing("success")
+  let formatted = rules_engine.format_violation(violation)
+  assert.Equal("Required string 'success' not found in response body", formatted)
+}
+
+/// Test FieldMissing violation formatting
+pub fn test_format_field_missing_violation() {
+  let violation = rules_engine.FieldMissing("user.id")
+  let formatted = rules_engine.format_violation(violation)
+  assert.Equal("Required field 'user.id' not found", formatted)
+}
+
+/// Test FieldPresent violation formatting
+pub fn test_format_field_present_violation() {
+  let violation = rules_engine.FieldPresent("password")
+  let formatted = rules_engine.format_violation(violation)
+  assert.Equal("Forbidden field 'password' is present in response", formatted)
+}
+
+/// Test HeaderMissing violation formatting
+pub fn test_format_header_missing_violation() {
+  let violation = rules_engine.HeaderMissing("Authorization")
+  let formatted = rules_engine.format_violation(violation)
+  assert.Equal("Required header 'Authorization' not found", formatted)
+}
+
+/// Test HeaderPresent violation formatting
+pub fn test_format_header_present_violation() {
+  let violation = rules_engine.HeaderPresent("X-Secret")
+  let formatted = rules_engine.format_violation(violation)
+  assert.Equal("Forbidden header 'X-Secret' is present in response", formatted)
+}
+
+// ============================================================================
+// Test Suite Entry Points
+// ============================================================================
+
+pub fn all_tests() {
+  test_rule_passes_when_no_violations()
+  test_rule_fails_when_required_string_missing()
+  test_rule_fails_when_forbidden_string_present()
+  test_rule_uses_case_insensitive_matching()
+
+  test_rule_passes_when_fields_exist()
+  test_rule_fails_when_fields_missing()
+  test_rule_passes_when_fields_do_not_exist()
+  test_rule_fails_when_fields_exist_forbidden()
+  test_field_navigation_with_deep_nesting()
+
+  test_rule_passes_when_header_exists()
+  test_rule_fails_when_header_missing()
+  test_rule_passes_when_header_not_forbidden()
+  test_rule_fails_when_header_exists_forbidden()
+  test_rule_uses_case_insensitive_header_matching()
+
+  test_rule_applies_when_all_conditions_match()
+  test_rule_does_not_apply_when_status_mismatch()
+  test_rule_does_not_apply_when_method_mismatch()
+  test_rule_does_not_apply_when_path_mismatch()
+  test_rule_applies_when_path_matches_exact()
+  test_rule_applies_when_path_matches_regex()
+  test_rule_does_not_apply_when_path_regex_mismatch()
+
+  test_status_condition_exact_match()
+  test_status_condition_greater_than()
+  test_status_condition_greater_than_or_equal()
+  test_status_condition_less_than()
+  test_status_condition_less_than_or_equal()
+  test_status_condition_equals()
+  test_status_condition_invalid_number()
+  test_status_condition_negative_number()
+  test_status_condition_zero()
+
+  test_rule_with_empty_string_checks()
+  test_rule_with_null_json_body()
+  test_rule_with_empty_json_body()
+  test_rule_with_invalid_json_field_path()
+  test_rule_with_multiple_violations()
+  test_multiple_rules_mixed_results()
+
+  test_format_body_contains_violation()
+  test_format_body_missing_violation()
+  test_format_field_missing_violation()
+  test_format_field_present_violation()
+  test_format_header_missing_violation()
+  test_format_header_present_violation()
+
+  io.println("✅ All rules engine tests passed!")
+}

@@ -209,6 +209,72 @@ pub fn validate_file_paths(
   |> list_try_map(validate_file_path)
 }
 
+/// Validate a session ID for security
+///
+/// Checks:
+/// - Not empty or whitespace only
+/// - Maximum length (500 characters)
+/// - Only safe characters (alphanumeric, hyphens, underscores)
+/// - No path traversal sequences
+/// - No shell metacharacters
+/// - No null bytes or control characters
+///
+/// # Example
+/// ```gleam
+/// case validate_session_id("interview-123") {
+///   Ok(id) -> use_session(id)
+///   Error(_) -> halt_with_error()
+/// }
+/// ```
+pub fn validate_session_id(session_id: String) -> Result(String, SecurityError) {
+  // First check for control characters (before trimming)
+  case string.contains(session_id, "\t")
+    || string.contains(session_id, "\n")
+    || string.contains(session_id, "\r")
+    || string.contains(session_id, "\u{000C}") // Form feed
+  {
+    True -> Error(InvalidPath(session_id, "Session ID contains control characters"))
+    False -> {
+      let trimmed = string.trim(session_id)
+
+      // Check for empty
+      case trimmed == "" {
+        True -> Error(InvalidPath(session_id, "Session ID cannot be empty"))
+        False -> {
+          // Check length (prevent buffer overflow attempts) - use >= for 500 max
+          case string.length(trimmed) >= 500 {
+            True ->
+              Error(InvalidPath(
+                session_id,
+                "Session ID too long (max 499 characters)",
+              ))
+            False -> {
+              // Check for safe characters (alphanumeric, hyphen, underscore only)
+              case regexp.from_string("^[a-zA-Z0-9_-]+$") {
+                Ok(pattern) -> {
+                  case regexp.check(pattern, trimmed) {
+                    False -> Error(ShellMetacharactersDetected(session_id))
+                    True -> {
+                      // Check for path traversal
+                      case string.contains(trimmed, "..") {
+                        True -> Error(PathTraversalAttempt(session_id))
+                        False -> Ok(trimmed)
+                      }
+                    }
+                  }
+                }
+                Error(_) ->
+                  Error(InvalidPath(session_id, "Invalid session ID format"))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
 // Helper to map over list with Result
 fn list_try_map(list: List(a), fun: fn(a) -> Result(b, e)) -> Result(List(b), e) {
   case list {

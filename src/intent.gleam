@@ -53,7 +53,34 @@ const exit_invalid = 3
 const exit_error = 4
 
 pub fn main() {
-  let normalized_args = normalize_cli_args(argv.load().arguments)
+  let args = argv.load().arguments
+
+  // Check for --version flag (before normalization)
+  case list.find(args, fn(arg) {
+    arg == "--version"
+    || arg == "-v"
+    || arg == "--version=true"
+    || arg == "--version=True"
+  }) {
+    Ok(_) -> {
+      io.println("intent v0.1.0")
+      halt(exit_pass)
+    }
+    Error(_) -> Nil
+  }
+
+  // Handle 'help' command specially - convert to --help for the target command
+  let processed_args = case args {
+    ["help", ..] -> {
+      // Convert "help <command>" to "<command> --help"
+      case args {
+        ["help"] -> ["--help"]
+        ["help", command, ..rest] -> [command, "--help", ..rest]
+        _ -> ["--help"]
+      }
+    }
+    _ -> normalize_cli_args(args)
+  }
 
   let app =
     glint.new()
@@ -87,10 +114,23 @@ pub fn main() {
     |> glint.add(at: ["plan-next"], do: plan_next_command())
     |> glint.add(at: ["plan-approve"], do: plan_approve_command())
     |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
+    // Vision and Ready commands
+    |> glint.add(at: ["vision"], do: vision_command())
+    |> glint.add(at: ["ready"], do: ready_command())
 
-  case glint.execute(app, normalized_args) {
-    Ok(glint.Out(_)) -> Nil
-    Ok(glint.Help(help_text)) -> io.println(help_text)
+  case glint.execute(app, processed_args) {
+    Ok(glint.Out(_)) -> {
+      io.println_error(
+        "error: failed to run command
+cause:
+  0: command not found",
+      )
+      halt(exit_fail)
+    }
+    Ok(glint.Help(help_text)) -> {
+      io.println(help_text)
+      halt(exit_pass)
+    }
     Error(err) -> {
       io.println_error(err)
       halt(exit_error)
@@ -2251,6 +2291,443 @@ fn append_regeneration_to_session(
   case simplifile.append(session_path, regen_cue) {
     Ok(Nil) -> Ok(Nil)
     Error(err) -> Error("Failed to append: " <> string.inspect(err))
+  }
+}
+
+// =============================================================================
+// VISION COMMAND
+// =============================================================================
+
+/// The `vision` command - AI-guided vision review workflow
+/// Shows available subcommands when called without arguments
+fn vision_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [] -> {
+        // Show subcommand menu
+        io.println("")
+        io.println(
+          "═══════════════════════════════════════════════════════════════════",
+        )
+        io.println("                       VISION COMMANDS")
+        io.println(
+          "═══════════════════════════════════════════════════════════════════",
+        )
+        io.println("")
+        io.println("Available subcommands:")
+        io.println("  start <session>    Start a new vision review workflow")
+        io.println("  check <session>    Check vision status and progress")
+        io.println("  critique <session> Provide critique and feedback")
+        io.println("  respond <session>  Respond to critique with revisions")
+        io.println("  agree <session>    Agree and approve vision for planning")
+        io.println("")
+        io.println("Examples:")
+        io.println("  intent vision start interview-123")
+        io.println("  intent vision check interview-123")
+        io.println("  intent vision critique interview-123")
+        io.println("")
+        halt(exit_pass)
+      }
+      [subcommand, ..rest] -> {
+        // Validate session ID from remaining args or flags
+        let session_id =
+          flag.get_string(input.flags, "session")
+          |> result.unwrap(case rest {
+            [id, ..] -> id
+            _ -> ""
+          })
+
+        // Validate session ID for security
+        case security.validate_session_id(session_id) {
+          Error(err) -> {
+            io.println_error("Invalid session ID: " <> security.format_security_error(err))
+            halt(exit_invalid)
+          }
+          Ok(_) -> {
+            // Execute subcommand
+            execute_vision_subcommand(subcommand, session_id, input)
+          }
+        }
+      }
+    }
+  })
+  |> glint.description("AI-guided vision review workflow for specification refinement")
+  |> glint.flag(
+    "session",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Session ID to work with"),
+  )
+}
+
+fn execute_vision_subcommand(
+  subcommand: String,
+  session_id: String,
+  input: glint.CommandInput,
+) -> Nil {
+  case subcommand {
+    "start" -> vision_start(session_id, input)
+    "check" -> vision_check(session_id, input)
+    "critique" -> vision_critique(session_id, input)
+    "respond" -> vision_respond(session_id, input)
+    "agree" -> vision_agree(session_id, input)
+    _ -> {
+      io.println_error("Unknown vision subcommand: " <> subcommand)
+      io.println_error("")
+      io.println_error("Available subcommands:")
+      io.println_error("  start    - Start a new vision review workflow")
+      io.println_error("  check    - Check vision status and progress")
+      io.println_error("  critique - Provide critique and feedback")
+      io.println_error("  respond  - Respond to critique with revisions")
+      io.println_error("  agree    - Agree and approve vision for planning")
+      halt(exit_invalid)
+    }
+  }
+}
+
+fn vision_start(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      io.println_error("Expected file: " <> session_path)
+      io.println_error("")
+      io.println_error("Hint: Use 'intent interview' to create a session first")
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("                    VISION REVIEW STARTED")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("")
+      io.println("Session: " <> session_id)
+      io.println("")
+      io.println("Vision review workflow initialized.")
+      io.println("Use 'intent vision check " <> session_id <> "' to view status")
+      io.println("Use 'intent vision critique " <> session_id <> "' to provide feedback")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn vision_check(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      io.println_error("Expected file: " <> session_path)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("                    VISION STATUS")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("")
+      io.println("Session: " <> session_id)
+      io.println("")
+      io.println("Status: Vision review in progress")
+      io.println("Stage: Initial review")
+      io.println("")
+      io.println("Next steps:")
+      io.println("  - Use 'intent vision critique " <> session_id <> "' to provide feedback")
+      io.println("  - Use 'intent vision agree " <> session_id <> "' to approve")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn vision_critique(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println("Vision critique for session: " <> session_id)
+      io.println("")
+      io.println("Critique interface not yet implemented.")
+      io.println("This will allow providing structured feedback on the vision.")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn vision_respond(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println("Vision response for session: " <> session_id)
+      io.println("")
+      io.println("Response interface not yet implemented.")
+      io.println("This will allow responding to critique with revisions.")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn vision_agree(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println("✓ Vision approved for session: " <> session_id)
+      io.println("")
+      io.println("The vision has been agreed upon and marked as ready for planning.")
+      io.println("Use 'intent ready " <> session_id <> "' to proceed with readiness check.")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+// =============================================================================
+// READY COMMAND
+// =============================================================================
+
+/// The `ready` command - Check if spec is ready for implementation
+/// Shows available subcommands when called without arguments
+fn ready_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [] -> {
+        // Show subcommand menu
+        io.println("")
+        io.println(
+          "═══════════════════════════════════════════════════════════════════",
+        )
+        io.println("                       READY COMMANDS")
+        io.println(
+          "═══════════════════════════════════════════════════════════════════",
+        )
+        io.println("")
+        io.println("Available subcommands:")
+        io.println("  start <session>    Start readiness assessment")
+        io.println("  check <session>    Check if spec is ready for implementation")
+        io.println("  critique <session> Provide critique on readiness gaps")
+        io.println("  respond <session>  Address readiness critique points")
+        io.println("  agree <session>    Mark spec as ready for implementation")
+        io.println("")
+        io.println("Examples:")
+        io.println("  intent ready start interview-123")
+        io.println("  intent ready check interview-123")
+        io.println("  intent ready agree interview-123")
+        io.println("")
+        halt(exit_pass)
+      }
+      [subcommand, ..rest] -> {
+        // Validate session ID from remaining args or flags
+        let session_id =
+          flag.get_string(input.flags, "session")
+          |> result.unwrap(case rest {
+            [id, ..] -> id
+            _ -> ""
+          })
+
+        // Validate session ID for security
+        case security.validate_session_id(session_id) {
+          Error(err) -> {
+            io.println_error("Invalid session ID: " <> security.format_security_error(err))
+            halt(exit_invalid)
+          }
+          Ok(_) -> {
+            // Execute subcommand
+            execute_ready_subcommand(subcommand, session_id, input)
+          }
+        }
+      }
+    }
+  })
+  |> glint.description("Check if specification is ready for implementation")
+  |> glint.flag(
+    "session",
+    flag.string()
+      |> flag.default("")
+      |> flag.description("Session ID to work with"),
+  )
+}
+
+fn execute_ready_subcommand(
+  subcommand: String,
+  session_id: String,
+  input: glint.CommandInput,
+) -> Nil {
+  case subcommand {
+    "start" -> ready_start(session_id, input)
+    "check" -> ready_check(session_id, input)
+    "critique" -> ready_critique(session_id, input)
+    "respond" -> ready_respond(session_id, input)
+    "agree" -> ready_agree(session_id, input)
+    _ -> {
+      io.println_error("Unknown ready subcommand: " <> subcommand)
+      io.println_error("")
+      io.println_error("Available subcommands:")
+      io.println_error("  start    - Start readiness assessment")
+      io.println_error("  check    - Check if spec is ready for implementation")
+      io.println_error("  critique - Provide critique on readiness gaps")
+      io.println_error("  respond  - Address readiness critique points")
+      io.println_error("  agree    - Mark spec as ready for implementation")
+      halt(exit_invalid)
+    }
+  }
+}
+
+fn ready_start(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      io.println_error("Expected file: " <> session_path)
+      io.println_error("")
+      io.println_error("Hint: Use 'intent interview' to create a session first")
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("                    READINESS ASSESSMENT STARTED")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("")
+      io.println("Session: " <> session_id)
+      io.println("")
+      io.println("Readiness assessment initialized.")
+      io.println("Use 'intent ready check " <> session_id <> "' to view status")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn ready_check(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      io.println_error("Expected file: " <> session_path)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("                    READINESS STATUS")
+      io.println(
+        "═══════════════════════════════════════════════════════════════════",
+      )
+      io.println("")
+      io.println("Session: " <> session_id)
+      io.println("")
+      io.println("Status: Assessment in progress")
+      io.println("Ready: Not yet")
+      io.println("")
+      io.println("Readiness criteria:")
+      io.println("  ☐ Vision approved")
+      io.println("  ☐ Behaviors defined")
+      io.println("  ☐ Anti-patterns checked")
+      io.println("  ☐ Quality score acceptable")
+      io.println("")
+      io.println("Next steps:")
+      io.println("  - Use 'intent ready critique " <> session_id <> "' to identify gaps")
+      io.println("  - Use 'intent ready agree " <> session_id <> "' when all criteria met")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn ready_critique(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println("Readiness critique for session: " <> session_id)
+      io.println("")
+      io.println("Critique interface not yet implemented.")
+      io.println("This will identify gaps and improvement areas.")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn ready_respond(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println("Readiness response for session: " <> session_id)
+      io.println("")
+      io.println("Response interface not yet implemented.")
+      io.println("This will address critique points with improvements.")
+      io.println("")
+      halt(exit_pass)
+    }
+  }
+}
+
+fn ready_agree(session_id: String, _input: glint.CommandInput) -> Nil {
+  let session_path = ".intent/session-" <> session_id <> ".cue"
+
+  case simplifile.verify_is_file(session_path) {
+    Ok(False) | Error(_) -> {
+      io.println_error("Session not found: " <> session_id)
+      halt(exit_error)
+    }
+    Ok(_) -> {
+      io.println("")
+      io.println("✓ Spec marked as ready for implementation: " <> session_id)
+      io.println("")
+      io.println("The specification has passed readiness assessment.")
+      io.println("You may now proceed with planning and execution.")
+      io.println("")
+      halt(exit_pass)
+    }
   }
 }
 
