@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -45,3 +45,7 @@ current_timestamp() ->
         true -> list_to_binary(Timestamp);
         false -> Timestamp
     end.
+
+%% Get current timestamp in ISO 8601 format (alias for current_timestamp)
+current_iso8601_timestamp() ->
+    current_timestamp().

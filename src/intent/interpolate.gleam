@@ -2,13 +2,16 @@
 /// Handles ${variable} syntax in strings
 /// Supports array indexing: ${items[0].id}, ${array[-1]}, etc.
 import gleam/dict.{type Dict}
+import gleam/dynamic
+import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string
-import intent/array_indexing
+import intent/array_indexing.{type ArraySpec, NoArray, Index, LastN, All}
+import intent/parser
 
 /// Context containing captured variables
 pub type Context {
@@ -83,9 +86,10 @@ fn interpolate_matches(
   }
 }
 
-/// Resolve a variable path like "response.body.id" or "user_id"
+/// Resolve a variable path like "response.body.id", "user_id", or "items[0]"
 fn resolve_path(ctx: Context, path: String) -> Result(Json, String) {
-  let parts = string.split(path, ".")
+  // Use array_indexing's split_path to handle array syntax
+  let parts = array_indexing.split_path(path)
 
   case parts {
     ["request", "body", ..rest] ->
@@ -99,14 +103,79 @@ fn resolve_path(ctx: Context, path: String) -> Result(Json, String) {
         None -> Error("No response body in context")
       }
     [var_name] ->
-      case get_variable(ctx, var_name) {
-        Some(value) -> Ok(value)
-        None -> Error("Variable not found: " <> var_name)
+      // Check if var_name has array syntax like "items[0]"
+      case array_indexing.parse_path_component(var_name) {
+        Ok(#(actual_var_name, NoArray)) ->
+          case get_variable(ctx, actual_var_name) {
+            Some(value) -> Ok(value)
+            None -> Error("Variable not found: " <> actual_var_name)
+          }
+        Ok(#(actual_var_name, array_spec)) ->
+          // Variable has array syntax, get it first then apply indexing
+          case get_variable(ctx, actual_var_name) {
+            Some(value) -> {
+              case array_spec {
+                NoArray -> Ok(value)
+                Index(idx) -> {
+                  case get_array_element(value, idx) {
+                    Error(e) -> Error(e)
+                    Ok(elem) -> Ok(elem)
+                  }
+                }
+                LastN(n) -> {
+                  case get_array_element_last(value, n) {
+                    Error(e) -> Error(e)
+                    Ok(elem) -> Ok(elem)
+                  }
+                }
+                All -> Error("Array wildcard [*] not supported in variable interpolation")
+              }
+            }
+            None -> Error("Variable not found: " <> actual_var_name)
+          }
+        Error(_) ->
+          // Not array syntax, try as regular variable
+          case get_variable(ctx, var_name) {
+            Some(value) -> Ok(value)
+            None -> Error("Variable not found: " <> var_name)
+          }
       }
     [var_name, ..rest] ->
-      case get_variable(ctx, var_name) {
-        Some(value) -> navigate_json(value, rest)
-        None -> Error("Variable not found: " <> var_name)
+      case array_indexing.parse_path_component(var_name) {
+        Ok(#(actual_var_name, NoArray)) ->
+          case get_variable(ctx, actual_var_name) {
+            Some(value) -> navigate_json(value, rest)
+            None -> Error("Variable not found: " <> actual_var_name)
+          }
+        Ok(#(actual_var_name, array_spec)) ->
+          // Variable has array syntax, get it first then apply indexing
+          case get_variable(ctx, actual_var_name) {
+            Some(value) -> {
+              case array_spec {
+                NoArray -> navigate_json(value, rest)
+                Index(idx) -> {
+                  case get_array_element(value, idx) {
+                    Error(e) -> Error(e)
+                    Ok(elem) -> navigate_json(elem, rest)
+                  }
+                }
+                LastN(n) -> {
+                  case get_array_element_last(value, n) {
+                    Error(e) -> Error(e)
+                    Ok(elem) -> navigate_json(elem, rest)
+                  }
+                }
+                All -> Error("Array wildcard [*] not supported in variable interpolation")
+              }
+            }
+            None -> Error("Variable not found: " <> actual_var_name)
+          }
+        Error(_) ->
+          // Not array syntax, try as regular variable
+          case get_variable(ctx, var_name) {
+            Some(value) -> navigate_json(value, rest)
+            None -> Error("Variable not found: " <> var_name)
+          }
       }
     [] -> Error("Empty variable path")
   }
@@ -121,6 +190,86 @@ fn navigate_json(value: Json, path: List(String)) -> Result(Json, String) {
       // Use array_indexing module for full path navigation with array support
       array_indexing.navigate_path(value, components)
     }
+  }
+}
+
+/// Get array element by positive index (helper function)
+fn get_array_element(json: Json, index: Int) -> Result(Json, String) {
+  let json_str = json.to_string(json)
+  case json.decode(json_str, dynamic.list(dynamic.dynamic)) {
+    Ok(lst) -> {
+      // Get element by finding it in the list
+      let maybe_elem =
+        lst
+        |> list.drop(index)
+        |> list.first
+
+      case maybe_elem {
+        Ok(elem) -> {
+          case parser.dynamic_to_json(elem) {
+            Ok(j) -> Ok(j)
+            Error(_) ->
+              Error(
+                "Cannot convert array element to JSON at index "
+                <> int.to_string(index),
+              )
+          }
+        }
+        Error(_) ->
+          Error(
+            "Array index "
+            <> int.to_string(index)
+            <> " out of bounds (length: "
+            <> int.to_string(list.length(lst))
+            <> ")",
+          )
+      }
+    }
+    Error(_) ->
+      Error("Cannot index non-array JSON with [" <> int.to_string(index) <> "]")
+  }
+}
+
+/// Get array element counting from the end (helper function)
+fn get_array_element_last(json: Json, from_end: Int) -> Result(Json, String) {
+  let json_str = json.to_string(json)
+  case json.decode(json_str, dynamic.list(dynamic.dynamic)) {
+    Ok(lst) -> {
+      let length = list.length(lst)
+      let actual_index = length - from_end
+      case actual_index >= 0 && actual_index < length {
+        False ->
+          Error(
+            "Array index -"
+            <> int.to_string(from_end)
+            <> " out of bounds (length: "
+            <> int.to_string(length)
+            <> ")",
+          )
+        True -> {
+          // Get element at actual_index using drop and first
+          let maybe_elem =
+            lst
+            |> list.drop(actual_index)
+            |> list.first
+
+          case maybe_elem {
+            Ok(elem) -> {
+              case parser.dynamic_to_json(elem) {
+                Ok(j) -> Ok(j)
+                Error(_) ->
+                  Error(
+                    "Cannot convert array element to JSON at index -"
+                    <> int.to_string(from_end),
+                  )
+              }
+            }
+            Error(_) -> Error("Failed to access array element")
+          }
+        }
+      }
+    }
+    Error(_) -> Error("Cannot index non-array JSON with negative index")
   }
 }
 
