@@ -12,6 +12,7 @@ import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{None, Some}
 import intent/checker/headers as header_validation
+import intent/checker/headers as header_validation_types
 import intent/checker/json as field_validation
 import intent/checker/rules as rule_evaluation
 import intent/checker/types as checker_types

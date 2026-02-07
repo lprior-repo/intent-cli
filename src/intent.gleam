@@ -166,6 +166,8 @@ fn is_known_bool_flag(flag_name: String) -> Bool {
     "yes" -> True
     "tokens" -> True
     "draft" -> True
+    "execute" -> True
+    "confirm" -> True
     _ -> False
   }
 }
@@ -190,6 +192,7 @@ fn is_known_value_flag(flag_name: String) -> Bool {
     "out" -> True
     "name" -> True
     "export-answers-template" -> True
+    "vision" -> True
     _ -> False
   }
 }

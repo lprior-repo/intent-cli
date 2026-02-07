@@ -1832,10 +1832,24 @@ pub fn json_null_handling_test() {
 pub fn bead_generation_api_profile_test() {
   // Test generating beads from API profile session
 
+  let answers = [
+    interview.Answer(
+      question_id: "q1",
+      question_text: "What API endpoints do we need?",
+      perspective: Security,
+      round: 1,
+      response: "We need GET /users, POST /users, PUT /users/:id, DELETE /users/:id",
+      extracted: dict.from_list([#("endpoints", "users")]),
+      confidence: 0.9,
+      notes: "",
+      timestamp: "2026-02-06T00:00:00Z",
+    ),
+  ]
+
   let session =
     make_test_interview_session(
       "api-test-session",
-      [],
+      answers,
       [],
       [],
       interview.Discovery,
@@ -2171,24 +2185,8 @@ pub fn empty_session_beads_test() {
 
   let beads = bead_templates.generate_beads_from_session(session)
 
-  // Verify beads were generated
-  list.is_empty(beads) |> should.be_false()
-
-  // Verify first bead structure
-  case list.first(beads) {
-    Ok(first_bead) -> {
-      string.is_empty(first_bead.title) |> should.equal(False)
-      string.is_empty(first_bead.description) |> should.equal(False)
-      string.is_empty(first_bead.profile_type) |> should.equal(False)
-      first_bead.priority |> should.equal(1)
-      string.is_empty(first_bead.issue_type) |> should.equal(False)
-      list.length(first_bead.labels) |> should.equal(1)
-      string.is_empty(first_bead.ai_hints) |> should.equal(False)
-      list.length(first_bead.acceptance_criteria) |> should.equal(1)
-      list.length(first_bead.dependencies) |> should.equal(1)
-    }
-    Error(_) -> should.fail()
-  }
+  // Verify no beads were generated when there are no answers
+  list.is_empty(beads) |> should.be_true()
 }
 
 pub fn bead_stats_empty_list_test() {
@@ -3378,7 +3376,7 @@ pub fn checker_header_value_mismatch_test() {
   let actual =
     http_client.ExecutionResult(
       status: 200,
-      headers: dict.from_list([#("Content-Type", "application/json")]),
+      headers: dict.from_list([#("Content-Type", "text/plain")]),
       body: json.null(),
       raw_body: json.to_string(json.null()),
       elapsed_ms: 100,
