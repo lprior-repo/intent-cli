@@ -4,8 +4,10 @@
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option
+import gleam/result
 import gleam/string
 import intent/interview_questions
+import intent/plan_mode
 import intent/question_types.{
   type Perspective, type Question, Critical, Developer, Important, NiceTohave,
   Ops,
@@ -95,6 +97,7 @@ pub type InterviewSession {
     gaps: List(Gap),
     conflicts: List(Conflict),
     raw_notes: String,
+    current_phase: Int,
   )
 }
 
@@ -395,6 +398,7 @@ pub fn create_session(
     gaps: [],
     conflicts: [],
     raw_notes: "",
+    current_phase: 1,
   )
 }
 
@@ -405,6 +409,7 @@ pub fn add_answer(session: InterviewSession, answer: Answer) -> InterviewSession
     ..session,
     answers: new_answers,
     updated_at: answer.timestamp,
+    current_phase: session.current_phase,
   )
 }
 
@@ -455,7 +460,11 @@ pub fn check_for_gaps(
 ) -> #(InterviewSession, List(Gap)) {
   let blocking_gaps = detect_blocking_gaps(question, answer)
   let updated_session =
-    InterviewSession(..session, gaps: list.append(session.gaps, blocking_gaps))
+    InterviewSession(
+      ..session,
+      gaps: list.append(session.gaps, blocking_gaps),
+      current_phase: session.current_phase,
+    )
   #(updated_session, blocking_gaps)
 }
 
@@ -659,6 +668,30 @@ pub fn can_proceed(session: InterviewSession) -> Result(Nil, String) {
   }
 }
 
+/// Apply phase-gate enforcement to an execution plan
+pub fn apply_phase_gating(
+  session: InterviewSession,
+  plan: plan_mode.ExecutionPlan,
+) -> plan_mode.ExecutionPlan {
+  let current_phase = session.current_phase
+  let phases = plan.phases
+  let has_phase_two_or_higher =
+    list.any(phases, fn(phase) { phase.phase_number >= 2 })
+
+  case current_phase {
+    1 -> plan
+    0 if has_phase_two_or_higher -> {
+      plan_mode.ExecutionPlan(
+        ..plan,
+        blockers: list.append(plan.blockers, [
+          "Phase-gate: Phase 1 (Research) must complete before Phase 2+ can run",
+        ]),
+      )
+    }
+    _ -> plan
+  }
+}
+
 /// Format progress summary
 pub fn format_progress(session: InterviewSession) -> String {
   let stage_str = case session.stage {
@@ -710,3 +743,4 @@ pub fn string_to_profile(s: String) -> Result(Profile, String) {
     _ -> Error("Unknown profile: " <> s)
   }
 }
+

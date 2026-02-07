@@ -247,9 +247,12 @@ fn navigate_and_check_loop(value: Json, path: List(String)) -> Bool {
 
 fn header_exists(headers: Dict(String, String), header_name: String) -> Bool {
   let lower_name = string.lowercase(header_name)
-  headers
-  |> dict.to_list
-  |> list.any(fn(pair) { string.lowercase(pair.0) == lower_name })
+  let lower_headers =
+    headers
+    |> dict.to_list
+    |> list.map(fn(pair) { #(string.lowercase(pair.0), pair.1) })
+  lower_headers
+  |> list.any(fn(pair) { pair.0 == lower_name })
 }
 
 /// Format a rule violation as a human-readable string

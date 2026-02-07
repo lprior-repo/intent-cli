@@ -49,7 +49,12 @@ pub fn load_spec_quiet(path: String) -> Result(Spec, LoadError) {
 /// This is the testable core implementation
 fn load_and_parse_impl(path: String) -> Result(Spec, LoadError) {
   case validate_cue(path) {
-    Ok(_) -> export_and_parse(path)
+    Ok(_) -> {
+      case security.validate_file_path(path) {
+        Ok(validated_path) -> export_and_parse(validated_path)
+        Error(security_error) -> Error(map_security_error(security_error))
+      }
+    }
     Error(e) -> Error(e)
   }
 }
@@ -65,10 +70,18 @@ fn load_and_parse_with_spinner(path: String) -> Result(Spec, LoadError) {
   // First validate the CUE file
   case validate_cue(path) {
     Ok(_) -> {
-      spinner.set_text(sp, "Exporting CUE to JSON...")
-      let result = export_and_parse(path)
-      spinner.stop(sp)
-      result
+      case security.validate_file_path(path) {
+        Ok(validated_path) -> {
+          spinner.set_text(sp, "Exporting CUE to JSON...")
+          let result = export_and_parse(validated_path)
+          spinner.stop(sp)
+          result
+        }
+        Error(security_error) -> {
+          spinner.stop(sp)
+          Error(map_security_error(security_error))
+        }
+      }
     }
     Error(e) -> {
       spinner.stop(sp)
@@ -92,10 +105,21 @@ pub fn validate_cue(path: String) -> Result(Nil, LoadError) {
 }
 
 fn export_and_parse(path: String) -> Result(Spec, LoadError) {
-  // Try to export as full spec first
-  case shellout.command("cue", ["export", path, "-e", "spec"], ".", []) {
-    Ok(json_str) -> parse_json_spec(json_str)
-    Error(#(_, stderr)) -> Error(CueExportError(stderr))
+  // Security: Validate path before executing shellout
+  case security.validate_file_path(path) {
+    Ok(validated_path) ->
+      case
+        shellout.command(
+          "cue",
+          ["export", validated_path, "-e", "spec"],
+          ".",
+          [],
+        )
+      {
+        Ok(json_str) -> parse_json_spec(json_str)
+        Error(#(_, stderr)) -> Error(CueExportError(stderr))
+      }
+    Error(security_error) -> Error(map_security_error(security_error))
   }
 }
 

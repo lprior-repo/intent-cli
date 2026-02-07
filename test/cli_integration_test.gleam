@@ -83,15 +83,42 @@ pub fn given_interview_session_and_answer_flags_when_normalizing_then_values_are
   ])
 }
 
+pub fn given_plan_work_vision_flag_when_normalizing_then_value_is_encoded_test() {
+  let args = [
+    "plan-work", "--profile", "cli", "--vision",
+    "Build a planning-first developer tool",
+  ]
+
+  intent.normalize_cli_args(args)
+  |> should.equal([
+    "plan-work", "--profile=cli",
+    "--vision=Build a planning-first developer tool",
+  ])
+}
+
+pub fn given_plan_emit_beads_flags_when_normalizing_then_bool_and_values_are_encoded_test() {
+  let args = [
+    "plan-emit-beads", "session-123", "--target", "br", "--json", "--execute",
+    "--confirm",
+  ]
+
+  intent.normalize_cli_args(args)
+  |> should.equal([
+    "plan-emit-beads", "session-123", "--target=br", "--json=true",
+    "--execute=true", "--confirm=true",
+  ])
+}
+
 pub fn command_inventory_count_is_current_test() {
   let commands = [
     "analyze", "bead-status", "beads", "beads-regenerate", "check", "compact",
     "coverage", "diff", "ears", "effects", "export", "gaps", "history",
     "improve", "interview", "invert", "lint", "plan", "plan-approve",
-    "prototext", "quality", "sessions", "show", "validate", "validate-bead",
+    "plan-emit-beads", "plan-next", "plan-status", "plan-work", "prototext",
+    "quality", "sessions", "show", "validate", "validate-bead",
   ]
 
   commands
   |> list.length
-  |> should.equal(25)
+  |> should.equal(29)
 }

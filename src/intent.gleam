@@ -29,6 +29,7 @@ import intent/kirk/quality_analyzer as kirk_quality
 import intent/loader
 import intent/output
 import intent/plan_mode
+import intent/plan_next
 import intent/quality_analyzer
 import intent/question_types.{type Question}
 import intent/runner
@@ -83,6 +84,7 @@ pub fn main() {
     |> glint.add(at: ["effects"], do: kirk_effects_command())
     // Plan commands
     |> glint.add(at: ["plan"], do: plan_command())
+    |> glint.add(at: ["plan-next"], do: plan_next_command())
     |> glint.add(at: ["plan-approve"], do: plan_approve_command())
     |> glint.add(at: ["beads-regenerate"], do: beads_regenerate_command())
 
@@ -1788,6 +1790,43 @@ fn plan_command() -> glint.Command(Nil) {
 }
 
 /// The `plan-approve` command - approve execution plan for CI/automation
+/// The `plan-next` command - determine next action for session execution
+fn plan_next_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    case input.args {
+      [session_id, ..] -> {
+        case plan_next.plan_next_command(session_id) {
+          Error(err) -> {
+            io.println_error(err)
+            halt(exit_error)
+          }
+          Ok(action) -> {
+            io.println(action)
+            halt(exit_pass)
+          }
+        }
+      }
+      [] -> {
+        io.println_error("Usage: intent plan-next <session_id>")
+        io.println_error("")
+        io.println_error(
+          "Determine the next action for a session's execution plan.",
+        )
+        io.println_error("")
+        io.println_error("Examples:")
+        io.println_error("  intent plan-next abc123")
+        io.println_error("")
+        io.println_error("Output can be:")
+        io.println_error("  execute_bead: <bead_id> (<bead_title>)")
+        io.println_error("  blocked: <reason>")
+        io.println_error("  done")
+        halt(exit_error)
+      }
+    }
+  })
+  |> glint.description("Determine next action for session execution plan")
+}
+
 fn plan_approve_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let auto_approve =

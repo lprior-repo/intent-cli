@@ -613,6 +613,7 @@ pub fn session_to_json(session: InterviewSession) -> json.Json {
     #("gaps", json.array(session.gaps, gap_to_json)),
     #("conflicts", json.array(session.conflicts, conflict_to_json)),
     #("raw_notes", json.string(session.raw_notes)),
+    #("current_phase", json.int(session.current_phase)),
   ])
 }
 
@@ -985,6 +986,9 @@ fn session_decoder(
     dynamic.field("raw_notes", dynamic.string)(json_value)
     |> result.map_error(fn(_) { [] }),
   )
+  let current_phase =
+    dynamic.field("current_phase", dynamic.int)(json_value)
+    |> result.unwrap(1)
 
   Ok(interview.InterviewSession(
     id: id,
@@ -998,6 +1002,7 @@ fn session_decoder(
     gaps: gaps,
     conflicts: conflicts,
     raw_notes: raw_notes,
+    current_phase: current_phase,
   ))
 }
 

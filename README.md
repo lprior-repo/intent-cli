@@ -113,7 +113,11 @@ intent validate <spec.cue>                # Validate spec syntax
 # Interview (AI-driven)
 intent interview --profile api --cue      # Start interview, output CUE
 intent interview --session X --answer Y   # Submit answer, get next directive
+intent plan-work "Build X" --profile cli  # AI-first planning loop from product vision
 intent beads <session> --cue              # Generate beads as CUE
+intent plan-status <session> --format ai  # Session progress + next command
+intent plan-next <session> --format ai    # Single best next execution action
+intent plan-emit-beads <session> --target br --json [--execute --confirm]  # Dry-run by default; explicit confirm required
 
 # KIRK Analysis
 intent quality <spec.cue>     # Quality scores (5 dimensions)
@@ -160,7 +164,7 @@ src/intent/
 
 schema/
 ├── questions.cue          # Interview questions database
-├── ai_protocol.cue        # AI directive schemas (coming)
+├── ai_protocol.cue        # AI planning directive schemas
 ├── kirk.cue              # KIRK contract types
 └── intent.cue            # Core spec schema
 
