@@ -4,6 +4,7 @@
 import gleam/dict
 import gleam/json
 import gleam/list
+import gleeunit/should
 import intent/http_client
 import intent/rules_engine
 import intent/types.{type Rule, type RuleCheck, type When, type Method}
@@ -87,7 +88,7 @@ pub fn test_rule_passes_when_no_violations() {
     [RulePassed(rule_name)] ->
       should.equal("pass_rule", rule_name)
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -125,11 +126,11 @@ pub fn test_rule_fails_when_required_string_missing() {
         [rules_engine.BodyMissing(required)] ->
           should.equal("success", required)
         _ ->
-          assert.fail("Expected BodyMissing violation")
+          should.fail("Expected BodyMissing violation")
       }
     }
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -163,11 +164,11 @@ pub fn test_rule_fails_when_forbidden_string_present() {
         [rules_engine.BodyContains(forbidden, _)] ->
           should.equal("error", forbidden)
         _ ->
-          assert.fail("Expected BodyContains violation")
+          should.fail("Expected BodyContains violation")
       }
     }
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -200,7 +201,7 @@ pub fn test_rule_uses_case_insensitive_matching() {
       // Should pass because "success" is found and "ERROR" is not found
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -241,7 +242,7 @@ pub fn test_rule_passes_when_fields_exist() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -274,16 +275,17 @@ pub fn test_rule_fails_when_fields_missing() {
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
   case results {
-    [RuleFailed(_, _, violations)] ->
+    [RuleFailed(_, _, violations)] -> {
       should.equal(1, list.length(violations))
       case violations {
         [rules_engine.FieldMissing(field)] ->
           should.equal("user.profile.email", field)
         _ ->
-          assert.fail("Expected FieldMissing violation")
+          should.fail("Expected FieldMissing violation")
       }
+    }
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -320,7 +322,7 @@ pub fn test_rule_passes_when_fields_do_not_exist() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -359,10 +361,10 @@ pub fn test_rule_fails_when_fields_exist_forbidden() {
         [rules_engine.FieldPresent(field)] ->
           should.equal("password", field)
         _ ->
-          assert.fail("Expected FieldPresent violation")
+          should.fail("Expected FieldPresent violation")
       }
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -407,7 +409,7 @@ pub fn test_field_navigation_with_deep_nesting() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -443,7 +445,7 @@ pub fn test_rule_passes_when_header_exists() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -477,10 +479,10 @@ pub fn test_rule_fails_when_header_missing() {
         [rules_engine.HeaderMissing(header)] ->
           should.equal("Authorization", header)
         _ ->
-          assert.fail("Expected HeaderMissing violation")
+          should.fail("Expected HeaderMissing violation")
       }
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -512,7 +514,7 @@ pub fn test_rule_passes_when_header_not_forbidden() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -546,10 +548,10 @@ pub fn test_rule_fails_when_header_exists_forbidden() {
         [rules_engine.HeaderPresent(header)] ->
           should.equal("X-Secret", header)
         _ ->
-          assert.fail("Expected HeaderPresent violation")
+          should.fail("Expected HeaderPresent violation")
       }
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -578,17 +580,18 @@ pub fn test_rule_uses_case_insensitive_header_matching() {
   let results = rules_engine.check_rules([rule], response, "test_behavior")
 
   case results {
-    [RuleFailed(_, _, violations)] ->
+    [RuleFailed(_, _, violations)] -> {
       // Should fail because X-Secret header exists (case insensitive)
       should.equal(1, list.length(violations))
       case violations {
         [rules_engine.HeaderPresent(header)] ->
           should.equal("x-secret", header)
         _ ->
-          assert.fail("Expected HeaderPresent violation")
+          should.fail("Expected HeaderPresent violation")
       }
+    }
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -624,7 +627,7 @@ pub fn test_rule_applies_when_all_conditions_match() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -737,7 +740,7 @@ pub fn test_rule_applies_when_path_matches_exact() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -769,7 +772,7 @@ pub fn test_rule_applies_when_path_matches_regex() {
     [RulePassed(_)] ->
       True
     _ ->
-      assert.fail("Expected RulePassed")
+      should.fail("Expected RulePassed")
   }
 }
 
@@ -808,63 +811,63 @@ pub fn test_rule_does_not_apply_when_path_regex_mismatch() {
 pub fn test_status_condition_exact_match() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition("200", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 /// Test greater than status condition
 pub fn test_status_condition_greater_than() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition("> 100", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 /// Test greater than or equal status condition
 pub fn test_status_condition_greater_than_or_equal() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition(">= 200", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 /// Test less than status condition
 pub fn test_status_condition_less_than() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition("< 300", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 /// Test less than or equal status condition
 pub fn test_status_condition_less_than_or_equal() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition("<= 200", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 /// Test equals status condition
 pub fn test_status_condition_equals() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition("== 200", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 /// Test status condition with invalid number
 pub fn test_status_condition_invalid_number() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition("> abc", response.status)
-  assert.False(matches)
+  matches |> should.be_false()
 }
 
 /// Test status condition with negative number
 pub fn test_status_condition_negative_number() {
   let response = make_test_result(200, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition(">= -1", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 /// Test status condition with zero
 pub fn test_status_condition_zero() {
   let response = make_test_result(0, dict.new(), json.object([]), "{}", Get, "/test")
   let matches = rules_engine.check_status_condition("== 0", response.status)
-  assert.True(matches)
+  matches |> should.be_true()
 }
 
 // ============================================================================
@@ -900,9 +903,9 @@ pub fn test_rule_with_empty_string_checks() {
       // Empty string in body_must_contain should fail
       should.equal(1, list.length(violations))
     [RulePassed(_)] ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
     _ ->
-      assert.fail("Unexpected result")
+      should.fail("Unexpected result")
   }
 }
 
@@ -935,7 +938,7 @@ pub fn test_rule_with_null_json_body() {
       // Should fail because null JSON has no fields
       should.equal(1, list.length(violations))
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -968,7 +971,7 @@ pub fn test_rule_with_empty_json_body() {
       // Should fail because empty JSON has no fields
       should.equal(1, list.length(violations))
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -1001,7 +1004,7 @@ pub fn test_rule_with_invalid_json_field_path() {
       // Should fail because invalid path doesn't exist
       should.equal(1, list.length(violations))
     _ ->
-      assert.fail("Expected RuleFailed")
+      should.fail("Expected RuleFailed")
   }
 }
 
@@ -1050,7 +1053,7 @@ pub fn test_rule_with_multiple_violations() {
       // That's 5 violations total
       should.equal(5, list.length(violations))
     _ ->
-      assert.fail("Expected RuleFailed with multiple violations")
+      should.fail("Expected RuleFailed with multiple violations")
   }
 }
 
@@ -1090,11 +1093,12 @@ pub fn test_multiple_rules_mixed_results() {
   let results = rules_engine.check_rules([rule1, rule2], response, "test_behavior")
 
   case results {
-    [RulePassed(pass_name), rules_engine.RuleFailed(fail_name, _, _)] ->
+    [RulePassed(pass_name), rules_engine.RuleFailed(fail_name, _, _)] -> {
       should.equal("pass_rule", pass_name)
       should.equal("fail_rule", fail_name)
+    }
     _ ->
-      assert.fail("Expected one passing and one failing rule")
+      should.fail("Expected one passing and one failing rule")
   }
 }
 
