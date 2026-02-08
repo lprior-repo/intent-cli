@@ -32,18 +32,17 @@ pub fn debug_array_index_test() {
   let items = json.array([json.int(1), json.int(2), json.int(3)], fn(x) { x })
   let ctx = interpolate.set_variable(ctx, "items", items)
 
-  // The issue is that "items[0]" is not being parsed as an array index
-  // Let's test the path resolution directly
+  // Test that array indexing now works
   let result = interpolate.interpolate_string(ctx, "First: ${items[0]}")
 
   case result {
-    Error(msg) -> {
-      // This currently fails with "Variable not found: items[0]"
-      // But it should work by parsing "items[0]" as a path with array indexing
-      // Test that we can access items[0] through extract_capture if we fix the code
-      // For now, this test shows the current broken behavior
-      msg |> should.equal("Variable not found: items[0]")
+    Ok(value) -> {
+      // Should contain "First: 1"
+      string.contains(value, "First: 1") |> should.be_true()
     }
-    Ok(_) -> should.fail()
+    Error(_msg) -> {
+      // This was the old broken behavior
+      should.fail()
+    }
   }
 }
