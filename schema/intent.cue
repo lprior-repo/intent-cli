@@ -6,29 +6,27 @@ package intent
 #Spec: {
 	name:        string
 	description: string
-	audience:    string | *""
-	version:     string | *"1.0.0"
+	audience:    string
+	version:     string
 
 	success_criteria: [...string]
 
-	config: #Config | *#DefaultConfig
+	config: #Config
 
 	features:      [...#Feature]
 	rules:         [...#Rule]
 	anti_patterns: [...#AntiPattern]
 
-	// Optional AI implementation hints
-	ai_hints?: #AIHints
+	// AI implementation hints (required)
+	ai_hints: #AIHints
 }
 
 // Configuration for the spec
 #Config: {
-	base_url:   string | *""
-	timeout_ms: int | *5000
-	headers:    #Headers | *{}
+	base_url:   string
+	timeout_ms: int
+	headers:    #Headers
 }
-
-#DefaultConfig: #Config & {}
 
 // HTTP headers map
 #Headers: [string]: string
@@ -45,21 +43,21 @@ package intent
 	name:   #Identifier
 	intent: string // Plain English purpose
 
-	// Additional context for humans/AI
-	notes: string | *""
+	// Additional context for humans/AI (optional)
+	notes?: string
 
-	// Dependencies - behaviors that must run first
-	requires: [...#Identifier] | *[]
+	// Dependencies - behaviors that must run first (optional)
+	requires?: [...#Identifier]
 
-	// Tags for filtering
-	tags: [...string] | *[]
+	// Tags for filtering (optional)
+	tags?: [...string]
 
 	request: #Request
 
 	response: #Response
 
-	// Capture values for later use
-	captures: #Captures | *{}
+	// Capture values for later use (optional)
+	captures?: #Captures
 }
 
 // HTTP methods
@@ -72,22 +70,22 @@ package intent
 #Request: {
 	method:  #Method
 	path:    string
-	headers: #Headers | *{}
-	query: {...} | *{}
-	body: _ | *null
+	headers: #Headers
+	query: {...}
+	body?: _ // Optional (e.g., GET requests have no body)
 }
 
 // Expected response
 #Response: {
 	status: int & >=100 & <=599
 
-	// Example of a valid response (for AI learning)
-	example: {...} | *null
+	// Example of a valid response (for AI learning) (optional)
+	example?: {...}
 
 	// Structured checks
-	checks: #Checks | *{}
+	checks: #Checks
 
-	// Optional headers to check
+	// Headers to check (optional)
 	headers?: #Headers
 }
 
@@ -97,7 +95,7 @@ package intent
 // A single check with rule and explanation
 #Check: {
 	rule: string    // Human-readable rule string
-	why:  string | *"" // Explanation of why this matters
+	why?:  string    // Explanation of why this matters (optional)
 }
 
 // Capture definitions
@@ -108,14 +106,14 @@ package intent
 	name:        string
 	description: string
 
-	// When to apply this rule
-	when: #When | *null
+	// When to apply this rule (optional, null means always apply)
+	when?: #When | *null
 
 	// The check to perform
 	check: #RuleCheck
 
 	// Example of correct response
-	example: {...} | *null
+	example?: {...}
 }
 
 // Conditions for when a rule applies
@@ -146,8 +144,8 @@ package intent
 	// What TO do
 	good_example: {...}
 
-	// Explanation
-	why: string | *""
+	// Explanation (optional)
+	why?: string
 }
 
 // AI implementation hints

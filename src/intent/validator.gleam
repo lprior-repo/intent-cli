@@ -123,7 +123,8 @@ fn validate_response_example(behavior: Behavior) -> List(ValidationIssue) {
 
   // Try to parse it back to verify it's valid JSON
   case json.decode(json_string, dynamic.dynamic) {
-    Ok(_) -> [] // Valid JSON
+    Ok(_) -> []
+    // Valid JSON
     Error(_) -> [
       InvalidJsonInExample(
         behavior.name,

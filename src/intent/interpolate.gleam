@@ -10,7 +10,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string
-import intent/array_indexing.{type ArraySpec, NoArray, Index, LastN, All}
+import intent/array_indexing.{All, Index, LastN, NoArray}
 import intent/parser
 
 /// Context containing captured variables
@@ -128,7 +128,10 @@ fn resolve_path(ctx: Context, path: String) -> Result(Json, String) {
                     Ok(elem) -> Ok(elem)
                   }
                 }
-                All -> Error("Array wildcard [*] not supported in variable interpolation")
+                All ->
+                  Error(
+                    "Array wildcard [*] not supported in variable interpolation",
+                  )
               }
             }
             None -> Error("Variable not found: " <> actual_var_name)
@@ -165,7 +168,10 @@ fn resolve_path(ctx: Context, path: String) -> Result(Json, String) {
                     Ok(elem) -> navigate_json(elem, rest)
                   }
                 }
-                All -> Error("Array wildcard [*] not supported in variable interpolation")
+                All ->
+                  Error(
+                    "Array wildcard [*] not supported in variable interpolation",
+                  )
               }
             }
             None -> Error("Variable not found: " <> actual_var_name)
@@ -205,16 +211,7 @@ fn get_array_element(json: Json, index: Int) -> Result(Json, String) {
         |> list.first
 
       case maybe_elem {
-        Ok(elem) -> {
-          case parser.dynamic_to_json(elem) {
-            Ok(j) -> Ok(j)
-            Error(_) ->
-              Error(
-                "Cannot convert array element to JSON at index "
-                <> int.to_string(index),
-              )
-          }
-        }
+        Ok(elem) -> Ok(parser.dynamic_to_json(elem))
         Error(_) ->
           Error(
             "Array index "
@@ -254,16 +251,7 @@ fn get_array_element_last(json: Json, from_end: Int) -> Result(Json, String) {
             |> list.first
 
           case maybe_elem {
-            Ok(elem) -> {
-              case parser.dynamic_to_json(elem) {
-                Ok(j) -> Ok(j)
-                Error(_) ->
-                  Error(
-                    "Cannot convert array element to JSON at index -"
-                    <> int.to_string(from_end),
-                  )
-              }
-            }
+            Ok(elem) -> Ok(parser.dynamic_to_json(elem))
             Error(_) -> Error("Failed to access array element")
           }
         }

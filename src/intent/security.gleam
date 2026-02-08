@@ -228,12 +228,15 @@ pub fn validate_file_paths(
 /// ```
 pub fn validate_session_id(session_id: String) -> Result(String, SecurityError) {
   // First check for control characters (before trimming)
-  case string.contains(session_id, "\t")
+  case
+    string.contains(session_id, "\t")
     || string.contains(session_id, "\n")
     || string.contains(session_id, "\r")
-    || string.contains(session_id, "\u{000C}") // Form feed
+    || string.contains(session_id, "\u{000C}")
   {
-    True -> Error(InvalidPath(session_id, "Session ID contains control characters"))
+    // Form feed
+    True ->
+      Error(InvalidPath(session_id, "Session ID contains control characters"))
     False -> {
       let trimmed = string.trim(session_id)
 
@@ -273,7 +276,6 @@ pub fn validate_session_id(session_id: String) -> Result(String, SecurityError) 
     }
   }
 }
-
 
 // Helper to map over list with Result
 fn list_try_map(list: List(a), fun: fn(a) -> Result(b, e)) -> Result(List(b), e) {

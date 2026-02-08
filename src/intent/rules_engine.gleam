@@ -74,7 +74,7 @@ fn check_path_pattern(pattern: String, path: String) -> Bool {
   }
 }
 
-fn check_status_condition(expr: String, status: Int) -> Bool {
+pub fn check_status_condition(expr: String, status: Int) -> Bool {
   let expr = string.trim(expr)
 
   case string.starts_with(expr, ">= ") {

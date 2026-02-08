@@ -5,9 +5,9 @@
 //// Note: Full CLI integration tests require a test harness.
 //// These tests focus on the security validation layer.
 
+import gleam/string
 import gleeunit
 import gleeunit/should
-import gleam/string
 import intent/security
 
 pub fn main() {

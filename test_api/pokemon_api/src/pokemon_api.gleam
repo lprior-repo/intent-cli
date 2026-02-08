@@ -1,6 +1,5 @@
 /// Pokemon API - Test API for Intent CLI validation
 /// A simple REST API built in Gleam using Erlang's inets module
-
 import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/erlang/process
@@ -91,11 +90,9 @@ pub fn init_store() -> Store {
     )
 
   let ash =
-    Trainer(
-      id: "trainer_ash",
-      name: "Ash Ketchum",
-      pokemon_ids: ["pkmn_001", "pkmn_002"],
-    )
+    Trainer(id: "trainer_ash", name: "Ash Ketchum", pokemon_ids: [
+      "pkmn_001", "pkmn_002",
+    ])
 
   let misty =
     Trainer(id: "trainer_misty", name: "Misty", pokemon_ids: ["pkmn_003"])

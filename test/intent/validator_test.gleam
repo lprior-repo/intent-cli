@@ -858,3 +858,226 @@ fn make_behavior_with_header(
     captures: dict.new(),
   )
 }
+
+// =============================================================================
+// JSON Example Validation Tests
+// =============================================================================
+
+pub fn validate_json_example_valid_object_test() {
+  let behavior =
+    make_behavior_with_example(
+      "get_user",
+      [],
+      "GET",
+      "/users/1",
+      json.object([#("id", json.int(123)), #("name", json.string("Alice"))]),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_valid_array_test() {
+  let behavior =
+    make_behavior_with_example(
+      "list_users",
+      [],
+      "GET",
+      "/users",
+      json.array([json.int(1), json.int(2), json.int(3)], fn(x) { x }),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_valid_string_test() {
+  let behavior =
+    make_behavior_with_example(
+      "get_message",
+      [],
+      "GET",
+      "/message",
+      json.string("Hello, World!"),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_valid_number_test() {
+  let behavior =
+    make_behavior_with_example("get_count", [], "GET", "/count", json.int(42))
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_valid_bool_test() {
+  let behavior =
+    make_behavior_with_example(
+      "get_status",
+      [],
+      "GET",
+      "/status",
+      json.bool(True),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_null_test() {
+  // Null examples are valid (e.g., for 204 No Content responses)
+  let behavior =
+    make_behavior_with_example(
+      "delete_item",
+      [],
+      "DELETE",
+      "/items/1",
+      json.null(),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_nested_object_test() {
+  let behavior =
+    make_behavior_with_example(
+      "get_complex",
+      [],
+      "GET",
+      "/complex",
+      json.object([
+        #(
+          "user",
+          json.object([#("id", json.int(1)), #("name", json.string("Bob"))]),
+        ),
+        #(
+          "items",
+          json.array([json.string("item1"), json.string("item2")], fn(x) { x }),
+        ),
+        #("meta", json.object([#("count", json.int(2))])),
+      ]),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_empty_object_test() {
+  let behavior =
+    make_behavior_with_example(
+      "get_empty",
+      [],
+      "GET",
+      "/empty",
+      json.object([]),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_empty_array_test() {
+  let behavior =
+    make_behavior_with_example(
+      "get_empty_list",
+      [],
+      "GET",
+      "/list",
+      json.array([], fn(x) { x }),
+    )
+  let spec = make_minimal_spec([behavior])
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+pub fn validate_json_example_multiple_behaviors_test() {
+  let behaviors = [
+    make_behavior_with_example(
+      "get_user",
+      [],
+      "GET",
+      "/users/1",
+      json.object([#("id", json.int(1)), #("name", json.string("Alice"))]),
+    ),
+    make_behavior_with_example(
+      "list_users",
+      [],
+      "GET",
+      "/users",
+      json.array([json.int(1), json.int(2)], fn(x) { x }),
+    ),
+    make_behavior_with_example("ping", [], "GET", "/ping", json.string("pong")),
+  ]
+  let spec = make_minimal_spec(behaviors)
+
+  let result = validator.validate_spec(spec)
+
+  result |> should.equal(validator.ValidationValid)
+}
+
+// =============================================================================
+// Helper function for creating behaviors with custom examples
+// =============================================================================
+
+fn make_behavior_with_example(
+  name: String,
+  requires: List(String),
+  method: String,
+  path: String,
+  example: json.Json,
+) -> types.Behavior {
+  let gleam_method = case method {
+    "GET" -> types.Get
+    "POST" -> types.Post
+    "PUT" -> types.Put
+    "PATCH" -> types.Patch
+    "DELETE" -> types.Delete
+    "HEAD" -> types.Head
+    "OPTIONS" -> types.Options
+    _ -> types.Get
+  }
+
+  types.Behavior(
+    name: name,
+    intent: "Test intent for " <> name,
+    notes: "",
+    requires: requires,
+    tags: [],
+    request: types.Request(
+      method: gleam_method,
+      path: path,
+      headers: dict.new(),
+      query: dict.new(),
+      body: json.null(),
+    ),
+    response: types.Response(
+      status: 200,
+      example: example,
+      checks: dict.new(),
+      headers: dict.new(),
+    ),
+    captures: dict.new(),
+  )
+}

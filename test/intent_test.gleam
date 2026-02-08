@@ -15,14 +15,7 @@ import intent/interview_questions
 import intent/kirk/effects_analyzer
 import intent/question_loader
 import intent/question_types.{
-  type Question,
-  Critical,
-  Developer,
-  HappyPath,
-  Ops,
-  Question,
-  Security,
-  User,
+  type Question, Critical, Developer, HappyPath, Ops, Question, Security, User,
 }
 import intent/resolver
 import intent/rules_engine

@@ -56,12 +56,14 @@ pub fn main() {
   let args = argv.load().arguments
 
   // Check for --version flag (before normalization)
-  case list.find(args, fn(arg) {
-    arg == "--version"
-    || arg == "-v"
-    || arg == "--version=true"
-    || arg == "--version=True"
-  }) {
+  case
+    list.find(args, fn(arg) {
+      arg == "--version"
+      || arg == "-v"
+      || arg == "--version=true"
+      || arg == "--version=True"
+    })
+  {
     Ok(_) -> {
       io.println("intent v0.1.0")
       halt(exit_pass)
@@ -2340,7 +2342,9 @@ fn vision_command() -> glint.Command(Nil) {
         // Validate session ID for security
         case security.validate_session_id(session_id) {
           Error(err) -> {
-            io.println_error("Invalid session ID: " <> security.format_security_error(err))
+            io.println_error(
+              "Invalid session ID: " <> security.format_security_error(err),
+            )
             halt(exit_invalid)
           }
           Ok(_) -> {
@@ -2351,7 +2355,9 @@ fn vision_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("AI-guided vision review workflow for specification refinement")
+  |> glint.description(
+    "AI-guided vision review workflow for specification refinement",
+  )
   |> glint.flag(
     "session",
     flag.string()
@@ -2409,8 +2415,12 @@ fn vision_start(session_id: String, _input: glint.CommandInput) -> Nil {
       io.println("Session: " <> session_id)
       io.println("")
       io.println("Vision review workflow initialized.")
-      io.println("Use 'intent vision check " <> session_id <> "' to view status")
-      io.println("Use 'intent vision critique " <> session_id <> "' to provide feedback")
+      io.println(
+        "Use 'intent vision check " <> session_id <> "' to view status",
+      )
+      io.println(
+        "Use 'intent vision critique " <> session_id <> "' to provide feedback",
+      )
       io.println("")
       halt(exit_pass)
     }
@@ -2442,8 +2452,14 @@ fn vision_check(session_id: String, _input: glint.CommandInput) -> Nil {
       io.println("Stage: Initial review")
       io.println("")
       io.println("Next steps:")
-      io.println("  - Use 'intent vision critique " <> session_id <> "' to provide feedback")
-      io.println("  - Use 'intent vision agree " <> session_id <> "' to approve")
+      io.println(
+        "  - Use 'intent vision critique "
+        <> session_id
+        <> "' to provide feedback",
+      )
+      io.println(
+        "  - Use 'intent vision agree " <> session_id <> "' to approve",
+      )
       io.println("")
       halt(exit_pass)
     }
@@ -2502,8 +2518,14 @@ fn vision_agree(session_id: String, _input: glint.CommandInput) -> Nil {
       io.println("")
       io.println("✓ Vision approved for session: " <> session_id)
       io.println("")
-      io.println("The vision has been agreed upon and marked as ready for planning.")
-      io.println("Use 'intent ready " <> session_id <> "' to proceed with readiness check.")
+      io.println(
+        "The vision has been agreed upon and marked as ready for planning.",
+      )
+      io.println(
+        "Use 'intent ready "
+        <> session_id
+        <> "' to proceed with readiness check.",
+      )
       io.println("")
       halt(exit_pass)
     }
@@ -2532,7 +2554,9 @@ fn ready_command() -> glint.Command(Nil) {
         io.println("")
         io.println("Available subcommands:")
         io.println("  start <session>    Start readiness assessment")
-        io.println("  check <session>    Check if spec is ready for implementation")
+        io.println(
+          "  check <session>    Check if spec is ready for implementation",
+        )
         io.println("  critique <session> Provide critique on readiness gaps")
         io.println("  respond <session>  Address readiness critique points")
         io.println("  agree <session>    Mark spec as ready for implementation")
@@ -2556,7 +2580,9 @@ fn ready_command() -> glint.Command(Nil) {
         // Validate session ID for security
         case security.validate_session_id(session_id) {
           Error(err) -> {
-            io.println_error("Invalid session ID: " <> security.format_security_error(err))
+            io.println_error(
+              "Invalid session ID: " <> security.format_security_error(err),
+            )
             halt(exit_invalid)
           }
           Ok(_) -> {
@@ -2663,8 +2689,14 @@ fn ready_check(session_id: String, _input: glint.CommandInput) -> Nil {
       io.println("  ☐ Quality score acceptable")
       io.println("")
       io.println("Next steps:")
-      io.println("  - Use 'intent ready critique " <> session_id <> "' to identify gaps")
-      io.println("  - Use 'intent ready agree " <> session_id <> "' when all criteria met")
+      io.println(
+        "  - Use 'intent ready critique " <> session_id <> "' to identify gaps",
+      )
+      io.println(
+        "  - Use 'intent ready agree "
+        <> session_id
+        <> "' when all criteria met",
+      )
       io.println("")
       halt(exit_pass)
     }
