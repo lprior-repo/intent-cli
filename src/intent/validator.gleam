@@ -1,7 +1,9 @@
 /// Pre-execution static validation of specs
 /// Validates rule syntax, variable references, and dependencies before any HTTP requests
 import gleam/dict
+import gleam/dynamic
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/string
 import intent/types.{type Behavior, type Spec}
@@ -24,12 +26,14 @@ pub type ValidationIssue {
   InvalidPath(behavior: String, path: String, error: String)
   MissingDependency(behavior: String, depends_on: String)
   CircularDependency(behaviors: List(String))
+  DuplicateBehaviorName(name: String, features: List(String))
   MissingCapture(
     behavior: String,
     field: String,
     var_name: String,
     captured_by: List(String),
   )
+  InvalidJsonInExample(behavior: String, path: String, error: String)
 }
 
 /// Validate a complete spec before execution
@@ -57,6 +61,10 @@ pub fn validate_spec(spec: Spec) -> ValidationResult {
   // Check for circular dependencies
   let circular_issues = check_circular_dependencies(all_behaviors)
   let mut_issues = list.append(mut_issues, circular_issues)
+
+  // Check for duplicate behavior names
+  let duplicate_issues = check_duplicate_behavior_names(spec.features)
+  let mut_issues = list.append(mut_issues, duplicate_issues)
 
   case list.is_empty(mut_issues) {
     True -> ValidationValid
@@ -99,7 +107,31 @@ fn validate_behavior(
   let var_issues = validate_variable_references(behavior, all_behaviors)
   let mut_issues = list.append(mut_issues, var_issues)
 
+  // Validate JSON syntax in response.example
+  let json_issues = validate_response_example(behavior)
+  let mut_issues = list.append(mut_issues, json_issues)
+
   mut_issues
+}
+
+/// Validate JSON syntax in response.example field
+fn validate_response_example(behavior: Behavior) -> List(ValidationIssue) {
+  let example = behavior.response.example
+
+  // Try to stringify and re-parse the JSON to validate syntax
+  let json_string = json.to_string(example)
+
+  // Try to parse it back to verify it's valid JSON
+  case json.decode(json_string, dynamic.dynamic) {
+    Ok(_) -> [] // Valid JSON
+    Error(_) -> [
+      InvalidJsonInExample(
+        behavior.name,
+        "response.example",
+        "JSON syntax validation failed - could not re-parse serialized JSON",
+      ),
+    ]
+  }
 }
 
 /// Validate rule syntax by attempting to parse it
@@ -339,6 +371,37 @@ fn has_circular_loop_deps(
   }
 }
 
+/// Check for duplicate behavior names across features
+fn check_duplicate_behavior_names(
+  features: List(types.Feature),
+) -> List(ValidationIssue) {
+  // Build a list of all (behavior_name, feature_name) pairs
+  let behavior_feature_pairs =
+    features
+    |> list.flat_map(fn(feature) {
+      feature.behaviors
+      |> list.map(fn(behavior) { #(behavior.name, feature.name) })
+    })
+
+  // Group by behavior name and find duplicates
+  let grouped =
+    behavior_feature_pairs
+    |> list.group(fn(pair) { pair.0 })
+
+  // Convert to list and filter for duplicates
+  grouped
+  |> dict.to_list
+  |> list.filter_map(fn(entry) {
+    let #(behavior_name, pairs) = entry
+    let feature_names = pairs |> list.map(fn(p) { p.1 })
+
+    case list.length(feature_names) > 1 {
+      False -> Error(Nil)
+      True -> Ok(DuplicateBehaviorName(behavior_name, feature_names))
+    }
+  })
+}
+
 /// Format validation issues for display
 pub fn format_issues(issues: List(ValidationIssue)) -> String {
   let issue_lines =
@@ -402,6 +465,15 @@ fn format_issue(issue: ValidationIssue) -> String {
       <> "  Behaviors: "
       <> string.join(behaviors, " -> ")
 
+    DuplicateBehaviorName(name, features) ->
+      "Duplicate behavior name '"
+      <> name
+      <> "' found in multiple features:\n"
+      <> "  Features: "
+      <> string.join(features, ", ")
+      <> "\n"
+      <> "  Each behavior must have a unique name across all features"
+
     MissingCapture(behavior, location, var_name, captured_by) ->
       "Behavior '"
       <> behavior
@@ -421,5 +493,15 @@ fn format_issue(issue: ValidationIssue) -> String {
           <> behavior
           <> "'"
       }
+
+    InvalidJsonInExample(behavior, path, error) ->
+      "Behavior '"
+      <> behavior
+      <> "', "
+      <> path
+      <> ":\n"
+      <> "  Invalid JSON content\n"
+      <> "  Error: "
+      <> error
   }
 }
