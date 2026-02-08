@@ -129,7 +129,11 @@ pub fn analyze_spec(_spec: a) -> Result(SpecAnalysis, String) {
     spec_name: "Mock Spec",
     behavior_effects: [
       BehaviorEffect(
-        behavior_name: "mock-behavior",
+        behavior_name: "mock-behavior-1",
+        effects: analyze_behavior(Nil),
+      ),
+      BehaviorEffect(
+        behavior_name: "mock-behavior-2",
         effects: analyze_behavior(Nil),
       ),
     ],

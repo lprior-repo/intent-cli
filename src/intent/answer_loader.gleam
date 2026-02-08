@@ -113,9 +113,16 @@ fn flatten_dynamic(
 ) -> Dict(String, String) {
   case dynamic.dict(dynamic.string, dynamic.dynamic)(value) {
     Ok(nested) -> {
+      // First, add the parent object as a JSON string
+      let with_parent = case dynamic_to_json(value) {
+        Ok(json_val) -> dict.insert(acc, key_path, json.to_string(json_val))
+        Error(_) -> acc
+      }
+
+      // Then recursively flatten nested entries
       nested
       |> dict.to_list
-      |> list.fold(acc, fn(inner_acc, entry) {
+      |> list.fold(with_parent, fn(inner_acc, entry) {
         let #(nested_key, nested_value) = entry
         flatten_dynamic(key_path <> "." <> nested_key, nested_value, inner_acc)
       })
@@ -140,15 +147,21 @@ fn insert_answer_key_variants(
 ) -> Dict(String, String) {
   let with_path = dict.insert(acc, key_path, value)
 
-  case last_key_segment(key_path) {
-    Ok("") -> with_path
-    Ok(short_key) -> {
-      case dict.get(with_path, short_key) {
-        Ok(_) -> with_path
-        Error(_) -> dict.insert(with_path, short_key, value)
+  // Only add short key variant for non-nested paths (no dots)
+  case string.contains(key_path, ".") {
+    True -> with_path  // Don't add short key for nested paths
+    False -> {
+      case last_key_segment(key_path) {
+        Ok("") -> with_path
+        Ok(short_key) -> {
+          case dict.get(with_path, short_key) {
+            Ok(_) -> with_path
+            Error(_) -> dict.insert(with_path, short_key, value)
+          }
+        }
+        Error(_) -> with_path
       }
     }
-    Error(_) -> with_path
   }
 }
 
