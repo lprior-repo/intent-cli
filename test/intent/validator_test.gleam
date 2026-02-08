@@ -329,6 +329,166 @@ pub fn validate_spec_complex_dependencies_no_circular_test() {
 }
 
 // =============================================================================
+// Duplicate Behavior Name Tests
+// =============================================================================
+
+pub fn validate_spec_duplicate_behavior_names_same_feature_test() {
+  // Even within a single feature, duplicate names should be caught
+  // (Though this would be unusual since it's the same list)
+  let behavior1 =
+    make_behavior("duplicate_name", [], "GET", "/test1", dict.new())
+  let behavior2 =
+    make_behavior("duplicate_name", [], "GET", "/test2", dict.new())
+
+  let feature =
+    types.Feature(
+      name: "Test Feature",
+      description: "Test feature description",
+      behaviors: [behavior1, behavior2],
+    )
+
+  let spec =
+    types.Spec(
+      name: "Test Spec",
+      description: "Test spec for validator tests",
+      audience: "developers",
+      version: "1.0.0",
+      success_criteria: [],
+      config: types.Config(
+        base_url: "http://localhost:8080",
+        timeout_ms: 5000,
+        headers: dict.new(),
+      ),
+      features: [feature],
+      rules: [],
+      anti_patterns: [],
+      ai_hints: types.AIHints(
+        implementation: types.ImplementationHints(suggested_stack: []),
+        entities: dict.new(),
+        security: types.SecurityHints(
+          password_hashing: "bcrypt",
+          jwt_algorithm: "HS256",
+          jwt_expiry: "1h",
+          rate_limiting: "100/min",
+        ),
+        pitfalls: [],
+      ),
+    )
+
+  let result = validator.validate_spec(spec)
+
+  case result {
+    validator.ValidationInvalid(issues) -> {
+      list.any(issues, fn(issue) {
+        case issue {
+          validator.DuplicateBehaviorName(_, _) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn validate_spec_duplicate_behavior_names_different_features_test() {
+  let behavior1 = make_behavior("get_user", [], "GET", "/users/1", dict.new())
+  let behavior2 = make_behavior("get_user", [], "GET", "/users/2", dict.new())
+
+  let feature1 =
+    types.Feature(name: "Feature 1", description: "First feature", behaviors: [
+      behavior1,
+    ])
+
+  let feature2 =
+    types.Feature(name: "Feature 2", description: "Second feature", behaviors: [
+      behavior2,
+    ])
+
+  let spec =
+    types.Spec(
+      name: "Test Spec",
+      description: "Test spec for validator tests",
+      audience: "developers",
+      version: "1.0.0",
+      success_criteria: [],
+      config: types.Config(
+        base_url: "http://localhost:8080",
+        timeout_ms: 5000,
+        headers: dict.new(),
+      ),
+      features: [feature1, feature2],
+      rules: [],
+      anti_patterns: [],
+      ai_hints: types.AIHints(
+        implementation: types.ImplementationHints(suggested_stack: []),
+        entities: dict.new(),
+        security: types.SecurityHints(
+          password_hashing: "bcrypt",
+          jwt_algorithm: "HS256",
+          jwt_expiry: "1h",
+          rate_limiting: "100/min",
+        ),
+        pitfalls: [],
+      ),
+    )
+
+  let result = validator.validate_spec(spec)
+
+  case result {
+    validator.ValidationInvalid(issues) -> {
+      list.any(issues, fn(issue) {
+        case issue {
+          validator.DuplicateBehaviorName("get_user", _) -> True
+          _ -> False
+        }
+      })
+      |> should.be_true()
+
+      // Should mention both features
+      case
+        list.find(issues, fn(issue) {
+          case issue {
+            validator.DuplicateBehaviorName(_, _) -> True
+            _ -> False
+          }
+        })
+      {
+        Ok(validator.DuplicateBehaviorName(_, features)) -> {
+          list.length(features) |> should.equal(2)
+        }
+        _ -> should.fail()
+      }
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn validate_spec_no_duplicate_behavior_names_test() {
+  let behaviors = [
+    make_behavior("get_user", [], "GET", "/users/1", dict.new()),
+    make_behavior("create_user", [], "POST", "/users", dict.new()),
+    make_behavior("delete_user", [], "DELETE", "/users/1", dict.new()),
+  ]
+  let spec = make_minimal_spec(behaviors)
+
+  let result = validator.validate_spec(spec)
+
+  case result {
+    validator.ValidationInvalid(issues) -> {
+      list.any(issues, fn(issue) {
+        case issue {
+          validator.DuplicateBehaviorName(_, _) -> True
+          _ -> False
+        }
+      })
+      |> should.be_false()
+    }
+    _ -> Nil
+  }
+}
+
+// =============================================================================
 // Format Issues Tests
 // =============================================================================
 
