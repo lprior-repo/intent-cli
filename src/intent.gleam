@@ -135,7 +135,7 @@ cause:
     }
     Error(err) -> {
       io.println_error(err)
-      halt(exit_error)
+      halt(exit_fail)
     }
   }
 }
