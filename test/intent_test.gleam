@@ -1,9 +1,9 @@
 // Test suite for intent CLI argument handling
+import gleam/list
+import gleam/string
 import gleeunit
 import gleeunit/should
 import intent
-import gleam/list
-import gleam/string
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -117,9 +117,7 @@ pub fn normalize_cli_args_multiple_bool_flags_test() {
   |> should.equal(4)
 
   result
-  |> list.all(fn(arg) {
-    string.ends_with(arg, "=true")
-  })
+  |> list.all(fn(arg) { string.ends_with(arg, "=true") })
   |> should.equal(True)
 }
 

@@ -1,8 +1,8 @@
+import gleam/list
+import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/effects_analyzer
-import gleam/list
-import gleam/string
 
 pub fn main() -> Nil {
   gleeunit.main()

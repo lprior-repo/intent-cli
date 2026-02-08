@@ -7,17 +7,13 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
+
 // import shellout
 // import simplifile
 
 /// Decode error with structured context for type conversion failures
 pub type DecodeError {
-  DecodeError(
-    path: String,
-    expected: String,
-    actual: String,
-    message: String,
-  )
+  DecodeError(path: String, expected: String, actual: String, message: String)
 }
 
 pub type AnswerLoaderError {
@@ -72,23 +68,29 @@ fn parse_answers_json(
   case json.decode(json_str, dynamic.dynamic) {
     Error(_) -> {
       // Capture decode error details
-      Error(ParseErrorWithDetails(path, DecodeError(
-        path: "<root>",
-        expected: "JSON",
-        actual: "invalid",
-        message: "Failed to decode answers JSON",
-      )))
+      Error(ParseErrorWithDetails(
+        path,
+        DecodeError(
+          path: "<root>",
+          expected: "JSON",
+          actual: "invalid",
+          message: "Failed to decode answers JSON",
+        ),
+      ))
     }
     Ok(data) -> {
       case dynamic.dict(dynamic.string, dynamic.dynamic)(data) {
         Error(_) -> {
           // Capture type mismatch details
-          Error(ParseErrorWithDetails(path, DecodeError(
-            path: "<root>",
-            expected: "Object",
-            actual: dynamic.classify(data),
-            message: "Top-level value must be an object/map"
-          )))
+          Error(ParseErrorWithDetails(
+            path,
+            DecodeError(
+              path: "<root>",
+              expected: "Object",
+              actual: dynamic.classify(data),
+              message: "Top-level value must be an object/map",
+            ),
+          ))
         }
         Ok(entries) -> Ok(flatten_answers(entries))
       }
@@ -150,7 +152,8 @@ fn insert_answer_key_variants(
 
   // Only add short key variant for non-nested paths (no dots)
   case string.contains(key_path, ".") {
-    True -> with_path  // Don't add short key for nested paths
+    True -> with_path
+    // Don't add short key for nested paths
     False -> {
       case last_key_segment(key_path) {
         Ok("") -> with_path
@@ -173,7 +176,9 @@ fn last_key_segment(key_path: String) -> Result(String, Nil) {
   |> list.first
 }
 
-fn dynamic_value_to_string(value: dynamic.Dynamic) -> Result(String, DecodeError) {
+fn dynamic_value_to_string(
+  value: dynamic.Dynamic,
+) -> Result(String, DecodeError) {
   case dynamic.classify(value) {
     "String" | "BitArray" ->
       dynamic.string(value)
@@ -273,12 +278,14 @@ fn dynamic_to_json(value: dynamic.Dynamic) -> Result(json.Json, DecodeError) {
     "List" | "Tuple" -> {
       case dynamic.list(dynamic.dynamic)(value) {
         Ok(items) ->
-          Ok(json.array(items, fn(item) {
-            case dynamic_to_json(item) {
-              Ok(json_val) -> json_val
-              Error(_) -> json.null()
-            }
-          }))
+          Ok(
+            json.array(items, fn(item) {
+              case dynamic_to_json(item) {
+                Ok(json_val) -> json_val
+                Error(_) -> json.null()
+              }
+            }),
+          )
         Error(_) -> {
           Error(DecodeError(
             path: "<value>",
@@ -334,10 +341,17 @@ fn dynamic_to_json(value: dynamic.Dynamic) -> Result(json.Json, DecodeError) {
 
 /// Format decode error for display
 pub fn format_decode_error_for_test(err: DecodeError) -> String {
-  "At '" <> err.path <> "':\n"
-  <> "  Expected: " <> err.expected <> "\n"
-  <> "  Actual: " <> err.actual <> "\n"
-  <> "  Details: " <> err.message
+  "At '"
+  <> err.path
+  <> "':\n"
+  <> "  Expected: "
+  <> err.expected
+  <> "\n"
+  <> "  Actual: "
+  <> err.actual
+  <> "\n"
+  <> "  Details: "
+  <> err.message
 }
 
 /// Test helper: expose parse_answers_json for testing
@@ -347,7 +361,6 @@ pub fn parse_answers_json_for_test(
 ) -> Result(Dict(String, String), AnswerLoaderError) {
   parse_answers_json(path, json_str)
 }
-
 /// Get debug representation of dynamic value for error messages
 // UNUSED: Kept for debugging purposes
 // fn dynamic_debug(value: dynamic.Dynamic) -> String {

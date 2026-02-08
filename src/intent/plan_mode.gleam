@@ -20,6 +20,7 @@ import gleam/result
 
 // Set not needed - using dict for lookups
 import gleam/string
+
 // import intent/security
 // import shellout
 // import simplifile
@@ -129,25 +130,25 @@ pub fn compute_plan(session_id: String) -> Result(ExecutionPlan, PlanError) {
   // TODO: Re-enable when simplifile is restored
   // case simplifile.verify_is_file(session_path) {
   //   Ok(True) -> {
-      use beads <- result.try(parse_beads_from_cue(session_path))
-      use phases <- result.try(detect_dependency_graph(beads))
+  use beads <- result.try(parse_beads_from_cue(session_path))
+  use phases <- result.try(detect_dependency_graph(beads))
 
-      let total_effort = calculate_total_effort(beads)
-      let risk = assess_risk(beads, phases)
-      let blockers = find_blockers(beads)
-      let timestamp = current_iso8601_timestamp()
+  let total_effort = calculate_total_effort(beads)
+  let risk = assess_risk(beads, phases)
+  let blockers = find_blockers(beads)
+  let timestamp = current_iso8601_timestamp()
 
-      Ok(ExecutionPlan(
-        session_id: session_id,
-        generated_at: timestamp,
-        phases: phases,
-        total_beads: list.length(beads),
-        total_effort: total_effort,
-        risk: risk,
-        blockers: blockers,
-      ))
-    // }
-    // _ -> Error(SessionNotFound(session_id))
+  Ok(ExecutionPlan(
+    session_id: session_id,
+    generated_at: timestamp,
+    phases: phases,
+    total_beads: list.length(beads),
+    total_effort: total_effort,
+    risk: risk,
+    blockers: blockers,
+  ))
+  // }
+  // _ -> Error(SessionNotFound(session_id))
   // }
 }
 

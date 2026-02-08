@@ -1,10 +1,10 @@
 // Comprehensive test suite for plan_mode module
 // Tests dependency resolution, cycle detection
+import gleam/list
+import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/plan_mode
-import gleam/list
-import gleam/string
 
 pub fn main() -> Nil {
   gleeunit.main()

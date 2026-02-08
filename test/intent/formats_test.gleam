@@ -1,9 +1,9 @@
 // Comprehensive test suite for format validators
 // Tests email, UUID, URI, and ISO8601 validators with edge cases
+import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/formats
-import gleam/string
 
 pub fn main() -> Nil {
   gleeunit.main()

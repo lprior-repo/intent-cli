@@ -2,6 +2,7 @@
 /// Loads interview questions from CUE files at runtime
 /// Supports custom questions from .intent/custom-questions.cue
 import gleam/dynamic.{type Dynamic}
+
 // import gleam/json  // UNUSED: Kept for potential future use
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -11,6 +12,7 @@ import intent/question_types.{
   Business, Constraint, Critical, Dependency, Developer, EdgeCase, ErrorCase,
   HappyPath, Important, NiceTohave, NonFunctional, Ops, Question, Security, User,
 }
+
 // import intent/security
 // import shellout
 

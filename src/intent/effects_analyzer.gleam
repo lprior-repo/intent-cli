@@ -30,18 +30,12 @@ pub type Severity {
 
 /// Analysis result for a single behavior
 pub type BehaviorEffect {
-  BehaviorEffect(
-    behavior_name: String,
-    effects: List(Effect),
-  )
+  BehaviorEffect(behavior_name: String, effects: List(Effect))
 }
 
 /// Analysis result for entire spec
 pub type SpecAnalysis {
-  SpecAnalysis(
-    spec_name: String,
-    behavior_effects: List(BehaviorEffect),
-  )
+  SpecAnalysis(spec_name: String, behavior_effects: List(BehaviorEffect))
 }
 
 /// Analyze a single behavior for second-order effects
@@ -125,9 +119,8 @@ fn analyze_rollback_needs(_behavior: a) -> List(Effect) {
 /// Analyze entire spec
 pub fn analyze_spec(_spec: a) -> Result(SpecAnalysis, String) {
   // Return mock analysis for now
-  Ok(SpecAnalysis(
-    spec_name: "Mock Spec",
-    behavior_effects: [
+  Ok(
+    SpecAnalysis(spec_name: "Mock Spec", behavior_effects: [
       BehaviorEffect(
         behavior_name: "mock-behavior-1",
         effects: analyze_behavior(Nil),
@@ -136,8 +129,8 @@ pub fn analyze_spec(_spec: a) -> Result(SpecAnalysis, String) {
         behavior_name: "mock-behavior-2",
         effects: analyze_behavior(Nil),
       ),
-    ],
-  ))
+    ]),
+  )
 }
 
 /// Format effects as JSON
@@ -155,11 +148,17 @@ pub fn format_effects_json(effects: List(Effect)) -> Result(String, String) {
       ])
     })
 
-  Ok(json.array(from: json_objects, of: fn(_) { json.object([]) }) |> json.to_string())
+  Ok(
+    json.array(from: json_objects, of: fn(_) { json.object([]) })
+    |> json.to_string(),
+  )
 }
 
 /// Format effects for CLI display
-pub fn format_effects_cli(behavior_name: String, effects: List(Effect)) -> String {
+pub fn format_effects_cli(
+  behavior_name: String,
+  effects: List(Effect),
+) -> String {
   let header = "Analyzing: " <> behavior_name <> "\n\nSecond-Order Effects:\n"
 
   let effect_lines =
@@ -167,10 +166,19 @@ pub fn format_effects_cli(behavior_name: String, effects: List(Effect)) -> Strin
       let icon = effect_type_to_icon(effect.type_)
       let severity = severity_to_string(effect.severity)
 
-      "  " <> icon <> " " <> effect_type_to_string(effect.type_) <> ": "
-      <> effect.description <> "\n"
-      <> "     Severity: " <> severity <> "\n"
-      <> "     → " <> effect.suggestion <> "\n"
+      "  "
+      <> icon
+      <> " "
+      <> effect_type_to_string(effect.type_)
+      <> ": "
+      <> effect.description
+      <> "\n"
+      <> "     Severity: "
+      <> severity
+      <> "\n"
+      <> "     → "
+      <> effect.suggestion
+      <> "\n"
     })
 
   string.join([header, ..effect_lines], "")

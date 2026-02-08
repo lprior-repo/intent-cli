@@ -7,8 +7,8 @@ import gleam/string
 import glint
 import glint/flag
 import intent/cli_ui
-import intent/validation
 import intent/plan_emit_beads
+import intent/validation
 
 /// Exit codes
 const exit_pass = 0
@@ -199,7 +199,6 @@ fn is_bool_literal(value: String) -> Bool {
 /// ============================================================================
 /// INTERVIEW COMMAND
 /// ============================================================================
-
 fn interview_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let profile =
@@ -233,7 +232,9 @@ fn interview_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Run interactive interview session to capture requirements")
+  |> glint.description(
+    "Run interactive interview session to capture requirements",
+  )
   |> glint.flag(
     "profile",
     flag.string()
@@ -263,7 +264,6 @@ fn run_interview(profile: String, session_id: String) -> Nil {
 /// ============================================================================
 /// BEADS COMMAND
 /// ============================================================================
-
 fn beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let format =
@@ -286,7 +286,8 @@ fn beads_command() -> glint.Command(Nil) {
           Ok(valid_session) -> {
             // Validate format
             case validation.validate_format(format) {
-              Ok(valid_format) -> generate_beads(valid_session, valid_format, output_dir)
+              Ok(valid_format) ->
+                generate_beads(valid_session, valid_format, output_dir)
               Error(err) -> {
                 cli_ui.print_error(err)
                 exit(exit_fail)
@@ -326,7 +327,11 @@ fn beads_command() -> glint.Command(Nil) {
   )
 }
 
-fn generate_beads(session_id: String, format: String, _output_dir: String) -> Nil {
+fn generate_beads(
+  session_id: String,
+  format: String,
+  _output_dir: String,
+) -> Nil {
   // TODO: Implement bead generation
   cli_ui.print_header("Generate Beads")
   io.println("Session: " <> session_id)
@@ -338,7 +343,6 @@ fn generate_beads(session_id: String, format: String, _output_dir: String) -> Ni
 /// ============================================================================
 /// BEAD STATUS COMMAND
 /// ============================================================================
-
 fn bead_status_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let bead_id =
@@ -383,7 +387,6 @@ fn check_bead_status(bead_id: String) -> Nil {
 /// ============================================================================
 /// HISTORY COMMAND
 /// ============================================================================
-
 fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     // Validate no extra arguments
@@ -406,7 +409,6 @@ fn history_command() -> glint.Command(Nil) {
 /// ============================================================================
 /// DIFF COMMAND
 /// ============================================================================
-
 fn diff_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let session_id =
@@ -451,7 +453,6 @@ fn show_session_diff(session_id: String) -> Nil {
 /// ============================================================================
 /// SESSIONS COMMAND
 /// ============================================================================
-
 fn sessions_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let profile =
@@ -490,7 +491,6 @@ fn list_sessions(profile_filter: String) -> Nil {
 /// ============================================================================
 /// PLAN COMMAND
 /// ============================================================================
-
 fn plan_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let notes =
@@ -525,7 +525,6 @@ fn plan_command() -> glint.Command(Nil) {
 /// ============================================================================
 /// PLAN NEXT COMMAND
 /// ============================================================================
-
 fn plan_next_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let strategy =
@@ -540,7 +539,8 @@ fn plan_next_command() -> glint.Command(Nil) {
           Ok(valid_strategy) -> {
             case valid_strategy {
               "" -> io.println("Suggest next task")
-              _ -> io.println("Suggest next task - strategy: " <> valid_strategy)
+              _ ->
+                io.println("Suggest next task - strategy: " <> valid_strategy)
             }
             cli_ui.print_success("Plan next command - implementation needed")
             exit(exit_pass)
@@ -562,14 +562,15 @@ fn plan_next_command() -> glint.Command(Nil) {
     "strategy",
     flag.string()
       |> flag.default("")
-      |> flag.description("Selection strategy: page_rank, critical_path, shortest, risk_first"),
+      |> flag.description(
+        "Selection strategy: page_rank, critical_path, shortest, risk_first",
+      ),
   )
 }
 
 /// ============================================================================
 /// PLAN APPROVE COMMAND
 /// ============================================================================
-
 fn plan_approve_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     // Validate single argument
@@ -590,7 +591,6 @@ fn plan_approve_command() -> glint.Command(Nil) {
 /// ============================================================================
 /// BEADS REGENERATE COMMAND
 /// ============================================================================
-
 fn beads_regenerate_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let session_id =
@@ -635,7 +635,6 @@ fn regenerate_beads(session_id: String) -> Nil {
 /// ============================================================================
 /// PLAN EMIT BEADS COMMAND
 /// ============================================================================
-
 fn plan_emit_beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let dry_run =
@@ -658,7 +657,9 @@ fn plan_emit_beads_command() -> glint.Command(Nil) {
     case input.args {
       [] -> {
         cli_ui.print_error("Error: session ID required")
-        io.println("\nUsage: intent plan-emit-beads <session-id> [--dry-run] [--execute] [--force] [--target br]")
+        io.println(
+          "\nUsage: intent plan-emit-beads <session-id> [--dry-run] [--execute] [--force] [--target br]",
+        )
         exit(exit_fail)
       }
       [session_id] -> {
@@ -673,29 +674,39 @@ fn plan_emit_beads_command() -> glint.Command(Nil) {
         }
       }
       _ -> {
-        cli_ui.print_error("Error: plan-emit-beads takes exactly one argument (session-id)")
+        cli_ui.print_error(
+          "Error: plan-emit-beads takes exactly one argument (session-id)",
+        )
         exit(exit_fail)
       }
     }
   })
-  |> glint.description("Emit beads from session to br (idempotent - won't create duplicates)")
+  |> glint.description(
+    "Emit beads from session to br (idempotent - won't create duplicates)",
+  )
   |> glint.flag(
     "dry-run",
     flag.bool()
       |> flag.default(True)
-      |> flag.description("Show what would be created without creating beads (default: true)"),
+      |> flag.description(
+        "Show what would be created without creating beads (default: true)",
+      ),
   )
   |> glint.flag(
     "execute",
     flag.bool()
       |> flag.default(False)
-      |> flag.description("Actually create beads in br (requires explicit confirmation)"),
+      |> flag.description(
+        "Actually create beads in br (requires explicit confirmation)",
+      ),
   )
   |> glint.flag(
     "force",
     flag.bool()
       |> flag.default(False)
-      |> flag.description("Bypass idempotency checks and create all beads (use with caution)"),
+      |> flag.description(
+        "Bypass idempotency checks and create all beads (use with caution)",
+      ),
   )
   |> glint.flag(
     "target",
@@ -705,20 +716,30 @@ fn plan_emit_beads_command() -> glint.Command(Nil) {
   )
 }
 
-fn emit_beads_to_br(session_id: String, dry_run: Bool, execute: Bool, force: Bool) -> Nil {
+fn emit_beads_to_br(
+  session_id: String,
+  dry_run: Bool,
+  execute: Bool,
+  force: Bool,
+) -> Nil {
   cli_ui.print_header("Emit Beads to br")
 
   // Safety check: require --execute flag to actually create beads
   case !dry_run && !execute {
     True -> {
       cli_ui.print_error("Error: --execute flag required to create beads")
-      io.println("\nThis command will create beads in br using the session: " <> session_id)
+      io.println(
+        "\nThis command will create beads in br using the session: "
+        <> session_id,
+      )
       io.println("\nTo see what would be created (dry run):")
       io.println("  intent plan-emit-beads " <> session_id)
       io.println("\nTo actually create beads:")
       io.println("  intent plan-emit-beads " <> session_id <> " --execute")
       io.println("\nTo bypass idempotency checks (force recreation):")
-      io.println("  intent plan-emit-beads " <> session_id <> " --execute --force")
+      io.println(
+        "  intent plan-emit-beads " <> session_id <> " --execute --force",
+      )
       exit(exit_fail)
     }
     False -> {
@@ -739,7 +760,6 @@ fn emit_beads_to_br(session_id: String, dry_run: Bool, execute: Bool, force: Boo
 /// ============================================================================
 /// VISION COMMAND
 /// ============================================================================
-
 fn vision_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let output_dir =
@@ -774,7 +794,6 @@ fn vision_command() -> glint.Command(Nil) {
 /// ============================================================================
 /// READY COMMAND
 /// ============================================================================
-
 fn ready_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let output_dir =
@@ -809,7 +828,6 @@ fn ready_command() -> glint.Command(Nil) {
 /// ============================================================================
 /// EFFECTS COMMAND
 /// ============================================================================
-
 fn effects_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let json =
@@ -850,7 +868,11 @@ fn effects_command() -> glint.Command(Nil) {
   )
 }
 
-fn analyze_effects(spec_file: String, behavior_filter: String, as_json: Bool) -> Nil {
+fn analyze_effects(
+  spec_file: String,
+  behavior_filter: String,
+  as_json: Bool,
+) -> Nil {
   cli_ui.print_header("Second-Order Effects Analysis")
   io.println("Spec file: " <> spec_file)
 

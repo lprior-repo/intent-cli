@@ -1,7 +1,7 @@
-import gleeunit/should
 import gleam/dict
 import gleam/list
 import gleam/option
+import gleeunit/should
 import intent/semantic_validator
 
 // Helper function to create a valid spec for testing
@@ -38,7 +38,12 @@ fn valid_spec() -> semantic_validator.Spec {
             response: semantic_validator.Response(
               status: 200,
               example: option.None,
-              checks: dict.from_list([#("test", semantic_validator.Check(rule: "present", why: "Test check"))]),
+              checks: dict.from_list([
+                #(
+                  "test",
+                  semantic_validator.Check(rule: "present", why: "Test check"),
+                ),
+              ]),
               headers: option.None,
             ),
             captures: dict.new(),
@@ -83,7 +88,12 @@ pub fn duplicate_behavior_names_fail_validation_test() {
           response: semantic_validator.Response(
             status: 200,
             example: option.None,
-            checks: dict.from_list([#("test", semantic_validator.Check(rule: "present", why: "Test check"))]),
+            checks: dict.from_list([
+              #(
+                "test",
+                semantic_validator.Check(rule: "present", why: "Test check"),
+              ),
+            ]),
             headers: option.None,
           ),
           captures: dict.new(),
@@ -112,7 +122,12 @@ pub fn duplicate_behavior_names_fail_validation_test() {
           response: semantic_validator.Response(
             status: 200,
             example: option.None,
-            checks: dict.from_list([#("test", semantic_validator.Check(rule: "present", why: "Test check"))]),
+            checks: dict.from_list([
+              #(
+                "test",
+                semantic_validator.Check(rule: "present", why: "Test check"),
+              ),
+            ]),
             headers: option.None,
           ),
           captures: dict.new(),
@@ -129,10 +144,7 @@ pub fn duplicate_behavior_names_fail_validation_test() {
     semantic_validator.Invalid(errors) -> {
       let has_unique_names_error =
         errors
-        |> list.any(fn(e) {
-          e.field == "behaviors"
-          && e.rule == "unique_names"
-        })
+        |> list.any(fn(e) { e.field == "behaviors" && e.rule == "unique_names" })
       has_unique_names_error
       |> should.be_true
     }
@@ -165,7 +177,12 @@ pub fn unique_behavior_names_pass_validation_test() {
           response: semantic_validator.Response(
             status: 200,
             example: option.None,
-            checks: dict.from_list([#("test", semantic_validator.Check(rule: "present", why: "Test check"))]),
+            checks: dict.from_list([
+              #(
+                "test",
+                semantic_validator.Check(rule: "present", why: "Test check"),
+              ),
+            ]),
             headers: option.None,
           ),
           captures: dict.new(),
@@ -194,7 +211,12 @@ pub fn unique_behavior_names_pass_validation_test() {
           response: semantic_validator.Response(
             status: 200,
             example: option.None,
-            checks: dict.from_list([#("test", semantic_validator.Check(rule: "present", why: "Test check"))]),
+            checks: dict.from_list([
+              #(
+                "test",
+                semantic_validator.Check(rule: "present", why: "Test check"),
+              ),
+            ]),
             headers: option.None,
           ),
           captures: dict.new(),

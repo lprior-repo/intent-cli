@@ -1,6 +1,6 @@
+import gleam/list
 import gleeunit
 import gleeunit/should
-import gleam/list
 import intent/validation
 
 pub fn main() -> Nil {
@@ -90,7 +90,9 @@ Run 'intent beads --help' for usage.",
 // ============================================================================
 
 pub fn strategy_flag_valid_values_test() {
-  let valid_strategies = ["page_rank", "critical_path", "shortest", "risk_first"]
+  let valid_strategies = [
+    "page_rank", "critical_path", "shortest", "risk_first",
+  ]
 
   list.each(valid_strategies, fn(strategy) {
     let result = validation.validate_strategy(strategy)

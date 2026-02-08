@@ -1,7 +1,7 @@
 // Tests for answer_loader module with enhanced decode error reporting
+import gleam/dict
 import gleeunit
 import gleeunit/should
-import gleam/dict
 import intent/answer_loader
 
 pub fn main() -> Nil {
@@ -13,10 +13,7 @@ pub fn parse_valid_json_answers_test() {
   let json_str = "{\"name\": \"Alice\", \"age\": 30}"
   let result = answer_loader.parse_answers_json_for_test("test.cue", json_str)
 
-  should.equal(result, Ok(dict.from_list([
-    #("name", "Alice"),
-    #("age", "30")
-  ])))
+  should.equal(result, Ok(dict.from_list([#("name", "Alice"), #("age", "30")])))
 }
 
 // Test: Nested objects flatten correctly
@@ -24,10 +21,10 @@ pub fn parse_nested_answers_test() {
   let json_str = "{\"user\": {\"name\": \"Bob\"}}"
   let result = answer_loader.parse_answers_json_for_test("test.cue", json_str)
 
-  should.equal(result, Ok(dict.from_list([
-    #("user.name", "Bob"),
-    #("user", "{\"name\":\"Bob\"}")
-  ])))
+  should.equal(
+    result,
+    Ok(dict.from_list([#("user.name", "Bob"), #("user", "{\"name\":\"Bob\"}")])),
+  )
 }
 
 // Test: Invalid JSON with decode details
@@ -49,8 +46,10 @@ pub fn invalid_json_includes_error_details_test() {
       let _ = decode_error.message
       should.be_true(True)
     }
-    Error(_) -> should.be_true(False)  // Wrong error type
-    Ok(_) -> should.be_true(False)  // Should have errored
+    Error(_) -> should.be_true(False)
+    // Wrong error type
+    Ok(_) -> should.be_true(False)
+    // Should have errored
   }
 }
 
@@ -66,8 +65,10 @@ pub fn root_not_object_includes_type_details_test() {
       should.equal(decode_error.actual, "String")
       should.equal(decode_error.path, "<root>")
     }
-    Error(_) -> should.be_true(False)  // Wrong error type
-    Ok(_) -> should.be_true(False)  // Should have errored
+    Error(_) -> should.be_true(False)
+    // Wrong error type
+    Ok(_) -> should.be_true(False)
+    // Should have errored
   }
 }
 
@@ -88,8 +89,10 @@ pub fn array_at_root_includes_type_details_test() {
       should.equal(decode_error.expected, "Object")
       should.equal(decode_error.actual, "List")
     }
-    Error(_) -> should.be_true(False)  // Wrong error type
-    Ok(_) -> should.be_true(False)  // Should have errored
+    Error(_) -> should.be_true(False)
+    // Wrong error type
+    Ok(_) -> should.be_true(False)
+    // Should have errored
   }
 }
 
@@ -111,7 +114,8 @@ pub fn mixed_types_in_nested_object_test() {
       should.equal(dict.get(parsed, "config.enabled"), Ok("True"))
       should.equal(dict.get(parsed, "config.count"), Ok("5"))
     }
-    Error(_) -> should.be_true(False)  // Should not error
+    Error(_) -> should.be_true(False)
+    // Should not error
   }
 }
 
@@ -125,7 +129,8 @@ pub fn error_messages_are_human_readable_test() {
       // Verify the value was parsed as string
       should.equal(dict.get(parsed, "count"), Ok("thirty"))
     }
-    Error(_) -> should.be_true(False)  // Should not error with current implementation
+    Error(_) -> should.be_true(False)
+    // Should not error with current implementation
   }
 }
 
@@ -140,6 +145,7 @@ pub fn nested_field_error_includes_path_test() {
       should.equal(dict.get(parsed, "user.age"), Ok("not a number"))
       should.be_true(dict.has_key(parsed, "user"))
     }
-    Error(_) -> should.be_true(False)  // Should not error with current implementation
+    Error(_) -> should.be_true(False)
+    // Should not error with current implementation
   }
 }

@@ -3,7 +3,6 @@ import gleam/string
 /// ============================================================================
 /// VALIDATION TYPES
 /// ============================================================================
-
 /// Valid profile types for interview
 pub type Profile {
   ApiProfile
@@ -32,7 +31,6 @@ pub type Strategy {
 /// ============================================================================
 /// PROFILE VALIDATION
 /// ============================================================================
-
 /// Validate profile flag value
 /// Returns Ok(profile) if valid, Error(message) otherwise
 pub fn validate_profile(profile: String) -> Result(String, String) {
@@ -50,8 +48,8 @@ pub fn validate_profile(profile: String) -> Result(String, String) {
     invalid ->
       Error(
         "Invalid profile: '"
-          <> invalid
-          <> "'. Valid options: api, cli, event, data, workflow, ui\n\nRun 'intent interview --help' for usage.",
+        <> invalid
+        <> "'. Valid options: api, cli, event, data, workflow, ui\n\nRun 'intent interview --help' for usage.",
       )
   }
 }
@@ -59,21 +57,21 @@ pub fn validate_profile(profile: String) -> Result(String, String) {
 /// ============================================================================
 /// FORMAT VALIDATION
 /// ============================================================================
-
 /// Validate format flag value
 /// Returns Ok(format) if valid, Error(message) otherwise
 /// Empty string defaults to "json"
 pub fn validate_format(format: String) -> Result(String, String) {
   case format {
-    "" -> Ok("json") // Default value
+    "" -> Ok("json")
+    // Default value
     "json" -> Ok("json")
     "jsonl" -> Ok("jsonl")
     "markdown" -> Ok("markdown")
     invalid ->
       Error(
         "Invalid format: '"
-          <> invalid
-          <> "'. Valid options: json, jsonl, markdown\n\nRun 'intent beads --help' for usage.",
+        <> invalid
+        <> "'. Valid options: json, jsonl, markdown\n\nRun 'intent beads --help' for usage.",
       )
   }
 }
@@ -81,13 +79,13 @@ pub fn validate_format(format: String) -> Result(String, String) {
 /// ============================================================================
 /// STRATEGY VALIDATION
 /// ============================================================================
-
 /// Validate strategy flag value
 /// Returns Ok(strategy) if valid, Error(message) otherwise
 /// Empty string defaults to "page_rank"
 pub fn validate_strategy(strategy: String) -> Result(String, String) {
   case strategy {
-    "" -> Ok("page_rank") // Default value
+    "" -> Ok("page_rank")
+    // Default value
     "page_rank" -> Ok("page_rank")
     "critical_path" -> Ok("critical_path")
     "shortest" -> Ok("shortest")
@@ -95,8 +93,8 @@ pub fn validate_strategy(strategy: String) -> Result(String, String) {
     invalid ->
       Error(
         "Invalid strategy: '"
-          <> invalid
-          <> "'. Valid options: page_rank, critical_path, shortest, risk_first\n\nRun 'intent plan-next --help' for usage.",
+        <> invalid
+        <> "'. Valid options: page_rank, critical_path, shortest, risk_first\n\nRun 'intent plan-next --help' for usage.",
       )
   }
 }
@@ -104,40 +102,39 @@ pub fn validate_strategy(strategy: String) -> Result(String, String) {
 /// ============================================================================
 /// COMMAND ARGUMENT VALIDATION
 /// ============================================================================
-
 /// Validate that a command takes no arguments
 /// Returns Ok(Nil) if args is empty, Error(message) otherwise
-pub fn validate_no_args(args: List(String), command_name: String) -> Result(
-  Nil,
-  String,
-) {
+pub fn validate_no_args(
+  args: List(String),
+  command_name: String,
+) -> Result(Nil, String) {
   case args {
     [] -> Ok(Nil)
     _ ->
       Error(
         "Error: "
-          <> command_name
-          <> " command takes no arguments\n\nRun 'intent "
-          <> command_name
-          <> " --help' for usage.",
+        <> command_name
+        <> " command takes no arguments\n\nRun 'intent "
+        <> command_name
+        <> " --help' for usage.",
       )
   }
 }
 
 /// Validate that a command takes exactly one argument
 /// Returns Ok(arg) if valid, Error(message) otherwise
-pub fn validate_single_arg(args: List(String), command_name: String) -> Result(
-  String,
-  String,
-) {
+pub fn validate_single_arg(
+  args: List(String),
+  command_name: String,
+) -> Result(String, String) {
   case args {
     [] ->
       Error(
         "Error: "
-          <> get_arg_name(command_name)
-          <> " required\n\nRun 'intent "
-          <> command_name
-          <> " --help' for usage.",
+        <> get_arg_name(command_name)
+        <> " required\n\nRun 'intent "
+        <> command_name
+        <> " --help' for usage.",
       )
     [arg] -> {
       let trimmed = string.trim(arg)
@@ -145,10 +142,10 @@ pub fn validate_single_arg(args: List(String), command_name: String) -> Result(
         "" ->
           Error(
             "Error: "
-              <> get_arg_name(command_name)
-              <> " cannot be empty\n\nRun 'intent "
-              <> command_name
-              <> " --help' for usage.",
+            <> get_arg_name(command_name)
+            <> " cannot be empty\n\nRun 'intent "
+            <> command_name
+            <> " --help' for usage.",
           )
         _ -> Ok(trimmed)
       }
@@ -156,10 +153,10 @@ pub fn validate_single_arg(args: List(String), command_name: String) -> Result(
     _ ->
       Error(
         "Error: "
-          <> command_name
-          <> " command takes exactly one argument\n\nRun 'intent "
-          <> command_name
-          <> " --help' for usage.",
+        <> command_name
+        <> " command takes exactly one argument\n\nRun 'intent "
+        <> command_name
+        <> " --help' for usage.",
       )
   }
 }
@@ -175,7 +172,6 @@ fn get_arg_name(command_name: String) -> String {
 /// ============================================================================
 /// REQUIRED FLAG VALIDATION
 /// ============================================================================
-
 /// Validate that a required flag is not empty
 /// Returns Ok(value) if valid, Error(message) otherwise
 pub fn validate_required_flag(
@@ -187,10 +183,10 @@ pub fn validate_required_flag(
     "" ->
       Error(
         "Error: --"
-          <> flag_name
-          <> " required\n\nRun 'intent "
-          <> get_command_for_flag(flag_name)
-          <> " --help' for usage.",
+        <> flag_name
+        <> " required\n\nRun 'intent "
+        <> get_command_for_flag(flag_name)
+        <> " --help' for usage.",
       )
     _ -> Ok(trimmed)
   }

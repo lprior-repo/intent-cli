@@ -22,12 +22,18 @@ pub type SynthesisContext {
 
 /// Test strategy for generating different types of acceptance tests
 pub type TestStrategy {
-  BehaviorVerification  // "Verify behavior X works when Y"
-  OutputValidation     // "Confirm output Z matches expected format"
-  IntegrationCheck     // "Ensure integration with component W"
-  ErrorHandling        // "Test error handling for edge case E"
-  PerformanceMetric    // "Validate performance meets threshold T"
-  Auto                 // Automatically infer from context
+  BehaviorVerification
+  // "Verify behavior X works when Y"
+  OutputValidation
+  // "Confirm output Z matches expected format"
+  IntegrationCheck
+  // "Ensure integration with component W"
+  ErrorHandling
+  // "Test error handling for edge case E"
+  PerformanceMetric
+  // "Validate performance meets threshold T"
+  Auto
+  // Automatically infer from context
 }
 
 /// Synthesize acceptance tests from AI planning content
@@ -35,11 +41,10 @@ pub fn synthesize_acceptance_tests(
   context: SynthesisContext,
   strategy: TestStrategy,
 ) -> List(String) {
-  let effective_strategy =
-    case strategy {
-      Auto -> infer_strategy_from_context(context)
-      _ -> strategy
-    }
+  let effective_strategy = case strategy {
+    Auto -> infer_strategy_from_context(context)
+    _ -> strategy
+  }
 
   let testable_elements = extract_testable_elements(context.ai_answer)
 
@@ -73,11 +78,10 @@ pub fn extract_testable_elements(ai_answer: String) -> List(String) {
         |> string.to_graphemes
         |> list.first
 
-      let is_comment =
-        case first_char {
-          Ok(char) -> char == "#"
-          Error(_) -> False
-        }
+      let is_comment = case first_char {
+        Ok(char) -> char == "#"
+        Error(_) -> False
+      }
 
       case is_empty || is_comment {
         True -> False
@@ -92,9 +96,7 @@ pub fn extract_testable_elements(ai_answer: String) -> List(String) {
 
   let testable_lines =
     lines
-    |> list.filter(fn(line) {
-      contains_any_ignore_case(line, keywords)
-    })
+    |> list.filter(fn(line) { contains_any_ignore_case(line, keywords) })
 
   case testable_lines {
     [] -> ["Complete the implementation"]
@@ -117,15 +119,14 @@ pub fn format_acceptance_test(
     |> string.replace(".", "")
     |> string.trim()
 
-  let prefix =
-    case strategy {
-      BehaviorVerification -> "Verify"
-      OutputValidation -> "Confirm"
-      IntegrationCheck -> "Ensure"
-      ErrorHandling -> "Test error handling for"
-      PerformanceMetric -> "Validate performance of"
-      Auto -> "Verify"
-    }
+  let prefix = case strategy {
+    BehaviorVerification -> "Verify"
+    OutputValidation -> "Confirm"
+    IntegrationCheck -> "Ensure"
+    ErrorHandling -> "Test error handling for"
+    PerformanceMetric -> "Validate performance of"
+    Auto -> "Verify"
+  }
 
   let test_body = format_test_body(cleaned_element, strategy, context)
 
@@ -142,15 +143,30 @@ fn infer_strategy_from_context(context: SynthesisContext) -> TestStrategy {
   let has_error_keywords =
     contains_any_ignore_case(title_lower <> " " <> answer_lower, error_keywords)
 
-  let check_performance = ["performance", "latency", "response time", "throughput"]
+  let check_performance = [
+    "performance", "latency", "response time", "throughput",
+  ]
   let has_performance_keywords =
-    contains_any_ignore_case(title_lower <> " " <> answer_lower, check_performance)
+    contains_any_ignore_case(
+      title_lower <> " " <> answer_lower,
+      check_performance,
+    )
 
-  let integration_keywords = ["integration", "connect", "api", "endpoint", "service"]
+  let integration_keywords = [
+    "integration", "connect", "api", "endpoint", "service",
+  ]
   let has_integration_keywords =
-    contains_any_ignore_case(title_lower <> " " <> answer_lower, integration_keywords)
+    contains_any_ignore_case(
+      title_lower <> " " <> answer_lower,
+      integration_keywords,
+    )
 
-  case has_error_keywords, has_performance_keywords, has_integration_keywords, context.phase > 2 {
+  case
+    has_error_keywords,
+    has_performance_keywords,
+    has_integration_keywords,
+    context.phase > 2
+  {
     True, _, _, _ -> ErrorHandling
     _, True, _, _ -> PerformanceMetric
     _, _, True, _ -> IntegrationCheck
@@ -168,7 +184,8 @@ fn generate_dependency_tests(context: SynthesisContext) -> List(String) {
       |> list.map(fn(dep) {
         "Verify integration with " <> dep <> " is working correctly"
       })
-      |> list.take(3) // Limit to prevent too many tests
+      |> list.take(3)
+      // Limit to prevent too many tests
     }
   }
 }
@@ -209,33 +226,28 @@ fn format_test_body(
           element
           |> string.slice(0, 50)
           <> "... works as expected"
-        False ->
-          element
-          <> " works as expected"
+        False -> element <> " works as expected"
       }
     }
     OutputValidation, _ -> {
-      element
-      <> " produces expected output format"
+      element <> " produces expected output format"
     }
     IntegrationCheck, _ -> {
-      "integration with "
-      <> element
-      <> " is properly established"
+      "integration with " <> element <> " is properly established"
     }
     ErrorHandling, _ -> {
-      case contains_any_ignore_case(element, ["timeout", "network", "external"]) {
+      case
+        contains_any_ignore_case(element, ["timeout", "network", "external"])
+      {
         True -> element <> " is handled gracefully"
         False -> "proper error handling for " <> element
       }
     }
     PerformanceMetric, _ -> {
-      element
-      <> " meets performance requirements"
+      element <> " meets performance requirements"
     }
     Auto, _ -> {
-      element
-      <> " behaves correctly"
+      element <> " behaves correctly"
     }
   }
 }
@@ -262,21 +274,28 @@ fn dedupe_loop(tests: List(String), seen: List(String)) -> List(String) {
 }
 
 /// Ensure minimum number of tests per bead
-fn ensure_minimum_tests(tests: List(String), context: SynthesisContext) -> List(String) {
+fn ensure_minimum_tests(
+  tests: List(String),
+  context: SynthesisContext,
+) -> List(String) {
   let min_tests = 3
   let current_count = list.length(tests)
 
   case current_count >= min_tests {
     True -> tests
     False -> {
-      let fallback_tests = generate_fallback_tests(context, min_tests - current_count)
+      let fallback_tests =
+        generate_fallback_tests(context, min_tests - current_count)
       list.append(tests, fallback_tests)
     }
   }
 }
 
 /// Generate fallback tests to meet minimum requirements
-fn generate_fallback_tests(context: SynthesisContext, count: Int) -> List(String) {
+fn generate_fallback_tests(
+  context: SynthesisContext,
+  count: Int,
+) -> List(String) {
   let fallback_templates = [
     "Verify " <> context.bead_title <> " meets specification requirements",
     "Test " <> context.bead_title <> " with valid inputs",

@@ -1,6 +1,6 @@
+import gleam/list
 import gleeunit
 import gleeunit/should
-import gleam/list
 
 /// Test module for CUE schema validation
 /// This test verifies that the CUE schema properly enforces required fields
@@ -8,7 +8,6 @@ import gleam/list
 /// Note: These tests rely on the external `cue` command being available
 /// and are primarily integration tests to ensure the schema is correctly
 /// configured with required field markers (!)
-
 pub fn main() -> Nil {
   gleeunit.main()
 }
@@ -25,16 +24,8 @@ pub fn missing_name_field_fails_validation_test() {
   // The schema uses `!` markers to enforce required fields
 
   let required_fields = [
-    "name",
-    "description",
-    "audience",
-    "version",
-    "success_criteria",
-    "config",
-    "features",
-    "rules",
-    "anti_patterns",
-    "ai_hints",
+    "name", "description", "audience", "version", "success_criteria", "config",
+    "features", "rules", "anti_patterns", "ai_hints",
   ]
 
   // Verify all required fields are documented
@@ -46,8 +37,8 @@ pub fn missing_name_field_fails_validation_test() {
 /// Test that the CUE schema has all required spec-level fields marked
 pub fn spec_level_required_fields_documented_test() {
   let spec_fields = [
-    "name", "description", "audience", "version", "success_criteria",
-    "config", "features", "rules", "anti_patterns", "ai_hints",
+    "name", "description", "audience", "version", "success_criteria", "config",
+    "features", "rules", "anti_patterns", "ai_hints",
   ]
 
   // All these fields should be marked with ! in schema/intent.cue

@@ -45,19 +45,11 @@ pub type Spec {
 }
 
 pub type Config {
-  Config(
-    base_url: String,
-    timeout_ms: Int,
-    headers: Dict(String, String),
-  )
+  Config(base_url: String, timeout_ms: Int, headers: Dict(String, String))
 }
 
 pub type Feature {
-  Feature(
-    name: String,
-    description: String,
-    behaviors: List(Behavior),
-  )
+  Feature(name: String, description: String, behaviors: List(Behavior))
 }
 
 pub type Behavior {
@@ -93,18 +85,11 @@ pub type Response {
 }
 
 pub type Check {
-  Check(
-    rule: String,
-    why: String,
-  )
+  Check(rule: String, why: String)
 }
 
 pub type Rule {
-  Rule(
-    name: String,
-    description: String,
-    check: RuleCheck,
-  )
+  Rule(name: String, description: String, check: RuleCheck)
 }
 
 pub type RuleCheck {
@@ -247,20 +232,19 @@ pub fn validate_spec_semantics(spec: Spec) -> ValidationResult {
     False -> errors
   }
 
-  let errors =
-    case string.length(spec.description) > max_string_length {
-      True -> [
-        ValidationError(
-          field: "description",
-          rule: "max_length",
-          expected: "< 100KB",
-          actual: int.to_string(string.length(spec.description)) <> " bytes",
-          explanation: "String length exceeds maximum allowed size",
-        ),
-        ..errors
-      ]
-      False -> errors
-    }
+  let errors = case string.length(spec.description) > max_string_length {
+    True -> [
+      ValidationError(
+        field: "description",
+        rule: "max_length",
+        expected: "< 100KB",
+        actual: int.to_string(string.length(spec.description)) <> " bytes",
+        explanation: "String length exceeds maximum allowed size",
+      ),
+      ..errors
+    ]
+    False -> errors
+  }
 
   // Check for path traversal in request paths
   let errors =
@@ -269,8 +253,7 @@ pub fn validate_spec_semantics(spec: Spec) -> ValidationResult {
         case string.contains(behavior.request.path, "../") {
           True -> [
             ValidationError(
-              field:
-                "features."
+              field: "features."
                 <> feature.name
                 <> ".behaviors."
                 <> behavior.name
@@ -296,21 +279,19 @@ pub fn validate_spec_semantics(spec: Spec) -> ValidationResult {
   let behavior_names = list.map(all_behaviors, fn(b) { b.name })
   let unique_names = list.unique(behavior_names)
 
-  let errors =
-    case list.length(behavior_names) != list.length(unique_names) {
-      True -> [
-        ValidationError(
-          field: "behaviors",
-          rule: "unique_names",
-          expected: "unique behavior names across all features",
-          actual: "duplicate behavior names found",
-          explanation: "Behavior names must be unique across all features to enable unambiguous dependency resolution",
-        ),
-        ..errors
-      ]
-      False -> errors
-    }
-
+  let errors = case list.length(behavior_names) != list.length(unique_names) {
+    True -> [
+      ValidationError(
+        field: "behaviors",
+        rule: "unique_names",
+        expected: "unique behavior names across all features",
+        actual: "duplicate behavior names found",
+        explanation: "Behavior names must be unique across all features to enable unambiguous dependency resolution",
+      ),
+      ..errors
+    ]
+    False -> errors
+  }
 
   // Return errors if any, otherwise Valid
   case list.is_empty(errors) {
@@ -322,7 +303,8 @@ pub fn validate_spec_semantics(spec: Spec) -> ValidationResult {
 /// Format validation errors for user display
 pub fn format_validation_errors(errors: List(ValidationError)) -> String {
   let count = list.length(errors)
-  let intro = "Spec validation failed with " <> int.to_string(count) <> " error(s):\n"
+  let intro =
+    "Spec validation failed with " <> int.to_string(count) <> " error(s):\n"
 
   let formatted =
     list.index_map(errors, fn(err, i) {

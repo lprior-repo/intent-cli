@@ -7,10 +7,10 @@
 //// - Only create beads that don't exist yet
 //// - Track emitted bead IDs in session metadata
 
+import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
-import gleam/int
 import intent/plan_mode.{type PlanBead}
 
 /// Emission result tracking
@@ -55,12 +55,10 @@ pub fn emit_beads(
       let beads = extract_beads_from_plan(plan)
 
       // Check which beads already exist (skip if force flag is set)
-      use existing_beads <- result.then(
-        case force {
-          True -> Ok([])
-          False -> check_existing_beads(beads)
-        },
-      )
+      use existing_beads <- result.then(case force {
+        True -> Ok([])
+        False -> check_existing_beads(beads)
+      })
 
       // Determine which beads need to be created
       let new_beads = filter_new_beads(beads, existing_beads)
@@ -68,20 +66,22 @@ pub fn emit_beads(
       // Generate commands
       let commands = generate_br_commands(session_id, new_beads)
 
-      let result = EmissionResult(
-        session_id: session_id,
-        dry_run: dry_run,
-        total_beads: list.length(beads),
-        already_exists: list.length(existing_beads),
-        would_create: list.length(new_beads),
-        created: 0,
-        failed: 0,
-        commands: commands,
-      )
+      let result =
+        EmissionResult(
+          session_id: session_id,
+          dry_run: dry_run,
+          total_beads: list.length(beads),
+          already_exists: list.length(existing_beads),
+          would_create: list.length(new_beads),
+          created: 0,
+          failed: 0,
+          commands: commands,
+        )
 
       // Execute if not dry run and execute flag is set
       case dry_run || !execute {
-        True -> Ok(result) // Dry run - don't execute
+        True -> Ok(result)
+        // Dry run - don't execute
         False -> {
           use final_result <- result.then(execute_commands(result, new_beads))
           Ok(final_result)
@@ -93,13 +93,13 @@ pub fn emit_beads(
 
 /// Extract beads from execution plan
 fn extract_beads_from_plan(plan: plan_mode.ExecutionPlan) -> List(PlanBead) {
-  list.fold(plan.phases, [], fn(acc, phase) {
-    list.append(phase.beads, acc)
-  })
+  list.fold(plan.phases, [], fn(acc, phase) { list.append(phase.beads, acc) })
 }
 
 /// Check which beads already exist in br by listing all issues
-fn check_existing_beads(beads: List(PlanBead)) -> Result(List(PlanBead), EmitError) {
+fn check_existing_beads(
+  beads: List(PlanBead),
+) -> Result(List(PlanBead), EmitError) {
   // Get list of all existing bead titles
   use existing_titles <- result.then(get_existing_bead_titles())
 
@@ -137,7 +137,10 @@ fn filter_new_beads(
 }
 
 /// Generate br create commands for new beads
-fn generate_br_commands(session_id: String, beads: List(PlanBead)) -> List(String) {
+fn generate_br_commands(
+  session_id: String,
+  beads: List(PlanBead),
+) -> List(String) {
   list.map(beads, fn(bead) {
     let type_flag = case bead.status {
       plan_mode.Failed -> " -t bug"
@@ -210,25 +213,23 @@ pub fn format_result(result: EmissionResult) -> String {
     <> "║\n"
     <> "╚══════════════════════════════════════════════════════════════╝\n\n"
 
-  let mode_section =
-    case result.dry_run {
-      True -> "🔍 DRY RUN MODE - No beads were created\n\n"
-      False -> "✅ EXECUTION MODE - Beads were created in br\n\n"
-    }
+  let mode_section = case result.dry_run {
+    True -> "🔍 DRY RUN MODE - No beads were created\n\n"
+    False -> "✅ EXECUTION MODE - Beads were created in br\n\n"
+  }
 
-  let commands_section =
-    case list.is_empty(result.commands) {
-      True -> "No new beads to create.\n"
-      False -> {
-        "Commands that would run:\n"
-        <> {
-          result.commands
-          |> list.map(fn(cmd) { "  " <> cmd })
-          |> string.join("\n")
-        }
-        <> "\n"
+  let commands_section = case list.is_empty(result.commands) {
+    True -> "No new beads to create.\n"
+    False -> {
+      "Commands that would run:\n"
+      <> {
+        result.commands
+        |> list.map(fn(cmd) { "  " <> cmd })
+        |> string.join("\n")
       }
+      <> "\n"
     }
+  }
 
   header <> mode_section <> commands_section
 }
