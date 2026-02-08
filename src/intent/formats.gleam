@@ -317,8 +317,7 @@ fn validate_uri_scheme(scheme: String) -> Result(Nil, String) {
             |> list.all(fn(c) {
               case
                 string.contains(
-                  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.
-",
+                  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.",
                   c,
                 )
               {
