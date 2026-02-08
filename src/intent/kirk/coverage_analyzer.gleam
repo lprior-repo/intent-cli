@@ -1,7 +1,7 @@
-// KIRK Coverage Analyzer
-// Measures test coverage across multiple dimensions
-// Includes OWASP Top 10 security coverage
-
+/// KIRK Coverage Analyzer
+///
+/// Measures test coverage across multiple dimensions.
+/// Includes OWASP Top 10 security coverage.
 import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int

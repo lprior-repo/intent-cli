@@ -1,7 +1,7 @@
-// KIRK Compact Intent Notation (CIN)
-// Token-efficient format for AI prompts
-// Reduces tokens by ~50% compared to full CUE
-
+/// KIRK Compact Intent Notation (CIN)
+///
+/// Token-efficient format for AI prompts.
+/// Reduces tokens by ~50% compared to full CUE.
 import gleam/dict
 import gleam/int
 import gleam/json

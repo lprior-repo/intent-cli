@@ -1,7 +1,7 @@
-// KIRK Quality Analyzer
-// Calculates quality scores across multiple dimensions
-// Based on empirical research from requirements engineering studies
-
+/// KIRK Quality Analyzer
+///
+/// Calculates quality scores across multiple dimensions.
+/// Based on empirical research from requirements engineering studies.
 import gleam/dict
 import gleam/float
 import gleam/int

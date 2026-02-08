@@ -1,7 +1,7 @@
-// KIRK EARS Parser
-// Easy Approach to Requirements Syntax
-// Converts structured English requirements to Intent behaviors
-
+/// KIRK EARS Parser
+///
+/// Easy Approach to Requirements Syntax (EARS).
+/// Converts structured English requirements to Intent behaviors.
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}

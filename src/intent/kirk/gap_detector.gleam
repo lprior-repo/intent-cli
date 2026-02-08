@@ -1,7 +1,7 @@
-// KIRK Gap Detector
-// Identifies missing requirements using mental models
-// Based on empirical research: requirements gaps are top 3 cause of project failure
-
+/// KIRK Gap Detector
+///
+/// Identifies missing requirements using mental models.
+/// Based on empirical research: requirements gaps are top 3 cause of project failure.
 import gleam/dict
 import gleam/int
 import gleam/list

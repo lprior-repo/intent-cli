@@ -1,7 +1,7 @@
-// KIRK Effects Analyzer
-// Second-Order Thinking: "What happens after the immediate effect?"
-// Traces consequences beyond first-order results
-
+/// KIRK Effects Analyzer
+///
+/// Second-Order Thinking: "What happens after the immediate effect?"
+/// Traces consequences beyond first-order results.
 import gleam/float
 import gleam/int
 import gleam/list

@@ -1,7 +1,7 @@
-// KIRK Inversion Checker
-// "Invert, always invert" - Charlie Munger/Jacobi
-// Analyzes specs for missing failure cases
-
+/// KIRK Inversion Checker
+///
+/// "Invert, always invert" - Charlie Munger/Jacobi.
+/// Analyzes specs for missing failure cases.
 import gleam/int
 import gleam/list
 import gleam/string
