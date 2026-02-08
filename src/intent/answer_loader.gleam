@@ -42,27 +42,28 @@ pub fn load_from_file(
   Error(FileNotFound(path))
 }
 
-fn parse_answers(
-  path: String,
-  contents: String,
-) -> Result(Dict(String, String), AnswerLoaderError) {
-  // TODO: Re-enable CUE export handling when shellout is added back
-  // case path_is_cue(path) {
-  //   True -> {
-  //     case shellout.command("cue", ["export", path, "-e", "answers"], ".", []) {
-  //       Ok(json_str) -> parse_answers_json(path, json_str)
-  //       Error(#(_, stderr)) -> {
-  //         case parse_answers_json(path, contents) {
-  //           Ok(parsed) -> Ok(parsed)
-  //           Error(_) -> Error(ParseError(path, stderr))
-  //         }
-  //       }
-  //     }
-  //   }
-  //   False -> parse_answers_json(path, contents)
-  // }
-  parse_answers_json(path, contents)
-}
+// UNUSED: Kept for potential future use when simplifile is re-enabled
+// fn parse_answers(
+//   path: String,
+//   contents: String,
+// ) -> Result(Dict(String, String), AnswerLoaderError) {
+//   // TODO: Re-enable CUE export handling when shellout is added back
+//   // case path_is_cue(path) {
+//   //   True -> {
+//   //     case shellout.command("cue", ["export", path, "-e", "answers"], ".", []) {
+//   //       Ok(json_str) -> parse_answers_json(path, json_str)
+//   //       Error(#(_, stderr)) -> {
+//   //         case parse_answers_json(path, contents) {
+//   //           Ok(parsed) -> Ok(parsed)
+//   //           Error(_) -> Error(ParseError(path, stderr))
+//   //         }
+//   //       }
+//   //     }
+//   //   }
+//   //   False -> parse_answers_json(path, contents)
+//   // }
+//   parse_answers_json(path, contents)
+// }
 
 fn parse_answers_json(
   path: String,
@@ -326,9 +327,10 @@ fn dynamic_to_json(value: dynamic.Dynamic) -> Result(json.Json, DecodeError) {
   }
 }
 
-fn path_is_cue(path: String) -> Bool {
-  string.ends_with(path, ".cue")
-}
+// UNUSED: Kept for potential future use when CUE export is re-enabled
+// fn path_is_cue(path: String) -> Bool {
+//   string.ends_with(path, ".cue")
+// }
 
 /// Format decode error for display
 pub fn format_decode_error_for_test(err: DecodeError) -> String {
@@ -347,14 +349,15 @@ pub fn parse_answers_json_for_test(
 }
 
 /// Get debug representation of dynamic value for error messages
-fn dynamic_debug(value: dynamic.Dynamic) -> String {
-  case dynamic.string(value) {
-    Ok(s) -> "\"" <> s <> "\""
-    Error(_) -> {
-      case dynamic.int(value) {
-        Ok(i) -> int.to_string(i)
-        Error(_) -> "<" <> dynamic.classify(value) <> ">"
-      }
-    }
-  }
-}
+// UNUSED: Kept for debugging purposes
+// fn dynamic_debug(value: dynamic.Dynamic) -> String {
+//   case dynamic.string(value) {
+//     Ok(s) -> "\"" <> s <> "\""
+//     Error(_) -> {
+//       case dynamic.int(value) {
+//         Ok(i) -> int.to_string(i)
+//         Error(_) -> "<" <> dynamic.classify(value) <> ">"
+//       }
+//     }
+//   }
+// }

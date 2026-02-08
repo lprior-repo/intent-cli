@@ -704,7 +704,7 @@ fn parse_beads_from_cue(
   // }
 }
 
-fn export_beads_from_cue(path: String) -> Result(List(PlanBead), PlanError) {
+fn export_beads_from_cue(_path: String) -> Result(List(PlanBead), PlanError) {
   // TODO: Re-enable when shellout is restored
   Error(SessionNotFound("test"))
   // case

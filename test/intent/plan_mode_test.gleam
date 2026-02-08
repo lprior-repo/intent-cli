@@ -5,7 +5,6 @@ import gleeunit/should
 import intent/plan_mode
 import gleam/list
 import gleam/string
-import gleam/result
 
 pub fn main() -> Nil {
   gleeunit.main()

@@ -3,7 +3,6 @@
 import gleeunit
 import gleeunit/should
 import intent/formats
-import gleam/result
 import gleam/string
 
 pub fn main() -> Nil {

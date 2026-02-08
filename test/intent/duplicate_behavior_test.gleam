@@ -1,7 +1,5 @@
 import gleeunit/should
 import gleam/dict
-import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option
 import intent/semantic_validator

@@ -4,8 +4,6 @@
 //// This module analyzes AI planning content and automatically generates
 //// contextual, testable acceptance criteria for generated beads.
 
-import gleam/dict
-import gleam/int
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}

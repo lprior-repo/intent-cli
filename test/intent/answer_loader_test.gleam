@@ -2,7 +2,6 @@
 import gleeunit
 import gleeunit/should
 import gleam/dict
-import gleam/string
 import intent/answer_loader
 
 pub fn main() -> Nil {

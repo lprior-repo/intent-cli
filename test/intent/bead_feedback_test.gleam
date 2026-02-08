@@ -3,8 +3,6 @@
 import gleeunit
 import gleeunit/should
 import intent/bead_feedback
-import gleam/list
-import gleam/string
 import gleam/option
 
 pub fn main() -> Nil {
