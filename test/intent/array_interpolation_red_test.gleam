@@ -5,8 +5,8 @@ import gleam/json
 import gleam/option
 import gleam/string
 import gleeunit/should
-import intent/interpolate
 import intent/array_indexing
+import intent/interpolate
 
 /// Test 1: Array indexing with positive index - SHOULD WORK
 pub fn array_index_positive_test() {
@@ -54,13 +54,17 @@ pub fn array_index_negative_test() {
 /// Test 3: Nested field with array index - SHOULD WORK
 pub fn nested_array_index_test() {
   let ctx = interpolate.new_context()
-  let user = json.object([
-    #("name", json.string("Alice")),
-    #("emails", json.array([
-      json.string("alice@example.com"),
-      json.string("alice@test.com"),
-    ], fn(x) { x })),
-  ])
+  let user =
+    json.object([
+      #("name", json.string("Alice")),
+      #(
+        "emails",
+        json.array(
+          [json.string("alice@example.com"), json.string("alice@test.com")],
+          fn(x) { x },
+        ),
+      ),
+    ])
   let ctx = interpolate.set_variable(ctx, "user", user)
 
   // Note: This would need path like "user.emails[0]"
