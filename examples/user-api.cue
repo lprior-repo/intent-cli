@@ -13,6 +13,8 @@ spec: intent.#Spec & {
 
 	audience: "Mobile and web clients"
 
+	version: "1.0.0"
+
 	success_criteria: [
 		"Users can register, login, and manage their profile",
 		"Authentication uses JWT tokens",
