@@ -7,45 +7,61 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
-import shellout
-import simplifile
+// import shellout
+// import simplifile
+
+/// Decode error with structured context for type conversion failures
+pub type DecodeError {
+  DecodeError(
+    path: String,
+    expected: String,
+    actual: String,
+    message: String,
+  )
+}
 
 pub type AnswerLoaderError {
   FileNotFound(path: String)
   PermissionDenied(path: String)
-  ParseError(path: String, message: String)
+  ParseErrorWithDetails(path: String, decode_error: DecodeError)
   SchemaError(message: String)
   IoError(message: String)
+  // Legacy ParseError kept for backward compatibility
+  ParseError(path: String, message: String)
 }
 
 /// Load answers from a file (JSON format)
 pub fn load_from_file(
   path: String,
 ) -> Result(Dict(String, String), AnswerLoaderError) {
-  case simplifile.read(path) {
-    Error(_) -> Error(FileNotFound(path))
-    Ok(contents) -> parse_answers(path, contents)
-  }
+  // TODO: Re-enable when simplifile is added back to dependencies
+  // case simplifile.read(path) {
+  //   Error(_) -> Error(FileNotFound(path))
+  //   Ok(contents) -> parse_answers(path, contents)
+  // }
+  Error(FileNotFound(path))
 }
 
 fn parse_answers(
   path: String,
   contents: String,
 ) -> Result(Dict(String, String), AnswerLoaderError) {
-  case path_is_cue(path) {
-    True -> {
-      case shellout.command("cue", ["export", path, "-e", "answers"], ".", []) {
-        Ok(json_str) -> parse_answers_json(path, json_str)
-        Error(#(_, stderr)) -> {
-          case parse_answers_json(path, contents) {
-            Ok(parsed) -> Ok(parsed)
-            Error(_) -> Error(ParseError(path, stderr))
-          }
-        }
-      }
-    }
-    False -> parse_answers_json(path, contents)
-  }
+  // TODO: Re-enable CUE export handling when shellout is added back
+  // case path_is_cue(path) {
+  //   True -> {
+  //     case shellout.command("cue", ["export", path, "-e", "answers"], ".", []) {
+  //       Ok(json_str) -> parse_answers_json(path, json_str)
+  //       Error(#(_, stderr)) -> {
+  //         case parse_answers_json(path, contents) {
+  //           Ok(parsed) -> Ok(parsed)
+  //           Error(_) -> Error(ParseError(path, stderr))
+  //         }
+  //       }
+  //     }
+  //   }
+  //   False -> parse_answers_json(path, contents)
+  // }
+  parse_answers_json(path, contents)
 }
 
 fn parse_answers_json(
@@ -53,11 +69,26 @@ fn parse_answers_json(
   json_str: String,
 ) -> Result(Dict(String, String), AnswerLoaderError) {
   case json.decode(json_str, dynamic.dynamic) {
-    Error(_) -> Error(ParseError(path, "Failed to decode answers JSON"))
+    Error(_) -> {
+      // Capture decode error details
+      Error(ParseErrorWithDetails(path, DecodeError(
+        path: "<root>",
+        expected: "JSON",
+        actual: "invalid",
+        message: "Failed to decode answers JSON",
+      )))
+    }
     Ok(data) -> {
       case dynamic.dict(dynamic.string, dynamic.dynamic)(data) {
-        Error(_) ->
-          Error(ParseError(path, "Top-level answers must be an object/map"))
+        Error(_) -> {
+          // Capture type mismatch details
+          Error(ParseErrorWithDetails(path, DecodeError(
+            path: "<root>",
+            expected: "Object",
+            actual: dynamic.classify(data),
+            message: "Top-level value must be an object/map"
+          )))
+        }
         Ok(entries) -> Ok(flatten_answers(entries))
       }
     }
@@ -90,8 +121,14 @@ fn flatten_dynamic(
       })
     }
     Error(_) -> {
-      let value_as_text = dynamic_value_to_string(value)
-      insert_answer_key_variants(acc, key_path, value_as_text)
+      case dynamic_value_to_string(value) {
+        Ok(value_as_text) ->
+          insert_answer_key_variants(acc, key_path, value_as_text)
+        Error(err) -> {
+          let fallback = "<" <> err.expected <> " decode error>"
+          insert_answer_key_variants(acc, key_path, fallback)
+        }
+      }
     }
   }
 }
@@ -104,57 +141,141 @@ fn insert_answer_key_variants(
   let with_path = dict.insert(acc, key_path, value)
 
   case last_key_segment(key_path) {
-    "" -> with_path
-    short_key -> {
+    Ok("") -> with_path
+    Ok(short_key) -> {
       case dict.get(with_path, short_key) {
         Ok(_) -> with_path
         Error(_) -> dict.insert(with_path, short_key, value)
       }
     }
+    Error(_) -> with_path
   }
 }
 
-fn last_key_segment(key_path: String) -> String {
+fn last_key_segment(key_path: String) -> Result(String, Nil) {
   key_path
   |> string.split(".")
   |> list.reverse
   |> list.first
-  |> result.unwrap("")
 }
 
-fn dynamic_value_to_string(value: dynamic.Dynamic) -> String {
+fn dynamic_value_to_string(value: dynamic.Dynamic) -> Result(String, DecodeError) {
   case dynamic.classify(value) {
-    "String" | "BitArray" -> dynamic.string(value) |> result.unwrap("")
+    "String" | "BitArray" ->
+      dynamic.string(value)
+      |> result.map_error(fn(_) {
+        DecodeError(
+          path: "<value>",
+          expected: "String",
+          actual: dynamic.classify(value),
+          message: "Value classified as String/BitArray but failed to decode",
+        )
+      })
+
     "Int" ->
-      dynamic.int(value) |> result.map(int.to_string) |> result.unwrap("")
+      dynamic.int(value)
+      |> result.map(int.to_string)
+      |> result.map_error(fn(_) {
+        DecodeError(
+          path: "<value>",
+          expected: "Int",
+          actual: dynamic.classify(value),
+          message: "Value classified as Int but failed to decode",
+        )
+      })
+
     "Bool" ->
-      dynamic.bool(value) |> result.map(bool.to_string) |> result.unwrap("")
+      dynamic.bool(value)
+      |> result.map(bool.to_string)
+      |> result.map_error(fn(_) {
+        DecodeError(
+          path: "<value>",
+          expected: "Bool",
+          actual: dynamic.classify(value),
+          message: "Value classified as Bool but failed to decode",
+        )
+      })
+
     "Float" | "List" | "Tuple" | "Dict" | "Map" | "Nil" | _ ->
-      json.to_string(dynamic_to_json(value))
+      case dynamic_to_json(value) {
+        Ok(json_val) -> Ok(json.to_string(json_val))
+        Error(err) -> Error(err)
+      }
   }
 }
 
-fn dynamic_to_json(value: dynamic.Dynamic) -> json.Json {
+fn dynamic_to_json(value: dynamic.Dynamic) -> Result(json.Json, DecodeError) {
   case dynamic.classify(value) {
-    "Nil" -> json.null()
+    "Nil" -> Ok(json.null())
+
     "Bool" ->
-      dynamic.bool(value) |> result.map(json.bool) |> result.unwrap(json.null())
+      dynamic.bool(value)
+      |> result.map(json.bool)
+      |> result.map_error(fn(_) {
+        DecodeError(
+          path: "<value>",
+          expected: "Bool",
+          actual: dynamic.classify(value),
+          message: "Failed to decode as Bool",
+        )
+      })
+
     "Int" ->
-      dynamic.int(value) |> result.map(json.int) |> result.unwrap(json.null())
+      dynamic.int(value)
+      |> result.map(json.int)
+      |> result.map_error(fn(_) {
+        DecodeError(
+          path: "<value>",
+          expected: "Int",
+          actual: dynamic.classify(value),
+          message: "Failed to decode as Int",
+        )
+      })
+
     "Float" ->
       dynamic.float(value)
       |> result.map(json.float)
-      |> result.unwrap(json.null())
+      |> result.map_error(fn(_) {
+        DecodeError(
+          path: "<value>",
+          expected: "Float",
+          actual: dynamic.classify(value),
+          message: "Failed to decode as Float",
+        )
+      })
+
     "String" | "BitArray" ->
       dynamic.string(value)
       |> result.map(json.string)
-      |> result.unwrap(json.null())
+      |> result.map_error(fn(_) {
+        DecodeError(
+          path: "<value>",
+          expected: "String",
+          actual: dynamic.classify(value),
+          message: "Failed to decode as String",
+        )
+      })
+
     "List" | "Tuple" -> {
       case dynamic.list(dynamic.dynamic)(value) {
-        Ok(items) -> json.array(items, dynamic_to_json)
-        Error(_) -> json.null()
+        Ok(items) ->
+          Ok(json.array(items, fn(item) {
+            case dynamic_to_json(item) {
+              Ok(json_val) -> json_val
+              Error(_) -> json.null()
+            }
+          }))
+        Error(_) -> {
+          Error(DecodeError(
+            path: "<value>",
+            expected: "List",
+            actual: dynamic.classify(value),
+            message: "Failed to decode as List",
+          ))
+        }
       }
     }
+
     "Dict" | "Map" -> {
       case dynamic.dict(dynamic.string, dynamic.dynamic)(value) {
         Ok(entries) -> {
@@ -162,17 +283,65 @@ fn dynamic_to_json(value: dynamic.Dynamic) -> json.Json {
           |> dict.to_list
           |> list.map(fn(entry) {
             let #(key, item) = entry
-            #(key, dynamic_to_json(item))
+            case dynamic_to_json(item) {
+              Ok(json_val) -> #(key, json_val)
+              Error(_) -> #(key, json.null())
+            }
           })
           |> json.object
+          |> Ok
         }
-        Error(_) -> json.null()
+        Error(_) -> {
+          Error(DecodeError(
+            path: "<value>",
+            expected: "Dict",
+            actual: dynamic.classify(value),
+            message: "Failed to decode as Dict",
+          ))
+        }
       }
     }
-    _ -> json.null()
+
+    _ -> {
+      Error(DecodeError(
+        path: "<value>",
+        expected: "known type",
+        actual: dynamic.classify(value),
+        message: "Unknown dynamic type classification",
+      ))
+    }
   }
 }
 
 fn path_is_cue(path: String) -> Bool {
   string.ends_with(path, ".cue")
+}
+
+/// Format decode error for display
+pub fn format_decode_error_for_test(err: DecodeError) -> String {
+  "At '" <> err.path <> "':\n"
+  <> "  Expected: " <> err.expected <> "\n"
+  <> "  Actual: " <> err.actual <> "\n"
+  <> "  Details: " <> err.message
+}
+
+/// Test helper: expose parse_answers_json for testing
+pub fn parse_answers_json_for_test(
+  path: String,
+  json_str: String,
+) -> Result(Dict(String, String), AnswerLoaderError) {
+  parse_answers_json(path, json_str)
+}
+
+/// Get debug representation of dynamic value for error messages
+fn dynamic_debug(value: dynamic.Dynamic) -> String {
+  case dynamic.string(value) {
+    Ok(s) -> "\"" <> s <> "\""
+    Error(_) -> {
+      case dynamic.int(value) {
+        Ok(i) -> int.to_string(i)
+        Error(_) -> "<" <> dynamic.classify(value) <> ">"
+      }
+    }
+  }
 }

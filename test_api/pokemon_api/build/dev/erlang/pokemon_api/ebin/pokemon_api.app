@@ -5,6 +5,6 @@
                     gleam_stdlib,
                     gleeunit]},
     {description, "Test Pokemon API for Intent CLI validation"},
-    {modules, []},
+    {modules, [pokemon_api]},
     {registered, []}
 ]}.

@@ -4,28 +4,28 @@ package intent
 
 // Main specification type
 #Spec: {
-	name:        string
-	description: string
-	audience:    string
-	version:     string
+	name!:        string
+	description!: string
+	audience!:    string
+	version!:     string
 
-	success_criteria: [...string]
+	success_criteria!: [...string]
 
-	config: #Config
+	config!: #Config
 
-	features:      [...#Feature]
-	rules:         [...#Rule]
-	anti_patterns: [...#AntiPattern]
+	features!:      [...#Feature]
+	rules!:         [...#Rule]
+	anti_patterns!: [...#AntiPattern]
 
 	// AI implementation hints (required)
-	ai_hints: #AIHints
+	ai_hints!: #AIHints
 }
 
 // Configuration for the spec
 #Config: {
-	base_url:   string
-	timeout_ms: int
-	headers:    #Headers
+	base_url!:   string
+	timeout_ms!: int
+	headers:    #Headers | *{} // Optional, defaults to empty map
 }
 
 // HTTP headers map
@@ -33,15 +33,15 @@ package intent
 
 // Feature groups related behaviors
 #Feature: {
-	name:        string
-	description: string
-	behaviors:   [...#Behavior]
+	name!:        string
+	description!: string
+	behaviors!:   [...#Behavior]
 }
 
 // A single behavior/test case
 #Behavior: {
-	name:   #Identifier
-	intent: string // Plain English purpose
+	name!:   #Identifier
+	intent!: string // Plain English purpose
 
 	// Additional context for humans/AI (optional)
 	notes?: string
@@ -52,9 +52,9 @@ package intent
 	// Tags for filtering (optional)
 	tags?: [...string]
 
-	request: #Request
+	request!: #Request
 
-	response: #Response
+	response!: #Response
 
 	// Capture values for later use (optional)
 	captures?: #Captures

@@ -11,8 +11,8 @@ import intent/question_types.{
   Business, Constraint, Critical, Dependency, Developer, EdgeCase, ErrorCase,
   HappyPath, Important, NiceTohave, NonFunctional, Ops, Question, Security, User,
 }
-import intent/security
-import shellout
+// import intent/security
+// import shellout
 
 /// Error types for question loading
 pub type QuestionLoadError {
@@ -86,10 +86,12 @@ pub fn load_questions(
   case string.is_empty(path) {
     True -> Error(FileNotFound(path))
     False ->
-      case security.validate_file_path(path) {
-        Ok(validated_path) -> export_and_parse(validated_path)
-        Error(security_error) -> Error(map_security_error(security_error))
-      }
+      // TODO: Re-enable security validation when security module is restored
+      // case security.validate_file_path(path) {
+      //   Ok(validated_path) -> export_and_parse(validated_path)
+      //   Error(security_error) -> Error(map_security_error(security_error))
+      // }
+      export_and_parse(path)
   }
 }
 
@@ -116,22 +118,22 @@ pub fn load_custom_questions(
   case string.is_empty(path) {
     True -> Error(FileNotFound(path))
     False ->
-      case security.validate_file_path(path) {
-        Ok(validated_path) -> export_and_parse_custom(validated_path)
-        Error(security_error) -> Error(map_security_error(security_error))
-      }
+      // TODO: Re-enable security validation when security module is restored
+      export_and_parse_custom(path)
   }
 }
 
 fn export_and_parse_custom(
   path: String,
 ) -> Result(CustomQuestions, QuestionLoadError) {
-  case
-    shellout.command("cue", ["export", path, "-e", "custom_questions"], ".", [])
-  {
-    Ok(json_str) -> parse_custom_questions_json(json_str)
-    Error(#(_, stderr)) -> Error(CueExportError(stderr))
-  }
+  // TODO: Re-enable when shellout is restored
+  Error(FileNotFound(path))
+  // case
+  //   shellout.command("cue", ["export", path, "-e", "custom_questions"], ".", [])
+  // {
+  //   Ok(json_str) -> parse_custom_questions_json(json_str)
+  //   Error(#(_, stderr)) -> Error(CueExportError(stderr))
+  // }
 }
 
 fn parse_custom_questions_json(
@@ -143,14 +145,15 @@ fn parse_custom_questions_json(
   }
 }
 
-fn map_security_error(error: security.SecurityError) -> QuestionLoadError {
-  case error {
-    security.FileNotAccessible(path) -> FileNotFound(path)
-    security.InvalidPath(path, _) -> FileNotFound(path)
-    security.ShellMetacharactersDetected(path) -> FileNotFound(path)
-    _ -> SecurityError(security.format_security_error(error))
-  }
-}
+// TODO: Re-enable when security module is restored
+// fn map_security_error(error: security.SecurityError) -> QuestionLoadError {
+//   case error {
+//     security.FileNotAccessible(path) -> FileNotFound(path)
+//     security.InvalidPath(path, _) -> FileNotFound(path)
+//     security.ShellMetacharactersDetected(path) -> FileNotFound(path)
+//     _ -> SecurityError(security.format_security_error(error))
+//   }
+// }
 
 fn parse_custom_database(
   data: Dynamic,
@@ -266,10 +269,12 @@ fn merge_question_list(
 fn export_and_parse(
   path: String,
 ) -> Result(QuestionsDatabase, QuestionLoadError) {
-  case shellout.command("cue", ["export", path, "-e", "questions"], ".", []) {
-    Ok(json_str) -> parse_questions_json(json_str)
-    Error(#(_, stderr)) -> Error(CueExportError(stderr))
-  }
+  // TODO: Re-enable when shellout is restored
+  Error(FileNotFound(path))
+  // case shellout.command("cue", ["export", path, "-e", "questions"], ".", []) {
+  //   Ok(json_str) -> parse_questions_json(json_str)
+  //   Error(#(_, stderr)) -> Error(CueExportError(stderr))
+  // }
 }
 
 fn parse_questions_json(

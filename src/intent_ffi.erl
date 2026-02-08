@@ -21,10 +21,13 @@ base64_url_decode(Input) when is_binary(Input) ->
         2 -> <<Standard/binary, "==">>;
         3 -> <<Standard/binary, "=">>
     end,
+    %% Validate before decode (specific exception handling)
     try
-        {ok, base64:decode(Padded)}
+        Decoded = base64:decode(Padded),
+        {ok, Decoded}
     catch
-        _:_ -> {error, invalid_base64}
+        error:badarg -> {error, invalid_base64};
+        error:function_clause -> {error, invalid_base64}
     end.
 
 %% Generate UUID v4 (simple implementation)
@@ -35,16 +38,16 @@ generate_uuid() ->
 
 to_hex(N, Width) ->
     Hex = integer_to_list(N, 16),
-    string:pad(Hex, Width, leading, $0).
+    Padded = string:pad(Hex, Width, leading, $0),
+    %% Explicitly convert iolist to binary for consistent return type
+    iolist_to_binary(Padded).
 
 %% Get current timestamp in ISO 8601 format
 current_timestamp() ->
     Now = erlang:system_time(millisecond),
     Timestamp = calendar:system_time_to_rfc3339(Now, [{unit, millisecond}]),
-    case is_list(Timestamp) of
-        true -> list_to_binary(Timestamp);
-        false -> Timestamp
-    end.
+    %% calendar:system_time_to_rfc3339/2 always returns a list, so convert to binary
+    list_to_binary(Timestamp).
 
 %% Get current timestamp in ISO 8601 format (alias for current_timestamp)
 current_iso8601_timestamp() ->

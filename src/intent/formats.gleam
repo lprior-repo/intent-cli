@@ -2,6 +2,7 @@
 /// No regex-only validation - actual structural parsing and validation
 import gleam/int
 import gleam/list
+import gleam/result
 import gleam/string
 
 /// Validate email using RFC 5322 compliant parsing
@@ -439,30 +440,38 @@ fn validate_iso8601_date(date_str: String) -> Result(Nil, String) {
 
 /// Validate ISO8601 time part (HH:MM:SS with optional fractional seconds and timezone)
 fn validate_iso8601_time(time_str: String) -> Result(Nil, String) {
-  // Remove timezone part if present (Z, +HH:MM, -HH:MM) without treating a
-  // leading sign on the hour as a timezone indicator.
-  let time_without_tz = case string.ends_with(time_str, "Z") {
-    True -> string.slice(time_str, 0, string.length(time_str) - 1)
+  // First, extract time without timezone, validating the format
+  extract_time_without_timezone(time_str)
+  |> result.try(validate_time_components)
+}
+
+/// Extract time without timezone, returning Error if format is invalid
+fn extract_time_without_timezone(time_str: String) -> Result(String, String) {
+  case string.ends_with(time_str, "Z") {
+    True -> Ok(string.slice(time_str, 0, string.length(time_str) - 1))
     False -> {
       case string.split_once(time_str, "+") {
         Ok(#(base, _tz)) ->
           case string.is_empty(base) {
-            True -> time_str
-            False -> base
+            True -> Error("Invalid ISO8601 time format (expected HH:MM:SS)")
+            False -> Ok(base)
           }
         Error(_) ->
           case string.split_once(time_str, "-") {
             Ok(#(base, _tz)) ->
               case string.is_empty(base) {
-                True -> time_str
-                False -> base
+                True -> Error("Invalid ISO8601 time format (expected HH:MM:SS)")
+                False -> Ok(base)
               }
-            Error(_) -> time_str
+            Error(_) -> Ok(time_str)
           }
       }
     }
   }
+}
 
+/// Validate the time components (HH:MM:SS)
+fn validate_time_components(time_without_tz: String) -> Result(Nil, String) {
   case string.split(time_without_tz, ":") {
     [hour_str, minute_str, second_and_frac] ->
       case

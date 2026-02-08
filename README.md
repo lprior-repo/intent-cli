@@ -1,6 +1,6 @@
 # Intent CLI
 
-**Contract-driven API testing with AI-powered planning.**
+**AI-powered planning and bead generation tool.**
 
 Intent transforms vague requirements into crystal-clear, atomic work items that an AI can execute deterministically.
 
@@ -107,21 +107,26 @@ Five thinking tools catch what humans miss:
 
 ```bash
 # Core
-intent check <spec.cue> --target <url>   # Run tests against API
 intent validate <spec.cue>                # Validate spec syntax
 
 # Interview (AI-driven)
-intent interview --profile api --cue      # Start interview, output CUE
+intent interview --profile api            # Start interview
 intent interview --session X --answer Y   # Submit answer, get next directive
-intent plan-work "Build X" --profile cli  # AI-first planning loop from product vision
-intent beads <session> --cue              # Generate beads as CUE
-intent plan-status <session> --format ai  # Session progress + next command
-intent plan-next <session> --format ai    # Single best next execution action
-intent plan-emit-beads <session> --target br --json [--execute --confirm]  # Dry-run by default; explicit confirm required
+intent beads --session X                  # Generate beads from session
+intent bead-status --bead-id X            # Check status of a bead
+intent plan                               # Generate plan from current context
+intent plan-next                          # Suggest next task to work on
+intent plan-approve <plan-id>             # Approve a generated plan
+intent plan-emit-beads <session>          # Emit beads to br (dry-run by default)
+intent plan-emit-beads <session> --execute # Actually create beads
 
-# KIRK Analysis
-intent quality <spec.cue>     # Quality scores (5 dimensions)
-intent invert <spec.cue>      # What failure cases are missing?
+# Planning and Analysis
+intent effects <spec.cue>                 # Analyze second-order effects
+intent vision                             # Generate vision document
+intent ready                              # Generate ready document
+intent diff --session X                   # Show diff for session changes
+intent history                            # View interview history
+intent sessions                           # List all sessions
 intent coverage <spec.cue>    # HTTP method/status coverage
 intent gaps <spec.cue>        # Gap detection via mental models
 
@@ -135,8 +140,13 @@ intent ears <requirements.md> --output cue   # Parse EARS to CUE
 # Build from source
 gleam build
 
-# Run
-gleam run -- check examples/user-api.cue --target http://localhost:8080
+# Install locally (adds to ~/.local/bin)
+gleam install
+
+# Run commands
+intent interview --profile api
+intent plan
+intent beads --session <session-id>
 ```
 
 ## Release Smoke Tests
@@ -184,8 +194,8 @@ docs/
 
 - Core CLI: Working
 - Interview Engine: Working
-- KIRK Analysis: Working
-- EARS Parser: Working
+- Bead Generation: Working
+- Planning Commands: Working
 - AI-CUE Protocol: In Progress (see beads)
 
 ## License
