@@ -7,6 +7,7 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
+import gleam_community/ansi
 import glint
 import glint/flag
 import intent/cli_ui
@@ -401,12 +402,7 @@ fn history_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     // Validate no extra arguments
     case validation.validate_no_args(input.args, "history") {
-      Ok(Nil) -> {
-        // TODO: Implement history listing
-        cli_ui.print_header("Interview History")
-        io.println("No sessions found")
-        exit(exit_pass)
-      }
+      Ok(Nil) -> show_history()
       Error(err) -> {
         cli_ui.print_error(err)
         exit(exit_fail)
@@ -414,6 +410,137 @@ fn history_command() -> glint.Command(Nil) {
     }
   })
   |> glint.description("List all interview sessions")
+}
+
+fn show_history() -> Nil {
+  cli_ui.print_header("Interview History")
+
+  let sessions_path = ".interview/sessions.jsonl"
+
+  case interview_storage.list_sessions_from_jsonl(sessions_path) {
+    Ok(sessions) -> {
+      case sessions {
+        [] -> {
+          cli_ui.print_warning("No sessions found")
+          io.println("")
+          io.println("Start a new session with:")
+          io.println("  intent interview --profile <profile>")
+        }
+        _ -> {
+          // Sort by created_at (newest first)
+          let sorted =
+            sessions
+            |> list.sort(by: fn(a, b) {
+              string.compare(b.created_at, a.created_at)
+            })
+
+          // Display sessions as a formatted table
+          display_sessions_table(sorted)
+
+          // Show summary
+          io.println("")
+          cli_ui.print_info(
+            "Total sessions: " <> int.to_string(list.length(sorted)),
+          )
+        }
+      }
+      exit(exit_pass)
+    }
+    Error(err) -> {
+      // Check if it's a "file not found" error
+      case string.contains(err, "No such file")
+        || string.contains(err, "not found")
+        || string.contains(err, "Enoent") {
+        True -> {
+          cli_ui.print_warning("No sessions found")
+          io.println("")
+          io.println("Start a new session with:")
+          io.println("  intent interview --profile <profile>")
+          exit(exit_pass)
+        }
+        False -> {
+          cli_ui.print_error("Failed to load sessions: " <> err)
+          exit(exit_fail)
+        }
+      }
+    }
+  }
+}
+
+fn display_sessions_table(sessions: List(interview.InterviewSession)) -> Nil {
+  // Calculate column widths
+  let max_id_width =
+    sessions
+    |> list.map(fn(s) { string.length(s.id) })
+    |> list.fold(from: 0, with: fn(acc, width) { int.max(acc, width) })
+
+  let max_profile_width =
+    sessions
+    |> list.map(fn(s) {
+      s.profile
+      |> interview.profile_to_string
+      |> string.length()
+    })
+    |> list.fold(from: 0, with: fn(acc, width) { int.max(acc, width) })
+
+  // Ensure minimum widths for headers
+  let id_width = int.max(max_id_width, 10)
+  let profile_width = int.max(max_profile_width, 7)
+
+  // Print header
+  let header =
+    "Session ID"
+    <> string.repeat(" ", id_width - string.length("Session ID") + 2)
+    <> "Profile"
+    <> string.repeat(" ", profile_width - string.length("Profile") + 2)
+    <> "Created            "
+    <> "Answers"
+
+  io.println(ansi.bold(ansi.cyan(header)))
+  io.println(
+    string.repeat("─", id_width)
+    <> "--"
+    <> string.repeat("─", profile_width)
+    <> "--"
+    <> "────────────────────"
+    <> "────────",
+  )
+
+  // Print each session
+  list.each(sessions, fn(session) {
+    let profile_str = interview.profile_to_string(session.profile)
+    let id_padding = id_width - string.length(session.id) + 2
+    let profile_padding = profile_width - string.length(profile_str) + 2
+    let answers_count = int.to_string(list.length(session.answers))
+
+    let row =
+      session.id
+      <> string.repeat(" ", id_padding)
+      <> profile_str
+      <> string.repeat(" ", profile_padding)
+      <> format_timestamp(session.created_at)
+      <> "  "
+      <> answers_count
+
+    io.println(row)
+  })
+}
+
+fn format_timestamp(timestamp: String) -> String {
+  // Parse ISO timestamp and format as YYYY-MM-DD HH:MM
+  // For now, just return the timestamp as-is (simplified)
+  // In a full implementation, would parse and reformat
+  let parts = string.split(timestamp, "T")
+  case parts {
+    [date, time] -> {
+      let time_parts = string.split(time, ":")
+      case time_parts {
+        [hour, minute, _] -> date <> " " <> hour <> ":" <> minute
+        _ -> timestamp
+      }
+    }
+    _ -> timestamp
+  }
 }
 
 /// ============================================================================
@@ -453,11 +580,118 @@ fn diff_command() -> glint.Command(Nil) {
 }
 
 fn show_session_diff(session_id: String) -> Nil {
-  // TODO: Implement diff
   cli_ui.print_header("Session Diff")
-  io.println("Session: " <> session_id)
-  cli_ui.print_success("Diff command - implementation needed")
-  exit(exit_pass)
+
+  let sessions_path = ".interview/sessions.jsonl"
+  let history_path = ".interview/history.jsonl"
+
+  // Load current session
+  case interview_storage.get_session_from_jsonl(sessions_path, session_id) {
+    Error(err) -> {
+      cli_ui.print_error("Session not found: " <> session_id)
+      io.println("\n" <> err)
+      io.println("\nAvailable sessions:")
+      case interview_storage.list_sessions_from_jsonl(sessions_path) {
+        Ok(sessions) -> {
+          case sessions {
+            [] -> io.println("  No sessions found")
+            _ -> {
+              list.each(sessions, fn(s) {
+                io.println(
+                  "  - "
+                  <> s.id
+                  <> " ("
+                  <> interview.profile_to_string(s.profile)
+                  <> ", "
+                  <> interview.stage_to_string(s.stage)
+                  <> ")",
+                )
+              })
+            }
+          }
+        }
+        Error(_) -> io.println("  Unable to load sessions")
+      }
+      exit(exit_fail)
+    }
+    Ok(current_session) -> {
+      // Load session history to find previous snapshot
+      case interview_storage.list_session_history(history_path, session_id) {
+        Error(_) -> {
+          // No history available yet - show basic session info
+          cli_ui.print_warning("No previous snapshots found for this session")
+          io.println("\nCurrent session state:")
+          io.println("  Profile: " <> interview.profile_to_string(current_session.profile))
+          io.println("  Stage: " <> interview.stage_to_string(current_session.stage))
+          io.println("  Updated: " <> current_session.updated_at)
+          io.println("  Answers: " <> int.to_string(list.length(current_session.answers)))
+          io.println("  Unresolved gaps: " <> int.to_string(list.length(list.filter(current_session.gaps, fn(g) { !g.resolved }))))
+          io.println("  Unresolved conflicts: " <> int.to_string(list.length(list.filter(current_session.conflicts, fn(c) { c.chosen < 0 }))))
+          exit(exit_pass)
+        }
+        Ok(snapshots) -> {
+          case snapshots {
+            [] -> {
+              // No snapshots yet
+              cli_ui.print_warning("No previous snapshots found for this session")
+              io.println("\nThis is the first version of this session.")
+              exit(exit_pass)
+            }
+            _ -> {
+              // Get the most recent snapshot (last in list)
+              let snapshots_sorted =
+                list.sort(snapshots, fn(a, b) {
+                  string.compare(a.timestamp, b.timestamp)
+                })
+
+              let previous_snapshot = list.last(snapshots_sorted)
+
+              case previous_snapshot {
+                Error(Nil) -> {
+                  cli_ui.print_error("Unable to load previous snapshot")
+                  exit(exit_fail)
+                }
+                Ok(prev_snap) -> {
+                  // We need to load the previous session state
+                  // For now, compare with an empty session to show what was added
+                  let empty_session = interview.InterviewSession(
+                    id: session_id <> "-previous",
+                    profile: current_session.profile,
+                    created_at: prev_snap.timestamp,
+                    updated_at: prev_snap.timestamp,
+                    completed_at: "",
+                    stage: interview.Discovery,
+                    rounds_completed: 0,
+                    answers: [],
+                    gaps: [],
+                    conflicts: [],
+                    raw_notes: "",
+                    current_phase: 1,
+                    completed_phases: [],
+                  )
+
+                  // Generate diff
+                  let diff =
+                    interview_storage.diff_sessions(empty_session, current_session)
+
+                  // Format and display
+                  io.println(interview_storage.format_diff(diff))
+
+                  // Show summary
+                  io.println("\nPrevious snapshot: " <> prev_snap.snapshot_id)
+                  io.println("  Description: " <> prev_snap.description)
+                  io.println("  Timestamp: " <> prev_snap.timestamp)
+
+                  cli_ui.print_success("Diff complete")
+                  exit(exit_pass)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /// ============================================================================
@@ -488,14 +722,113 @@ fn sessions_command() -> glint.Command(Nil) {
 }
 
 fn list_sessions(profile_filter: String) -> Nil {
-  // TODO: Implement session listing
   cli_ui.print_header("Sessions")
-  case profile_filter {
-    "" -> Nil
-    _ -> io.println("Filter: " <> profile_filter)
+
+  let jsonl_path = ".interview/sessions.jsonl"
+
+  case interview_storage.list_sessions_from_jsonl(jsonl_path) {
+    Ok(sessions) -> {
+      // Filter by profile if provided
+      let filtered_sessions = case profile_filter {
+        "" -> sessions
+        filter ->
+          list.filter(sessions, fn(session) {
+            interview.profile_to_string(session.profile) == filter
+          })
+      }
+
+      case filtered_sessions {
+        [] -> {
+          case profile_filter {
+            "" -> io.println("No sessions found")
+            _ ->
+              io.println(
+                "No sessions found for profile: "
+                <> profile_filter
+                <> "\n\nTry running without --profile to see all sessions",
+              )
+          }
+        }
+        _ -> {
+          // Display sessions
+          io.println("")
+          list.each(filtered_sessions, fn(session) {
+            display_session(session)
+            io.println("")
+          })
+
+          // Summary
+          case profile_filter {
+            "" ->
+              io.println(
+                "Total: "
+                <> int.to_string(list.length(filtered_sessions))
+                <> " session(s)",
+              )
+            _ ->
+              io.println(
+                "Total: "
+                <> int.to_string(list.length(filtered_sessions))
+                <> " session(s) for profile: "
+                <> profile_filter,
+              )
+          }
+        }
+      }
+
+      exit(exit_pass)
+    }
+    Error(err) -> {
+      cli_ui.print_error("Failed to load sessions: " <> err)
+      exit(exit_fail)
+    }
   }
-  io.println("No sessions found")
-  exit(exit_pass)
+}
+
+fn display_session(session: interview.InterviewSession) -> Nil {
+  let profile_str = interview.profile_to_string(session.profile)
+  let stage_str = interview.stage_to_string(session.stage)
+
+  // Session ID and profile
+  io.println("ID:       " <> session.id)
+  io.println("Profile:  " <> profile_str)
+  io.println("Stage:    " <> stage_str)
+
+  // Timestamps
+  io.println("Created:  " <> session.created_at)
+  case session.updated_at != session.created_at {
+    True -> io.println("Updated:  " <> session.updated_at)
+    False -> Nil
+  }
+  case session.completed_at != "" {
+    True -> io.println("Completed: " <> session.completed_at)
+    False -> Nil
+  }
+
+  // Progress info
+  case session.rounds_completed {
+    0 -> Nil
+    n -> io.println("Rounds:   " <> int.to_string(n))
+  }
+
+  // Status indicators
+  let gaps_count = list.length(list.filter(session.gaps, fn(g) { !g.resolved }))
+  let conflicts_count =
+    list.length(list.filter(session.conflicts, fn(c) { c.chosen < 0 }))
+
+  let status = case gaps_count, conflicts_count {
+    0, 0 -> "✓ Ready"
+    _, 0 -> "⚠ " <> int.to_string(gaps_count) <> " gap(s)"
+    0, _ -> "⚠ " <> int.to_string(conflicts_count) <> " conflict(s)"
+    _, _ -> {
+      "⚠ "
+      <> int.to_string(gaps_count)
+      <> " gap(s), "
+      <> int.to_string(conflicts_count)
+      <> " conflict(s)"
+    }
+  }
+  io.println("Status:   " <> status)
 }
 
 /// ============================================================================

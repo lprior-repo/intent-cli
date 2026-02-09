@@ -826,6 +826,17 @@ pub fn profile_to_string(profile: Profile) -> String {
   }
 }
 
+/// Convert InterviewStage to string
+pub fn stage_to_string(stage: InterviewStage) -> String {
+  case stage {
+    Discovery -> "discovery"
+    Refinement -> "refinement"
+    Validation -> "validation"
+    Complete -> "complete"
+    Paused -> "paused"
+  }
+}
+
 /// Convert string to Profile
 pub fn string_to_profile(s: String) -> Result(Profile, String) {
   case string.lowercase(s) {

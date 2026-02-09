@@ -618,7 +618,7 @@ pub fn session_to_json(session: InterviewSession) -> json.Json {
   ])
 }
 
-fn profile_to_string(profile: Profile) -> String {
+pub fn profile_to_string(profile: Profile) -> String {
   case profile {
     interview.Api -> "api"
     interview.Cli -> "cli"
@@ -629,7 +629,7 @@ fn profile_to_string(profile: Profile) -> String {
   }
 }
 
-fn stage_to_string(stage: InterviewStage) -> String {
+pub fn stage_to_string(stage: InterviewStage) -> String {
   case stage {
     interview.Discovery -> "discovery"
     interview.Refinement -> "refinement"
