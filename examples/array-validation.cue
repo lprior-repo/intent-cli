@@ -15,16 +15,13 @@ spec: intent.#Spec & {
 
 	audience: "E-commerce applications"
 
+	version: "1.0.0"
+
 	success_criteria: [
 		"Products are returned as arrays with predictable structure",
 		"Pagination limits are respected",
 		"Array elements follow consistent schema",
 	]
-
-	config: {
-		base_url:   "http://localhost:8080"
-		timeout_ms: 5000
-	}
 
 	features: [
 		{
@@ -40,199 +37,217 @@ spec: intent.#Spec & {
 					name:   "list-all-products"
 					intent: "Retrieve all products as a non-empty array"
 
-					request: {
-						method: "GET"
-						path:   "/products"
-					}
+					preconditions: [
+						"Product catalog contains at least one product",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"All products are returned",
+						"Total count matches array length",
+					]
 
-						example: {
-							products: [
-								{id: "prod_abc123", name: "Widget", price: 9.99},
-								{id: "prod_def456", name: "Gadget", price: 19.99},
+					verifications: [
+						{
+							description: "Product list is non-empty"
+							criteria: [
+								"Products array is not empty",
+								"Total count is >= 1",
+								"Total count matches array length",
 							]
-							total: 2
+							examples: [
+								{
+									input: {}
+									output: {
+										products: [
+											{id: "prod_abc123", name: "Widget", price: 9.99},
+											{id: "prod_def456", name: "Gadget", price: 19.99},
+										]
+										total: 2
+									}
+								}
+							]
 						}
-
-						checks: {
-							"products": {
-								rule: "non-empty array"
-								why:  "Catalog should have at least one product"
-							}
-							"total": {
-								rule: "integer >= 1"
-								why:  "Total count must match array length"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "list-with-pagination"
 					intent: "Pagination respects limit parameter"
 
-					request: {
-						method: "GET"
-						path:   "/products"
-						query: {
-							limit: 5
-						}
-					}
+					preconditions: [
+						"User requests limit of 5 products",
+						"Catalog has more than 5 products",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Returned array has exactly 5 items",
+						"Limit parameter is echoed in response",
+					]
 
-						example: {
-							products: [
-								{id: "prod_001", name: "Item 1", price: 10.00},
-								{id: "prod_002", name: "Item 2", price: 20.00},
-								{id: "prod_003", name: "Item 3", price: 30.00},
-								{id: "prod_004", name: "Item 4", price: 40.00},
-								{id: "prod_005", name: "Item 5", price: 50.00},
+					verifications: [
+						{
+							description: "Pagination limits are enforced"
+							criteria: [
+								"Products array has max 5 items",
+								"Limit equals 5",
+								"Offset is present",
 							]
-							limit:  5
-							offset: 0
-							total:  100
+							examples: [
+								{
+									input: {limit: 5}
+									output: {
+										products: [
+											{id: "prod_001", name: "Item 1", price: 10.00},
+											{id: "prod_002", name: "Item 2", price: 20.00},
+											{id: "prod_003", name: "Item 3", price: 30.00},
+											{id: "prod_004", name: "Item 4", price: 40.00},
+											{id: "prod_005", name: "Item 5", price: 50.00},
+										]
+										limit:  5
+										offset: 0
+										total:  100
+									}
+								}
+							]
 						}
-
-						checks: {
-							"products": {
-								rule: "array with max 5 items"
-								why:  "Response must respect the limit parameter"
-							}
-							"limit": {
-								rule: "equals 5"
-								why:  "Echoes back the requested limit"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "list-exact-length"
 					intent: "Featured products returns exactly 3 items"
 
-					request: {
-						method: "GET"
-						path:   "/products/featured"
-					}
+					preconditions: [
+						"Featured products section exists",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Exactly 3 featured products are returned",
+					]
 
-						example: {
-							featured: [
-								{id: "prod_feat1", name: "Top Seller", price: 99.99},
-								{id: "prod_feat2", name: "New Arrival", price: 49.99},
-								{id: "prod_feat3", name: "Staff Pick", price: 29.99},
+					verifications: [
+						{
+							description: "Featured section has fixed size"
+							criteria: [
+								"Featured array has exactly 3 items",
+								"All items have valid product IDs",
+							]
+							examples: [
+								{
+									input: {}
+									output: {
+										featured: [
+											{id: "prod_feat1", name: "Top Seller", price: 99.99},
+											{id: "prod_feat2", name: "New Arrival", price: 49.99},
+											{id: "prod_feat3", name: "Staff Pick", price: 29.99},
+										]
+									}
+								}
 							]
 						}
-
-						checks: {
-							"featured": {
-								rule: "array of length 3"
-								why:  "Featured section always shows exactly 3 products"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "list-minimum-items"
 					intent: "Search results have at least 1 result when query matches"
 
-					request: {
-						method: "GET"
-						path:   "/products/search"
-						query: {
-							q: "widget"
-						}
-					}
+					preconditions: [
+						"Search query 'widget' matches products in catalog",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"At least 1 result is returned",
+						"Query is echoed in response",
+					]
 
-						example: {
-							results: [
-								{id: "prod_widget1", name: "Blue Widget", price: 12.99},
-								{id: "prod_widget2", name: "Red Widget", price: 14.99},
+					verifications: [
+						{
+							description: "Search returns matching results"
+							criteria: [
+								"Results array has min 1 item",
+								"Query equals 'widget'",
 							]
-							query: "widget"
+							examples: [
+								{
+									input: {q: "widget"}
+									output: {
+										results: [
+											{id: "prod_widget1", name: "Blue Widget", price: 12.99},
+											{id: "prod_widget2", name: "Red Widget", price: 14.99},
+										]
+										query: "widget"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"results": {
-								rule: "array with min 1 items"
-								why:  "Matching query should return at least one result"
-							}
-							"query": {
-								rule: "equals widget"
-								why:  "Echoes back the search query"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "list-with-element-validation"
 					intent: "Each tag in product follows naming convention"
 
-					request: {
-						method: "GET"
-						path:   "/products/prod_abc123"
-					}
+					preconditions: [
+						"Product prod_abc123 exists",
+						"Product has tags assigned",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Product data is returned",
+						"All tags follow lowercase kebab-case format",
+					]
 
-						example: {
-							id:   "prod_abc123"
-							name: "Widget Pro"
-							tags: ["electronics", "new-arrival", "sale"]
+					verifications: [
+						{
+							description: "Tags follow naming convention"
+							criteria: [
+								"ID matches format prod_[a-z0-9]+",
+								"Each tag matches [a-z][a-z0-9-]*",
+								"Tags are lowercase with hyphens",
+							]
+							examples: [
+								{
+									input: {product_id: "prod_abc123"}
+									output: {
+										id:   "prod_abc123"
+										name: "Widget Pro"
+										tags: ["electronics", "new-arrival", "sale"]
+									}
+								}
+							]
 						}
-
-						checks: {
-							"id": {
-								rule: "string matching prod_[a-z0-9]+"
-								why:  "Product IDs follow prefixed format"
-							}
-							"tags": {
-								rule: "array where each matches [a-z][a-z0-9-]*"
-								why:  "Tags must be lowercase kebab-case"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "empty-search-results"
 					intent: "Search with no matches returns empty array (not null)"
 
-					request: {
-						method: "GET"
-						path:   "/products/search"
-						query: {
-							q: "nonexistent_xyz_123"
-						}
-					}
+					preconditions: [
+						"Search query matches no products",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Empty array is returned (not null)",
+						"Total is 0",
+					]
 
-						example: {
-							results: []
-							query:   "nonexistent_xyz_123"
-							total:   0
+					verifications: [
+						{
+							description: "Empty results return empty array"
+							criteria: [
+								"Results is an array (not null)",
+								"Results array has 0 items",
+								"Total equals 0",
+							]
+							examples: [
+								{
+									input: {q: "nonexistent_xyz_123"}
+									output: {
+										results: []
+										query:   "nonexistent_xyz_123"
+										total:   0
+									}
+								}
+							]
 						}
-
-						checks: {
-							"results": {
-								rule: "array"
-								why:  "Must return array type even when empty"
-							}
-							"total": {
-								rule: "equals 0"
-								why:  "Zero results for non-matching query"
-							}
-						}
-					}
+					]
 				},
 			]
 		},
@@ -248,67 +263,67 @@ spec: intent.#Spec & {
 					name:   "list-categories-with-products"
 					intent: "Categories include product counts and nested arrays"
 
-					request: {
-						method: "GET"
-						path:   "/categories"
-					}
+					preconditions: [
+						"Categories exist in the system",
+						"At least one category has subcategories",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"All categories are returned",
+						"Each category has product count",
+						"Subcategories are present as arrays",
+					]
 
-						example: {
-							categories: [
+					verifications: [
+						{
+							description: "Categories include nested arrays"
+							criteria: [
+								"Categories array is not empty",
+								"First category has non-empty subcategories array",
+								"Product count is >= 0",
+							]
+							examples: [
 								{
-									id:            "cat_electronics"
-									name:          "Electronics"
-									product_count: 150
-									subcategories: ["phones", "laptops", "accessories"]
-								},
-								{
-									id:            "cat_clothing"
-									name:          "Clothing"
-									product_count: 300
-									subcategories: ["shirts", "pants", "shoes"]
-								},
+									input: {}
+									output: {
+										categories: [
+											{
+												id:            "cat_electronics"
+												name:          "Electronics"
+												product_count: 150
+												subcategories: ["phones", "laptops", "accessories"]
+											},
+											{
+												id:            "cat_clothing"
+												name:          "Clothing"
+												product_count: 300
+												subcategories: ["shirts", "pants", "shoes"]
+											},
+										]
+									}
+								}
 							]
 						}
-
-						checks: {
-							"categories": {
-								rule: "non-empty array"
-								why:  "Store must have at least one category"
-							}
-							"categories[0].subcategories": {
-								rule: "non-empty array"
-								why:  "Categories should have subcategories"
-							}
-							"categories[0].product_count": {
-								rule: "integer >= 0"
-								why:  "Product count cannot be negative"
-							}
-						}
-					}
+					]
 				},
 			]
 		},
 	]
 
-	rules: [
+	invariants: [
 		{
-			name:        "array-responses"
+			name: "array-responses"
 			description: "List endpoints should return arrays, not objects"
-
-			when: {path: ".*\\?.*"}
-
-			check: {
-				fields_must_not_exist: ["error"]
-			}
+			criteria: [
+								"List endpoints return array types",
+								"Empty collections are empty arrays not null",
+			]
 		},
 	]
 
 	anti_patterns: [
 		{
-			name:        "null-for-empty"
+			name: "null-for-empty"
 			description: "Never return null for empty collections"
 
 			bad_example: {
@@ -325,7 +340,7 @@ spec: intent.#Spec & {
 				"""
 		},
 		{
-			name:        "array-without-wrapper"
+			name: "array-without-wrapper"
 			description: "Don't return bare arrays, wrap in object"
 
 			bad_example: {

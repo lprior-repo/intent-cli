@@ -14,6 +14,8 @@ spec: intent.#Spec & {
 
 	audience: "Health-conscious individuals and families planning weekly meals"
 
+	version: "1.0.0"
+
 	success_criteria: [
 		"Users can scrape recipes from popular recipe websites",
 		"Scraped recipes are normalized to a consistent JSON schema",
@@ -21,11 +23,6 @@ spec: intent.#Spec & {
 		"All data can be exported to JSON files",
 		"Recipes include nutritional information when available",
 	]
-
-	config: {
-		base_url:   "http://localhost:8080"
-		timeout_ms: 10000
-	}
 
 	features: [
 		{
@@ -43,158 +40,160 @@ spec: intent.#Spec & {
 					name:   "create-recipe"
 					intent: "Create a new recipe directly via API"
 
+					preconditions: [
+						"Recipe data is provided in structured format",
+						"Required fields (title, ingredients, instructions) are present",
+						"Servings count is positive",
+					]
+
+					postconditions: [
+						"Recipe is created with unique ID prefixed 'rcp_'",
+						"All recipe fields are stored",
+						"Creation timestamp is recorded",
+						"Source URL is preserved if provided",
+					]
+
+					verifications: [
+						{
+							description: "Recipe object returned with correct fields"
+							criteria: [
+								"ID matches format rcp_[a-z0-9]+",
+								"Title matches the provided title",
+								"Ingredients array is non-empty",
+								"Instructions array is non-empty",
+								"Serving count matches input",
+								"created_at is valid ISO8601 datetime",
+								"Source URL is valid if provided",
+							]
+							examples: [
+								{
+									input: {
+										title:      "Famous Butter Chicken"
+										source_url: "https://example.com/butter-chicken"
+										ingredients: [
+											"1 lb chicken breast",
+											"2 tbsp butter",
+											"1 cup tomato sauce",
+											"1/2 cup heavy cream",
+											"2 tsp garam masala",
+										]
+										instructions: [
+											"Marinate the chicken in yogurt and spices for 2 hours",
+											"Grill or bake the chicken until cooked through",
+											"Prepare the butter sauce with tomatoes and cream",
+											"Add the chicken to the sauce and simmer for 10 minutes",
+										]
+										prep_time_minutes:  30
+										cook_time_minutes:  45
+										servings:           4
+										tags: ["indian", "chicken", "dinner"]
+									}
+									output: {
+										id:          "rcp_abc123xyz"
+										title:       "Famous Butter Chicken"
+										source_url:  "https://example.com/butter-chicken"
+										ingredients: [
+											"1 lb chicken breast",
+											"2 tbsp butter",
+											"1 cup tomato sauce",
+										]
+										instructions: [
+											"Marinate the chicken in yogurt and spices for 2 hours",
+											"Grill or bake the chicken until cooked through",
+										]
+										prep_time_minutes:  30
+										cook_time_minutes:  45
+										servings:           4
+										tags:       ["indian", "chicken", "dinner"]
+										created_at: "2024-01-15T10:30:00Z"
+									}
+								}
+							]
+						}
+					]
+
 					notes: """
 						Direct recipe creation for programmatic use. The scrape
 						endpoint is for extracting recipes from URLs, but this
 						endpoint allows creating recipes from structured data.
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/recipes"
-						body: {
-							title:      "Famous Butter Chicken"
-							source_url: "https://example.com/butter-chicken"
-							ingredients: [
-								"1 lb chicken breast",
-								"2 tbsp butter",
-								"1 cup tomato sauce",
-								"1/2 cup heavy cream",
-								"2 tsp garam masala",
-							]
-							instructions: [
-								"Marinate the chicken in yogurt and spices for 2 hours",
-								"Grill or bake the chicken until cooked through",
-								"Prepare the butter sauce with tomatoes and cream",
-								"Add the chicken to the sauce and simmer for 10 minutes",
-							]
-							prep_time_minutes:  30
-							cook_time_minutes:  45
-							servings:           4
-							tags: ["indian", "chicken", "dinner"]
-						}
-					}
-
-					response: {
-						status: 201
-
-						example: {
-							id:          "rcp_abc123xyz"
-							title:       "Famous Butter Chicken"
-							source_url:  "https://example.com/butter-chicken"
-							ingredients: [
-								"1 lb chicken breast",
-								"2 tbsp butter",
-								"1 cup tomato sauce",
-							]
-							instructions: [
-								"Marinate the chicken in yogurt and spices for 2 hours",
-								"Grill or bake the chicken until cooked through",
-							]
-							prep_time_minutes:  30
-							cook_time_minutes:  45
-							servings:           4
-							tags:       ["indian", "chicken", "dinner"]
-							created_at: "2024-01-15T10:30:00Z"
-						}
-
-						checks: {
-							"id": {
-								rule: "string matching rcp_[a-z0-9]+"
-								why:  "Recipe IDs are prefixed for debuggability"
-							}
-							"title": {
-								rule: "equals Famous Butter Chicken"
-								why:  "Confirms title was saved correctly"
-							}
-							"source_url": {
-								rule: "uri"
-								why:  "Source URL must be valid for attribution"
-							}
-							"ingredients": {
-								rule: "non-empty array"
-								why:  "Recipes must have at least one ingredient"
-							}
-							"instructions": {
-								rule: "non-empty array"
-								why:  "Recipes must have cooking instructions"
-							}
-							"servings": {
-								rule: "equals 4"
-								why:  "Confirms servings saved correctly"
-							}
-							"created_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Timestamp for when recipe was created"
-							}
-						}
-					}
-
-					captures: {
-						recipe_id: "response.body.id"
-					}
 				},
 				{
 					name:   "scrape-recipe-invalid-url"
 					intent: "Reject invalid or unreachable URLs"
 
-					request: {
-						method: "POST"
-						path:   "/recipes/scrape"
-						body: {
-							url: "not-a-valid-url"
-						}
-					}
+					preconditions: [
+						"URL provided is not a valid format",
+					]
 
-					response: {
-						status: 400
+					postconditions: [
+						"Request is rejected",
+						"No recipe is created",
+						"Clear error message is returned",
+					]
 
-						checks: {
-							"error.code": {
-								rule: "equals INVALID_URL"
-								why:  "Clear error code for client handling"
-							}
-							"error.message": {
-								rule: "non-empty string"
-								why:  "Human-readable error message"
-							}
+					verifications: [
+						{
+							description: "Invalid URL returns specific error"
+							criteria: [
+								"Error code is INVALID_URL",
+								"Error message explains the issue",
+							]
+							examples: [
+								{
+									input: {
+										url: "not-a-valid-url"
+									}
+									output: {
+										error: {
+											code:    "INVALID_URL"
+											message: "Invalid URL format"
+										}
+									}
+								}
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "scrape-recipe-unsupported-site"
 					intent: "Handle websites that cannot be scraped"
 
-					request: {
-						method: "POST"
-						path:   "/recipes/scrape"
-						body: {
-							url: "https://example.com/some-random-page"
-						}
-					}
+					preconditions: [
+						"URL is valid but points to unsupported site",
+						"Site does not contain recognizable recipe data",
+					]
 
-					response: {
-						status: 422
+					postconditions: [
+						"Request is rejected",
+						"Helpful error message includes suggestions",
+						"No recipe is created",
+					]
 
-						example: {
-							error: {
-								code:    "RECIPE_NOT_FOUND"
-								message: "Could not extract recipe data from this URL"
-								hint:    "Try a URL from AllRecipes, Food Network, or BBC Good Food"
-							}
+					verifications: [
+						{
+							description: "Unsupported site returns helpful error"
+							criteria: [
+								"Error code is RECIPE_NOT_FOUND or UNSUPPORTED_SITE",
+								"Error message explains the issue",
+								"Hint suggests supported recipe sites",
+							]
+							examples: [
+								{
+									input: {
+										url: "https://example.com/some-random-page"
+									}
+									output: {
+										error: {
+											code:    "RECIPE_NOT_FOUND"
+											message: "Could not extract recipe data from this URL"
+											hint:    "Try a URL from AllRecipes, Food Network, or BBC Good Food"
+										}
+									}
+								}
+							]
 						}
-
-						checks: {
-							"error.code": {
-								rule: "one of [\"RECIPE_NOT_FOUND\", \"UNSUPPORTED_SITE\"]"
-								why:  "Distinguish between no recipe and unsupported site"
-							}
-							"error.hint": {
-								rule: "non-empty string"
-								why:  "Actionable guidance for the user"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "list-all-recipes"
@@ -202,25 +201,25 @@ spec: intent.#Spec & {
 
 					requires: ["create-recipe"]
 
-					request: {
-						method: "GET"
-						path:   "/recipes"
-					}
+					preconditions: [
+						"At least one recipe exists in the system",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"All recipes are returned",
+						"Total count matches array length",
+					]
 
-						checks: {
-							"recipes": {
-								rule: "non-empty array"
-								why:  "Should have at least the scraped recipe"
-							}
-							"total": {
-								rule: "integer >= 1"
-								why:  "Count matches array length"
-							}
+					verifications: [
+						{
+							description: "Recipes list is returned"
+							criteria: [
+								"Recipes array is non-empty",
+								"Total count is >= 1",
+								"Each recipe has required fields",
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "get-recipe-by-id"
@@ -228,60 +227,88 @@ spec: intent.#Spec & {
 
 					requires: ["create-recipe"]
 
-					request: {
-						method: "GET"
-						path:   "/recipes/${recipe_id}"
-					}
+					preconditions: [
+						"Recipe with specified ID exists",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Requested recipe is returned",
+						"Recipe ID matches requested ID",
+					]
 
-						checks: {
-							"id": {
-								rule: "equals ${recipe_id}"
-								why:  "Returns the requested recipe"
-							}
-							"title": {
-								rule: "non-empty string"
-								why:  "Recipe has a title"
-							}
+					verifications: [
+						{
+							description: "Single recipe is returned"
+							criteria: [
+								"ID matches the requested ID",
+								"Recipe has a title",
+								"All fields are present",
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "get-recipe-not-found"
 					intent: "Return 404 for non-existent recipe"
 
-					request: {
-						method: "GET"
-						path:   "/recipes/rcp_nonexistent999"
-					}
+					preconditions: [
+						"Recipe with specified ID does not exist",
+					]
 
-					response: {
-						status: 404
+					postconditions: [
+						"Request is rejected",
+						"Error indicates resource not found",
+					]
 
-						checks: {
-							"error.code": {rule: "equals NOT_FOUND"}
+					verifications: [
+						{
+							description: "Non-existent recipe returns 404"
+							criteria: [
+								"Error code is NOT_FOUND",
+							]
+							examples: [
+								{
+									input: {
+										id: "rcp_nonexistent999"
+									}
+									output: {
+										error: {
+											code: "NOT_FOUND"
+										}
+									}
+								}
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "delete-recipe"
 					intent: "Remove a recipe from the collection"
 
-					// Run last since it removes the recipe used by other tests
 					requires: ["export-meal-plan"]
 
-					request: {
-						method: "DELETE"
-						path:   "/recipes/${recipe_id}"
-					}
+					preconditions: [
+						"Recipe with specified ID exists",
+					]
 
-					response: {
-						status: 204
+					postconditions: [
+						"Recipe is deleted from the system",
+						"No trace of recipe remains",
+					]
 
-						checks: {}
-					}
+					verifications: [
+						{
+							description: "Recipe is deleted successfully"
+							criteria: [
+								"Deletion succeeds",
+								"Subsequent get returns 404",
+							]
+						}
+					]
+
+					notes: """
+						Run last since it removes the recipe used by other tests
+						"""
 				},
 			]
 		},
@@ -299,77 +326,85 @@ spec: intent.#Spec & {
 					name:   "create-meal-plan"
 					intent: "Create a new meal plan for a week"
 
-					request: {
-						method: "POST"
-						path:   "/meal-plans"
-						body: {
-							name:       "Healthy Week"
-							start_date: "2024-01-15"
-							end_date:   "2024-01-21"
+					preconditions: [
+						"Plan name is provided",
+						"Start and end dates are valid",
+						"End date is after start date",
+					]
+
+					postconditions: [
+						"Meal plan is created with unique ID prefixed 'plan_'",
+						"Plan starts with empty meals list",
+						"Creation timestamp is recorded",
+					]
+
+					verifications: [
+						{
+							description: "Meal plan created successfully"
+							criteria: [
+								"ID matches format plan_[a-z0-9]+",
+								"Name matches input",
+								"Start date matches input",
+								"End date matches input",
+								"Meals array is initially empty",
+								"created_at is valid ISO8601 datetime",
+							]
+							examples: [
+								{
+									input: {
+										name:       "Healthy Week"
+										start_date: "2024-01-15"
+										end_date:   "2024-01-21"
+									}
+									output: {
+										id:         "plan_xyz789"
+										name:       "Healthy Week"
+										start_date: "2024-01-15"
+										end_date:   "2024-01-21"
+										meals:      []
+										created_at: "2024-01-15T10:30:00Z"
+									}
+								}
+							]
 						}
-					}
-
-					response: {
-						status: 201
-
-						example: {
-							id:         "plan_xyz789"
-							name:       "Healthy Week"
-							start_date: "2024-01-15"
-							end_date:   "2024-01-21"
-							meals:      []
-							created_at: "2024-01-15T10:30:00Z"
-						}
-
-						checks: {
-							"id": {
-								rule: "string matching plan_[a-z0-9]+"
-								why:  "Plan IDs are prefixed"
-							}
-							"name": {
-								rule: "equals Healthy Week"
-								why:  "Confirms name was saved"
-							}
-							"start_date": {
-								rule: "equals 2024-01-15"
-								why:  "Confirms start date"
-							}
-							"end_date": {
-								rule: "equals 2024-01-21"
-								why:  "Confirms end date"
-							}
-							"meals": {
-								rule: "array"
-								why:  "Starts with empty meals list"
-							}
-						}
-					}
-
-					captures: {
-						plan_id: "response.body.id"
-					}
+					]
 				},
 				{
 					name:   "create-meal-plan-invalid-dates"
 					intent: "Reject meal plan with end date before start date"
 
-					request: {
-						method: "POST"
-						path:   "/meal-plans"
-						body: {
-							name:       "Bad Plan"
-							start_date: "2024-01-21"
-							end_date:   "2024-01-15"
-						}
-					}
+					preconditions: [
+						"End date is before start date",
+					]
 
-					response: {
-						status: 400
+					postconditions: [
+						"Plan creation is rejected",
+						"No plan is created",
+						"Clear error about date range is returned",
+					]
 
-						checks: {
-							"error.code": {rule: "equals INVALID_DATE_RANGE"}
+					verifications: [
+						{
+							description: "Invalid date range returns error"
+							criteria: [
+								"Error code is INVALID_DATE_RANGE",
+							]
+							examples: [
+								{
+									input: {
+										name:       "Bad Plan"
+										start_date: "2024-01-21"
+										end_date:   "2024-01-15"
+									}
+									output: {
+										error: {
+											code: "INVALID_DATE_RANGE"
+										}
+									}
+								}
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "add-meal-to-plan"
@@ -377,55 +412,51 @@ spec: intent.#Spec & {
 
 					requires: ["create-meal-plan", "create-recipe"]
 
-					request: {
-						method: "POST"
-						path:   "/meal-plans/${plan_id}/meals"
-						body: {
-							recipe_id: "${recipe_id}"
-							date:      "2024-01-15"
-							meal_type: "dinner"
-							servings:  4
+					preconditions: [
+						"Meal plan exists",
+						"Recipe exists",
+						"Meal type is valid (breakfast, lunch, dinner, snack)",
+						"Servings is positive",
+					]
+
+					postconditions: [
+						"Meal is added to plan",
+						"Meal has unique ID prefixed 'meal_'",
+						"Recipe details are included",
+					]
+
+					verifications: [
+						{
+							description: "Meal added successfully"
+							criteria: [
+								"ID matches format meal_[a-z0-9]+",
+								"Meal type is one of: breakfast, lunch, dinner, snack",
+								"Servings is >= 1",
+								"Recipe title is included",
+							]
+							examples: [
+								{
+									input: {
+										recipe_id: "rcp_abc123xyz"
+										date:      "2024-01-15"
+										meal_type: "dinner"
+										servings:  4
+									}
+									output: {
+										id:        "meal_abc123"
+										recipe_id: "rcp_abc123xyz"
+										date:      "2024-01-15"
+										meal_type: "dinner"
+										servings:  4
+										recipe: {
+											id:    "rcp_abc123xyz"
+											title: "Famous Butter Chicken"
+										}
+									}
+								}
+							]
 						}
-					}
-
-					response: {
-						status: 201
-
-						example: {
-							id:        "meal_abc123"
-							recipe_id: "rcp_abc123xyz"
-							date:      "2024-01-15"
-							meal_type: "dinner"
-							servings:  4
-							recipe: {
-								id:    "rcp_abc123xyz"
-								title: "Famous Butter Chicken"
-							}
-						}
-
-						checks: {
-							"id": {
-								rule: "string matching meal_[a-z0-9]+"
-								why:  "Meal entries have unique IDs"
-							}
-							"meal_type": {
-								rule: "one of [\"breakfast\", \"lunch\", \"dinner\", \"snack\"]"
-								why:  "Valid meal type categories"
-							}
-							"servings": {
-								rule: "integer >= 1"
-								why:  "Must serve at least one person"
-							}
-							"recipe.title": {
-								rule: "non-empty string"
-								why:  "Includes recipe details for convenience"
-							}
-						}
-					}
-
-					captures: {
-						meal_id: "response.body.id"
-					}
+					]
 				},
 				{
 					name:   "get-meal-plan"
@@ -433,25 +464,25 @@ spec: intent.#Spec & {
 
 					requires: ["add-meal-to-plan"]
 
-					request: {
-						method: "GET"
-						path:   "/meal-plans/${plan_id}"
-					}
+					preconditions: [
+						"Meal plan exists",
+						"At least one meal is scheduled",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Plan is returned with all meals",
+						"Meals array includes scheduled meals",
+					]
 
-						checks: {
-							"id": {
-								rule: "equals ${plan_id}"
-								why:  "Returns requested plan"
-							}
-							"meals": {
-								rule: "non-empty array"
-								why:  "Has the meal we added"
-							}
+					verifications: [
+						{
+							description: "Meal plan returned with meals"
+							criteria: [
+								"ID matches requested plan",
+								"Meals array is non-empty",
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "generate-shopping-list"
@@ -459,46 +490,49 @@ spec: intent.#Spec & {
 
 					requires: ["add-meal-to-plan"]
 
-					request: {
-						method: "GET"
-						path:   "/meal-plans/${plan_id}/shopping-list"
-					}
+					preconditions: [
+						"Meal plan exists",
+						"At least one meal is scheduled with ingredients",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Shopping list is generated",
+						"Ingredients are aggregated by recipe",
+						"Generation timestamp is recorded",
+					]
 
-						example: {
-							plan_id: "plan_xyz789"
-							items: [
-								{
-									ingredient: "chicken breast"
-									quantity:   "1 lb"
-									recipes:    ["Famous Butter Chicken"]
-								},
-								{
-									ingredient: "butter"
-									quantity:   "2 tbsp"
-									recipes:    ["Famous Butter Chicken"]
-								},
+					verifications: [
+						{
+							description: "Shopping list generated"
+							criteria: [
+								"Plan ID matches requested plan",
+								"Items array is non-empty",
+								"Items include ingredient and quantity",
+								"Items reference which recipes use them",
+								"generated_at is valid ISO8601 datetime",
 							]
-							generated_at: "2024-01-15T10:35:00Z"
+							examples: [
+								{
+									output: {
+										plan_id: "plan_xyz789"
+										items: [
+											{
+												ingredient: "chicken breast"
+												quantity:   "1 lb"
+												recipes:    ["Famous Butter Chicken"]
+											},
+											{
+												ingredient: "butter"
+												quantity:   "2 tbsp"
+												recipes:    ["Famous Butter Chicken"]
+											},
+										]
+										generated_at: "2024-01-15T10:35:00Z"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"plan_id": {
-								rule: "equals ${plan_id}"
-								why:  "Shopping list for the correct plan"
-							}
-							"items": {
-								rule: "non-empty array"
-								why:  "Has ingredients from scheduled meals"
-							}
-							"generated_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Timestamp for freshness"
-							}
-						}
-					}
+					]
 				},
 			]
 		},
@@ -517,36 +551,26 @@ spec: intent.#Spec & {
 
 					requires: ["create-recipe"]
 
-					request: {
-						method: "GET"
-						path:   "/export/recipes"
-						query: {
-							format: "json"
-						}
-					}
+					preconditions: [
+						"At least one recipe exists",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"All recipes are exported",
+						"Export includes schema version",
+						"Export timestamp is recorded",
+					]
 
-						headers: {
-							"Content-Type": "application/json"
+					verifications: [
+						{
+							description: "All recipes exported successfully"
+							criteria: [
+								"Recipes array is non-empty",
+								"exported_at is valid ISO8601 datetime",
+								"Version matches format ^1\\.[0-9]+$",
+							]
 						}
-
-						checks: {
-							"recipes": {
-								rule: "non-empty array"
-								why:  "Contains all saved recipes"
-							}
-							"exported_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Export timestamp for versioning"
-							}
-							"version": {
-								rule: "string matching ^1\\.[0-9]+$"
-								why:  "Schema version for compatibility"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "export-meal-plan"
@@ -554,75 +578,55 @@ spec: intent.#Spec & {
 
 					requires: ["add-meal-to-plan"]
 
-					request: {
-						method: "GET"
-						path:   "/export/meal-plans/${plan_id}"
-					}
+					preconditions: [
+						"Meal plan exists",
+						"At least one meal is scheduled",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Plan is exported with meals",
+						"Full recipe data is included",
+					]
 
-						checks: {
-							"meal_plan.id": {
-								rule: "equals ${plan_id}"
-								why:  "Exports the correct plan"
-							}
-							"meal_plan.meals": {
-								rule: "non-empty array"
-								why:  "Includes scheduled meals"
-							}
-							"recipes": {
-								rule: "non-empty array"
-								why:  "Includes full recipe data for offline use"
-							}
+					verifications: [
+						{
+							description: "Meal plan exported successfully"
+							criteria: [
+								"Meal plan ID matches requested plan",
+								"Meals array is non-empty",
+								"Recipes array is non-empty",
+							]
 						}
-					}
+					]
 				},
 			]
 		},
 	]
 
-	rules: [
+	invariants: [
 		{
-			name:        "consistent-error-format"
+			name: "consistent-error-format"
 			description: "All errors return structured error objects"
-
-			when: {status: ">= 400"}
-
-			check: {
-				fields_must_exist: ["error.code", "error.message"]
-			}
-
-			example: {
-				error: {
-					code:    "ERROR_CODE"
-					message: "Human readable description"
-				}
-			}
+			criteria: [
+				"Error responses (status >= 400) include error.code field",
+				"Error responses include error.message field",
+			]
 		},
 		{
-			name:        "content-type-json"
-			description: "All responses must have Content-Type header"
-
-			check: {
-				header_must_exist: "Content-Type"
-			}
-		},
-		{
-			name:        "no-internal-errors-exposed"
+			name: "no-internal-errors-exposed"
 			description: "Internal implementation details not leaked"
-
-			when: {status: ">= 500"}
-
-			check: {
-				body_must_not_contain: ["stack trace", "panic", "runtime error", "sql:", "pq:"]
-			}
+			criteria: [
+				"Error responses (status >= 500) do not contain stack traces",
+				"Error responses do not contain panic messages",
+				"Error responses do not contain runtime error details",
+				"Error responses do not contain SQL queries or database errors",
+			]
 		},
 	]
 
 	anti_patterns: [
 		{
-			name:        "sequential-ids"
+			name: "sequential-ids"
 			description: "IDs should not be sequential integers"
 
 			bad_example: {
@@ -639,7 +643,7 @@ spec: intent.#Spec & {
 				"""
 		},
 		{
-			name:        "null-instead-of-empty-array"
+			name: "null-instead-of-empty-array"
 			description: "Empty collections should be empty arrays, not null"
 
 			bad_example: {
@@ -653,7 +657,7 @@ spec: intent.#Spec & {
 			why: "Null vs empty array causes client-side null checks and crashes"
 		},
 		{
-			name:        "inconsistent-time-format"
+			name: "inconsistent-time-format"
 			description: "All timestamps must use ISO8601 format"
 
 			bad_example: {

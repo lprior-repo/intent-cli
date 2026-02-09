@@ -2,16 +2,11 @@
 /// Converts interview session answers into valid CUE specifications
 import gleam/dict
 import gleam/int
-import gleam/json
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/interpolate.{type Context}
 import intent/interview.{type Answer, type InterviewSession, type Profile}
-import intent/types.{
-  type Behavior, type Invariant, type Spec, type Verification, AIHints,
-  Behavior, Feature, ImplementationHints, SecurityHints, Spec,
-}
+import intent/types.{type Spec, Spec, type Behavior, Behavior, Feature, ImplementationHints, SecurityHints, AIHints}
 
 /// Generated CUE code
 pub type GeneratedCUE {

@@ -1,11 +1,6 @@
-import gleam/dict
-import gleam/int
-import gleam/json
 import gleam/list
 import gleeunit/should
-import intent/interpolate
 import intent/spec_builder
-import intent/types
 
 /// CUPID-DRIVEN: Spec builder MUST compose via list operations
 ///

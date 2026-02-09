@@ -2211,10 +2211,6 @@ pub fn bead_multiple_dependencies_test() {
   }
 }
 
-fn empty_context() -> interpolate.Context {
-  interpolate.new_context()
-}
-
 // --- Status Code Tests ---
 
 // pub fn checker_status_code_match_test() {

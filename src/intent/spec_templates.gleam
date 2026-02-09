@@ -285,13 +285,9 @@ spec: intent.#Spec & {
 			name:        \"hardcoded-auth-tokens\"
 			description: \"Don't hardcode authentication tokens in code\"
 
-			bad_example: {
-				api_token: \"sk_live_1234567890abcdef\"
-			}
+			bad_example: api_token: \"sk_live_1234567890abcdef\"
 
-			good_example: {
-				api_token: \"\\${API_TOKEN}\"
-			}
+			good_example: api_token: #\"\\${API_TOKEN}\"#
 
 			why: \"Hardcoded tokens in version control are a security risk\"
 		},
@@ -418,7 +414,7 @@ spec: intent.#Spec & {
 						{
 							description: \"Version output is correct\"
 							criteria: [
-								\"Displays semantic version (e.g., 1.0.0)\"
+								\"Displays semantic version (e.g., 1.0.0)\",
 								\"Exits with code 0\",
 								\"Format matches standard conventions\",
 							]
@@ -456,7 +452,7 @@ spec: intent.#Spec & {
 							description: \"Command executes successfully\"
 							criteria: [
 								\"Exit code is 0\",
-								\"Output is written to stdout (or file as specified)\"
+								\"Output is written to stdout (or file as specified)\",
 								\"No errors are written to stderr\",
 							]
 						},
@@ -472,8 +468,8 @@ spec: intent.#Spec & {
 						{
 							description: \"Missing arguments show helpful error\"
 							criteria: [
-								\"Exit code is non-zero (typically 1 or 2)\"
-								\"Error message lists missing required arguments\"
+								\"Exit code is non-zero (typically 1 or 2)\",
+								\"Error message lists missing required arguments\",
 								\"Suggests using --help for usage information\",
 							]
 						},
@@ -489,8 +485,8 @@ spec: intent.#Spec & {
 						{
 							description: \"Invalid input produces actionable error\"
 							criteria: [
-								\"Exit code is non-zero\"
-								\"Error message describes what was invalid\"
+								\"Exit code is non-zero\",
+								\"Error message describes what was invalid\",
 								\"Error message suggests how to fix the input\",
 							]
 						},
@@ -508,8 +504,8 @@ spec: intent.#Spec & {
 			description: \"Exit codes follow POSIX conventions\"
 			criteria: [
 				\"0 = success\",
-				\"1-64 = application errors (1 = general error, 2 = misuse)\"
-				\"65+ = system errors (not typically used by apps)\"
+				\"1-64 = application errors (1 = general error, 2 = misuse)\",
+				\"65+ = system errors (not typically used by apps)\",
 			]
 		},
 		{
@@ -525,8 +521,8 @@ spec: intent.#Spec & {
 			name:        \"fail-fast\"
 			description: \"Errors stop execution immediately\"
 			criteria: [
-				\"Validation errors prevent any work from starting\"
-				\"Runtime errors stop current operation\"
+				\"Validation errors prevent any work from starting\",
+				\"Runtime errors stop current operation\",
 				\"Exit codes accurately reflect failure\",
 			]
 		},
@@ -557,10 +553,10 @@ spec: intent.#Spec & {
 
 			good_example: {
 				flags: [
-					\"--verbose, -v\"
-					\"--quiet, -q\"
-					\"--output, -o\"
-					\"--debug, -d\"
+					\"--verbose, -v\",
+					\"--quiet, -q\",
+					\"--output, -o\",
+					\"--debug, -d\",
 				]
 			}
 
@@ -571,10 +567,10 @@ spec: intent.#Spec & {
 	ai_hints: {
 		implementation: {
 			suggested_stack: [
-				\"CLI framework (e.g., Commander, Clap, argparse)\"
-				\"Structured logging with levels (debug, info, warn, error)\"
-				\"Configuration file support (config.yaml/.toolrc)\"
-				\"Shell completion scripts (bash, zsh, fish)\"
+				\"CLI framework (e.g., Commander, Clap, argparse)\",
+				\"Structured logging with levels (debug, info, warn, error)\",
+				\"Configuration file support (config.yaml/.toolrc)\",
+				\"Shell completion scripts (bash, zsh, fish)\",
 			]
 		}
 
@@ -597,8 +593,8 @@ spec: intent.#Spec & {
 		}
 
 		pitfalls: [
-			\"Don't ignore exit codes in scripts - always check $? after execution\"
-			\"Avoid parsing command output - use dedicated output formats (JSON)\"
+			\"Don't ignore exit codes in scripts - always check $? after execution\",
+			\"Avoid parsing command output - use dedicated output formats (JSON)\",
 			\"Don't assume current directory - always use absolute paths when needed\",
 			\"Never log sensitive data (passwords, tokens, personal info)\",
 		]
@@ -788,7 +784,7 @@ spec: intent.#Spec & {
 			description: \"All data operations are logged for audit\"
 			criteria: [
 				\"Each record records source system and timestamp\",
-				\"Transformations are logged with parameters\"
+				\"Transformations are logged with parameters\",
 				\"Load operations track record counts and status\",
 			]
 		},
@@ -837,10 +833,10 @@ spec: intent.#Spec & {
 	ai_hints: {
 		implementation: {
 			suggested_stack: [
-				\"Workflow orchestrator (Airflow, Prefect, Dagster)\"
-				\"Data processing framework (Spark, Pandas, dbt)\"
-				\"Data warehouse (Snowflake, BigQuery, Redshift)\"
-				\"Monitoring and alerting (Prometheus, Grafana)\"
+				\"Workflow orchestrator (Airflow, Prefect, Dagster)\",
+				\"Data processing framework (Spark, Pandas, dbt)\",
+				\"Data warehouse (Snowflake, BigQuery, Redshift)\",
+				\"Monitoring and alerting (Prometheus, Grafana)\",
 			]
 		}
 
@@ -936,7 +932,7 @@ spec: intent.#Spec & {
 							description: \"Workflow is created successfully\"
 							criteria: [
 								\"Workflow ID is generated and returned\",
-								\"Workflow status is 'pending' or 'in_progress'\"
+								\"Workflow status is 'pending' or 'in_progress'\",
 								\"Initial state is correct\",
 							]
 						},
@@ -1066,7 +1062,7 @@ spec: intent.#Spec & {
 			description: \"Every state can reach a terminal state\"
 			criteria: [
 				\"All states have defined transitions\",
-				\"No state is a dead end (except terminal states)\"
+				\"No state is a dead end (except terminal states)\",
 				\"Workflow can complete or be cancelled from any state\",
 			]
 		},
@@ -1106,10 +1102,10 @@ spec: intent.#Spec & {
 	ai_hints: {
 		implementation: {
 			suggested_stack: [
-				\"Workflow engine (Temporal, Camunda, Airflow)\"
+				\"Workflow engine (Temporal, Camunda, Airflow)\",
 				\"State machine with clear transition rules\",
-				\"Message queue for notifications (SQS, Kafka)\"
-				\"Audit log storage (database table with append-only writes)\"
+				\"Message queue for notifications (SQS, Kafka)\",
+				\"Audit log storage (database table with append-only writes)\",
 			]
 		}
 

@@ -54,14 +54,6 @@ spec: intent.#Spec & {
 		"Graceful degradation under load",
 	]
 
-	config: {
-		base_url:   "http://localhost:8080"
-		timeout_ms: 10000
-		headers: {
-			"Content-Type": "application/json"
-		}
-	}
-
 	features: [
 		{
 			name: "Order Creation"
@@ -76,107 +68,144 @@ spec: intent.#Spec & {
 					name:   "create-order-happy-path"
 					intent: "Customer places a valid order with in-stock items"
 
+					preconditions: [
+						"User is authenticated with valid token",
+						"All items in order are in stock",
+						"Shipping address is valid",
+						"Payment method is valid",
+					]
+
+					postconditions: [
+						"Order is created with unique ID",
+						"Order status is pending_payment",
+						"Inventory is reserved for items",
+						"Payment URL is generated",
+						"Expiration timestamp is set (30 minutes)",
+					]
+
+					verifications: [
+						{
+							description: "Order created successfully"
+							criteria: [
+								"ID matches format ord_[0-9]{8}_[0-9]{3}",
+								"Status is pending_payment",
+								"Items array is non-empty",
+								"Item quantities are >= 1",
+								"Total is between 0.01 and 100000.00",
+								"Payment URL is valid",
+								"expires_at is valid ISO8601 datetime",
+							]
+							examples: [
+								{
+									input: {
+										items: [
+											{product_id: "prod_abc", quantity: 2},
+											{product_id: "prod_xyz", quantity: 1},
+										]
+										shipping_address: {
+											street:  "123 Main St"
+											city:    "Seattle"
+											state:   "WA"
+											zip:     "98101"
+											country: "US"
+										}
+										payment_method_id: "pm_card_visa"
+									}
+									output: {
+										id:     "ord_20240115_001"
+										status: "pending_payment"
+										items: [
+											{
+												product_id:   "prod_abc"
+												product_name: "Widget Pro"
+												quantity:     2
+												unit_price:   49.99
+												subtotal:     99.98
+											},
+											{
+												product_id:   "prod_xyz"
+												product_name: "Gadget Basic"
+												quantity:     1
+												unit_price:   29.99
+												subtotal:     29.99
+											},
+										]
+										totals: {
+											subtotal: 129.97
+											tax:      11.70
+											shipping: 9.99
+											total:    151.66
+										}
+										payment_url: "https://payments.example.com/checkout/ord_20240115_001"
+										created_at:  "2024-01-15T10:30:00Z"
+										expires_at:  "2024-01-15T11:00:00Z"
+									}
+								}
+							]
+						}
+					]
+
 					notes: """
 						From R1 Question: "Walk me through the happy path"
-						Answer: Customer adds items → validates stock → creates order
-						       → reserves inventory → initiates payment → confirms
+						Answer: Customer adds items -> validates stock -> creates order
+						       -> reserves inventory -> initiates payment -> confirms
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/orders"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-						body: {
-							items: [
-								{product_id: "prod_abc", quantity: 2},
-								{product_id: "prod_xyz", quantity: 1},
-							]
-							shipping_address: {
-								street:  "123 Main St"
-								city:    "Seattle"
-								state:   "WA"
-								zip:     "98101"
-								country: "US"
-							}
-							payment_method_id: "pm_card_visa"
-						}
-					}
-
-					response: {
-						status: 201
-
-						example: {
-							id:          "ord_20240115_001"
-							status:      "pending_payment"
-							items: [
-								{
-									product_id:   "prod_abc"
-									product_name: "Widget Pro"
-									quantity:     2
-									unit_price:   49.99
-									subtotal:     99.98
-								},
-								{
-									product_id:   "prod_xyz"
-									product_name: "Gadget Basic"
-									quantity:     1
-									unit_price:   29.99
-									subtotal:     29.99
-								},
-							]
-							totals: {
-								subtotal: 129.97
-								tax:      11.70
-								shipping: 9.99
-								total:    151.66
-							}
-							payment_url: "https://payments.example.com/checkout/ord_20240115_001"
-							created_at:  "2024-01-15T10:30:00Z"
-							expires_at:  "2024-01-15T11:00:00Z"
-						}
-
-						checks: {
-							"id": {
-								rule: "string matching ord_[0-9]{8}_[0-9]{3}"
-								why:  "Order IDs include date for debugging (from Developer perspective)"
-							}
-							"status": {
-								rule: "equals pending_payment"
-								why:  "New orders wait for payment (from Workflow state machine)"
-							}
-							"items": {
-								rule: "non-empty array"
-								why:  "Order must have items (from Business perspective)"
-							}
-							"items[0].quantity": {
-								rule: "integer >= 1"
-								why:  "Quantity validated before order creation"
-							}
-							"totals.total": {
-								rule: "number between 0.01 and 100000.00"
-								why:  "Order limits from R3 edge case questions"
-							}
-							"payment_url": {
-								rule: "uri"
-								why:  "External payment flow (PCI compliance from R4)"
-							}
-							"expires_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Inventory hold expires in 30 min (from Ops questions)"
-							}
-						}
-					}
-
-					captures: {
-						order_id:    "response.body.id"
-						payment_url: "response.body.payment_url"
-					}
 				},
 				{
 					name:   "create-order-out-of-stock"
 					intent: "Order rejected when item is out of stock"
+
+					preconditions: [
+						"User is authenticated",
+						"At least one item is out of stock",
+					]
+
+					postconditions: [
+						"Order creation is rejected",
+						"No inventory is reserved",
+						"Error indicates which items are unavailable",
+					]
+
+					verifications: [
+						{
+							description: "Out of stock returns specific error"
+							criteria: [
+								"Error code is OUT_OF_STOCK",
+								"Error includes unavailable items list",
+								"Error shows requested vs available quantities",
+							]
+							examples: [
+								{
+									input: {
+										items: [
+											{product_id: "prod_sold_out", quantity: 1}
+										]
+										shipping_address: {
+											street: "123 Main St"
+											city:   "Seattle"
+											state:  "WA"
+											zip:    "98101"
+										}
+									}
+									output: {
+										error: {
+											code:    "OUT_OF_STOCK"
+											message: "One or more items are out of stock"
+											details: {
+												unavailable: [
+													{
+														product_id: "prod_sold_out"
+														requested:  1
+														available:  0
+													}
+												]
+											}
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						From R2 Question: "What's the most common error users will hit?"
@@ -185,60 +214,54 @@ spec: intent.#Spec & {
 						GAP RESOLVED: Initially undefined behavior. Interview revealed
 						need to check stock BEFORE accepting order, not after payment.
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/orders"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-						body: {
-							items: [
-								{product_id: "prod_sold_out", quantity: 1},
-							]
-							shipping_address: {
-								street: "123 Main St"
-								city:   "Seattle"
-								state:  "WA"
-								zip:    "98101"
-							}
-						}
-					}
-
-					response: {
-						status: 409
-
-						example: {
-							error: {
-								code:    "OUT_OF_STOCK"
-								message: "One or more items are out of stock"
-								details: {
-									unavailable: [
-										{
-											product_id: "prod_sold_out"
-											requested:  1
-											available:  0
-										},
-									]
-								}
-							}
-						}
-
-						checks: {
-							"error.code": {
-								rule: "equals OUT_OF_STOCK"
-								why:  "Specific error code for client handling"
-							}
-							"error.details.unavailable": {
-								rule: "non-empty array"
-								why:  "Tell user which items are unavailable"
-							}
-						}
-					}
 				},
 				{
 					name:   "create-order-exceeds-limit"
 					intent: "Order rejected when total exceeds maximum"
+
+					preconditions: [
+						"User is authenticated",
+						"Order total exceeds $100,000",
+						"Or order has more than 100 items",
+					]
+
+					postconditions: [
+						"Order creation is rejected",
+						"Error shows current limits",
+						"Error shows what was provided",
+					]
+
+					verifications: [
+						{
+							description: "Order limit exceeded returns specific error"
+							criteria: [
+								"Error code is ORDER_LIMIT_EXCEEDED",
+								"Error includes max_total and your_total",
+								"Error includes max_items and your_items",
+							]
+							examples: [
+								{
+									input: {
+										items: [
+											{product_id: "prod_expensive", quantity: 1000}
+										]
+									}
+									output: {
+										error: {
+											code:    "ORDER_LIMIT_EXCEEDED"
+											message: "Order exceeds maximum allowed value"
+											details: {
+												max_total:  100000.00
+												your_total: 150000.00
+												max_items:  100
+												your_items: 1000
+											}
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						From R3 Question: "What's the maximum size of inputs/payloads?"
@@ -248,47 +271,6 @@ spec: intent.#Spec & {
 						wanted $10k. Compromise: $100k with enhanced fraud checks
 						above $25k.
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/orders"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-						body: {
-							items: [
-								{product_id: "prod_expensive", quantity: 1000},
-							]
-						}
-					}
-
-					response: {
-						status: 400
-
-						example: {
-							error: {
-								code:    "ORDER_LIMIT_EXCEEDED"
-								message: "Order exceeds maximum allowed value"
-								details: {
-									max_total:  100000.00
-									your_total: 150000.00
-									max_items:  100
-									your_items: 1000
-								}
-							}
-						}
-
-						checks: {
-							"error.code": {
-								rule: "equals ORDER_LIMIT_EXCEEDED"
-								why:  "Clear limit violation error"
-							}
-							"error.details.max_total": {
-								rule: "number between 0.0 and 1000000.0"
-								why:  "Shows limit for user reference"
-							}
-						}
-					}
 				},
 			]
 		},
@@ -306,59 +288,96 @@ spec: intent.#Spec & {
 					name:   "order-payment-confirmed"
 					intent: "Order transitions to confirmed after payment"
 
+					requires: ["create-order-happy-path"]
+
+					preconditions: [
+						"Order exists in pending_payment state",
+						"Payment is successfully completed",
+					]
+
+					postconditions: [
+						"Order status changes to confirmed",
+						"Payment status is recorded",
+						"Transaction ID is stored",
+						"Timeline is updated",
+					]
+
+					verifications: [
+						{
+							description: "Payment confirmed successfully"
+							criteria: [
+								"Status is confirmed",
+								"Payment status is completed",
+								"Transaction ID is present",
+								"Timeline has at least 1 entry",
+							]
+							examples: [
+								{
+									output: {
+										id:     "ord_20240115_001"
+										status: "confirmed"
+										payment: {
+											status:         "completed"
+											transaction_id: "txn_abc123"
+											completed_at:   "2024-01-15T10:35:00Z"
+										}
+										timeline: [
+											{status: "pending_payment", at: "2024-01-15T10:30:00Z"},
+											{status: "confirmed", at: "2024-01-15T10:35:00Z"},
+										]
+									}
+								}
+							]
+						}
+					]
+
 					notes: """
 						From R1 Question: "What are the main workflow states?"
-						Answer: pending_payment → confirmed → processing → shipped → delivered
+						Answer: pending_payment -> confirmed -> processing -> shipped -> delivered
 
 						This is the happy path state transition.
 						"""
-
-					requires: ["create-order-happy-path"]
-
-					request: {
-						method: "GET"
-						path:   "/orders/${order_id}"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-					}
-
-					response: {
-						status: 200
-
-						example: {
-							id:     "ord_20240115_001"
-							status: "confirmed"
-							payment: {
-								status:         "completed"
-								transaction_id: "txn_abc123"
-								completed_at:   "2024-01-15T10:35:00Z"
-							}
-							timeline: [
-								{status: "pending_payment", at: "2024-01-15T10:30:00Z"},
-								{status: "confirmed", at: "2024-01-15T10:35:00Z"},
-							]
-						}
-
-						checks: {
-							"status": {
-								rule: "one of [\"pending_payment\", \"confirmed\", \"processing\", \"shipped\", \"delivered\", \"cancelled\"]"
-								why:  "Valid order states from workflow interview"
-							}
-							"payment.status": {
-								rule: "equals completed"
-								why:  "Payment must be complete for confirmed status"
-							}
-							"timeline": {
-								rule: "array with min 1 items"
-								why:  "Audit trail required (from R4 compliance questions)"
-							}
-						}
-					}
 				},
 				{
 					name:   "order-payment-failed"
 					intent: "Failed payment returns order to pending state"
+
+					preconditions: [
+						"Order exists in pending_payment state",
+						"Payment is declined",
+					]
+
+					postconditions: [
+						"Order stays in pending_payment state",
+						"Error indicates payment was declined",
+						"Retry is allowed",
+						"Expiration timestamp is still valid",
+					]
+
+					verifications: [
+						{
+							description: "Payment failed but retry allowed"
+							criteria: [
+								"Status is pending_payment",
+								"Error retry flag is true",
+								"Error expires_at is valid ISO8601 datetime",
+							]
+							examples: [
+								{
+									output: {
+										order_id:     "ord_20240115_001"
+										status:       "pending_payment"
+										error: {
+											code:       "PAYMENT_DECLINED"
+											message:    "Your card was declined"
+											retry:      true
+											expires_at: "2024-01-15T11:00:00Z"
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						From R2 Question: "What happens if a step fails? How does it recover?"
@@ -368,51 +387,50 @@ spec: intent.#Spec & {
 						GAP RESOLVED: Initially unclear if order should be cancelled
 						or allow retry. Interview revealed users prefer retry option.
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/orders/${order_id}/payment"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-						body: {
-							payment_method_id: "pm_card_declined"
-						}
-					}
-
-					response: {
-						status: 402
-
-						example: {
-							order_id:     "ord_20240115_001"
-							status:       "pending_payment"
-							error: {
-								code:       "PAYMENT_DECLINED"
-								message:    "Your card was declined"
-								retry:      true
-								expires_at: "2024-01-15T11:00:00Z"
-							}
-						}
-
-						checks: {
-							"status": {
-								rule: "equals pending_payment"
-								why:  "Stays in pending to allow retry"
-							}
-							"error.retry": {
-								rule: "equals true"
-								why:  "Indicates user can try again"
-							}
-							"error.expires_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Inventory hold has expiration"
-							}
-						}
-					}
 				},
 				{
 					name:   "order-cancel-before-ship"
 					intent: "Customer can cancel before shipping"
+
+					preconditions: [
+						"Order exists",
+						"Order status is pending_payment, confirmed, or processing",
+						"User is authenticated as order owner",
+					]
+
+					postconditions: [
+						"Order status changes to cancelled",
+						"Refund is initiated",
+						"Refund amount is calculated",
+						"Cancellation timestamp is recorded",
+					]
+
+					verifications: [
+						{
+							description: "Order cancelled successfully"
+							criteria: [
+								"Status is cancelled",
+								"Refund status is pending, processing, or completed",
+								"Refund amount is between 0.0 and 100000.0",
+							]
+							examples: [
+								{
+									input: {
+										reason: "Changed my mind"
+									}
+									output: {
+										id:              "ord_20240115_001"
+										status:          "cancelled"
+										cancelled_at:    "2024-01-15T12:00:00Z"
+										cancelled_by:    "customer"
+										refund_status:   "pending"
+										refund_amount:   151.66
+										refund_eta_days: 5
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						From R2 Question: "What transitions between states are allowed?"
@@ -423,46 +441,6 @@ spec: intent.#Spec & {
 						Warehouse said impossible after picking. Compromise: cancel
 						until picked, then requires manager approval.
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/orders/${order_id}/cancel"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-						body: {
-							reason: "Changed my mind"
-						}
-					}
-
-					response: {
-						status: 200
-
-						example: {
-							id:              "ord_20240115_001"
-							status:          "cancelled"
-							cancelled_at:    "2024-01-15T12:00:00Z"
-							cancelled_by:    "customer"
-							refund_status:   "pending"
-							refund_amount:   151.66
-							refund_eta_days: 5
-						}
-
-						checks: {
-							"status": {
-								rule: "equals cancelled"
-								why:  "Order is now cancelled"
-							}
-							"refund_status": {
-								rule: "one of [\"pending\", \"processing\", \"completed\"]"
-								why:  "Refund initiated automatically"
-							}
-							"refund_amount": {
-								rule: "number between 0.0 and 100000.0"
-								why:  "Full refund for cancellations"
-							}
-						}
-					}
 				},
 			]
 		},
@@ -480,54 +458,49 @@ spec: intent.#Spec & {
 					name:   "list-customer-orders"
 					intent: "Customer views their order history"
 
-					request: {
-						method: "GET"
-						path:   "/users/me/orders"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-						query: {
-							limit: 10
-							page:  1
-						}
-					}
+					preconditions: [
+						"User is authenticated",
+						"User has placed at least one order",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"List of customer's orders is returned",
+						"Pagination metadata is included",
+						"Orders belong to authenticated user only",
+					]
 
-						example: {
-							orders: [
-								{
-									id:         "ord_20240115_001"
-									status:     "confirmed"
-									total:      151.66
-									item_count: 3
-									created_at: "2024-01-15T10:30:00Z"
-								},
+					verifications: [
+						{
+							description: "Customer orders listed successfully"
+							criteria: [
+								"Orders array has max 10 items",
+								"Order IDs match format ord_[0-9]{8}_[0-9]{3}",
+								"Page number is >= 1",
+								"Pagination metadata is complete",
 							]
-							pagination: {
-								page:        1
-								per_page:    10
-								total_pages: 3
-								total_items: 25
-							}
+							examples: [
+								{
+									output: {
+										orders: [
+											{
+												id:         "ord_20240115_001"
+												status:     "confirmed"
+												total:      151.66
+												item_count: 3
+												created_at: "2024-01-15T10:30:00Z"
+											}
+										]
+										pagination: {
+											page:        1
+											per_page:    10
+											total_pages: 3
+											total_items: 25
+										}
+									}
+								}
+							]
 						}
-
-						checks: {
-							"orders": {
-								rule: "array with max 10 items"
-								why:  "Respects pagination limit"
-							}
-							"orders[0].id": {
-								rule: "string matching ord_[0-9]{8}_[0-9]{3}"
-								why:  "Order ID format"
-							}
-							"pagination.page": {
-								rule: "integer >= 1"
-								why:  "Page numbering starts at 1"
-							}
-						}
-					}
+					]
 
 					notes: """
 						From R5 Question: "What's your uptime requirement?"
@@ -539,104 +512,91 @@ spec: intent.#Spec & {
 					name:   "get-order-tracking"
 					intent: "Customer tracks shipment status"
 
-					request: {
-						method: "GET"
-						path:   "/orders/${order_id}/tracking"
-						headers: {
-							"Authorization": "Bearer ${customer_token}"
-						}
-					}
+					preconditions: [
+						"User is authenticated",
+						"Order exists and belongs to user",
+						"Order has been shipped",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Tracking information is returned",
+						"Tracking events are ordered by timestamp",
+						"Carrier information is included",
+					]
 
-						example: {
-							order_id:        "ord_20240115_001"
-							carrier:         "UPS"
-							tracking_number: "1Z999AA10123456784"
-							tracking_url:    "https://ups.com/track/1Z999AA10123456784"
-							estimated_delivery: "2024-01-18"
-							events: [
+					verifications: [
+						{
+							description: "Tracking information returned"
+							criteria: [
+								"Tracking number is non-empty string",
+								"Events array is non-empty",
+								"Event timestamps are valid ISO8601 datetime",
+								"Estimated delivery matches YYYY-MM-DD format",
+							]
+							examples: [
 								{
-									timestamp:   "2024-01-16T08:00:00Z"
-									location:    "Seattle, WA"
-									status:      "In Transit"
-									description: "Package departed facility"
-								},
-								{
-									timestamp:   "2024-01-15T18:00:00Z"
-									location:    "Seattle, WA"
-									status:      "Shipped"
-									description: "Package picked up"
-								},
+									output: {
+										order_id:        "ord_20240115_001"
+										carrier:         "UPS"
+										tracking_number: "1Z999AA10123456784"
+										tracking_url:    "https://ups.com/track/1Z999AA10123456784"
+										estimated_delivery: "2024-01-18"
+										events: [
+											{
+												timestamp:   "2024-01-16T08:00:00Z"
+												location:    "Seattle, WA"
+												status:      "In Transit"
+												description: "Package departed facility"
+											},
+											{
+												timestamp:   "2024-01-15T18:00:00Z"
+												location:    "Seattle, WA"
+												status:      "Shipped"
+												description: "Package picked up"
+											},
+										]
+									}
+								}
 							]
 						}
-
-						checks: {
-							"tracking_number": {
-								rule: "non-empty string"
-								why:  "Tracking number required once shipped"
-							}
-							"events": {
-								rule: "non-empty array"
-								why:  "At least one event when tracking exists"
-							}
-							"events[0].timestamp": {
-								rule: "valid ISO8601 datetime"
-								why:  "Event timestamps for timeline"
-							}
-							"estimated_delivery": {
-								rule: "string matching [0-9]{4}-[0-9]{2}-[0-9]{2}"
-								why:  "Date format YYYY-MM-DD"
-							}
-						}
-					}
-				},
+					]
+				}
 			]
-		},
+		}
 	]
 
-	rules: [
+	invariants: [
 		{
-			name:        "no-payment-data-in-responses"
+			name: "no-payment-data-in-responses"
 			description: "Credit card numbers must never appear in API responses"
-
-			check: {
-				body_must_not_contain: ["card_number", "cvv", "expiry", "4111"]
-			}
-
-			example: null
+			criteria: [
+				"Responses do not contain card_number field",
+				"Responses do not contain cvv field",
+				"Responses do not contain expiry field",
+				"Responses do not contain test card numbers like 4111",
+			]
 		},
 		{
-			name:        "structured-errors"
+			name: "structured-errors"
 			description: "All errors have code and message (from Developer interview)"
-
-			when: {status: ">= 400"}
-
-			check: {
-				fields_must_exist: ["error.code", "error.message"]
-			}
-
-			example: {
-				error: {
-					code:    "SPECIFIC_ERROR_CODE"
-					message: "Human readable explanation"
-				}
-			}
+			criteria: [
+				"Error responses (status >= 400) include error.code field",
+				"Error responses include error.message field",
+			]
 		},
 		{
-			name:        "audit-timestamps"
+			name: "audit-timestamps"
 			description: "Orders must have creation timestamps (from Security interview)"
-
-			check: {
-				fields_must_exist: ["created_at"]
-			}
+			criteria: [
+				"Order responses include created_at field",
+				"created_at is valid ISO8601 datetime",
+			]
 		},
 	]
 
 	anti_patterns: [
 		{
-			name:        "exposing-internal-ids"
+			name: "exposing-internal-ids"
 			description: "Don't expose database IDs (from Security interview R4)"
 
 			bad_example: {
@@ -654,7 +614,7 @@ spec: intent.#Spec & {
 				"""
 		},
 		{
-			name:        "vague-errors"
+			name: "vague-errors"
 			description: "Don't return generic errors (from User interview R2)"
 
 			bad_example: {
@@ -675,7 +635,7 @@ spec: intent.#Spec & {
 				"""
 		},
 		{
-			name:        "inconsistent-states"
+			name: "inconsistent-states"
 			description: "Don't use inconsistent status values (from Developer interview)"
 
 			bad_example: {

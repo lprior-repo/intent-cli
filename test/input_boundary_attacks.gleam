@@ -1,13 +1,10 @@
 /// RED-02: Input Boundary Attacks - Bug Discovery Report
 /// Direct EARS format reporting of discovered bugs
-import gleam/dict
 import gleam/dynamic
 import gleam/json
 import gleam/string
 import gleeunit/should
 import intent/parser
-import intent/types
-import intent/validator
 
 /// BUG 1: Empty string accepted for required 'name' field
 /// SEVERITY: MEDIUM

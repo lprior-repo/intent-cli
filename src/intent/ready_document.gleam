@@ -1,11 +1,10 @@
 /// Ready document generator
 /// Generates implementation-ready documentation from specs
 import gleam/dict
-import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/string
-import intent/types.{type Behavior, type Invariant, type Spec}
+import intent/types.{type Behavior, type Spec}
 
 /// Generate a ready document from a spec
 pub fn generate_ready_document(spec: Spec) -> String {

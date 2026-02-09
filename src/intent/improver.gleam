@@ -1,8 +1,6 @@
 /// Interactive specification refinement
 /// Suggests improvements based on quality analysis and linting results
-import gleam/dict
 import gleam/int
-import gleam/json
 import gleam/list
 import gleam/string
 import intent/quality_analyzer.{type QualityReport}

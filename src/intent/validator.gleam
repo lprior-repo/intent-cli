@@ -66,7 +66,7 @@ pub fn validate_spec(spec: Spec) -> ValidationResult {
 fn validate_behavior(
   behavior: Behavior,
   all_behavior_names: List(String),
-  all_behaviors: List(Behavior),
+  _all_behaviors: List(Behavior),
 ) -> List(ValidationIssue) {
   let mut_issues = []
 

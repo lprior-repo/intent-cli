@@ -224,7 +224,7 @@ fn is_valid_identifier(name: String) -> Bool {
             False -> False
             True -> {
               // Check rest contains only valid chars
-              list.length(rest) == 0
+              rest == []
               || rest
               |> list.all(fn(g) {
                 let valid_chars =

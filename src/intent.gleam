@@ -83,6 +83,7 @@ pub fn main() {
     |> glint.add(at: ["beads"], do: beads_command())
     |> glint.add(at: ["bead-status"], do: bead_status_command())
     |> glint.add(at: ["history"], do: history_command())
+    |> glint.add(at: ["version"], do: version_command())
     |> glint.add(at: ["diff"], do: diff_command())
     |> glint.add(at: ["sessions"], do: sessions_command())
     // Plan commands
@@ -1134,6 +1135,37 @@ fn format_timestamp(timestamp: String) -> String {
     }
     _ -> timestamp
   }
+}
+
+/// ============================================================================
+/// VERSION COMMAND
+/// ============================================================================
+fn version_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    // Validate no extra arguments
+    case validation.validate_no_args(input.args, "version") {
+      Ok(Nil) -> {
+        io.println("intent v0.1.0")
+        exit(exit_pass)
+      }
+      Error(err) -> {
+        cli_ui.print_error(err)
+        exit(exit_fail)
+      }
+    }
+  })
+  |> glint.description(
+    "Show the version number
+
+Displays the current version of intent.
+
+Example:
+  intent version
+
+Related commands:
+  - --version    Show version as a flag
+  - --help       Show help information",
+  )
 }
 
 /// ============================================================================

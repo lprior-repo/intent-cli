@@ -1,7 +1,6 @@
 /// Spec quality analysis and scoring
 /// Analyzes completeness, clarity, testability, and AI readiness
 import gleam/int
-import gleam/json
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}

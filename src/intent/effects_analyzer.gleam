@@ -64,9 +64,6 @@ pub fn analyze_behavior(behavior: Behavior) -> List(Effect) {
 
 /// Analyze behavior intent for implications
 fn analyze_behavior_intent(behavior: Behavior) -> List(Effect) {
-  let name_lower = string.lowercase(behavior.name)
-  let intent_lower = string.lowercase(behavior.intent)
-
   // Check for state-changing operations
   let is_create =
     contains_any_ignore_case(behavior.name, ["create", "add", "new", "insert"])

@@ -22,11 +22,6 @@ spec: intent.#Spec & {
 		"All errors return structured error objects",
 	]
 
-	config: {
-		base_url:   "http://localhost:8080"
-		timeout_ms: 5000
-	}
-
 	features: [
 		{
 			name: "User Registration"
@@ -40,51 +35,49 @@ spec: intent.#Spec & {
 			behaviors: [
 				{
 					name:   "successful-registration"
-					intent: "A new user can create an account"
+					intent: "A new user can create an account with valid email and password"
 
-					request: {
-						method: "POST"
-						path:   "/users"
-						body: {
-							email:    "newuser@example.com"
-							password: "SecurePass123!"
-							name:     "New User"
+					preconditions: [
+						"Email address is not already registered",
+						"Password meets security requirements (8+ chars, uppercase, number, special)",
+						"User provides name, email, and password",
+					]
+
+					postconditions: [
+						"User account is created in the system",
+						"User is assigned a unique ID with 'usr_' prefix",
+						"Email is stored exactly as provided",
+						"Password is hashed and stored (never plaintext)",
+						"Creation timestamp is recorded",
+					]
+
+					verifications: [
+						{
+							description: "User object returned with correct fields"
+							criteria: [
+								"ID matches format usr_[a-z0-9]+",
+								"Email matches the provided email",
+								"Name matches the provided name",
+								"Password field is NOT in response",
+								"created_at is valid ISO8601 datetime",
+							]
+							examples: [
+								{
+									input: {
+										email:    "newuser@example.com"
+										password: "SecurePass123!"
+										name:     "New User"
+									}
+									output: {
+										id:         "usr_abc123xyz"
+										email:      "newuser@example.com"
+										name:       "New User"
+										created_at: "2024-01-15T10:30:00Z"
+									}
+								}
+							]
 						}
-					}
-
-					response: {
-						status: 201
-
-						example: {
-							id:         "usr_abc123xyz"
-							email:      "newuser@example.com"
-							name:       "New User"
-							created_at: "2024-01-15T10:30:00Z"
-						}
-
-						checks: {
-							"id": {
-								rule: "string matching usr_[a-z0-9]+"
-								why:  "IDs are prefixed for debuggability"
-							}
-							"email": {
-								rule: "equals request.body.email"
-								why:  "Confirms the email was saved correctly"
-							}
-							"password": {
-								rule: "absent"
-								why:  "SECURITY: Never expose passwords"
-							}
-							"created_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Timestamps for audit trail"
-							}
-						}
-					}
-
-					captures: {
-						new_user_id: "response.body.id"
-					}
+					]
 				},
 				{
 					name:   "duplicate-email-rejected"
@@ -92,78 +85,102 @@ spec: intent.#Spec & {
 
 					requires: ["successful-registration"]
 
-					request: {
-						method: "POST"
-						path:   "/users"
-						body: {
-							email:    "newuser@example.com"
-							password: "DifferentPass456!"
-						}
-					}
+					preconditions: [
+						"User with email newuser@example.com already exists",
+						"Different password provided for same email",
+					]
 
-					response: {
-						status: 409
+					postconditions: [
+						"Registration is rejected",
+						"No new account is created",
+						"Original account remains unchanged",
+					]
 
-						example: {
-							error: {
-								code:    "EMAIL_EXISTS"
-								message: "An account with this email already exists"
-							}
+					verifications: [
+						{
+							description: "Duplicate email returns specific error"
+							criteria: [
+								"Error code is EMAIL_EXISTS",
+								"Error message is human-readable",
+								"HTTP status code indicates conflict",
+							]
+							examples: [
+								{
+									input: {
+										email:    "newuser@example.com"
+										password: "DifferentPass456!"
+									}
+									output: {
+										error: {
+											code:    "EMAIL_EXISTS"
+											message: "An account with this email already exists"
+										}
+									}
+								}
+							]
 						}
-
-						checks: {
-							"error.code": {
-								rule: "equals EMAIL_EXISTS"
-								why:  "Specific error code for client handling"
-							}
-							"error.message": {
-								rule: "non-empty string"
-								why:  "Human-readable message for display"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "invalid-email-rejected"
 					intent: "Email format is validated"
 
-					request: {
-						method: "POST"
-						path:   "/users"
-						body: {
-							email:    "not-an-email"
-							password: "SecurePass123!"
-						}
-					}
+					preconditions: [
+						"Email provided is not a valid format",
+					]
 
-					response: {
-						status: 400
+					postconditions: [
+						"Registration is rejected",
+						"No account is created",
+					]
 
-						checks: {
-							"error.code": {rule: "equals INVALID_EMAIL"}
+					verifications: [
+						{
+							description: "Invalid email returns validation error"
+							criteria: [
+								"Error code is INVALID_EMAIL",
+								"Error message explains the issue",
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "weak-password-rejected"
 					intent: "Password must meet strength requirements"
 
-					request: {
-						method: "POST"
-						path:   "/users"
-						body: {
-							email:    "another@example.com"
-							password: "weak"
-						}
-					}
+					preconditions: [
+						"Email is valid",
+						"Password does not meet strength requirements",
+					]
 
-					response: {
-						status: 400
+					postconditions: [
+						"Registration is rejected",
+						"No account is created",
+						"User is informed of password requirements",
+					]
 
-						checks: {
-							"error.code": {rule: "equals WEAK_PASSWORD"}
+					verifications: [
+						{
+							description: "Weak password returns specific error"
+							criteria: [
+								"Error code is WEAK_PASSWORD",
+								"Error message may include password requirements",
+							]
+							examples: [
+								{
+									input: {
+										email:    "another@example.com"
+										password: "weak"
+									}
+									output: {
+										error: {
+											code: "WEAK_PASSWORD"
+										}
+									}
+								}
+							]
 						}
-					}
+					]
 
 					notes: """
 						Password requirements:
@@ -180,8 +197,7 @@ spec: intent.#Spec & {
 
 			description: """
 				Users authenticate with email/password and receive a JWT
-				token. The token is used in the Authorization header for
-				subsequent requests.
+				token. The token is used for subsequent requests.
 				"""
 
 			behaviors: [
@@ -191,67 +207,71 @@ spec: intent.#Spec & {
 
 					requires: ["successful-registration"]
 
-					request: {
-						method: "POST"
-						path:   "/auth/login"
-						body: {
-							email:    "newuser@example.com"
-							password: "SecurePass123!"
+					preconditions: [
+						"User account exists with email newuser@example.com",
+						"User knows correct password",
+					]
+
+					postconditions: [
+						"User is authenticated",
+						"JWT token is generated",
+						"Token type is Bearer",
+						"Token expiration is at least 1 hour",
+						"Refresh token is available",
+					]
+
+					verifications: [
+						{
+							description: "Token response contains all required fields"
+							criteria: [
+								"Token is valid JWT format",
+								"Token type is 'Bearer'",
+								"Expiration time is >= 3600 seconds",
+								"Refresh token is present",
+							]
+							examples: [
+								{
+									input: {
+										email:    "newuser@example.com"
+										password: "SecurePass123!"
+									}
+									output: {
+										token:         "eyJhbGciOiJIUzI1NiIs..."
+										token_type:    "Bearer"
+										expires_in:    3600
+										refresh_token: "dGhpcyBpcyBhIHJlZnJl..."
+									}
+								}
+							]
 						}
-					}
-
-					response: {
-						status: 200
-
-						example: {
-							token:         "eyJhbGciOiJIUzI1NiIs..."
-							token_type:    "Bearer"
-							expires_in:    3600
-							refresh_token: "dGhpcyBpcyBhIHJlZnJl..."
-						}
-
-						checks: {
-							"token": {
-								rule: "valid JWT"
-								why:  "Main authentication credential"
-							}
-							"token_type": {
-								rule: "equals Bearer"
-								why:  "Standard OAuth2 token type"
-							}
-							"expires_in": {
-								rule: "integer >= 3600"
-								why:  "Token valid for at least 1 hour"
-							}
-						}
-					}
-
-					captures: {
-						auth_token: "response.body.token"
-					}
+					]
 				},
 				{
 					name:   "wrong-password-rejected"
-					intent: "Invalid password returns 401"
+					intent: "Invalid password returns authentication error"
 
 					requires: ["successful-registration"]
 
-					request: {
-						method: "POST"
-						path:   "/auth/login"
-						body: {
-							email:    "newuser@example.com"
-							password: "WrongPassword!"
-						}
-					}
+					preconditions: [
+						"User account exists",
+						"User provides incorrect password",
+					]
 
-					response: {
-						status: 401
+					postconditions: [
+						"Authentication fails",
+						"No token is generated",
+						"Error message does not reveal if email exists",
+					]
 
-						checks: {
-							"error.code": {rule: "equals INVALID_CREDENTIALS"}
+					verifications: [
+						{
+							description: "Wrong password returns generic error"
+							criteria: [
+								"Error code is INVALID_CREDENTIALS (not WRONG_PASSWORD)",
+								"Error message is generic",
+							]
 						}
-					}
+					]
 
 					notes: """
 						Error message must NOT reveal whether email exists.
@@ -263,22 +283,25 @@ spec: intent.#Spec & {
 					name:   "unknown-email-rejected"
 					intent: "Unknown email returns same error as wrong password"
 
-					request: {
-						method: "POST"
-						path:   "/auth/login"
-						body: {
-							email:    "nonexistent@example.com"
-							password: "AnyPassword123!"
-						}
-					}
+					preconditions: [
+						"No account exists with provided email",
+					]
 
-					response: {
-						status: 401
+					postconditions: [
+						"Authentication fails",
+						"No token is generated",
+						"Error is identical to wrong password error",
+					]
 
-						checks: {
-							"error.code": {rule: "equals INVALID_CREDENTIALS"}
+					verifications: [
+						{
+							description: "Unknown email returns same generic error"
+							criteria: [
+								"Error code is INVALID_CREDENTIALS",
+								"Error matches wrong-password response format",
+							]
 						}
-					}
+					]
 				},
 			]
 		},
@@ -296,23 +319,26 @@ spec: intent.#Spec & {
 
 					requires: ["successful-login"]
 
-					request: {
-						method: "GET"
-						path:   "/users/${new_user_id}"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-					}
+					preconditions: [
+						"User is authenticated with valid token",
+						"User ID exists in system",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"User profile data is returned",
+						"All profile fields are present",
+					]
 
-						checks: {
-							"id":    {rule: "equals ${new_user_id}"}
-							"email": {rule: "equals newuser@example.com"}
-							"name":  {rule: "equals New User"}
+					verifications: [
+						{
+							description: "Profile data matches user"
+							criteria: [
+								"ID matches authenticated user",
+								"Email is correct",
+								"Name is correct",
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "update-profile"
@@ -320,101 +346,106 @@ spec: intent.#Spec & {
 
 					requires: ["get-own-profile"]
 
-					request: {
-						method: "PATCH"
-						path:   "/users/${new_user_id}"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-						body: {
-							name: "Updated Name"
-						}
-					}
+					preconditions: [
+						"User is authenticated",
+						"User provides new name value",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Name is updated in database",
+						"Updated timestamp is recorded",
+					]
 
-						checks: {
-							"name":       {rule: "equals Updated Name"}
-							"updated_at": {rule: "valid ISO8601 datetime"}
+					verifications: [
+						{
+							description: "Profile update is reflected in response"
+							criteria: [
+								"Name matches new value",
+								"updated_at is recent timestamp",
+							]
 						}
-					}
+					]
 				},
 				{
 					name:   "unauthenticated-access-denied"
 					intent: "Cannot access profile without token"
 
-					request: {
-						method: "GET"
-						path:   "/users/${new_user_id}"
-					}
+					preconditions: [
+						"No authentication token provided",
+						"User attempts to access profile endpoint",
+					]
 
-					response: {
-						status: 401
+					postconditions: [
+						"Access is denied",
+						"No profile data is returned",
+					]
 
-						checks: {
-							"error.code": {rule: "equals UNAUTHORIZED"}
+					verifications: [
+						{
+							description: "Missing auth returns unauthorized error"
+							criteria: [
+								"Error code is UNAUTHORIZED",
+								"No profile data is exposed",
+							]
 						}
-					}
+					]
 				},
 			]
 		},
 	]
 
-	rules: [
+	invariants: [
 		{
-			name:        "no-sensitive-data"
-			description: "Passwords and secrets must never appear in responses"
-
-			check: {
-				body_must_not_contain: ["password", "secret", "api_key", "private_key"]
-			}
+			name: "no-sensitive-data-in-responses"
+			description: "Passwords and secrets must never appear in any response"
+			criteria: [
+				"password field is absent from all user responses",
+				"password_hash field is absent from all user responses",
+				"secret field is absent from all user responses",
+				"api_key field is absent from all user responses",
+				"private_key field is absent from all user responses",
+			]
 		},
 		{
-			name:        "structured-errors"
+			name: "structured-errors"
 			description: "All error responses have consistent structure"
-
-			when: {status: ">= 400"}
-
-			check: {
-				fields_must_exist: ["error.code", "error.message"]
-			}
-
-			example: {
-				error: {
-					code:    "ERROR_CODE"
-					message: "Human readable description"
-				}
-			}
+			criteria: [
+				"Error responses include error.code field",
+				"Error responses include error.message field",
+				"Error codes are from a predefined set",
+			]
 		},
 		{
-			name:        "content-type-header"
+			name: "content-type-header"
 			description: "All responses declare content type"
-
-			check: {
-				header_must_exist: "Content-Type"
-			}
+			criteria: [
+				"Content-Type header is present in all responses",
+			]
 		},
 	]
 
 	anti_patterns: [
 		{
-			name:        "password-in-response"
+			name: "password-in-response"
 			description: "NEVER return password in any response"
 
 			bad_example: {
-				id:       "usr_123"
-				email:    "user@example.com"
-				password: "secret123"
+				user: {
+					id:       "usr_123"
+					email:    "user@example.com"
+					password: "secret123"
+				}
 			}
 
 			good_example: {
-				id:    "usr_123"
-				email: "user@example.com"
+				user: {
+					id:    "usr_123"
+					email: "user@example.com"
+				}
 			}
 		},
 		{
-			name:        "user-enumeration"
+			name: "user-enumeration"
 			description: "Login errors must not reveal if email exists"
 
 			bad_example: {
@@ -432,7 +463,7 @@ spec: intent.#Spec & {
 			}
 		},
 		{
-			name:        "plain-text-ids"
+			name: "plain-text-ids"
 			description: "IDs should not be sequential integers"
 
 			bad_example: {

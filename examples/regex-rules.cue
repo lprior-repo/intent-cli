@@ -15,16 +15,13 @@ spec: intent.#Spec & {
 
 	audience: "Content management systems"
 
+	version: "1.0.0"
+
 	success_criteria: [
 		"All identifiers follow predictable patterns",
 		"File names and slugs are sanitized",
 		"Codes and references match expected formats",
 	]
-
-	config: {
-		base_url:   "http://localhost:8080"
-		timeout_ms: 5000
-	}
 
 	features: [
 		{
@@ -39,53 +36,44 @@ spec: intent.#Spec & {
 					name:   "create-document"
 					intent: "Create document with validated ID and slug"
 
-					request: {
-						method: "POST"
-						path:   "/documents"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-						body: {
-							title:   "Getting Started Guide"
-							content: "Welcome to our platform..."
-						}
-					}
+					preconditions: [
+						"User is authenticated",
+						"Document title is provided",
+					]
 
-					response: {
-						status: 201
+					postconditions: [
+						"Document created with prefixed ID",
+						"Slug generated from title in kebab-case",
+						"Version follows semantic versioning",
+						"Timestamp in ISO8601 format",
+					]
 
-						example: {
-							id:         "doc_a1b2c3d4e5"
-							slug:       "getting-started-guide"
-							title:      "Getting Started Guide"
-							version:    "1.0.0"
-							created_at: "2024-01-15T10:30:00Z"
+					verifications: [
+						{
+							description: "Verify document creation with validated fields"
+							criteria: [
+								"Document ID format: doc_[a-z0-9]{10}",
+								"Slug is lowercase kebab-case: [a-z0-9]+(-[a-z0-9]+)*",
+								"Version format: X.Y.Z",
+								"Timestamp is valid ISO8601",
+							]
+							examples: [
+								{
+									input: {
+										title: "Getting Started Guide"
+										content: "Welcome to our platform..."
+									}
+									output: {
+										id:         "doc_a1b2c3d4e5"
+										slug:       "getting-started-guide"
+										title:      "Getting Started Guide"
+										version:    "1.0.0"
+										created_at: "2024-01-15T10:30:00Z"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"id": {
-								rule: "string matching doc_[a-z0-9]{10}"
-								why:  "Document IDs are prefixed with 'doc_' followed by 10 alphanumeric chars"
-							}
-							"slug": {
-								rule: "string matching [a-z0-9]+(-[a-z0-9]+)*"
-								why:  "Slugs must be lowercase kebab-case for URLs"
-							}
-							"version": {
-								rule: "string matching [0-9]+\\.[0-9]+\\.[0-9]+"
-								why:  "Version follows semantic versioning format"
-							}
-							"created_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Timestamps in ISO8601 format"
-							}
-						}
-					}
-
-					captures: {
-						doc_id:   "response.body.id"
-						doc_slug: "response.body.slug"
-					}
+					]
 				},
 				{
 					name:   "get-document-by-slug"
@@ -93,25 +81,36 @@ spec: intent.#Spec & {
 
 					requires: ["create-document"]
 
-					request: {
-						method: "GET"
-						path:   "/documents/by-slug/${doc_slug}"
-					}
+					preconditions: [
+						"Document with given slug exists",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Correct document returned",
+						"Slug matches request",
+					]
 
-						checks: {
-							"id": {
-								rule: "equals ${doc_id}"
-								why:  "Retrieved by slug returns correct document"
-							}
-							"slug": {
-								rule: "string matching [a-z0-9-]+"
-								why:  "Slug only contains lowercase letters, numbers, hyphens"
-							}
+					verifications: [
+						{
+							description: "Verify slug-based document retrieval"
+							criteria: [
+								"Returned document ID matches the slug's document",
+								"Slug only contains lowercase, numbers, hyphens",
+							]
+							examples: [
+								{
+									input: {
+										slug: "getting-started-guide"
+									}
+									output: {
+										id:   "doc_a1b2c3d4e5"
+										slug: "getting-started-guide"
+										title: "Getting Started Guide"
+									}
+								}
+							]
 						}
-					}
+					]
 				},
 			]
 		},
@@ -127,89 +126,87 @@ spec: intent.#Spec & {
 					name:   "upload-image"
 					intent: "Upload image with validated filename"
 
-					request: {
-						method: "POST"
-						path:   "/files/images"
-						headers: {
-							"Content-Type":  "multipart/form-data"
-							"Authorization": "Bearer ${auth_token}"
-						}
-					}
+					preconditions: [
+						"User is authenticated",
+						"Valid image file provided",
+					]
 
-					response: {
-						status: 201
+					postconditions: [
+						"File stored with validated ID",
+						"Original filename preserved",
+						"Extension validated against allowed types",
+						"MIME type is image/*",
+						"CDN URL uses HTTPS",
+					]
 
-						example: {
-							file_id:       "file_img_abc123"
-							original_name: "my-photo.jpg"
-							stored_name:   "file_img_abc123.jpg"
-							mime_type:     "image/jpeg"
-							size_bytes:    245678
-							url:           "https://cdn.example.com/images/file_img_abc123.jpg"
+					verifications: [
+						{
+							description: "Verify image upload validation"
+							criteria: [
+								"File ID format: file_img_[a-z0-9]+",
+								"Original filename ends with valid extension",
+								"Stored name matches pattern with extension",
+								"MIME type starts with image/",
+								"URL starts with https://",
+							]
+							examples: [
+								{
+									input: {
+										filename: "my-photo.jpg"
+										content: "<binary data>"
+									}
+									output: {
+										file_id:       "file_img_abc123"
+										original_name: "my-photo.jpg"
+										stored_name:   "file_img_abc123.jpg"
+										mime_type:     "image/jpeg"
+										size_bytes:    245678
+										url:           "https://cdn.example.com/images/file_img_abc123.jpg"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"file_id": {
-								rule: "string matching file_img_[a-z0-9]+"
-								why:  "Image file IDs have 'file_img_' prefix"
-							}
-							"original_name": {
-								rule: "string ending with .jpg"
-								why:  "Original filename preserved with extension"
-							}
-							"stored_name": {
-								rule: "string matching file_img_[a-z0-9]+\\.(jpg|jpeg|png|gif|webp)"
-								why:  "Stored name uses file ID with valid image extension"
-							}
-							"mime_type": {
-								rule: "string starting with image/"
-								why:  "MIME type must be an image type"
-							}
-							"url": {
-								rule: "string starting with https://"
-								why:  "CDN URLs must use HTTPS"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "upload-document-file"
 					intent: "Upload document with specific extension validation"
 
-					request: {
-						method: "POST"
-						path:   "/files/documents"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-					}
+					preconditions: [
+						"User is authenticated",
+						"Document file provided",
+					]
 
-					response: {
-						status: 201
+					postconditions: [
+						"File validated against allowed document types",
+						"MIME type matches file type",
+					]
 
-						example: {
-							file_id:       "file_doc_xyz789"
-							original_name: "annual-report-2024.pdf"
-							stored_name:   "file_doc_xyz789.pdf"
-							mime_type:     "application/pdf"
-							size_bytes:    1234567
+					verifications: [
+						{
+							description: "Verify document file validation"
+							criteria: [
+								"File ID format: file_doc_[a-z0-9]+",
+								"Stored name has allowed document extension",
+								"MIME type is one of: application/pdf, application/msword, text/plain, text/markdown",
+							]
+							examples: [
+								{
+									input: {
+										filename: "annual-report-2024.pdf"
+										content: "<binary data>"
+									}
+									output: {
+										file_id:       "file_doc_xyz789"
+										original_name: "annual-report-2024.pdf"
+										stored_name:   "file_doc_xyz789.pdf"
+										mime_type:     "application/pdf"
+										size_bytes:    1234567
+									}
+								}
+							]
 						}
-
-						checks: {
-							"file_id": {
-								rule: "string matching file_doc_[a-z0-9]+"
-								why:  "Document file IDs have 'file_doc_' prefix"
-							}
-							"stored_name": {
-								rule: "string matching file_doc_[a-z0-9]+\\.(pdf|doc|docx|txt|md)"
-								why:  "Only allowed document formats"
-							}
-							"mime_type": {
-								rule: "string matching (application/pdf|application/msword|text/plain|text/markdown)"
-								why:  "MIME type matches allowed document types"
-							}
-						}
-					}
+					]
 				},
 			]
 		},
@@ -225,59 +222,48 @@ spec: intent.#Spec & {
 					name:   "create-invoice"
 					intent: "Create invoice with formatted reference number"
 
-					request: {
-						method: "POST"
-						path:   "/invoices"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-						body: {
-							customer_id: "cust_123"
-							amount:      150.00
-						}
-					}
+					preconditions: [
+						"Customer exists",
+						"Amount is valid",
+					]
 
-					response: {
-						status: 201
+					postconditions: [
+						"Invoice ID includes date and sequence",
+						"Reference is human-readable format",
+						"Due date in YYYY-MM-DD format",
+						"No payment ID on new invoice",
+					]
 
-						example: {
-							id:         "inv_20240115_0001"
-							reference:  "INV-2024-00001"
-							customer:   "cust_123"
-							amount:     150.00
-							status:     "pending"
-							issued_at:  "2024-01-15T10:30:00Z"
-							due_date:   "2024-02-15"
-							payment_id: null
+					verifications: [
+						{
+							description: "Verify invoice code formats"
+							criteria: [
+								"ID format: inv_[0-9]{8}_[0-9]{4}",
+								"Reference format: INV-[0-9]{4}-[0-9]{5}",
+								"Customer ID starts with cust_",
+								"Due date: YYYY-MM-DD",
+								"Payment ID is null/absent",
+							]
+							examples: [
+								{
+									input: {
+										customer_id: "cust_123"
+										amount:      150.00
+									}
+									output: {
+										id:         "inv_20240115_0001"
+										reference:  "INV-2024-00001"
+										customer:   "cust_123"
+										amount:     150.00
+										status:     "pending"
+										issued_at:  "2024-01-15T10:30:00Z"
+										due_date:   "2024-02-15"
+										payment_id: null
+									}
+								}
+							]
 						}
-
-						checks: {
-							"id": {
-								rule: "string matching inv_[0-9]{8}_[0-9]{4}"
-								why:  "Invoice ID contains date and sequence number"
-							}
-							"reference": {
-								rule: "string matching INV-[0-9]{4}-[0-9]{5}"
-								why:  "Human-readable reference: INV-YYYY-NNNNN"
-							}
-							"customer": {
-								rule: "string starting with cust_"
-								why:  "Customer ID prefix"
-							}
-							"due_date": {
-								rule: "string matching [0-9]{4}-[0-9]{2}-[0-9]{2}"
-								why:  "Due date in YYYY-MM-DD format"
-							}
-							"payment_id": {
-								rule: "absent"
-								why:  "No payment yet on new invoice"
-							}
-						}
-					}
-
-					captures: {
-						invoice_id: "response.body.id"
-					}
+					]
 				},
 				{
 					name:   "record-payment"
@@ -285,96 +271,87 @@ spec: intent.#Spec & {
 
 					requires: ["create-invoice"]
 
-					request: {
-						method: "POST"
-						path:   "/invoices/${invoice_id}/payments"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-						body: {
-							amount: 150.00
-							method: "credit_card"
-						}
-					}
+					preconditions: [
+						"Invoice exists",
+						"Payment method valid",
+					]
 
-					response: {
-						status: 201
+					postconditions: [
+						"Payment recorded with method-specific ID",
+						"Transaction ID follows timestamp format",
+						"Receipt URL contains /receipts/",
+					]
 
-						example: {
-							payment_id:     "pay_cc_abc123xyz"
-							transaction_id: "TXN20240115103045ABC"
-							amount:         150.00
-							method:         "credit_card"
-							status:         "completed"
-							receipt_url:    "https://payments.example.com/receipts/pay_cc_abc123xyz"
+					verifications: [
+						{
+							description: "Verify payment code formats"
+							criteria: [
+								"Payment ID format: pay_(cc|bank|wire|check)_[a-z0-9]+",
+								"Transaction ID format: TXN[0-9]{14}[A-Z]{3}",
+								"Method is valid enum value",
+								"Receipt URL contains /receipts/",
+							]
+							examples: [
+								{
+									input: {
+										amount: 150.00
+										method: "credit_card"
+									}
+									output: {
+										payment_id:     "pay_cc_abc123xyz"
+										transaction_id: "TXN20240115103045ABC"
+										amount:         150.00
+										method:         "credit_card"
+										status:         "completed"
+										receipt_url:    "https://payments.example.com/receipts/pay_cc_abc123xyz"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"payment_id": {
-								rule: "string matching pay_(cc|bank|wire|check)_[a-z0-9]+"
-								why:  "Payment ID includes method prefix"
-							}
-							"transaction_id": {
-								rule: "string matching TXN[0-9]{14}[A-Z]{3}"
-								why:  "Transaction ID: TXN + timestamp + 3 letter code"
-							}
-							"method": {
-								rule: "one of [\"credit_card\", \"bank_transfer\", \"wire\", \"check\"]"
-								why:  "Only supported payment methods"
-							}
-							"receipt_url": {
-								rule: "string containing /receipts/"
-								why:  "Receipt URL contains receipts path"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "create-shipping-label"
 					intent: "Create shipping label with carrier-specific tracking"
 
-					request: {
-						method: "POST"
-						path:   "/shipments/labels"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-						body: {
-							carrier:  "ups"
-							order_id: "ord_abc123"
-						}
-					}
+					preconditions: [
+						"Carrier is supported",
+						"Order ID valid",
+					]
 
-					response: {
-						status: 201
+					postconditions: [
+						"Label ID includes carrier and date",
+						"Tracking number matches carrier format",
+						"Service code in CARRIER-SERVICE format",
+						"Label URL ends with .pdf",
+					]
 
-						example: {
-							label_id:        "lbl_ups_20240115_001"
-							carrier:         "ups"
-							tracking_number: "1Z999AA10123456784"
-							service_code:    "UPS-GROUND"
-							label_url:       "https://labels.example.com/lbl_ups_20240115_001.pdf"
+					verifications: [
+						{
+							description: "Verify shipping label formats"
+							criteria: [
+								"Label ID format: lbl_(ups|fedex|usps|dhl)_[0-9]{8}_[0-9]{3}",
+								"UPS tracking: 1Z[A-Z0-9]{16}",
+								"Service code: (UPS|FEDEX|USPS|DHL)-[A-Z]+",
+								"Label URL ends with .pdf",
+							]
+							examples: [
+								{
+									input: {
+										carrier:  "ups"
+										order_id: "ord_abc123"
+									}
+									output: {
+										label_id:        "lbl_ups_20240115_001"
+										carrier:         "ups"
+										tracking_number: "1Z999AA10123456784"
+										service_code:    "UPS-GROUND"
+										label_url:       "https://labels.example.com/lbl_ups_20240115_001.pdf"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"label_id": {
-								rule: "string matching lbl_(ups|fedex|usps|dhl)_[0-9]{8}_[0-9]{3}"
-								why:  "Label ID includes carrier and date"
-							}
-							"tracking_number": {
-								rule: "string matching 1Z[A-Z0-9]{16}"
-								why:  "UPS tracking numbers start with 1Z and are 18 chars"
-							}
-							"service_code": {
-								rule: "string matching (UPS|FEDEX|USPS|DHL)-[A-Z]+"
-								why:  "Service code is CARRIER-SERVICE format"
-							}
-							"label_url": {
-								rule: "string ending with .pdf"
-								why:  "Labels are PDF files"
-							}
-						}
-					}
+					]
 				},
 			]
 		},
@@ -390,152 +367,147 @@ spec: intent.#Spec & {
 					name:   "create-api-key"
 					intent: "Generate API key with specific format"
 
-					request: {
-						method: "POST"
-						path:   "/users/me/api-keys"
-						headers: {
-							"Authorization": "Bearer ${auth_token}"
-						}
-						body: {
-							name: "Production Key"
-						}
-					}
+					preconditions: [
+						"User is authenticated",
+						"Key name provided",
+					]
 
-					response: {
-						status: 201
-
-						example: {
-							key_id:     "key_live_abc123"
-							api_key:    "example_key_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-							name:       "Production Key"
-							prefix:     "example_"
-							created_at: "2024-01-15T10:30:00Z"
-						}
-
-						checks: {
-							"key_id": {
-								rule: "string matching key_(live|test)_[a-z0-9]+"
-								why:  "Key ID indicates environment"
-							}
-							"api_key": {
-								rule: "string matching example_key_[x]{32}"
-								why:  "API key format: example_key_32chars"
-							}
-							"prefix": {
-								rule: "string matching example_"
-								why:  "Prefix for identification"
-							}
-						}
-					}
+					postconditions: [
+						"Key ID indicates environment (live/test)",
+						"API key follows specific format",
+						"Full key only shown once",
+					]
 
 					notes: """
 						The full api_key is only shown once at creation time.
 						Store it securely as it cannot be retrieved later.
 						"""
+
+					verifications: [
+						{
+							description: "Verify API key format"
+							criteria: [
+								"Key ID format: key_(live|test)_[a-z0-9]+",
+								"API key format: example_key_[x]{32}",
+								"Prefix matches example_",
+							]
+							examples: [
+								{
+									input: {
+										name: "Production Key"
+									}
+									output: {
+										key_id:     "key_live_abc123"
+										api_key:    "example_key_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+										name:       "Production Key"
+										prefix:     "example_"
+										created_at: "2024-01-15T10:30:00Z"
+									}
+								}
+							]
+						}
+					]
 				},
 				{
 					name:   "validate-phone-number"
 					intent: "Validate and format phone number"
 
-					request: {
-						method: "POST"
-						path:   "/validation/phone"
-						body: {
-							phone: "+15551234567"
-						}
-					}
+					preconditions: [
+						"Phone number provided",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"E.164 format validated",
+						"Formatted for display",
+						"Country code extracted",
+						"Phone type classified",
+					]
 
-						example: {
-							valid:         true
-							original:      "+15551234567"
-							formatted:     "+1 (555) 123-4567"
-							country_code:  "1"
-							national:      "(555) 123-4567"
-							e164:          "+15551234567"
-							type:          "mobile"
-							carrier:       "Example Wireless"
+					verifications: [
+						{
+							description: "Verify phone number validation"
+							criteria: [
+								"E.164 format: +[1-9][0-9]{6,14}",
+								"US formatted: +[0-9]+ \\([0-9]{3}\\) [0-9]{3}-[0-9]{4}",
+								"Country code: [1-9][0-9]{0,2}",
+								"Type is one of: mobile, landline, voip, unknown",
+							]
+							examples: [
+								{
+									input: {
+										phone: "+15551234567"
+									}
+									output: {
+										valid:         true
+										original:      "+15551234567"
+										formatted:     "+1 (555) 123-4567"
+										country_code:  "1"
+										national:      "(555) 123-4567"
+										e164:          "+15551234567"
+										type:          "mobile"
+										carrier:       "Example Wireless"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"e164": {
-								rule: "string matching \\+[1-9][0-9]{6,14}"
-								why:  "E.164 format: + followed by up to 15 digits"
-							}
-							"formatted": {
-								rule: "string matching \\+[0-9]+ \\([0-9]{3}\\) [0-9]{3}-[0-9]{4}"
-								why:  "US formatted: +1 (XXX) XXX-XXXX"
-							}
-							"country_code": {
-								rule: "string matching [1-9][0-9]{0,2}"
-								why:  "Country code is 1-3 digits, no leading zero"
-							}
-							"type": {
-								rule: "one of [\"mobile\", \"landline\", \"voip\", \"unknown\"]"
-								why:  "Phone type classification"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "validate-credit-card"
 					intent: "Validate credit card with masked display"
 
-					request: {
-						method: "POST"
-						path:   "/validation/credit-card"
-						body: {
-							number: "4111111111111111"
-						}
-					}
+					preconditions: [
+						"Card number provided",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Card number masked showing only last 4",
+						"Brand identified",
+						"BIN extracted (first 6 digits)",
+					]
 
-						example: {
-							valid:   true
-							masked:  "**** **** **** 1111"
-							last4:   "1111"
-							brand:   "visa"
-							type:    "credit"
-							bin:     "411111"
-							country: "US"
+					verifications: [
+						{
+							description: "Verify credit card validation and masking"
+							criteria: [
+								"Masked format: **** **** **** [0-9]{4}",
+								"Last 4 digits: [0-9]{4}",
+								"Brand is one of: visa, mastercard, amex, discover",
+								"BIN: [0-9]{6}",
+							]
+							examples: [
+								{
+									input: {
+										number: "4111111111111111"
+									}
+									output: {
+										valid:   true
+										masked:  "**** **** **** 1111"
+										last4:   "1111"
+										brand:   "visa"
+										type:    "credit"
+										bin:     "411111"
+										country: "US"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"masked": {
-								rule: "string matching \\*{4} \\*{4} \\*{4} [0-9]{4}"
-								why:  "Masked format shows only last 4 digits"
-							}
-							"last4": {
-								rule: "string matching [0-9]{4}"
-								why:  "Last 4 digits for display"
-							}
-							"brand": {
-								rule: "one of [\"visa\", \"mastercard\", \"amex\", \"discover\"]"
-								why:  "Supported card brands"
-							}
-							"bin": {
-								rule: "string matching [0-9]{6}"
-								why:  "Bank Identification Number is first 6 digits"
-							}
-						}
-					}
+					]
 				},
 			]
 		},
 	]
 
-	rules: [
+	invariants: [
 		{
 			name:        "id-format-consistency"
 			description: "All IDs should follow prefix_identifier pattern"
 
-			check: {
-				body_must_not_contain: ["\"id\": 1", "\"id\": \"1\""]
-			}
+			criteria: [
+				"No numeric IDs like {id: 1}",
+				"No bare integer IDs like {id: \"1\"}",
+				"All IDs use prefixed string format",
+			]
 		},
 	]
 

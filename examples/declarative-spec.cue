@@ -140,6 +140,27 @@ spec: intent.#Spec & {
 			suggested_stack: ["Gleam", "Erlang/OTP", "PostgreSQL"]
 		}
 
+		entities: {
+			"User": {
+				fields: {
+					id: "Unique user identifier"
+					email: "User email address (unique)"
+					password_hash: "Bcrypt hash of user password"
+					created_at: "Account creation timestamp"
+					updated_at: "Last update timestamp"
+				}
+			}
+			"AuthenticationToken": {
+				fields: {
+					token_id: "Unique token identifier"
+					user_id: "Reference to User entity"
+					token_string: "JWT token string"
+					expires_at: "Token expiration timestamp"
+					created_at: "Token issuance timestamp"
+				}
+			}
+		}
+
 		security: {
 			password_hashing: "bcrypt with cost factor 12"
 			jwt_algorithm: "HS256"

@@ -62,14 +62,6 @@ spec: intent.#Spec & {
 		"Data export available for compliance",
 	]
 
-	config: {
-		base_url:   "http://localhost:8080"
-		timeout_ms: 5000
-		headers: {
-			"X-Tenant-ID": "${tenant_id}"
-		}
-	}
-
 	features: [
 		{
 			name: "Tenant Isolation"
@@ -93,60 +85,94 @@ spec: intent.#Spec & {
 					name:   "tenant-data-isolation"
 					intent: "User can only access data from their own tenant"
 
+					preconditions: [
+						"User is authenticated",
+						"User belongs to a specific tenant",
+						"Tenant ID is in JWT token",
+					]
+
+					postconditions: [
+						"Only data from user's tenant is returned",
+						"Response includes tenant context for verification",
+						"All returned items belong to requesting tenant",
+					]
+
+					verifications: [
+						{
+							description: "Tenant isolation is enforced"
+							criteria: [
+								"Response meta.tenant_id matches requesting tenant",
+								"All returned items belong to requesting tenant",
+							]
+							examples: [
+								{
+									output: {
+										users: [
+											{
+												id:        "usr_abc123"
+												tenant_id: "tenant_acme"
+												email:     "alice@acme.com"
+												role:      "admin"
+											},
+											{
+												id:        "usr_def456"
+												tenant_id: "tenant_acme"
+												email:     "bob@acme.com"
+												role:      "member"
+											},
+										]
+										meta: {
+											tenant_id: "tenant_acme"
+											total:     2
+										}
+									}
+								}
+							]
+						}
+					]
+
 					notes: """
 						CONFLICT RESOLUTION:
 						- Every query includes tenant_id filter (auto-added by middleware)
 						- RLS policies prevent cross-tenant access at DB level
 						- Tenant ID in JWT is source of truth, not request headers
 						"""
-
-					request: {
-						method: "GET"
-						path:   "/users"
-						headers: {
-							"Authorization": "Bearer ${user_token}"
-						}
-					}
-
-					response: {
-						status: 200
-
-						example: {
-							users: [
-								{
-									id:        "usr_abc123"
-									tenant_id: "tenant_acme"
-									email:     "alice@acme.com"
-									role:      "admin"
-								},
-								{
-									id:        "usr_def456"
-									tenant_id: "tenant_acme"
-									email:     "bob@acme.com"
-									role:      "member"
-								},
-							]
-							meta: {
-								tenant_id: "tenant_acme"
-								total:     2
-							}
-						}
-
-						checks: {
-							"meta.tenant_id": {
-								rule: "equals ${tenant_id}"
-								why:  "Response confirms tenant context (from isolation conflict resolution)"
-							}
-							"users": {
-								rule: "array where each matches .*tenant_acme.*"
-								why:  "All returned users belong to requesting tenant"
-							}
-						}
-					}
 				},
 				{
 					name:   "cross-tenant-access-blocked"
 					intent: "Attempting to access another tenant's data returns 404"
+
+					preconditions: [
+						"User is authenticated",
+						"User attempts to access resource from different tenant",
+					]
+
+					postconditions: [
+						"Request is rejected with 404",
+						"Error message does not reveal resource exists",
+						"No tenant information is leaked",
+					]
+
+					verifications: [
+						{
+							description: "Cross-tenant access returns 404"
+							criteria: [
+								"Error code is NOT_FOUND",
+								"Error message is generic",
+								"No tenant information in error",
+							]
+							examples: [
+								{
+									output: {
+										error: {
+											code:    "NOT_FOUND"
+											message: "User not found"
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						GAP IDENTIFIED: Original spec didn't specify what happens when
@@ -159,36 +185,6 @@ spec: intent.#Spec & {
 
 						RESOLUTION: Return 404 to prevent tenant enumeration attacks.
 						"""
-
-					request: {
-						method: "GET"
-						path:   "/users/usr_other_tenant"
-						headers: {
-							"Authorization": "Bearer ${user_token}"
-						}
-					}
-
-					response: {
-						status: 404
-
-						example: {
-							error: {
-								code:    "NOT_FOUND"
-								message: "User not found"
-							}
-						}
-
-						checks: {
-							"error.code": {
-								rule: "equals NOT_FOUND"
-								why:  "Don't reveal the resource exists in another tenant"
-							}
-							"error.message": {
-								rule: "string containing not found"
-								why:  "Generic message, no tenant information leaked"
-							}
-						}
-					}
 				},
 			]
 		},
@@ -215,45 +211,88 @@ spec: intent.#Spec & {
 					name:   "rate-limit-headers"
 					intent: "Every response includes rate limit information"
 
+					preconditions: [
+						"User makes any API request",
+					]
+
+					postconditions: [
+						"Response includes rate limit headers",
+						"Headers show limit, remaining, and reset time",
+					]
+
+					verifications: [
+						{
+							description: "Rate limit headers present"
+							criteria: [
+								"X-RateLimit-Limit header present",
+								"X-RateLimit-Remaining header present",
+								"X-RateLimit-Reset header present",
+							]
+							examples: [
+								{
+									headers: {
+										"X-RateLimit-Limit":     "10000"
+										"X-RateLimit-Remaining": "9995"
+										"X-RateLimit-Reset":     "1705326000"
+									}
+									output: {
+										status: "ok"
+									}
+								}
+							]
+						}
+					]
+
 					notes: """
 						CONFLICT RESOLUTION: Instead of "unlimited", enterprise gets
 						very high limits plus burst capacity. All tiers get transparent
 						headers so clients can self-throttle.
 						"""
-
-					request: {
-						method: "GET"
-						path:   "/api/status"
-						headers: {
-							"Authorization": "Bearer ${user_token}"
-						}
-					}
-
-					response: {
-						status: 200
-
-						headers: {
-							"X-RateLimit-Limit":     "10000"
-							"X-RateLimit-Remaining": "9995"
-							"X-RateLimit-Reset":     "1705326000"
-						}
-
-						example: {
-							status: "ok"
-						}
-
-						checks: {
-							// Header checks would be done separately
-							"status": {
-								rule: "equals ok"
-								why:  "Basic status check"
-							}
-						}
-					}
 				},
 				{
 					name:   "rate-limit-exceeded"
 					intent: "Exceeding rate limit returns 429 with retry info"
+
+					preconditions: [
+						"User exceeds rate limit for their tier",
+					]
+
+					postconditions: [
+						"Request is rejected with 429 status",
+						"Response includes retry-after information",
+						"Error shows current tier and limits",
+					]
+
+					verifications: [
+						{
+							description: "Rate limit exceeded returns helpful error"
+							criteria: [
+								"Error code is RATE_LIMITED",
+								"Error includes retry_after (integer >= 1)",
+								"Error shows current tier",
+								"Retry-After header present",
+							]
+							examples: [
+								{
+									headers: {
+										"Retry-After":           "30"
+										"X-RateLimit-Limit":     "10000"
+										"X-RateLimit-Remaining": "0"
+									}
+									output: {
+										error: {
+											code:        "RATE_LIMITED"
+											message:     "Rate limit exceeded. Please retry after 30 seconds."
+											retry_after: 30
+											limit:       10000
+											tier:        "enterprise"
+											upgrade_url: null
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						GAP IDENTIFIED: Original spec didn't define what happens
@@ -262,50 +301,6 @@ spec: intent.#Spec & {
 						RESOLUTION: Return 429 with Retry-After header and helpful
 						message. Log for abuse detection but don't immediately block.
 						"""
-
-					request: {
-						method: "GET"
-						path:   "/api/status"
-						headers: {
-							"Authorization": "Bearer ${user_token}"
-						}
-					}
-
-					response: {
-						status: 429
-
-						headers: {
-							"Retry-After":           "30"
-							"X-RateLimit-Limit":     "10000"
-							"X-RateLimit-Remaining": "0"
-						}
-
-						example: {
-							error: {
-								code:        "RATE_LIMITED"
-								message:     "Rate limit exceeded. Please retry after 30 seconds."
-								retry_after: 30
-								limit:       10000
-								tier:        "enterprise"
-								upgrade_url: null
-							}
-						}
-
-						checks: {
-							"error.code": {
-								rule: "equals RATE_LIMITED"
-								why:  "Clear error code for programmatic handling"
-							}
-							"error.retry_after": {
-								rule: "integer >= 1"
-								why:  "Tells client when to retry"
-							}
-							"error.tier": {
-								rule: "one of [\"free\", \"pro\", \"enterprise\"]"
-								why:  "Shows current tier for upgrade prompts"
-							}
-						}
-					}
 				},
 			]
 		},
@@ -331,59 +326,90 @@ spec: intent.#Spec & {
 					name:   "query-recent-data"
 					intent: "Recent data (hot tier) returns immediately"
 
-					request: {
-						method: "GET"
-						path:   "/audit-logs"
-						headers: {
-							"Authorization": "Bearer ${admin_token}"
-						}
-						query: {
-							from: "2024-01-01"
-							to:   "2024-01-15"
-						}
-					}
+					preconditions: [
+						"User requests data from last 90 days",
+						"User is authenticated admin",
+					]
 
-					response: {
-						status: 200
+					postconditions: [
+						"Data is returned immediately",
+						"Storage tier is indicated as 'hot'",
+						"Query time is under 100ms",
+					]
 
-						example: {
-							logs: [
-								{
-									id:         "log_abc123"
-									timestamp:  "2024-01-15T10:30:00Z"
-									actor_id:   "usr_admin"
-									action:     "user.created"
-									resource:   "usr_new123"
-									tenant_id:  "tenant_acme"
-									ip_address: "192.168.1.1"
-								},
+					verifications: [
+						{
+							description: "Recent data query succeeds"
+							criteria: [
+								"Storage tier is 'hot'",
+								"Logs array is non-empty",
+								"All logs belong to requesting tenant",
+								"Query time is reasonable",
 							]
-							meta: {
-								storage_tier: "hot"
-								query_time:   "45ms"
-								total:        1250
-							}
+							examples: [
+								{
+									output: {
+										logs: [
+											{
+												id:         "log_abc123"
+												timestamp:  "2024-01-15T10:30:00Z"
+												actor_id:   "usr_admin"
+												action:     "user.created"
+												resource:   "usr_new123"
+												tenant_id:  "tenant_acme"
+												ip_address: "192.168.1.1"
+											}
+										]
+										meta: {
+											storage_tier: "hot"
+											query_time:   "45ms"
+											total:        1250
+										}
+									}
+								}
+							]
 						}
-
-						checks: {
-							"meta.storage_tier": {
-								rule: "equals hot"
-								why:  "Recent data served from hot storage"
-							}
-							"logs": {
-								rule: "array"
-								why:  "Returns array of audit logs"
-							}
-							"logs[0].tenant_id": {
-								rule: "equals ${tenant_id}"
-								why:  "Logs scoped to requesting tenant"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "query-archived-data"
 					intent: "Old data (cold tier) requires async retrieval"
+
+					preconditions: [
+						"User requests data older than 1 year",
+						"User is authenticated admin",
+					]
+
+					postconditions: [
+						"Async retrieval job is created",
+						"Job ID is returned for polling",
+						"Data will be available for 24 hours",
+					]
+
+					verifications: [
+						{
+							description: "Archived data query creates job"
+							criteria: [
+								"Job ID starts with 'job_'",
+								"Status is 'pending'",
+								"Storage tier is 'cold'",
+								"Estimated time is provided",
+								"Expiration timestamp is provided",
+							]
+							examples: [
+								{
+									output: {
+										job_id:              "job_archive_xyz789"
+										status:              "pending"
+										estimated_time:      "2-4 hours"
+										storage_tier:        "cold"
+										notification_email:  "admin@acme.com"
+										expires_at:          "2024-01-17T10:30:00Z"
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						GAP IDENTIFIED: How do users access 5-year-old audit data?
@@ -394,46 +420,6 @@ spec: intent.#Spec & {
 						3. User polls for completion
 						4. Data available for 24 hours once retrieved
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/audit-logs/retrieve"
-						headers: {
-							"Authorization": "Bearer ${admin_token}"
-						}
-						body: {
-							from: "2019-01-01"
-							to:   "2019-12-31"
-						}
-					}
-
-					response: {
-						status: 202
-
-						example: {
-							job_id:              "job_archive_xyz789"
-							status:              "pending"
-							estimated_time:      "2-4 hours"
-							storage_tier:        "cold"
-							notification_email:  "admin@acme.com"
-							expires_at:          "2024-01-17T10:30:00Z"
-						}
-
-						checks: {
-							"status": {
-								rule: "equals pending"
-								why:  "Async job is queued"
-							}
-							"job_id": {
-								rule: "string starting with job_"
-								why:  "Job ID for polling"
-							}
-							"storage_tier": {
-								rule: "equals cold"
-								why:  "Indicates archived data retrieval"
-							}
-						}
-					}
 				},
 			]
 		},
@@ -458,6 +444,48 @@ spec: intent.#Spec & {
 					name:   "production-error-minimal"
 					intent: "Production errors are minimal but trackable"
 
+					preconditions: [
+						"Environment is production",
+						"Request contains invalid data",
+					]
+
+					postconditions: [
+						"Error is returned with structured code",
+						"Request ID is provided for support",
+						"No stack traces or internal details exposed",
+					]
+
+					verifications: [
+						{
+							description: "Production error is minimal"
+							criteria: [
+								"Error code is non-empty string",
+								"Error message is generic but helpful",
+								"Request ID starts with 'req_'",
+								"No stack trace in response",
+								"No SQL queries in response",
+							]
+							examples: [
+								{
+									headers: {
+										"X-Environment": "production"
+									}
+									input: {
+										email: "invalid-email"
+									}
+									output: {
+										error: {
+											code:       "VALIDATION_ERROR"
+											message:    "The request contains invalid data"
+											request_id: "req_abc123xyz"
+											docs_url:   "https://docs.example.com/errors/VALIDATION_ERROR"
+										}
+									}
+								}
+							]
+						}
+					]
+
 					notes: """
 						CONFLICT RESOLUTION: Production errors include:
 						- Structured error code (for programmatic handling)
@@ -465,54 +493,60 @@ spec: intent.#Spec & {
 						- Request ID (for support ticket correlation)
 						- NO stack traces, internal details, or query info
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/users"
-						headers: {
-							"Authorization": "Bearer ${admin_token}"
-							"X-Environment":  "production"
-						}
-						body: {
-							email: "invalid-email"
-						}
-					}
-
-					response: {
-						status: 400
-
-						example: {
-							error: {
-								code:       "VALIDATION_ERROR"
-								message:    "The request contains invalid data"
-								request_id: "req_abc123xyz"
-								docs_url:   "https://docs.example.com/errors/VALIDATION_ERROR"
-							}
-						}
-
-						checks: {
-							"error.code": {
-								rule: "non-empty string"
-								why:  "Error code for programmatic handling"
-							}
-							"error.request_id": {
-								rule: "string starting with req_"
-								why:  "Request ID for support correlation"
-							}
-							"error.stack": {
-								rule: "absent"
-								why:  "No stack traces in production (security)"
-							}
-							"error.query": {
-								rule: "absent"
-								why:  "No SQL queries exposed (security)"
-							}
-						}
-					}
 				},
 				{
 					name:   "development-error-verbose"
 					intent: "Development errors include debugging details"
+
+					preconditions: [
+						"Environment is development or staging",
+						"Request contains invalid data",
+					]
+
+					postconditions: [
+						"Error includes field-level details",
+						"Error includes internal context",
+						"Error may include suggestions",
+					]
+
+					verifications: [
+						{
+							description: "Development error is verbose"
+							criteria: [
+								"Error code matches production",
+								"Error details are present",
+								"Field-level errors included",
+								"Suggestions may be present",
+							]
+							examples: [
+								{
+									headers: {
+										"X-Environment": "development"
+									}
+									input: {
+										email: "invalid-email"
+									}
+									output: {
+										error: {
+											code:       "VALIDATION_ERROR"
+											message:    "The request contains invalid data"
+											request_id: "req_dev123xyz"
+											details: {
+												fields: {
+													email: {
+														value:      "invalid-email"
+														constraint: "Must be a valid email address"
+														pattern:    "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+													}
+												}
+											}
+											suggestion: "Check the email field format"
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						For non-production environments, include:
@@ -521,55 +555,6 @@ spec: intent.#Spec & {
 						- Suggested fixes
 						Still no stack traces in API responses (use logs)
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/users"
-						headers: {
-							"Authorization": "Bearer ${admin_token}"
-							"X-Environment":  "development"
-						}
-						body: {
-							email: "invalid-email"
-						}
-					}
-
-					response: {
-						status: 400
-
-						example: {
-							error: {
-								code:       "VALIDATION_ERROR"
-								message:    "The request contains invalid data"
-								request_id: "req_dev123xyz"
-								details: {
-									fields: {
-										email: {
-											value:      "invalid-email"
-											constraint: "Must be a valid email address"
-											pattern:    "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-										}
-									}
-								}
-								suggestion: "Check the email field format"
-							}
-						}
-
-						checks: {
-							"error.code": {
-								rule: "equals VALIDATION_ERROR"
-								why:  "Same error code as production"
-							}
-							"error.details": {
-								rule: "present"
-								why:  "Details included in development"
-							}
-							"error.details.fields.email": {
-								rule: "present"
-								why:  "Field-level error information"
-							}
-						}
-					}
 				},
 			]
 		},
@@ -592,6 +577,54 @@ spec: intent.#Spec & {
 					name:   "create-tenant"
 					intent: "Platform admin creates new tenant with initial admin"
 
+					preconditions: [
+						"User is authenticated as platform admin",
+						"Tenant name and slug are provided",
+						"Admin email is provided",
+					]
+
+					postconditions: [
+						"Tenant is created with unique ID",
+						"Tenant status is 'provisioning'",
+						"Invitation email is sent to admin",
+						"Invitation expires in 7 days",
+					]
+
+					verifications: [
+						{
+							description: "Tenant created successfully"
+							criteria: [
+								"Tenant ID starts with 'tenant_'",
+								"Status is 'provisioning'",
+								"Admin invitation_sent is true",
+								"Invitation expires_at is valid ISO8601 datetime",
+							]
+							examples: [
+								{
+									input: {
+										name:        "Acme Corp"
+										slug:        "acme"
+										tier:        "enterprise"
+										admin_email: "admin@acme.com"
+									}
+									output: {
+										id:          "tenant_acme"
+										name:        "Acme Corp"
+										slug:        "acme"
+										tier:        "enterprise"
+										status:      "provisioning"
+										admin: {
+											email:             "admin@acme.com"
+											invitation_sent:   true
+											invitation_expires: "2024-01-22T10:30:00Z"
+										}
+										created_at: "2024-01-15T10:30:00Z"
+									}
+								}
+							]
+						}
+					]
+
 					notes: """
 						GAP RESOLVED: "Who creates the first admin?"
 
@@ -599,61 +632,58 @@ spec: intent.#Spec & {
 						System sends invitation to that email to set password.
 						This solves chicken-and-egg of no users in empty tenant.
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/platform/tenants"
-						headers: {
-							"Authorization": "Bearer ${platform_admin_token}"
-						}
-						body: {
-							name:        "Acme Corp"
-							slug:        "acme"
-							tier:        "enterprise"
-							admin_email: "admin@acme.com"
-						}
-					}
-
-					response: {
-						status: 201
-
-						example: {
-							id:          "tenant_acme"
-							name:        "Acme Corp"
-							slug:        "acme"
-							tier:        "enterprise"
-							status:      "provisioning"
-							admin: {
-								email:             "admin@acme.com"
-								invitation_sent:   true
-								invitation_expires: "2024-01-22T10:30:00Z"
-							}
-							created_at: "2024-01-15T10:30:00Z"
-						}
-
-						checks: {
-							"id": {
-								rule: "string starting with tenant_"
-								why:  "Tenant ID prefix"
-							}
-							"status": {
-								rule: "equals provisioning"
-								why:  "Tenant starts in provisioning state"
-							}
-							"admin.invitation_sent": {
-								rule: "equals true"
-								why:  "Admin receives invitation email"
-							}
-						}
-					}
-
-					captures: {
-						new_tenant_id: "response.body.id"
-					}
 				},
 				{
 					name:   "delete-tenant-request"
 					intent: "Tenant deletion is a controlled process with data export"
+
+					preconditions: [
+						"User is authenticated as tenant admin",
+						"Tenant exists",
+					]
+
+					postconditions: [
+						"Tenant status changes to 'pending_deletion'",
+						"30-day grace period starts",
+						"Data export job is created automatically",
+						"Grace period allows cancellation",
+					]
+
+					verifications: [
+						{
+							description: "Tenant deletion initiated"
+							criteria: [
+								"Status is 'pending_deletion'",
+								"Grace period is >= 30 days",
+								"Can cancel is true",
+								"Export job is created",
+								"Export status is generating, ready, or failed",
+							]
+							examples: [
+								{
+									input: {
+										confirm:     true
+										reason:      "Switching to competitor"
+										export_data: true
+									}
+									output: {
+										tenant_id:      "tenant_acme"
+										status:         "pending_deletion"
+										deletion_date:  "2024-02-15T10:30:00Z"
+										grace_period:   30
+										can_cancel:     true
+										export: {
+											job_id:     "export_xyz789"
+											status:     "generating"
+											format:     "zip"
+											includes:   ["users", "data", "audit_logs", "config"]
+											expires_at: "2024-01-22T10:30:00Z"
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						GAP RESOLVED: "What happens when a tenant is deleted?"
@@ -665,61 +695,40 @@ spec: intent.#Spec & {
 						4. Can cancel during 30-day grace period
 						5. After 30 days, data permanently deleted
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/tenants/${tenant_id}/delete"
-						headers: {
-							"Authorization": "Bearer ${tenant_admin_token}"
-						}
-						body: {
-							confirm:     true
-							reason:      "Switching to competitor"
-							export_data: true
-						}
-					}
-
-					response: {
-						status: 202
-
-						example: {
-							tenant_id:      "tenant_acme"
-							status:         "pending_deletion"
-							deletion_date:  "2024-02-15T10:30:00Z"
-							grace_period:   30
-							can_cancel:     true
-							export: {
-								job_id:     "export_xyz789"
-								status:     "generating"
-								format:     "zip"
-								includes:   ["users", "data", "audit_logs", "config"]
-								expires_at: "2024-01-22T10:30:00Z"
-							}
-						}
-
-						checks: {
-							"status": {
-								rule: "equals pending_deletion"
-								why:  "Deletion is pending, not immediate"
-							}
-							"grace_period": {
-								rule: "integer >= 30"
-								why:  "Minimum 30-day grace period for compliance"
-							}
-							"can_cancel": {
-								rule: "equals true"
-								why:  "Can be cancelled during grace period"
-							}
-							"export.status": {
-								rule: "one of [\"generating\", \"ready\", \"failed\"]"
-								why:  "Data export is automatic"
-							}
-						}
-					}
 				},
 				{
 					name:   "cancel-deletion"
 					intent: "Tenant can cancel deletion during grace period"
+
+					preconditions: [
+						"User is authenticated as tenant admin",
+						"Tenant is in 'pending_deletion' status",
+						"Grace period has not expired",
+					]
+
+					postconditions: [
+						"Tenant status changes back to 'active'",
+						"Deletion is cancelled",
+						"Data is preserved",
+					]
+
+					verifications: [
+						{
+							description: "Deletion cancelled successfully"
+							criteria: [
+								"Status is 'active'",
+							]
+							examples: [
+								{
+									output: {
+										tenant_id: "tenant_acme"
+										status:    "active"
+										message:   "Deletion cancelled. Tenant restored to active status."
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						GAP RESOLVED: "Can a deleted tenant be restored?"
@@ -727,31 +736,6 @@ spec: intent.#Spec & {
 						Answer: Yes, during the 30-day grace period.
 						After that, data is permanently gone per retention policy.
 						"""
-
-					request: {
-						method: "POST"
-						path:   "/tenants/${tenant_id}/cancel-deletion"
-						headers: {
-							"Authorization": "Bearer ${tenant_admin_token}"
-						}
-					}
-
-					response: {
-						status: 200
-
-						example: {
-							tenant_id: "tenant_acme"
-							status:    "active"
-							message:   "Deletion cancelled. Tenant restored to active status."
-						}
-
-						checks: {
-							"status": {
-								rule: "equals active"
-								why:  "Tenant is restored to active"
-							}
-						}
-					}
 				},
 			]
 		},
@@ -777,52 +761,96 @@ spec: intent.#Spec & {
 					name:   "create-share-link"
 					intent: "Tenant admin creates a sharing link for a resource"
 
-					request: {
-						method: "POST"
-						path:   "/resources/res_abc123/share"
-						headers: {
-							"Authorization": "Bearer ${tenant_admin_token}"
-						}
-						body: {
-							target_tenant: "tenant_partner"
-							permission:    "read"
-							expires_in:    "7d"
-						}
-					}
+					preconditions: [
+						"User is authenticated as tenant admin",
+						"Resource exists and belongs to user's tenant",
+						"Target tenant exists",
+					]
 
-					response: {
-						status: 201
+					postconditions: [
+						"Share link is created",
+						"Share is in 'pending_acceptance' status",
+						"Share has expiration date",
+						"Share URL is generated",
+					]
 
-						example: {
-							share_id:       "share_xyz789"
-							resource_id:    "res_abc123"
-							source_tenant:  "tenant_acme"
-							target_tenant:  "tenant_partner"
-							permission:     "read"
-							status:         "pending_acceptance"
-							expires_at:     "2024-01-22T10:30:00Z"
-							share_url:      "https://app.example.com/shared/share_xyz789"
+					verifications: [
+						{
+							description: "Share link created successfully"
+							criteria: [
+								"Share ID is present",
+								"Status is 'pending_acceptance'",
+								"Permission is 'read' or 'read_write'",
+								"expires_at is valid ISO8601 datetime",
+								"Share URL is present",
+							]
+							examples: [
+								{
+									input: {
+										target_tenant: "tenant_partner"
+										permission:    "read"
+										expires_in:    "7d"
+									}
+									output: {
+										share_id:       "share_xyz789"
+										resource_id:    "res_abc123"
+										source_tenant:  "tenant_acme"
+										target_tenant:  "tenant_partner"
+										permission:     "read"
+										status:         "pending_acceptance"
+										expires_at:     "2024-01-22T10:30:00Z"
+										share_url:      "https://app.example.com/shared/share_xyz789"
+									}
+								}
+							]
 						}
-
-						checks: {
-							"status": {
-								rule: "equals pending_acceptance"
-								why:  "Requires acceptance by target tenant"
-							}
-							"permission": {
-								rule: "one of [\"read\", \"read_write\"]"
-								why:  "Limited permission options"
-							}
-							"expires_at": {
-								rule: "valid ISO8601 datetime"
-								why:  "Shares must have expiration"
-							}
-						}
-					}
+					]
 				},
 				{
 					name:   "access-shared-resource"
 					intent: "Target tenant accesses shared resource"
+
+					preconditions: [
+						"User is authenticated",
+						"User belongs to target tenant",
+						"Share exists and is accepted",
+						"Share has not expired",
+					]
+
+					postconditions: [
+						"Resource data is returned",
+						"Share metadata is included",
+						"Access is logged in both tenants' audit logs",
+					]
+
+					verifications: [
+						{
+							description: "Shared resource accessed successfully"
+							criteria: [
+								"Resource data is present",
+								"Share metadata shows source tenant",
+								"Share metadata shows permission level",
+								"Share metadata includes expiration",
+							]
+							examples: [
+								{
+									output: {
+										resource: {
+											id:   "res_abc123"
+											name: "Shared Document"
+											data: {}
+										}
+										share_meta: {
+											source_tenant: "tenant_acme"
+											permission:    "read"
+											expires_at:    "2024-01-22T10:30:00Z"
+											accessed_via:  "share_xyz789"
+										}
+									}
+								}
+							]
+						}
+					]
 
 					notes: """
 						Cross-tenant access is:
@@ -830,70 +858,33 @@ spec: intent.#Spec & {
 						- Subject to target tenant's rate limits
 						- Revocable by source tenant at any time
 						"""
-
-					request: {
-						method: "GET"
-						path:   "/shared/share_xyz789/resource"
-						headers: {
-							"Authorization": "Bearer ${partner_token}"
-						}
-					}
-
-					response: {
-						status: 200
-
-						example: {
-							resource: {
-								id:   "res_abc123"
-								name: "Shared Document"
-								data: {}
-							}
-							share_meta: {
-								source_tenant: "tenant_acme"
-								permission:    "read"
-								expires_at:    "2024-01-22T10:30:00Z"
-								accessed_via:  "share_xyz789"
-							}
-						}
-
-						checks: {
-							"share_meta.source_tenant": {
-								rule: "non-empty string"
-								why:  "Shows where data came from"
-							}
-							"share_meta.permission": {
-								rule: "equals read"
-								why:  "Shows what access level granted"
-							}
-						}
-					}
 				},
 			]
 		},
 	]
 
-	rules: [
+	invariants: [
 		{
-			name:        "tenant-context-required"
+			name: "tenant-context-required"
 			description: "All data responses must include tenant context"
-
-			check: {
-				fields_must_exist: ["tenant_id"]
-			}
+			criteria: [
+				"Data responses include tenant_id field",
+				"Tenant ID matches authenticated user's tenant",
+			]
 		},
 		{
-			name:        "no-cross-tenant-data"
+			name: "no-cross-tenant-data"
 			description: "Regular API calls cannot access other tenants"
-
-			check: {
-				body_must_not_contain: ["all_tenants", "cross_tenant", "bypass_isolation"]
-			}
+			criteria: [
+				"Responses do not contain data from other tenants",
+				"Responses do not expose cross-tenant access capabilities",
+			]
 		},
 	]
 
 	anti_patterns: [
 		{
-			name:        "tenant-in-url-only"
+			name: "tenant-in-url-only"
 			description: "Don't rely on URL for tenant identification"
 
 			bad_example: {
@@ -911,7 +902,7 @@ spec: intent.#Spec & {
 				"""
 		},
 		{
-			name:        "global-admin-bypass"
+			name: "global-admin-bypass"
 			description: "Don't create god-mode admin that bypasses isolation"
 
 			bad_example: {
@@ -940,11 +931,11 @@ spec: intent.#Spec & {
 		entities: {
 			tenant: {
 				fields: {
-					id:         "string, 'tenant_' + slug"
-					name:       "string, display name"
-					slug:       "string, URL-safe identifier"
-					tier:       "enum: free, pro, enterprise"
-					status:     "enum: provisioning, active, suspended, pending_deletion"
+					id:             "string, 'tenant_' + slug"
+					name:           "string, display name"
+					slug:           "string, URL-safe identifier"
+					tier:           "enum: free, pro, enterprise"
+					status:         "enum: provisioning, active, suspended, pending_deletion"
 					encryption_key: "per-tenant encryption key, never exposed"
 				}
 			}
