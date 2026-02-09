@@ -1,5 +1,5 @@
 /// Spec linting - proactive detection of anti-patterns and quality issues
-/// Checks response examples for anti-patterns before execution
+/// Checks behaviors for anti-patterns and quality issues
 import gleam/dict
 import gleam/dynamic
 import gleam/float
@@ -18,11 +18,13 @@ pub type LintResult {
 /// A warning about the spec
 pub type LintWarning {
   AntiPatternDetected(behavior: String, pattern_name: String, details: String)
-  VagueRule(behavior: String, field: String, rule: String)
+  VagueVerification(behavior: String, verification: String, criteria: String)
   MissingExample(behavior: String)
   UnusedAntiPattern(pattern_name: String)
   NamingConvention(behavior: String, suggestion: String)
   DuplicateBehavior(behavior1: String, behavior2: String, similarity: String)
+  MissingPreconditions(behavior: String)
+  MissingPostconditions(behavior: String)
 }
 
 /// Lint a complete spec
@@ -33,7 +35,7 @@ pub fn lint_spec(spec: Spec) -> LintResult {
     spec.features
     |> list.flat_map(fn(f) { f.behaviors })
 
-  // Check for anti-patterns in response examples
+  // Check for anti-patterns in verification examples
   let antipattern_warnings =
     behaviors
     |> list.flat_map(fn(behavior) {
@@ -42,20 +44,20 @@ pub fn lint_spec(spec: Spec) -> LintResult {
 
   let mut_warnings = list.append(mut_warnings, antipattern_warnings)
 
-  // Check for vague rules
+  // Check for vague verifications
   let vague_warnings =
     behaviors
-    |> list.flat_map(check_for_vague_rules)
+    |> list.flat_map(check_for_vague_verifications)
 
   let mut_warnings = list.append(mut_warnings, vague_warnings)
 
-  // Check for missing examples
+  // Check for missing examples in verifications
   let example_warnings =
     behaviors
     |> list.filter_map(fn(b) {
-      case b.response.example == json.null() {
-        True -> Ok(MissingExample(b.name))
-        False -> Error(Nil)
+      case has_verification_examples(b) {
+        True -> Error(Nil)
+        False -> Ok(MissingExample(b.name))
       }
     })
 
@@ -78,8 +80,8 @@ pub fn lint_spec(spec: Spec) -> LintResult {
     |> list.flat_map(fn(b) {
       spec.anti_patterns
       |> list.filter(fn(ap) {
-        b.response.example != json.null()
-        && contains_anti_pattern_keys(b.response.example, ap)
+        has_verification_with_json(b)
+        && contains_anti_pattern_keys(b, ap)
       })
       |> list.map(fn(ap) { ap.name })
     })
@@ -107,23 +109,33 @@ pub fn lint_spec(spec: Spec) -> LintResult {
   }
 }
 
-/// Check for anti-patterns in a behavior's response example
+/// Check if behavior has verification examples
+fn has_verification_examples(behavior: Behavior) -> Bool {
+  list.any(behavior.verifications, fn(v) { !list.is_empty(v.examples) })
+}
+
+/// Check if behavior has any verification with JSON data
+fn has_verification_with_json(behavior: Behavior) -> Bool {
+  list.any(behavior.verifications, fn(v) { !list.is_empty(v.examples) })
+}
+
+/// Check for anti-patterns in a behavior's verifications
 fn check_anti_patterns(
   behavior: Behavior,
   patterns: List(AntiPattern),
 ) -> List(LintWarning) {
-  case behavior.response.example == json.null() {
-    True -> []
-    False ->
+  case has_verification_with_json(behavior) {
+    False -> []
+    True ->
       patterns
       |> list.filter_map(fn(pattern) {
-        case contains_anti_pattern_keys(behavior.response.example, pattern) {
+        case contains_anti_pattern_keys(behavior, pattern) {
           False -> Error(Nil)
           True ->
             Ok(AntiPatternDetected(
               behavior.name,
               pattern.name,
-              "Response example contains keys from anti-pattern: "
+              "Verification examples contain keys from anti-pattern: "
                 <> pattern.description,
             ))
         }
@@ -131,13 +143,17 @@ fn check_anti_patterns(
   }
 }
 
-/// Check if a JSON example contains the bad pattern keys
-fn contains_anti_pattern_keys(example: Json, pattern: AntiPattern) -> Bool {
+/// Check if a behavior contains the bad pattern keys
+fn contains_anti_pattern_keys(behavior: Behavior, pattern: AntiPattern) -> Bool {
   let bad_keys = extract_all_keys(pattern.bad_example)
-  let example_keys = extract_all_keys(example)
 
-  // Check if any bad keys are in the example
-  list.any(bad_keys, fn(key) { list.contains(example_keys, key) })
+  // Check all verification examples
+  list.any(behavior.verifications, fn(v) {
+    list.any(v.examples, fn(example) {
+      let example_keys = extract_all_keys(example)
+      list.any(bad_keys, fn(key) { list.contains(example_keys, key) })
+    })
+  })
 }
 
 /// Extract all keys from a JSON object (recursively)
@@ -152,42 +168,42 @@ fn extract_all_keys(json: Json) -> List(String) {
   }
 }
 
-/// Check for vague rules in a behavior
-fn check_for_vague_rules(behavior: Behavior) -> List(LintWarning) {
-  behavior.response.checks
-  |> dict.to_list
-  |> list.filter_map(fn(pair) {
-    let #(field, check) = pair
-    let rule_lower = string.lowercase(check.rule)
+/// Check for vague verifications in a behavior
+fn check_for_vague_verifications(behavior: Behavior) -> List(LintWarning) {
+  behavior.verifications
+  |> list.filter_map(fn(verification) {
+    let has_vague =
+      list.any(verification.criteria, fn(criterion) {
+        let criterion_lower = string.lowercase(criterion)
 
-    let has_valid_keyword = string.contains(rule_lower, "valid")
-    let has_email_keyword = string.contains(rule_lower, "email")
-    let has_uuid_keyword = string.contains(rule_lower, "uuid")
-    let has_iso_keyword = string.contains(rule_lower, "iso")
-    let has_jwt_keyword = string.contains(rule_lower, "jwt")
-    let has_uri_keyword = string.contains(rule_lower, "uri")
-    let has_correct_format = string.contains(rule_lower, "correct format")
-    let has_proper_format = string.contains(rule_lower, "proper format")
+        let has_valid_keyword = string.contains(criterion_lower, "valid")
+        let has_email_keyword = string.contains(criterion_lower, "email")
+        let has_uuid_keyword = string.contains(criterion_lower, "uuid")
+        let has_iso_keyword = string.contains(criterion_lower, "iso")
+        let has_jwt_keyword = string.contains(criterion_lower, "jwt")
+        let has_uri_keyword = string.contains(criterion_lower, "uri")
+        let has_correct_format = string.contains(criterion_lower, "correct format")
+        let has_proper_format = string.contains(criterion_lower, "proper format")
 
-    let is_vague =
-      {
-        has_valid_keyword
-        && !has_email_keyword
-        && !has_uuid_keyword
-        && !has_iso_keyword
-        && !has_jwt_keyword
-        && !has_uri_keyword
-      }
-      || has_correct_format
-      || has_proper_format
+        {
+          has_valid_keyword
+          && !has_email_keyword
+          && !has_uuid_keyword
+          && !has_iso_keyword
+          && !has_jwt_keyword
+          && !has_uri_keyword
+        }
+        || has_correct_format
+        || has_proper_format
+      })
 
-    case is_vague {
+    case has_vague {
       False -> Error(Nil)
       True ->
-        Ok(VagueRule(
+        Ok(VagueVerification(
           behavior.name,
-          field,
-          check.rule <> " (too vague - be specific)",
+          verification.description,
+          "contains vague criteria (be specific)",
         ))
     }
   })
@@ -201,7 +217,7 @@ fn check_naming_convention(behavior: Behavior) -> Result(LintWarning, Nil) {
     True ->
       Ok(NamingConvention(
         behavior.name,
-        "Use kebab-case for behavior names (e.g., 'get-user-by-id')",
+        "Use kebab-case for behavior names (e.g., 'create-user-by-id')",
       ))
   }
 }
@@ -231,7 +247,7 @@ fn check_for_duplicate_behaviors(behaviors: List(Behavior)) -> List(LintWarning)
           Ok(DuplicateBehavior(
             behavior.name,
             other.name,
-            "Similar request path and method (similarity: "
+            "Similar name and intent (similarity: "
               <> string.trim(float_to_string(similarity, 2))
               <> ")",
           ))
@@ -244,15 +260,12 @@ fn check_for_duplicate_behaviors(behaviors: List(Behavior)) -> List(LintWarning)
 
 /// Calculate similarity between two behaviors
 fn calculate_behavior_similarity(b1: Behavior, b2: Behavior) -> Float {
-  // Check if methods match
-  let method_match = case b1.request.method == b2.request.method {
-    True -> 0.5
-    False -> 0.0
-  }
-
-  // Check path similarity
-  let path_similarity =
-    calculate_string_similarity(b1.request.path, b2.request.path)
+  // Check name similarity
+  let name_similarity =
+    calculate_string_similarity(
+      string.lowercase(b1.name),
+      string.lowercase(b2.name),
+    )
 
   // Check intent similarity
   let intent_similarity =
@@ -261,7 +274,8 @@ fn calculate_behavior_similarity(b1: Behavior, b2: Behavior) -> Float {
       string.lowercase(b2.intent),
     )
 
-  method_match +. path_similarity *. 0.35 +. intent_similarity *. 0.15
+  // Average the two
+  { name_similarity +. intent_similarity } /. 2.0
 }
 
 /// Calculate string similarity (simple Levenshtein-based approach)
@@ -329,20 +343,20 @@ fn format_warning(warning: LintWarning) -> String {
       <> "  "
       <> details
 
-    VagueRule(behavior, field, rule) ->
+    VagueVerification(behavior, verification, criteria) ->
       "Behavior '"
       <> behavior
-      <> "', field '"
-      <> field
+      <> "', verification '"
+      <> verification
       <> "':\n"
       <> "  "
-      <> rule
+      <> criteria
 
     MissingExample(behavior) ->
       "Behavior '"
       <> behavior
       <> "':\n"
-      <> "  Missing response example (helps AI understand intent)"
+      <> "  Missing verification examples (helps AI understand intent)"
 
     UnusedAntiPattern(pattern) ->
       "Anti-pattern '" <> pattern <> "' is not tested by any behavior"
@@ -359,5 +373,11 @@ fn format_warning(warning: LintWarning) -> String {
       <> "  "
       <> similarity
       <> " - consider consolidating"
+
+    MissingPreconditions(behavior) ->
+      "Behavior '" <> behavior <> "':\n" <> "  Missing preconditions"
+
+    MissingPostconditions(behavior) ->
+      "Behavior '" <> behavior <> "':\n" <> "  Missing postconditions"
   }
 }

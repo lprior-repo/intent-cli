@@ -1,12 +1,11 @@
 /// Spec quality analysis and scoring
 /// Analyzes completeness, clarity, testability, and AI readiness
-import gleam/dict
 import gleam/int
 import gleam/json
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/types.{type Behavior, type Rule, type Spec}
+import intent/types.{type Behavior, type Invariant, type Spec}
 
 /// Quality metrics for a spec
 pub type QualityReport {
@@ -29,8 +28,10 @@ pub type QualityIssue {
   VagueRules
   NoExamples
   MissingExplanations
-  UntestedRules
+  UntestedInvariants
   MissingAIHints
+  MissingPreconditions
+  MissingPostconditions
 }
 
 /// Analyze spec quality
@@ -39,7 +40,7 @@ pub fn analyze_spec(spec: Spec) -> QualityReport {
     spec.features
     |> list.flat_map(fn(f) { f.behaviors })
 
-  let coverage_score = calculate_coverage_score(behaviors, spec.rules)
+  let coverage_score = calculate_coverage_score(behaviors, spec.invariants)
   let clarity_score = calculate_clarity_score(behaviors)
   let testability_score = calculate_testability_score(behaviors)
   let ai_readiness_score = calculate_ai_readiness_score(spec, behaviors)
@@ -50,8 +51,8 @@ pub fn analyze_spec(spec: Spec) -> QualityReport {
     sum / 4
   }
 
-  let issues = find_quality_issues(behaviors, spec.rules)
-  let suggestions = generate_suggestions(issues, behaviors, spec.rules)
+  let issues = find_quality_issues(behaviors, spec.invariants)
+  let suggestions = generate_suggestions(issues, behaviors, spec.invariants)
 
   QualityReport(
     coverage_score: coverage_score,
@@ -66,19 +67,22 @@ pub fn analyze_spec(spec: Spec) -> QualityReport {
 
 /// Calculate coverage score (0-100)
 /// Measures how many error cases and edge cases are tested
-fn calculate_coverage_score(behaviors: List(Behavior), rules: List(Rule)) -> Int {
+fn calculate_coverage_score(behaviors: List(Behavior), invariants: List(Invariant)) -> Int {
   let base = 50
 
-  // Count error status codes tested
-  let error_statuses =
+  // Check for error behaviors in postconditions
+  let error_behaviors =
     behaviors
     |> list.filter(fn(b) {
-      let status = b.response.status
-      status >= 400 && status < 600
+      list.any(b.postconditions, fn(pc) {
+        string.contains(pc, "error")
+        || string.contains(pc, "fail")
+        || string.contains(pc, "invalid")
+      })
     })
     |> list.length
 
-  let error_bonus = int.min(50, error_statuses * 10)
+  let error_bonus = int.min(50, error_behaviors * 10)
 
   // Check if authentication tested
   let has_auth_test =
@@ -106,8 +110,8 @@ fn calculate_coverage_score(behaviors: List(Behavior), rules: List(Rule)) -> Int
     False -> 0
   }
 
-  // Check for anti-pattern coverage
-  let antipattern_bonus = int.min(5, list.length(rules) * 2)
+  // Check for invariant coverage
+  let antipattern_bonus = int.min(5, list.length(invariants) * 2)
 
   let coverage_total =
     base + error_bonus + auth_bonus + edge_bonus + antipattern_bonus
@@ -149,22 +153,22 @@ fn calculate_clarity_score(behaviors: List(Behavior)) -> Int {
     }
   }
 
-  // Check for vague language
-  let has_vague_rules =
+  // Check for vague language in verifications
+  let has_vague_verifications =
     behaviors
     |> list.any(fn(b) {
-      b.response.checks
-      |> dict.values
-      |> list.any(fn(check) {
-        let rule_lower = string.lowercase(check.rule)
-        string.contains(rule_lower, "valid")
-        && !string.contains(rule_lower, "email")
-        && !string.contains(rule_lower, "uuid")
-        && !string.contains(rule_lower, "iso")
+      list.any(b.verifications, fn(v) {
+        list.any(v.criteria, fn(criterion) {
+          let criterion_lower = string.lowercase(criterion)
+          string.contains(criterion_lower, "valid")
+          && !string.contains(criterion_lower, "email")
+          && !string.contains(criterion_lower, "uuid")
+          && !string.contains(criterion_lower, "iso")
+        })
       })
     })
 
-  let vague_penalty = case has_vague_rules {
+  let vague_penalty = case has_vague_verifications {
     True -> -10
     False -> 0
   }
@@ -178,14 +182,6 @@ fn calculate_clarity_score(behaviors: List(Behavior)) -> Int {
 fn calculate_testability_score(behaviors: List(Behavior)) -> Int {
   let base = 70
 
-  // Count behaviors with captures
-  let with_captures =
-    behaviors
-    |> list.filter(fn(b) { !dict.is_empty(b.captures) })
-    |> list.length
-
-  let capture_bonus = int.min(10, with_captures * 5)
-
   // Check for well-defined dependencies
   let with_dependencies =
     behaviors
@@ -194,16 +190,35 @@ fn calculate_testability_score(behaviors: List(Behavior)) -> Int {
 
   let deps_bonus = int.min(10, with_dependencies * 5)
 
-  // Check for examples
+  // Check for preconditions
+  let with_preconditions =
+    behaviors
+    |> list.filter(fn(b) { !list.is_empty(b.preconditions) })
+    |> list.length
+
+  let preconditions_bonus = int.min(10, with_preconditions * 5)
+
+  // Check for postconditions
+  let with_postconditions =
+    behaviors
+    |> list.filter(fn(b) { !list.is_empty(b.postconditions) })
+    |> list.length
+
+  let postconditions_bonus = int.min(10, with_postconditions * 5)
+
+  // Check for verifications with examples
   let with_examples =
     behaviors
-    |> list.filter(fn(b) { b.response.example != json.null() })
+    |> list.filter(fn(b) {
+      list.any(b.verifications, fn(v) { !list.is_empty(v.examples) })
+    })
     |> list.length
 
   let example_bonus =
     int.min(5, with_examples / int.max(1, list.length(behaviors) / 2))
 
-  let testability_total = base + capture_bonus + deps_bonus + example_bonus
+  let testability_total =
+    base + deps_bonus + preconditions_bonus + postconditions_bonus + example_bonus
   int.min(100, testability_total)
 }
 
@@ -222,49 +237,52 @@ fn calculate_ai_readiness_score(spec: Spec, behaviors: List(Behavior)) -> Int {
     False -> -10
   }
 
-  // Count behaviors with 'why' explanations
-  let with_why =
+  // Count behaviors with verifications (these provide guidance)
+  let with_verifications =
     behaviors
-    |> list.flat_map(fn(b) { dict.values(b.response.checks) })
-    |> list.filter(fn(c) { !string.is_empty(c.why) })
+    |> list.filter(fn(b) { !list.is_empty(b.verifications) })
     |> list.length
 
-  let total_checks =
-    behaviors
-    |> list.flat_map(fn(b) { dict.values(b.response.checks) })
-    |> list.length
-
-  let why_bonus = case total_checks {
+  let verification_ratio = case list.length(behaviors) {
     0 -> 0
-    _ -> {
-      let why_calc = with_why * 30
-      why_calc / int.max(1, total_checks)
+    n -> {
+      let ratio = with_verifications * 100
+      ratio / n
     }
   }
 
-  // Count example responses
+  let verification_bonus = verification_ratio / 5
+
+  // Count examples in verifications
   let with_examples =
     behaviors
-    |> list.filter(fn(b) { b.response.example != json.null() })
+    |> list.filter(fn(b) {
+      list.any(b.verifications, fn(v) { !list.is_empty(v.examples) })
+    })
     |> list.length
 
   let example_bonus = int.min(10, with_examples * 5)
 
-  let ai_readiness_total = base + hints_bonus + why_bonus + example_bonus
+  let ai_readiness_total = base + hints_bonus + verification_bonus + example_bonus
   int.max(0, int.min(100, ai_readiness_total))
 }
 
 /// Find quality issues in spec
 fn find_quality_issues(
   behaviors: List(Behavior),
-  rules: List(Rule),
+  invariants: List(Invariant),
 ) -> List(QualityIssue) {
   let mut_issues = []
 
-  // Check for error tests
-  let has_error_tests = list.any(behaviors, fn(b) { b.response.status >= 400 })
+  // Check for error behaviors
+  let has_error_behaviors = list.any(behaviors, fn(b) {
+    list.any(b.postconditions, fn(pc) {
+      string.contains(pc, "error")
+      || string.contains(pc, "fail")
+    })
+  })
 
-  let mut_issues = case has_error_tests {
+  let mut_issues = case has_error_behaviors {
     True -> mut_issues
     False -> [MissingErrorTests, ..mut_issues]
   }
@@ -289,15 +307,15 @@ fn find_quality_issues(
     False -> [MissingEdgeCases, ..mut_issues]
   }
 
-  // Check for vague rules
+  // Check for vague verifications
   let has_vague =
     list.any(behaviors, fn(b) {
-      b.response.checks
-      |> dict.values
-      |> list.any(fn(check) {
-        let rule_lower = string.lowercase(check.rule)
-        string.contains(rule_lower, "valid data")
-        || string.contains(rule_lower, "correct format")
+      list.any(b.verifications, fn(v) {
+        list.any(v.criteria, fn(criterion) {
+          let criterion_lower = string.lowercase(criterion)
+          string.contains(criterion_lower, "valid data")
+          || string.contains(criterion_lower, "correct format")
+        })
       })
     })
 
@@ -306,34 +324,41 @@ fn find_quality_issues(
     True -> [VagueRules, ..mut_issues]
   }
 
-  // Check for examples
+  // Check for examples in verifications
   let has_examples =
-    list.any(behaviors, fn(b) { b.response.example != json.null() })
+    list.any(behaviors, fn(b) {
+      list.any(b.verifications, fn(v) { !list.is_empty(v.examples) })
+    })
 
   let mut_issues = case has_examples {
     True -> mut_issues
     False -> [NoExamples, ..mut_issues]
   }
 
-  // Check for explanations
-  let has_explanations =
-    list.any(behaviors, fn(b) {
-      b.response.checks
-      |> dict.values
-      |> list.any(fn(c) { !string.is_empty(c.why) })
-    })
+  // Check for preconditions
+  let has_preconditions =
+    list.any(behaviors, fn(b) { !list.is_empty(b.preconditions) })
 
-  let mut_issues = case has_explanations {
+  let mut_issues = case has_preconditions {
     True -> mut_issues
-    False -> [MissingExplanations, ..mut_issues]
+    False -> [MissingPreconditions, ..mut_issues]
   }
 
-  // Check for untested rules
-  let has_untested_rules = !list.is_empty(rules)
+  // Check for postconditions
+  let has_postconditions =
+    list.any(behaviors, fn(b) { !list.is_empty(b.postconditions) })
 
-  let mut_issues = case has_untested_rules {
+  let mut_issues = case has_postconditions {
+    True -> mut_issues
+    False -> [MissingPostconditions, ..mut_issues]
+  }
+
+  // Check for untested invariants
+  let has_untested_invariants = !list.is_empty(invariants)
+
+  let mut_issues = case has_untested_invariants {
     False -> mut_issues
-    True -> [UntestedRules, ..mut_issues]
+    True -> [UntestedInvariants, ..mut_issues]
   }
 
   mut_issues
@@ -343,12 +368,12 @@ fn find_quality_issues(
 fn generate_suggestions(
   issues: List(QualityIssue),
   _behaviors: List(Behavior),
-  _rules: List(Rule),
+  _invariants: List(Invariant),
 ) -> List(String) {
   []
   |> add_suggestion_if(
     list.contains(issues, MissingErrorTests),
-    "Add test cases for error status codes (400, 401, 403, 404, 409, 500)",
+    "Add behaviors that test error cases (failures, invalid input)",
   )
   |> add_suggestion_if(
     list.contains(issues, MissingAuthenticationTest),
@@ -360,15 +385,19 @@ fn generate_suggestions(
   )
   |> add_suggestion_if(
     list.contains(issues, VagueRules),
-    "Replace vague rules like 'valid data' with specific validation rules",
+    "Replace vague verifications like 'valid data' with specific validation criteria",
   )
   |> add_suggestion_if(
     list.contains(issues, NoExamples),
-    "Add response examples to each behavior for documentation",
+    "Add examples to verifications for documentation",
   )
   |> add_suggestion_if(
-    list.contains(issues, MissingExplanations),
-    "Add 'why' explanations to validation rules to clarify intent",
+    list.contains(issues, MissingPreconditions),
+    "Add preconditions to behaviors to specify what must be true before execution",
+  )
+  |> add_suggestion_if(
+    list.contains(issues, MissingPostconditions),
+    "Add postconditions to behaviors to specify what must be true after execution",
   )
 }
 
@@ -427,14 +456,16 @@ pub fn format_report(report: QualityReport) -> String {
 /// Format a quality issue
 fn format_issue(issue: QualityIssue) -> String {
   case issue {
-    MissingErrorTests -> "  • Missing error status code tests (4xx, 5xx)"
+    MissingErrorTests -> "  • Missing error test cases (failures, invalid input)"
     MissingAuthenticationTest -> "  • Missing authentication tests"
     MissingEdgeCases -> "  • Missing edge case tests (empty, invalid, etc)"
     VagueRules ->
-      "  • Vague validation rules ('valid data', 'correct format')"
-    NoExamples -> "  • No response examples provided"
-    MissingExplanations -> "  • Missing 'why' explanations in checks"
-    UntestedRules -> "  • Global rules not tested in behaviors"
+      "  • Vague verification criteria ('valid data', 'correct format')"
+    NoExamples -> "  • No verification examples provided"
+    MissingExplanations -> "  • Missing detailed verification descriptions"
+    UntestedInvariants -> "  • Global invariants not verified in behaviors"
     MissingAIHints -> "  • No AI implementation hints provided"
+    MissingPreconditions -> "  • Behaviors missing preconditions"
+    MissingPostconditions -> "  • Behaviors missing postconditions"
   }
 }

@@ -12,7 +12,7 @@ pub fn generate_vision_document(spec: Spec) -> String {
   let overview = generate_overview(spec)
   let success_criteria = generate_success_criteria(spec)
   let features = generate_features(spec)
-  let rules = generate_rules(spec)
+  let invariants = generate_invariants(spec)
   let anti_patterns = generate_anti_patterns(spec)
   let technical_considerations = generate_technical_considerations(spec)
 
@@ -23,7 +23,7 @@ pub fn generate_vision_document(spec: Spec) -> String {
   <> "\n"
   <> features
   <> "\n"
-  <> rules
+  <> invariants
   <> "\n"
   <> anti_patterns
   <> "\n"
@@ -87,6 +87,22 @@ fn generate_behavior_summary(behavior: Behavior) -> String {
     notes -> "\n  > " <> notes
   }
 
+  let preconditions = case behavior.preconditions {
+    [] -> ""
+    preconditions -> {
+      let pre = string.join(preconditions, ", ")
+      "\n  - Preconditions: " <> pre
+    }
+  }
+
+  let postconditions = case behavior.postconditions {
+    [] -> ""
+    postconditions -> {
+      let post = string.join(postconditions, ", ")
+      "\n  - Postconditions: " <> post
+    }
+  }
+
   let requires = case behavior.requires {
     [] -> ""
     requires -> {
@@ -103,24 +119,25 @@ fn generate_behavior_summary(behavior: Behavior) -> String {
     }
   }
 
-  "- " <> name <> intent <> notes <> requires <> tags
+  "- " <> name <> intent <> notes <> preconditions <> postconditions <> requires <> tags
 }
 
-fn generate_rules(spec: Spec) -> String {
-  case spec.rules {
+fn generate_invariants(spec: Spec) -> String {
+  case spec.invariants {
     [] -> ""
-    rules -> {
-      let rule_items =
-        rules
-        |> list.map(fn(rule) {
-          let name = "### " <> rule.name
-          let description = rule.description
+    invariants -> {
+      let invariant_items =
+        invariants
+        |> list.map(fn(invariant) {
+          let name = "### " <> invariant.name
+          let description = invariant.description
+          let criteria = string.join(invariant.criteria, "\n- ")
 
-          name <> "\n\n" <> description
+          name <> "\n\n" <> description <> "\n\n**Criteria:**\n- " <> criteria
         })
         |> string.join("\n\n")
 
-      "## Global Rules\n\n" <> rule_items <> "\n"
+      "## Global Invariants\n\n" <> invariant_items <> "\n"
     }
   }
 }
@@ -184,7 +201,9 @@ fn generate_technical_considerations(spec: Spec) -> String {
               let fields =
                 e.fields
                 |> dict.to_list
-                |> list.map(fn(pair) { "- **" <> pair.0 <> "**: " <> pair.1 })
+                |> list.map(fn(pair) {
+                  "- **" <> pair.0 <> "**: " <> json.to_string(pair.1)
+                })
                 |> string.join("\n")
 
               "#### " <> key <> "\n\n" <> fields

@@ -6,13 +6,11 @@ import gleam/json
 import gleam/list
 import gleam/string
 import intent/case_insensitive.{contains_any_ignore_case}
-import intent/checker.{type ResponseCheckResult}
-import intent/http_client.{type ExecutionResult}
 import intent/interpolate.{type Context}
 import intent/interview.{type Answer, type InterviewSession, type Profile}
 import intent/types.{
-  type Behavior, type Spec, AIHints, Behavior, Config, Feature, Get,
-  ImplementationHints, Request, Response, SecurityHints, Spec,
+  type Behavior, type Invariant, type Spec, type Verification, AIHints,
+  Behavior, Feature, ImplementationHints, SecurityHints, Spec,
 }
 
 /// Generated CUE code
@@ -202,9 +200,8 @@ pub fn create_test_spec(behavior_count: Int) -> Spec {
     audience: "test",
     version: "1.0.0",
     success_criteria: [],
-    config: Config("http://test", 1000, dict.new()),
     features: [Feature("test-feature", "test", behaviors)],
-    rules: [],
+    invariants: [],
     anti_patterns: [],
     ai_hints: AIHints(
       ImplementationHints([]),
@@ -222,19 +219,8 @@ fn make_behavior(name: String) -> Behavior {
     notes: "",
     requires: [],
     tags: [],
-    request: Request(Get, "/", dict.new(), dict.new(), json.null()),
-    response: Response(200, json.null(), dict.new(), dict.new()),
-    captures: dict.new(),
+    preconditions: [],
+    postconditions: [],
+    verifications: [],
   )
-}
-
-/// Batch check behaviors against results - pure map operation
-pub fn check_many(
-  behaviors: List(Behavior),
-  results: List(ExecutionResult),
-  ctx: Context,
-) -> List(ResponseCheckResult) {
-  list.map2(behaviors, results, fn(b, r) {
-    checker.check_response(b.response, r, ctx)
-  })
 }

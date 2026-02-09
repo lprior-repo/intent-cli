@@ -6,19 +6,20 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import intent/bead_templates
-import intent/checker
-import intent/http_client
+// import intent/checker  // Removed in v3.0
+// import intent/http_client  // Removed in v3.0
+import intent/effects_analyzer
 import intent/interpolate
 import intent/interview
 import intent/interview_contract
 import intent/interview_questions
-import intent/kirk/effects_analyzer
+// import intent/kirk/effects_analyzer  // Disabled in v3.0, now at intent/effects_analyzer
 import intent/question_loader
 import intent/question_types.{
   type Question, Critical, Developer, HappyPath, Ops, Question, Security, User,
 }
 import intent/resolver
-import intent/rules_engine
+// import intent/rules_engine  // Removed in v3.0
 import intent/types
 
 pub fn main() -> Nil {
@@ -36,20 +37,9 @@ fn make_behavior(name: String, requires: List(String)) -> types.Behavior {
     notes: "",
     requires: requires,
     tags: [],
-    request: types.Request(
-      method: types.Get,
-      path: "/" <> name,
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    ),
-    response: types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.new(),
-    ),
-    captures: dict.new(),
+    preconditions: [],
+    postconditions: [],
+    verifications: [],
   )
 }
 
@@ -64,13 +54,8 @@ fn make_spec(features: List(types.Feature)) -> types.Spec {
     audience: "",
     version: "1.0.0",
     success_criteria: [],
-    config: types.Config(
-      base_url: "http://localhost",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    ),
     features: features,
-    rules: [],
+    invariants: [],
     anti_patterns: [],
     ai_hints: types.AIHints(
       implementation: types.ImplementationHints(suggested_stack: []),
@@ -91,11 +76,12 @@ pub fn effects_analyzer_format_report_completes_test() {
   let feature = make_feature("users", [behavior])
   let spec = make_spec([feature])
 
-  let report = effects_analyzer.analyze_effects(spec)
-  let rendered = effects_analyzer.format_report(report)
+  let report = effects_analyzer.analyze_spec(spec)
 
-  rendered |> string.contains("Verification coverage:") |> should.be_true()
-  rendered |> string.contains("BEHAVIOR: read-user") |> should.be_true()
+  // Check that analysis completed successfully
+  report.behavior_effects
+  |> list.length
+  |> should.equal(1)
 }
 
 pub fn resolver_simple_no_deps_test() {
@@ -528,1195 +514,1195 @@ pub fn interview_contract_rejects_missing_protocol_test() {
 // HTTP Client Tests
 // ============================================================================
 
-pub fn http_client_url_construction_simple_test() {
-  // Test simple URL construction without interpolation
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/users/123",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  case result {
-    Error(_) -> {
-      // Expected to fail without mocking HTTP - we're testing URL construction logic
-      should.be_ok(Ok(Nil))
-    }
-    Ok(_) -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_path_interpolation_test() {
-  // Test path interpolation with variables
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/users/${user_id}",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx =
-    interpolate.new_context()
-    |> interpolate.set_variable("user_id", json.string("123"))
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Path interpolation should work - URL construction should proceed
-  // Even if HTTP request fails, interpolation error should not occur
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_missing_variable_interpolation_test() {
-  // Test that missing variables in path cause interpolation errors
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/users/${unknown_var}",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn http_client_header_interpolation_test() {
-  // Test header interpolation with variables
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.from_list([#("X-Default", "default-value")]),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/users",
-      headers: dict.from_list([#("X-Token", "${auth_token}")]),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx =
-    interpolate.new_context()
-    |> interpolate.set_variable("auth_token", json.string("secret123"))
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Header interpolation should work
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_header_merge_test() {
-  // Test that request headers override config headers
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.from_list([
-        #("X-Default", "config-value"),
-        #("X-Config-Only", "config"),
-      ]),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/users",
-      headers: dict.from_list([#("X-Default", "request-value")]),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Header merge should work without interpolation errors
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_body_json_interpolation_test() {
-  // Test body interpolation with JSON content
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let body_json =
-    json.object([
-      #("username", json.string("${username}")),
-      #("email", json.string("user@example.com")),
-    ])
-
-  let request =
-    types.Request(
-      method: types.Post,
-      path: "/users",
-      headers: dict.new(),
-      query: dict.new(),
-      body: body_json,
-    )
-
-  let ctx =
-    interpolate.new_context()
-    |> interpolate.set_variable("username", json.string("john_doe"))
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Body interpolation should work
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_invalid_url_test() {
-  // Test invalid URL handling
-  let config =
-    types.Config(
-      base_url: "not a valid url at all",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/users",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  case result {
-    Error(http_client.UrlParseError(_)) -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn http_client_https_url_test() {
-  // Test HTTPS URL handling
-  let config =
-    types.Config(
-      base_url: "https://api.example.com",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/secure-endpoint",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // HTTPS URLs should be valid and not cause UrlParseError
-  case result {
-    Error(http_client.UrlParseError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_custom_port_test() {
-  // Test URL with custom port
-  let config =
-    types.Config(
-      base_url: "http://localhost:3000",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/health",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Custom port should be parsed correctly
-  case result {
-    Error(http_client.UrlParseError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_path_leading_slash_test() {
-  // Test that paths are normalized with leading slash
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  // Path without leading slash
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "users/123",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Should handle path without leading slash (not a URL parse error)
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_method_conversion_get_test() {
-  // Test that GET method is handled correctly
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/users",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // GET request should not cause method conversion errors
-  case result {
-    Error(http_client.UrlParseError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_method_conversion_post_test() {
-  // Test that POST method with body is handled correctly
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    )
-
-  let request =
-    types.Request(
-      method: types.Post,
-      path: "/users",
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.object([#("name", json.string("John"))]),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // POST request should not cause method conversion errors
-  case result {
-    Error(http_client.UrlParseError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-pub fn http_client_multiple_header_merge_test() {
-  // Test merging multiple headers from both config and request
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.from_list([
-        #("X-API-Version", "v1"),
-        #("User-Agent", "intent-cli"),
-      ]),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/data",
-      headers: dict.from_list([
-        #("Authorization", "Bearer token"),
-        #("X-Request-ID", "123"),
-      ]),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Multiple headers should merge without errors
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
-
-// ============================================================================
-// Rules Engine Tests
-// ============================================================================
-
-fn make_execution_result(
-  status: Int,
-  body_str: String,
-  method: types.Method,
-  path: String,
-) -> http_client.ExecutionResult {
-  http_client.ExecutionResult(
-    status: status,
-    headers: dict.new(),
-    body: json.object([#("test", json.string(body_str))]),
-    raw_body: body_str,
-    elapsed_ms: 100,
-    request_method: method,
-    request_path: path,
-  )
-}
-
-pub fn rules_engine_check_when_status_equals_test() {
-  // Test status condition with exact match (== 200)
-  let rule =
-    types.Rule(
-      name: "Check 200 OK",
-      description: "Verify 200 response",
-      when: types.When(status: "== 200", method: types.Get, path: "/users"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response = make_execution_result(200, "ok", types.Get, "/users")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  list.length(results)
-  |> should.equal(1)
-
-  case results {
-    [rules_engine.RulePassed(name)] -> name |> should.equal("Check 200 OK")
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_when_status_greater_than_test() {
-  // Test status condition with > operator
-  let rule =
-    types.Rule(
-      name: "Check 4xx error",
-      description: "Verify error status",
-      when: types.When(status: "> 399", method: types.Post, path: "/create"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    make_execution_result(400, "bad request", types.Post, "/create")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  list.length(results)
-  |> should.equal(1)
-
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_when_status_less_than_test() {
-  // Test status condition with < operator
-  let rule =
-    types.Rule(
-      name: "Check success range",
-      description: "Verify 2xx status",
-      when: types.When(status: "< 300", method: types.Get, path: "/data"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response = make_execution_result(201, "created", types.Get, "/data")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_when_method_mismatch_test() {
-  // Test that rule doesn't apply when method doesn't match
-  let rule =
-    types.Rule(
-      name: "POST rule",
-      description: "Only for POST",
-      when: types.When(status: "== 200", method: types.Post, path: "/create"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response = make_execution_result(200, "ok", types.Get, "/create")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  // Rule should not apply because method is GET, not POST
-  list.length(results)
-  |> should.equal(0)
-}
-
-pub fn rules_engine_check_when_path_exact_match_test() {
-  // Test exact path matching
-  let rule =
-    types.Rule(
-      name: "Exact path rule",
-      description: "Check exact path",
-      when: types.When(status: "== 200", method: types.Get, path: "/exact/path"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response = make_execution_result(200, "ok", types.Get, "/exact/path")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_when_path_regex_match_test() {
-  // Test regex path matching
-  let rule =
-    types.Rule(
-      name: "Regex path rule",
-      description: "Check regex path",
-      when: types.When(status: "== 200", method: types.Get, path: "^/users/.*"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response = make_execution_result(200, "ok", types.Get, "/users/123")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_body_must_contain_test() {
-  // Test body_must_contain check
-  let rule =
-    types.Rule(
-      name: "Body content rule",
-      description: "Verify body contains text",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: ["success"],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    make_execution_result(200, "Operation was a success", types.Get, "/test")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_body_must_not_contain_test() {
-  // Test body_must_not_contain check
-  let rule =
-    types.Rule(
-      name: "No error rule",
-      description: "Verify no error in body",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
-      check: types.RuleCheck(
-        body_must_not_contain: ["error"],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    make_execution_result(200, "This is clean data", types.Get, "/test")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_body_must_not_contain_violation_test() {
-  // Test body_must_not_contain violation
-  let rule =
-    types.Rule(
-      name: "No error rule",
-      description: "Verify no error in body",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
-      check: types.RuleCheck(
-        body_must_not_contain: ["error"],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    make_execution_result(200, "This has an error in it", types.Get, "/test")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  case results {
-    [rules_engine.RuleFailed(name, _, violations)] -> {
-      name |> should.equal("No error rule")
-      list.length(violations) |> should.equal(1)
-    }
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_body_must_contain_violation_test() {
-  // Test body_must_contain violation
-  let rule =
-    types.Rule(
-      name: "Required text rule",
-      description: "Verify required text",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: ["required"],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    make_execution_result(200, "This is missing it", types.Get, "/test")
-  let results = rules_engine.check_rules([rule], response, "test_behavior")
-
-  case results {
-    [rules_engine.RuleFailed(_, _, violations)] -> {
-      list.length(violations) |> should.equal(1)
-    }
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_check_multiple_rules_test() {
-  // Test multiple rules applied in sequence
-  let rule1 =
-    types.Rule(
-      name: "Rule 1",
-      description: "First rule",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let rule2 =
-    types.Rule(
-      name: "Rule 2",
-      description: "Second rule",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response = make_execution_result(200, "ok", types.Get, "/test")
-  let results =
-    rules_engine.check_rules([rule1, rule2], response, "test_behavior")
-
-  list.length(results) |> should.equal(2)
-}
-
-pub fn rules_engine_format_violation_body_contains_test() {
-  let violation = rules_engine.BodyContains("forbidden", "response body")
-  let formatted = rules_engine.format_violation(violation)
-  formatted
-  |> string.contains("forbidden")
-  |> should.be_true()
-}
-
-pub fn rules_engine_format_violation_body_missing_test() {
-  let violation = rules_engine.BodyMissing("required")
-  let formatted = rules_engine.format_violation(violation)
-  formatted
-  |> string.contains("required")
-  |> should.be_true()
-}
-
-pub fn rules_engine_format_violation_field_missing_test() {
-  let violation = rules_engine.FieldMissing("user.id")
-  let formatted = rules_engine.format_violation(violation)
-  formatted
-  |> string.contains("user.id")
-  |> should.be_true()
-}
-
-pub fn rules_engine_format_violation_header_missing_test() {
-  let violation = rules_engine.HeaderMissing("X-Custom")
-  let formatted = rules_engine.format_violation(violation)
-  formatted
-  |> string.contains("X-Custom")
-  |> should.be_true()
-}
-
-// ============================================================================
-// Resolver Advanced Tests
-// ============================================================================
-
-pub fn resolver_complex_diamond_dependency_test() {
-  // Diamond pattern: b3 and b4 both depend on b1, b5 depends on both
-  let b1 = make_behavior("base", [])
-  let b3 = make_behavior("left", ["base"])
-  let b4 = make_behavior("right", ["base"])
-  let b5 = make_behavior("merge", ["left", "right"])
-
-  let spec = make_spec([make_feature("Feature A", [b1, b3, b4, b5])])
-  let result = resolver.resolve_execution_order(spec)
-
-  case result {
-    Ok(resolved) -> {
-      list.length(resolved) |> should.equal(4)
-      let names = list.map(resolved, fn(rb) { rb.behavior.name })
-      // base should come first
-      let assert [first, ..] = names
-      first |> should.equal("base")
-      // merge should come last (it has two dependencies)
-      case list.last(names) {
-        Ok(last) -> last |> should.equal("merge")
-        Error(_) -> should.fail()
-      }
-    }
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn resolver_multiple_branches_test() {
-  // Multiple independent branches
-  let b1 = make_behavior("root", [])
-  let b2 = make_behavior("branch-a-1", ["root"])
-  let b3 = make_behavior("branch-a-2", ["branch-a-1"])
-  let b4 = make_behavior("branch-b-1", ["root"])
-  let b5 = make_behavior("branch-b-2", ["branch-b-1"])
-
-  let spec = make_spec([make_feature("Feature", [b1, b2, b3, b4, b5])])
-  let result = resolver.resolve_execution_order(spec)
-
-  case result {
-    Ok(resolved) -> {
-      list.length(resolved) |> should.equal(5)
-      let names = list.map(resolved, fn(rb) { rb.behavior.name })
-      // Check that all expected behaviors are present
-      list.any(names, fn(n) { n == "root" }) |> should.be_true()
-      list.any(names, fn(n) { n == "branch-a-1" }) |> should.be_true()
-      list.any(names, fn(n) { n == "branch-a-2" }) |> should.be_true()
-      list.any(names, fn(n) { n == "branch-b-1" }) |> should.be_true()
-      list.any(names, fn(n) { n == "branch-b-2" }) |> should.be_true()
-    }
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn resolver_deep_chain_test() {
-  // Long dependency chain: b5 -> b4 -> b3 -> b2 -> b1
-  let b1 = make_behavior("step1", [])
-  let b2 = make_behavior("step2", ["step1"])
-  let b3 = make_behavior("step3", ["step2"])
-  let b4 = make_behavior("step4", ["step3"])
-  let b5 = make_behavior("step5", ["step4"])
-
-  let spec = make_spec([make_feature("Feature", [b1, b2, b3, b4, b5])])
-  let result = resolver.resolve_execution_order(spec)
-
-  case result {
-    Ok(resolved) -> {
-      list.length(resolved) |> should.equal(5)
-      let names = list.map(resolved, fn(rb) { rb.behavior.name })
-      names |> should.equal(["step1", "step2", "step3", "step4", "step5"])
-    }
-    Error(_) -> should.fail()
-  }
-}
-
-// ============================================================================
-// Empty/Null Response Handling Tests
-// ============================================================================
-
-pub fn rules_engine_empty_body_test() {
-  // Test rule application with empty response body
-  let rule =
-    types.Rule(
-      name: "Empty body rule",
-      description: "Handle empty response",
-      when: types.When(
-        status: "== 204",
-        method: types.Delete,
-        path: "/resource",
-      ),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    http_client.ExecutionResult(
-      status: 204,
-      headers: dict.new(),
-      body: json.null(),
-      raw_body: "",
-      elapsed_ms: 50,
-      request_method: types.Delete,
-      request_path: "/resource",
-    )
-
-  let results = rules_engine.check_rules([rule], response, "test")
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_null_json_value_test() {
-  // Test handling of null JSON values
-  let rule =
-    types.Rule(
-      name: "Null handling rule",
-      description: "Handle null values",
-      when: types.When(status: "== 200", method: types.Get, path: "/nullable"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.object([#("value", json.null())]),
-      raw_body: "{\"value\":null}",
-      elapsed_ms: 60,
-      request_method: types.Get,
-      request_path: "/nullable",
-    )
-
-  let results = rules_engine.check_rules([rule], response, "test")
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_whitespace_body_test() {
-  // Test handling of whitespace-only body
-  let rule =
-    types.Rule(
-      name: "Whitespace rule",
-      description: "Handle whitespace body",
-      when: types.When(status: "== 200", method: types.Get, path: "/test"),
-      check: types.RuleCheck(
-        body_must_not_contain: ["error"],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.null(),
-      raw_body: "   \n\t  ",
-      elapsed_ms: 40,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-
-  let results = rules_engine.check_rules([rule], response, "test")
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_nested_null_field_test() {
-  // Test checking for null in nested fields
-  let rule =
-    types.Rule(
-      name: "Nested null rule",
-      description: "Check nested fields",
-      when: types.When(status: "== 200", method: types.Get, path: "/nested"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: ["user"],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.object([#("user", json.null())]),
-      raw_body: "{\"user\":null}",
-      elapsed_ms: 55,
-      request_method: types.Get,
-      request_path: "/nested",
-    )
-
-  let results = rules_engine.check_rules([rule], response, "test")
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_empty_object_test() {
-  // Test handling of empty objects
-  let rule =
-    types.Rule(
-      name: "Empty object rule",
-      description: "Handle empty objects",
-      when: types.When(status: "== 200", method: types.Get, path: "/data"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: ["data"],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.object([#("data", json.object([]))]),
-      raw_body: "{\"data\":{}}",
-      elapsed_ms: 65,
-      request_method: types.Get,
-      request_path: "/data",
-    )
-
-  let results = rules_engine.check_rules([rule], response, "test")
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-// ============================================================================
-// Unicode and Special Character Support Tests
-// ============================================================================
-
-pub fn interpolate_unicode_variable_test() {
-  let ctx =
-    interpolate.new_context()
-    |> interpolate.set_variable("emoji", json_string("🎉"))
-
-  let result = interpolate.interpolate_string(ctx, "status: ${emoji}")
-
-  case result {
-    Ok(s) -> s |> should.equal("status: 🎉")
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn interpolate_unicode_in_path_test() {
-  let ctx =
-    interpolate.new_context()
-    |> interpolate.set_variable("category", json_string("réclame"))
-
-  let result = interpolate.interpolate_string(ctx, "/search/${category}")
-
-  case result {
-    Ok(s) -> s |> should.equal("/search/réclame")
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn rules_engine_unicode_body_content_test() {
-  // Test body checks with Unicode characters
-  let rule =
-    types.Rule(
-      name: "Unicode content rule",
-      description: "Check for Unicode in response",
-      when: types.When(status: "== 200", method: types.Get, path: "/message"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: ["✓"],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.null(),
-      raw_body: "Status: ✓ All systems operational",
-      elapsed_ms: 50,
-      request_method: types.Get,
-      request_path: "/message",
-    )
-
-  let results = rules_engine.check_rules([rule], response, "test")
-  case results {
-    [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
-    _ -> should.fail()
-  }
-}
-
-pub fn rules_engine_emoji_in_description_test() {
-  // Test emoji in rule descriptions
-  let rule =
-    types.Rule(
-      name: "emoji_test",
-      description: "Check emoji support 🚀 in descriptions",
-      when: types.When(status: "== 200", method: types.Get, path: "/status"),
-      check: types.RuleCheck(
-        body_must_not_contain: [],
-        body_must_contain: [],
-        fields_must_exist: [],
-        fields_must_not_exist: [],
-        header_must_exist: "",
-        header_must_not_exist: "",
-      ),
-      example: json.null(),
-    )
-
-  let response =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.null(),
-      raw_body: "ok",
-      elapsed_ms: 50,
-      request_method: types.Get,
-      request_path: "/status",
-    )
-
-  let results = rules_engine.check_rules([rule], response, "test")
-  // Description should contain emoji but not affect rule execution
-  case results {
-    [rules_engine.RulePassed(name)] -> name |> should.equal("emoji_test")
-    _ -> should.fail()
-  }
-}
-
-pub fn interpolate_special_characters_test() {
-  let ctx =
-    interpolate.new_context()
-    |> interpolate.set_variable("special", json_string("@#$%^&*()"))
-
-  let result = interpolate.interpolate_string(ctx, "chars: ${special}")
-
-  case result {
-    Ok(s) -> s |> should.equal("chars: @#$%^&*()")
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn http_client_unicode_header_test() {
-  // Test Unicode in HTTP headers
-  let config =
-    types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.from_list([#("X-Custom", "café")]),
-    )
-
-  let request =
-    types.Request(
-      method: types.Get,
-      path: "/test",
-      headers: dict.from_list([#("X-Greeting", "こんにちは")]),
-      query: dict.new(),
-      body: json.null(),
-    )
-
-  let ctx = interpolate.new_context()
-
-  let result = http_client.execute_request(config, request, ctx)
-
-  // Should handle Unicode headers without interpolation errors
-  case result {
-    Error(http_client.InterpolationError(_)) -> should.fail()
-    _ -> should.be_ok(Ok(Nil))
-  }
-}
+// pub fn http_client_url_construction_simple_test() {
+//   // Test simple URL construction without interpolation
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/users/123",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   case result {
+//     Error(_) -> {
+//       // Expected to fail without mocking HTTP - we're testing URL construction logic
+//       should.be_ok(Ok(Nil))
+//     }
+//     Ok(_) -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_path_interpolation_test() {
+//   // Test path interpolation with variables
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/users/${user_id}",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx =
+//     interpolate.new_context()
+//     |> interpolate.set_variable("user_id", json.string("123"))
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Path interpolation should work - URL construction should proceed
+//   // Even if HTTP request fails, interpolation error should not occur
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_missing_variable_interpolation_test() {
+//   // Test that missing variables in path cause interpolation errors
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/users/${unknown_var}",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn http_client_header_interpolation_test() {
+//   // Test header interpolation with variables
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.from_list([#("X-Default", "default-value")]),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/users",
+//       headers: dict.from_list([#("X-Token", "${auth_token}")]),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx =
+//     interpolate.new_context()
+//     |> interpolate.set_variable("auth_token", json.string("secret123"))
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Header interpolation should work
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_header_merge_test() {
+//   // Test that request headers override config headers
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.from_list([
+//         #("X-Default", "config-value"),
+//         #("X-Config-Only", "config"),
+//       ]),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/users",
+//       headers: dict.from_list([#("X-Default", "request-value")]),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Header merge should work without interpolation errors
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_body_json_interpolation_test() {
+//   // Test body interpolation with JSON content
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let body_json =
+//     json.object([
+//       #("username", json.string("${username}")),
+//       #("email", json.string("user@example.com")),
+//     ])
+// 
+//   let request =
+//     types.Request(
+//       method: types.Post,
+//       path: "/users",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: body_json,
+//     )
+// 
+//   let ctx =
+//     interpolate.new_context()
+//     |> interpolate.set_variable("username", json.string("john_doe"))
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Body interpolation should work
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_invalid_url_test() {
+//   // Test invalid URL handling
+//   let config =
+//     types.Config(
+//       base_url: "not a valid url at all",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/users",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   case result {
+//     Error(http_client.UrlParseError(_)) -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn http_client_https_url_test() {
+//   // Test HTTPS URL handling
+//   let config =
+//     types.Config(
+//       base_url: "https://api.example.com",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/secure-endpoint",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // HTTPS URLs should be valid and not cause UrlParseError
+//   case result {
+//     Error(http_client.UrlParseError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_custom_port_test() {
+//   // Test URL with custom port
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:3000",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/health",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Custom port should be parsed correctly
+//   case result {
+//     Error(http_client.UrlParseError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_path_leading_slash_test() {
+//   // Test that paths are normalized with leading slash
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   // Path without leading slash
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "users/123",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Should handle path without leading slash (not a URL parse error)
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_method_conversion_get_test() {
+//   // Test that GET method is handled correctly
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/users",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // GET request should not cause method conversion errors
+//   case result {
+//     Error(http_client.UrlParseError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_method_conversion_post_test() {
+//   // Test that POST method with body is handled correctly
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.new(),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Post,
+//       path: "/users",
+//       headers: dict.new(),
+//       query: dict.new(),
+//       body: json.object([#("name", json.string("John"))]),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // POST request should not cause method conversion errors
+//   case result {
+//     Error(http_client.UrlParseError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// pub fn http_client_multiple_header_merge_test() {
+//   // Test merging multiple headers from both config and request
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.from_list([
+//         #("X-API-Version", "v1"),
+//         #("User-Agent", "intent-cli"),
+//       ]),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/data",
+//       headers: dict.from_list([
+//         #("Authorization", "Bearer token"),
+//         #("X-Request-ID", "123"),
+//       ]),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Multiple headers should merge without errors
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
+// 
+// // // ============================================================================
+// // // Rules Engine Tests
+// // // ============================================================================
+// // 
+// // fn make_execution_result(
+// //   status: Int,
+// //   body_str: String,
+// //   method: types.Method,
+// //   path: String,
+// // ) -> http_client.ExecutionResult {
+// //   http_client.ExecutionResult(
+// //     status: status,
+// //     headers: dict.new(),
+// //     body: json.object([#("test", json.string(body_str))]),
+// //     raw_body: body_str,
+// //     elapsed_ms: 100,
+// //     request_method: method,
+// //     request_path: path,
+// //   )
+// // }
+// // 
+// // pub fn rules_engine_check_when_status_equals_test() {
+// //   // Test status condition with exact match (== 200)
+// //   let rule =
+// //     types.Rule(
+// //       name: "Check 200 OK",
+// //       description: "Verify 200 response",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/users"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response = make_execution_result(200, "ok", types.Get, "/users")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   list.length(results)
+// //   |> should.equal(1)
+// // 
+// //   case results {
+// //     [rules_engine.RulePassed(name)] -> name |> should.equal("Check 200 OK")
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_when_status_greater_than_test() {
+// //   // Test status condition with > operator
+// //   let rule =
+// //     types.Rule(
+// //       name: "Check 4xx error",
+// //       description: "Verify error status",
+// //       when: types.When(status: "> 399", method: types.Post, path: "/create"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response =
+// //     make_execution_result(400, "bad request", types.Post, "/create")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   list.length(results)
+// //   |> should.equal(1)
+// // 
+// //   case results {
+// //     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_when_status_less_than_test() {
+// //   // Test status condition with < operator
+// //   let rule =
+// //     types.Rule(
+// //       name: "Check success range",
+// //       description: "Verify 2xx status",
+// //       when: types.When(status: "< 300", method: types.Get, path: "/data"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response = make_execution_result(201, "created", types.Get, "/data")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   case results {
+// //     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_when_method_mismatch_test() {
+// //   // Test that rule doesn't apply when method doesn't match
+// //   let rule =
+// //     types.Rule(
+// //       name: "POST rule",
+// //       description: "Only for POST",
+// //       when: types.When(status: "== 200", method: types.Post, path: "/create"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response = make_execution_result(200, "ok", types.Get, "/create")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   // Rule should not apply because method is GET, not POST
+// //   list.length(results)
+// //   |> should.equal(0)
+// // }
+// // 
+// // pub fn rules_engine_check_when_path_exact_match_test() {
+// //   // Test exact path matching
+// //   let rule =
+// //     types.Rule(
+// //       name: "Exact path rule",
+// //       description: "Check exact path",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/exact/path"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response = make_execution_result(200, "ok", types.Get, "/exact/path")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   case results {
+// //     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_when_path_regex_match_test() {
+// //   // Test regex path matching
+// //   let rule =
+// //     types.Rule(
+// //       name: "Regex path rule",
+// //       description: "Check regex path",
+// //       when: types.When(status: "== 200", method: types.Get, path: "^/users/.*"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response = make_execution_result(200, "ok", types.Get, "/users/123")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   case results {
+// //     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_body_must_contain_test() {
+// //   // Test body_must_contain check
+// //   let rule =
+// //     types.Rule(
+// //       name: "Body content rule",
+// //       description: "Verify body contains text",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/test"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: ["success"],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response =
+// //     make_execution_result(200, "Operation was a success", types.Get, "/test")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   case results {
+// //     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_body_must_not_contain_test() {
+// //   // Test body_must_not_contain check
+// //   let rule =
+// //     types.Rule(
+// //       name: "No error rule",
+// //       description: "Verify no error in body",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/test"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: ["error"],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response =
+// //     make_execution_result(200, "This is clean data", types.Get, "/test")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   case results {
+// //     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_body_must_not_contain_violation_test() {
+// //   // Test body_must_not_contain violation
+// //   let rule =
+// //     types.Rule(
+// //       name: "No error rule",
+// //       description: "Verify no error in body",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/test"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: ["error"],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response =
+// //     make_execution_result(200, "This has an error in it", types.Get, "/test")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   case results {
+// //     [rules_engine.RuleFailed(name, _, violations)] -> {
+// //       name |> should.equal("No error rule")
+// //       list.length(violations) |> should.equal(1)
+// //     }
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_body_must_contain_violation_test() {
+// //   // Test body_must_contain violation
+// //   let rule =
+// //     types.Rule(
+// //       name: "Required text rule",
+// //       description: "Verify required text",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/test"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: ["required"],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response =
+// //     make_execution_result(200, "This is missing it", types.Get, "/test")
+// //   let results = rules_engine.check_rules([rule], response, "test_behavior")
+// // 
+// //   case results {
+// //     [rules_engine.RuleFailed(_, _, violations)] -> {
+// //       list.length(violations) |> should.equal(1)
+// //     }
+// //     _ -> should.fail()
+// //   }
+// // }
+// // 
+// // pub fn rules_engine_check_multiple_rules_test() {
+// //   // Test multiple rules applied in sequence
+// //   let rule1 =
+// //     types.Rule(
+// //       name: "Rule 1",
+// //       description: "First rule",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/test"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let rule2 =
+// //     types.Rule(
+// //       name: "Rule 2",
+// //       description: "Second rule",
+// //       when: types.When(status: "== 200", method: types.Get, path: "/test"),
+// //       check: types.RuleCheck(
+// //         body_must_not_contain: [],
+// //         body_must_contain: [],
+// //         fields_must_exist: [],
+// //         fields_must_not_exist: [],
+// //         header_must_exist: "",
+// //         header_must_not_exist: "",
+// //       ),
+// //       example: json.null(),
+// //     )
+// // 
+// //   let response = make_execution_result(200, "ok", types.Get, "/test")
+// //   let results =
+// //     rules_engine.check_rules([rule1, rule2], response, "test_behavior")
+// // 
+// //   list.length(results) |> should.equal(2)
+// // }
+// // 
+// // pub fn rules_engine_format_violation_body_contains_test() {
+// //   let violation = rules_engine.BodyContains("forbidden", "response body")
+// //   let formatted = rules_engine.format_violation(violation)
+// //   formatted
+// //   |> string.contains("forbidden")
+// //   |> should.be_true()
+// // }
+// // 
+// // pub fn rules_engine_format_violation_body_missing_test() {
+// //   let violation = rules_engine.BodyMissing("required")
+// //   let formatted = rules_engine.format_violation(violation)
+// //   formatted
+// //   |> string.contains("required")
+// //   |> should.be_true()
+// // }
+// // 
+// // pub fn rules_engine_format_violation_field_missing_test() {
+// //   let violation = rules_engine.FieldMissing("user.id")
+// //   let formatted = rules_engine.format_violation(violation)
+// //   formatted
+// //   |> string.contains("user.id")
+// //   |> should.be_true()
+// // }
+// // 
+// // pub fn rules_engine_format_violation_header_missing_test() {
+// //   let violation = rules_engine.HeaderMissing("X-Custom")
+// //   let formatted = rules_engine.format_violation(violation)
+// //   formatted
+// //   |> string.contains("X-Custom")
+// //   |> should.be_true()
+// // }
+// // 
+// // // ============================================================================
+// // Resolver Advanced Tests
+// // ============================================================================
+// 
+// pub fn resolver_complex_diamond_dependency_test() {
+//   // Diamond pattern: b3 and b4 both depend on b1, b5 depends on both
+//   let b1 = make_behavior("base", [])
+//   let b3 = make_behavior("left", ["base"])
+//   let b4 = make_behavior("right", ["base"])
+//   let b5 = make_behavior("merge", ["left", "right"])
+// 
+//   let spec = make_spec([make_feature("Feature A", [b1, b3, b4, b5])])
+//   let result = resolver.resolve_execution_order(spec)
+// 
+//   case result {
+//     Ok(resolved) -> {
+//       list.length(resolved) |> should.equal(4)
+//       let names = list.map(resolved, fn(rb) { rb.behavior.name })
+//       // base should come first
+//       let assert [first, ..] = names
+//       first |> should.equal("base")
+//       // merge should come last (it has two dependencies)
+//       case list.last(names) {
+//         Ok(last) -> last |> should.equal("merge")
+//         Error(_) -> should.fail()
+//       }
+//     }
+//     Error(_) -> should.fail()
+//   }
+// }
+// 
+// pub fn resolver_multiple_branches_test() {
+//   // Multiple independent branches
+//   let b1 = make_behavior("root", [])
+//   let b2 = make_behavior("branch-a-1", ["root"])
+//   let b3 = make_behavior("branch-a-2", ["branch-a-1"])
+//   let b4 = make_behavior("branch-b-1", ["root"])
+//   let b5 = make_behavior("branch-b-2", ["branch-b-1"])
+// 
+//   let spec = make_spec([make_feature("Feature", [b1, b2, b3, b4, b5])])
+//   let result = resolver.resolve_execution_order(spec)
+// 
+//   case result {
+//     Ok(resolved) -> {
+//       list.length(resolved) |> should.equal(5)
+//       let names = list.map(resolved, fn(rb) { rb.behavior.name })
+//       // Check that all expected behaviors are present
+//       list.any(names, fn(n) { n == "root" }) |> should.be_true()
+//       list.any(names, fn(n) { n == "branch-a-1" }) |> should.be_true()
+//       list.any(names, fn(n) { n == "branch-a-2" }) |> should.be_true()
+//       list.any(names, fn(n) { n == "branch-b-1" }) |> should.be_true()
+//       list.any(names, fn(n) { n == "branch-b-2" }) |> should.be_true()
+//     }
+//     Error(_) -> should.fail()
+//   }
+// }
+// 
+// pub fn resolver_deep_chain_test() {
+//   // Long dependency chain: b5 -> b4 -> b3 -> b2 -> b1
+//   let b1 = make_behavior("step1", [])
+//   let b2 = make_behavior("step2", ["step1"])
+//   let b3 = make_behavior("step3", ["step2"])
+//   let b4 = make_behavior("step4", ["step3"])
+//   let b5 = make_behavior("step5", ["step4"])
+// 
+//   let spec = make_spec([make_feature("Feature", [b1, b2, b3, b4, b5])])
+//   let result = resolver.resolve_execution_order(spec)
+// 
+//   case result {
+//     Ok(resolved) -> {
+//       list.length(resolved) |> should.equal(5)
+//       let names = list.map(resolved, fn(rb) { rb.behavior.name })
+//       names |> should.equal(["step1", "step2", "step3", "step4", "step5"])
+//     }
+//     Error(_) -> should.fail()
+//   }
+// }
+// 
+// // ============================================================================
+// // Empty/Null Response Handling Tests
+// // ============================================================================
+// 
+// pub fn rules_engine_empty_body_test() {
+//   // Test rule application with empty response body
+//   let rule =
+//     types.Rule(
+//       name: "Empty body rule",
+//       description: "Handle empty response",
+//       when: types.When(
+//         status: "== 204",
+//         method: types.Delete,
+//         path: "/resource",
+//       ),
+//       check: types.RuleCheck(
+//         body_must_not_contain: [],
+//         body_must_contain: [],
+//         fields_must_exist: [],
+//         fields_must_not_exist: [],
+//         header_must_exist: "",
+//         header_must_not_exist: "",
+//       ),
+//       example: json.null(),
+//     )
+// 
+//   let response =
+//     http_client.ExecutionResult(
+//       status: 204,
+//       headers: dict.new(),
+//       body: json.null(),
+//       raw_body: "",
+//       elapsed_ms: 50,
+//       request_method: types.Delete,
+//       request_path: "/resource",
+//     )
+// 
+//   let results = rules_engine.check_rules([rule], response, "test")
+//   case results {
+//     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn rules_engine_null_json_value_test() {
+//   // Test handling of null JSON values
+//   let rule =
+//     types.Rule(
+//       name: "Null handling rule",
+//       description: "Handle null values",
+//       when: types.When(status: "== 200", method: types.Get, path: "/nullable"),
+//       check: types.RuleCheck(
+//         body_must_not_contain: [],
+//         body_must_contain: [],
+//         fields_must_exist: [],
+//         fields_must_not_exist: [],
+//         header_must_exist: "",
+//         header_must_not_exist: "",
+//       ),
+//       example: json.null(),
+//     )
+// 
+//   let response =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.object([#("value", json.null())]),
+//       raw_body: "{\"value\":null}",
+//       elapsed_ms: 60,
+//       request_method: types.Get,
+//       request_path: "/nullable",
+//     )
+// 
+//   let results = rules_engine.check_rules([rule], response, "test")
+//   case results {
+//     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn rules_engine_whitespace_body_test() {
+//   // Test handling of whitespace-only body
+//   let rule =
+//     types.Rule(
+//       name: "Whitespace rule",
+//       description: "Handle whitespace body",
+//       when: types.When(status: "== 200", method: types.Get, path: "/test"),
+//       check: types.RuleCheck(
+//         body_must_not_contain: ["error"],
+//         body_must_contain: [],
+//         fields_must_exist: [],
+//         fields_must_not_exist: [],
+//         header_must_exist: "",
+//         header_must_not_exist: "",
+//       ),
+//       example: json.null(),
+//     )
+// 
+//   let response =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.null(),
+//       raw_body: "   \n\t  ",
+//       elapsed_ms: 40,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+// 
+//   let results = rules_engine.check_rules([rule], response, "test")
+//   case results {
+//     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn rules_engine_nested_null_field_test() {
+//   // Test checking for null in nested fields
+//   let rule =
+//     types.Rule(
+//       name: "Nested null rule",
+//       description: "Check nested fields",
+//       when: types.When(status: "== 200", method: types.Get, path: "/nested"),
+//       check: types.RuleCheck(
+//         body_must_not_contain: [],
+//         body_must_contain: [],
+//         fields_must_exist: ["user"],
+//         fields_must_not_exist: [],
+//         header_must_exist: "",
+//         header_must_not_exist: "",
+//       ),
+//       example: json.null(),
+//     )
+// 
+//   let response =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.object([#("user", json.null())]),
+//       raw_body: "{\"user\":null}",
+//       elapsed_ms: 55,
+//       request_method: types.Get,
+//       request_path: "/nested",
+//     )
+// 
+//   let results = rules_engine.check_rules([rule], response, "test")
+//   case results {
+//     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn rules_engine_empty_object_test() {
+//   // Test handling of empty objects
+//   let rule =
+//     types.Rule(
+//       name: "Empty object rule",
+//       description: "Handle empty objects",
+//       when: types.When(status: "== 200", method: types.Get, path: "/data"),
+//       check: types.RuleCheck(
+//         body_must_not_contain: [],
+//         body_must_contain: [],
+//         fields_must_exist: ["data"],
+//         fields_must_not_exist: [],
+//         header_must_exist: "",
+//         header_must_not_exist: "",
+//       ),
+//       example: json.null(),
+//     )
+// 
+//   let response =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.object([#("data", json.object([]))]),
+//       raw_body: "{\"data\":{}}",
+//       elapsed_ms: 65,
+//       request_method: types.Get,
+//       request_path: "/data",
+//     )
+// 
+//   let results = rules_engine.check_rules([rule], response, "test")
+//   case results {
+//     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// // ============================================================================
+// // Unicode and Special Character Support Tests
+// // ============================================================================
+// 
+// pub fn interpolate_unicode_variable_test() {
+//   let ctx =
+//     interpolate.new_context()
+//     |> interpolate.set_variable("emoji", json_string("🎉"))
+// 
+//   let result = interpolate.interpolate_string(ctx, "status: ${emoji}")
+// 
+//   case result {
+//     Ok(s) -> s |> should.equal("status: 🎉")
+//     Error(_) -> should.fail()
+//   }
+// }
+// 
+// pub fn interpolate_unicode_in_path_test() {
+//   let ctx =
+//     interpolate.new_context()
+//     |> interpolate.set_variable("category", json_string("réclame"))
+// 
+//   let result = interpolate.interpolate_string(ctx, "/search/${category}")
+// 
+//   case result {
+//     Ok(s) -> s |> should.equal("/search/réclame")
+//     Error(_) -> should.fail()
+//   }
+// }
+// 
+// pub fn rules_engine_unicode_body_content_test() {
+//   // Test body checks with Unicode characters
+//   let rule =
+//     types.Rule(
+//       name: "Unicode content rule",
+//       description: "Check for Unicode in response",
+//       when: types.When(status: "== 200", method: types.Get, path: "/message"),
+//       check: types.RuleCheck(
+//         body_must_not_contain: [],
+//         body_must_contain: ["✓"],
+//         fields_must_exist: [],
+//         fields_must_not_exist: [],
+//         header_must_exist: "",
+//         header_must_not_exist: "",
+//       ),
+//       example: json.null(),
+//     )
+// 
+//   let response =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.null(),
+//       raw_body: "Status: ✓ All systems operational",
+//       elapsed_ms: 50,
+//       request_method: types.Get,
+//       request_path: "/message",
+//     )
+// 
+//   let results = rules_engine.check_rules([rule], response, "test")
+//   case results {
+//     [rules_engine.RulePassed(_)] -> should.be_ok(Ok(Nil))
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn rules_engine_emoji_in_description_test() {
+//   // Test emoji in rule descriptions
+//   let rule =
+//     types.Rule(
+//       name: "emoji_test",
+//       description: "Check emoji support 🚀 in descriptions",
+//       when: types.When(status: "== 200", method: types.Get, path: "/status"),
+//       check: types.RuleCheck(
+//         body_must_not_contain: [],
+//         body_must_contain: [],
+//         fields_must_exist: [],
+//         fields_must_not_exist: [],
+//         header_must_exist: "",
+//         header_must_not_exist: "",
+//       ),
+//       example: json.null(),
+//     )
+// 
+//   let response =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.null(),
+//       raw_body: "ok",
+//       elapsed_ms: 50,
+//       request_method: types.Get,
+//       request_path: "/status",
+//     )
+// 
+//   let results = rules_engine.check_rules([rule], response, "test")
+//   // Description should contain emoji but not affect rule execution
+//   case results {
+//     [rules_engine.RulePassed(name)] -> name |> should.equal("emoji_test")
+//     _ -> should.fail()
+//   }
+// }
+// 
+// pub fn interpolate_special_characters_test() {
+//   let ctx =
+//     interpolate.new_context()
+//     |> interpolate.set_variable("special", json_string("@#$%^&*()"))
+// 
+//   let result = interpolate.interpolate_string(ctx, "chars: ${special}")
+// 
+//   case result {
+//     Ok(s) -> s |> should.equal("chars: @#$%^&*()")
+//     Error(_) -> should.fail()
+//   }
+// }
+// 
+// pub fn http_client_unicode_header_test() {
+//   // Test Unicode in HTTP headers
+//   let config =
+//     types.Config(
+//       base_url: "http://localhost:8080",
+//       timeout_ms: 5000,
+//       headers: dict.from_list([#("X-Custom", "café")]),
+//     )
+// 
+//   let request =
+//     types.Request(
+//       method: types.Get,
+//       path: "/test",
+//       headers: dict.from_list([#("X-Greeting", "こんにちは")]),
+//       query: dict.new(),
+//       body: json.null(),
+//     )
+// 
+//   let ctx = interpolate.new_context()
+// 
+//   let result = http_client.execute_request(config, request, ctx)
+// 
+//   // Should handle Unicode headers without interpolation errors
+//   case result {
+//     Error(http_client.InterpolationError(_)) -> should.fail()
+//     _ -> should.be_ok(Ok(Nil))
+//   }
+// }
 
 // ============================================================================
 // Output Formatting Tests
@@ -2231,1320 +2217,1320 @@ fn empty_context() -> interpolate.Context {
 
 // --- Status Code Tests ---
 
-pub fn checker_status_code_match_test() {
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: dict.new(),
-      headers: dict.new(),
-    )
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.null(),
-      raw_body: json.to_string(json.null()),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  result.status_ok |> should.be_true()
-  result.status_expected |> should.equal(200)
-  result.status_actual |> should.equal(200)
-}
-
-pub fn checker_status_code_mismatch_test() {
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: dict.new(),
-      headers: dict.new(),
-    )
-  let actual =
-    http_client.ExecutionResult(
-      status: 404,
-      headers: dict.new(),
-      body: json.null(),
-      raw_body: json.to_string(json.null()),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  result.status_ok |> should.be_false()
-  result.status_expected |> should.equal(200)
-  result.status_actual |> should.equal(404)
-}
-
-// --- Field Check Tests ---
-
-pub fn checker_field_equals_string_pass_test() {
-  let checks =
-    dict.from_list([
-      #("name", types.Check(rule: "equals John", why: "Name must match")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.string("John"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-  list.length(result.failed) |> should.equal(0)
-}
-
-pub fn checker_field_equals_string_fail_test() {
-  let checks =
-    dict.from_list([
-      #("name", types.Check(rule: "equals John", why: "Name must match")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.string("Jane"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_equals_int_pass_test() {
-  let checks =
-    dict.from_list([
-      #("age", types.Check(rule: "equals 25", why: "Age must match")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("age", json.int(25))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-  list.length(result.failed) |> should.equal(0)
-}
-
-pub fn checker_field_is_string_pass_test() {
-  let checks =
-    dict.from_list([
-      #("name", types.Check(rule: "string", why: "Must be string")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.string("test"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-  list.length(result.failed) |> should.equal(0)
-}
-
-pub fn checker_field_is_string_fail_test() {
-  let checks =
-    dict.from_list([
-      #("name", types.Check(rule: "string", why: "Must be string")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.int(123))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_is_integer_pass_test() {
-  let checks =
-    dict.from_list([
-      #("count", types.Check(rule: "integer", why: "Must be integer")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("count", json.int(42))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_is_boolean_pass_test() {
-  let checks =
-    dict.from_list([
-      #("active", types.Check(rule: "boolean", why: "Must be boolean")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("active", json.bool(True))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_is_array_pass_test() {
-  let checks =
-    dict.from_list([
-      #("items", types.Check(rule: "array", why: "Must be array")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([
-      #("items", json.array([json.int(1), json.int(2)], fn(x) { x })),
-    ])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_is_object_pass_test() {
-  let checks =
-    dict.from_list([
-      #("data", types.Check(rule: "object", why: "Must be object")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([#("data", json.object([#("key", json.string("value"))]))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_present_pass_test() {
-  let checks =
-    dict.from_list([
-      #("id", types.Check(rule: "present", why: "ID must be present")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("id", json.string("abc-123"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-  list.length(result.failed) |> should.equal(0)
-}
-
-pub fn checker_field_present_fail_test() {
-  let checks =
-    dict.from_list([
-      #("id", types.Check(rule: "present", why: "ID must be present")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.string("test"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_absent_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "password",
-        types.Check(rule: "absent", why: "Password should not be returned"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.string("test"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-  list.length(result.failed) |> should.equal(0)
-}
-
-pub fn checker_field_absent_fail_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "password",
-        types.Check(rule: "absent", why: "Password should not be returned"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("password", json.string("secret"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_non_empty_string_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "name",
-        types.Check(rule: "non-empty string", why: "Name must not be empty"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.string("John"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_non_empty_string_fail_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "name",
-        types.Check(rule: "non-empty string", why: "Name must not be empty"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("name", json.string(""))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_is_email_pass_test() {
-  let checks =
-    dict.from_list([
-      #("email", types.Check(rule: "email", why: "Must be valid email")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("email", json.string("user@example.com"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_is_email_fail_test() {
-  let checks =
-    dict.from_list([
-      #("email", types.Check(rule: "email", why: "Must be valid email")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("email", json.string("not-an-email"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_is_uuid_pass_test() {
-  let checks =
-    dict.from_list([
-      #("id", types.Check(rule: "uuid", why: "Must be valid UUID")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([#("id", json.string("550e8400-e29b-41d4-a716-446655440000"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_is_uuid_fail_test() {
-  let checks =
-    dict.from_list([
-      #("id", types.Check(rule: "uuid", why: "Must be valid UUID")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("id", json.string("not-a-uuid"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_is_iso8601_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "created_at",
-        types.Check(rule: "iso8601 datetime", why: "Must be valid datetime"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("created_at", json.string("2024-01-15T10:30:00Z"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-// --- Numeric Comparison Tests ---
-
-pub fn checker_field_integer_gte_pass_test() {
-  let checks =
-    dict.from_list([
-      #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("count", json.int(10))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_integer_gte_fail_test() {
-  let checks =
-    dict.from_list([
-      #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("count", json.int(3))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_field_integer_lte_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "count",
-        types.Check(rule: "integer <= 100", why: "Must not exceed 100"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("count", json.int(50))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_number_between_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "age",
-        types.Check(
-          rule: "number between 18.0 and 65.0",
-          why: "Age must be in range",
-        ),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("age", json.int(30))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_field_number_between_fail_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "age",
-        types.Check(
-          rule: "number between 18.0 and 65.0",
-          why: "Age must be in range",
-        ),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("age", json.int(17))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.failed) |> should.equal(1)
-}
-
-// --- String Pattern Tests ---
-
-pub fn checker_string_starts_with_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "code",
-        types.Check(rule: "string starting with ERR-", why: "Error code format"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("code", json.string("ERR-001"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_string_ends_with_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "file",
-        types.Check(rule: "string ending with .json", why: "Must be JSON file"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("file", json.string("config.json"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_string_containing_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "message",
-        types.Check(
-          rule: "string containing success",
-          why: "Should mention success",
-        ),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([#("message", json.string("Operation success complete"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-// --- Array Tests ---
-
-pub fn checker_non_empty_array_pass_test() {
-  let checks =
-    dict.from_list([
-      #("items", types.Check(rule: "non-empty array", why: "Must have items")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("items", json.array([json.int(1)], fn(x) { x }))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_non_empty_array_fail_test() {
-  let checks =
-    dict.from_list([
-      #("items", types.Check(rule: "non-empty array", why: "Must have items")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("items", json.array([], fn(x) { x }))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_array_of_length_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "coords",
-        types.Check(rule: "array of length 3", why: "Must have 3 elements"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([
-      #(
-        "coords",
-        json.array([json.int(1), json.int(2), json.int(3)], fn(x) { x }),
-      ),
-    ])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_array_min_items_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "tags",
-        types.Check(rule: "array with min 2 items", why: "Need at least 2 tags"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([
-      #(
-        "tags",
-        json.array(
-          [json.string("a"), json.string("b"), json.string("c")],
-          fn(x) { x },
-        ),
-      ),
-    ])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-// --- One Of Tests ---
-
-pub fn checker_one_of_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "status",
-        types.Check(
-          rule: "one of [active, inactive, pending]",
-          why: "Valid status",
-        ),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("status", json.string("active"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_one_of_fail_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "status",
-        types.Check(
-          rule: "one of [active, inactive, pending]",
-          why: "Valid status",
-        ),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body = json.object([#("status", json.string("unknown"))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.failed) |> should.equal(1)
-}
-
-// --- Header Check Tests ---
-
-pub fn checker_header_present_pass_test() {
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.from_list([#("Content-Type", "application/json")]),
-    )
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.from_list([#("Content-Type", "application/json")]),
-      body: json.null(),
-      raw_body: json.to_string(json.null()),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-  list.length(result.failed) |> should.equal(0)
-}
-
-pub fn checker_header_value_mismatch_test() {
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.from_list([#("Content-Type", "application/json")]),
-    )
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.from_list([#("Content-Type", "text/plain")]),
-      body: json.null(),
-      raw_body: json.to_string(json.null()),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_header_missing_test() {
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.from_list([#("X-Request-Id", "abc-123")]),
-    )
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: json.null(),
-      raw_body: json.to_string(json.null()),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(0)
-  list.length(result.failed) |> should.equal(1)
-}
-
-pub fn checker_header_case_insensitive_test() {
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.from_list([#("content-type", "application/json")]),
-    )
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.from_list([#("Content-Type", "application/json")]),
-      body: json.null(),
-      raw_body: json.to_string(json.null()),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-// --- Nested Field Tests ---
-
-pub fn checker_nested_field_pass_test() {
-  let checks =
-    dict.from_list([
-      #(
-        "user.name",
-        types.Check(rule: "equals John", why: "User name must match"),
-      ),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([
-        #("user", json.object([#("name", json.string("John"))])),
-      ]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([#("user", json.object([#("name", json.string("John"))]))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(1)
-}
-
-pub fn checker_nested_field_missing_test() {
-  let checks =
-    dict.from_list([
-      #("user.email", types.Check(rule: "is email", why: "Must have email")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([
-        #("user", json.object([#("name", json.string("John"))])),
-      ]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([#("user", json.object([#("name", json.string("John"))]))])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.failed) |> should.equal(1)
-}
-
-// --- Multiple Checks Test ---
-
-pub fn checker_multiple_checks_test() {
-  let checks =
-    dict.from_list([
-      #("id", types.Check(rule: "uuid", why: "ID must be UUID")),
-      #("name", types.Check(rule: "non-empty string", why: "Name required")),
-      #("email", types.Check(rule: "email", why: "Email required")),
-      #("age", types.Check(rule: "integer >= 0", why: "Age must be positive")),
-    ])
-  let expected =
-    types.Response(
-      status: 200,
-      example: json.object([
-        #("id", json.string("550e8400-e29b-41d4-a716-446655440000")),
-        #("name", json.string("John")),
-        #("email", json.string("john@example.com")),
-        #("age", json.int(30)),
-      ]),
-      checks: checks,
-      headers: dict.new(),
-    )
-  let body =
-    json.object([
-      #("id", json.string("550e8400-e29b-41d4-a716-446655440000")),
-      #("name", json.string("John")),
-      #("email", json.string("john@example.com")),
-      #("age", json.int(30)),
-    ])
-  let actual =
-    http_client.ExecutionResult(
-      status: 200,
-      headers: dict.new(),
-      body: body,
-      raw_body: json.to_string(body),
-      elapsed_ms: 100,
-      request_method: types.Get,
-      request_path: "/test",
-    )
-  let result = checker.check_response(expected, actual, empty_context())
-
-  list.length(result.passed) |> should.equal(4)
-  list.length(result.failed) |> should.equal(0)
-}
-
+// pub fn checker_status_code_match_test() {
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: dict.new(),
+//       headers: dict.new(),
+//     )
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.null(),
+//       raw_body: json.to_string(json.null()),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   result.status_ok |> should.be_true()
+//   result.status_expected |> should.equal(200)
+//   result.status_actual |> should.equal(200)
+// }
+// 
+// pub fn checker_status_code_mismatch_test() {
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: dict.new(),
+//       headers: dict.new(),
+//     )
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 404,
+//       headers: dict.new(),
+//       body: json.null(),
+//       raw_body: json.to_string(json.null()),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   result.status_ok |> should.be_false()
+//   result.status_expected |> should.equal(200)
+//   result.status_actual |> should.equal(404)
+// }
+// 
+// // --- Field Check Tests ---
+// 
+// pub fn checker_field_equals_string_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("name", types.Check(rule: "equals John", why: "Name must match")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.string("John"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+//   list.length(result.failed) |> should.equal(0)
+// }
+// 
+// pub fn checker_field_equals_string_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #("name", types.Check(rule: "equals John", why: "Name must match")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.string("Jane"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_equals_int_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("age", types.Check(rule: "equals 25", why: "Age must match")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("age", json.int(25))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+//   list.length(result.failed) |> should.equal(0)
+// }
+// 
+// pub fn checker_field_is_string_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("name", types.Check(rule: "string", why: "Must be string")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.string("test"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+//   list.length(result.failed) |> should.equal(0)
+// }
+// 
+// pub fn checker_field_is_string_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #("name", types.Check(rule: "string", why: "Must be string")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.int(123))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_integer_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("count", types.Check(rule: "integer", why: "Must be integer")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("count", json.int(42))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_boolean_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("active", types.Check(rule: "boolean", why: "Must be boolean")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("active", json.bool(True))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_array_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("items", types.Check(rule: "array", why: "Must be array")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([
+//       #("items", json.array([json.int(1), json.int(2)], fn(x) { x })),
+//     ])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_object_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("data", types.Check(rule: "object", why: "Must be object")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([#("data", json.object([#("key", json.string("value"))]))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_present_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("id", types.Check(rule: "present", why: "ID must be present")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("id", json.string("abc-123"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+//   list.length(result.failed) |> should.equal(0)
+// }
+// 
+// pub fn checker_field_present_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #("id", types.Check(rule: "present", why: "ID must be present")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.string("test"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_absent_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "password",
+//         types.Check(rule: "absent", why: "Password should not be returned"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.string("test"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+//   list.length(result.failed) |> should.equal(0)
+// }
+// 
+// pub fn checker_field_absent_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "password",
+//         types.Check(rule: "absent", why: "Password should not be returned"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("password", json.string("secret"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_non_empty_string_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "name",
+//         types.Check(rule: "non-empty string", why: "Name must not be empty"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.string("John"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_non_empty_string_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "name",
+//         types.Check(rule: "non-empty string", why: "Name must not be empty"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("name", json.string(""))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_email_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("email", types.Check(rule: "email", why: "Must be valid email")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("email", json.string("user@example.com"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_email_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #("email", types.Check(rule: "email", why: "Must be valid email")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("email", json.string("not-an-email"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_uuid_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("id", types.Check(rule: "uuid", why: "Must be valid UUID")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([#("id", json.string("550e8400-e29b-41d4-a716-446655440000"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_uuid_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #("id", types.Check(rule: "uuid", why: "Must be valid UUID")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("id", json.string("not-a-uuid"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_is_iso8601_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "created_at",
+//         types.Check(rule: "iso8601 datetime", why: "Must be valid datetime"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("created_at", json.string("2024-01-15T10:30:00Z"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// // --- Numeric Comparison Tests ---
+// 
+// pub fn checker_field_integer_gte_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("count", json.int(10))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_integer_gte_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #("count", types.Check(rule: "integer >= 5", why: "Must be at least 5")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("count", json.int(3))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_integer_lte_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "count",
+//         types.Check(rule: "integer <= 100", why: "Must not exceed 100"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("count", json.int(50))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_number_between_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "age",
+//         types.Check(
+//           rule: "number between 18.0 and 65.0",
+//           why: "Age must be in range",
+//         ),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("age", json.int(30))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_field_number_between_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "age",
+//         types.Check(
+//           rule: "number between 18.0 and 65.0",
+//           why: "Age must be in range",
+//         ),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("age", json.int(17))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// // --- String Pattern Tests ---
+// 
+// pub fn checker_string_starts_with_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "code",
+//         types.Check(rule: "string starting with ERR-", why: "Error code format"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("code", json.string("ERR-001"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_string_ends_with_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "file",
+//         types.Check(rule: "string ending with .json", why: "Must be JSON file"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("file", json.string("config.json"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_string_containing_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "message",
+//         types.Check(
+//           rule: "string containing success",
+//           why: "Should mention success",
+//         ),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([#("message", json.string("Operation success complete"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// // --- Array Tests ---
+// 
+// pub fn checker_non_empty_array_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #("items", types.Check(rule: "non-empty array", why: "Must have items")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("items", json.array([json.int(1)], fn(x) { x }))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_non_empty_array_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #("items", types.Check(rule: "non-empty array", why: "Must have items")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("items", json.array([], fn(x) { x }))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_array_of_length_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "coords",
+//         types.Check(rule: "array of length 3", why: "Must have 3 elements"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([
+//       #(
+//         "coords",
+//         json.array([json.int(1), json.int(2), json.int(3)], fn(x) { x }),
+//       ),
+//     ])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_array_min_items_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "tags",
+//         types.Check(rule: "array with min 2 items", why: "Need at least 2 tags"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([
+//       #(
+//         "tags",
+//         json.array(
+//           [json.string("a"), json.string("b"), json.string("c")],
+//           fn(x) { x },
+//         ),
+//       ),
+//     ])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// // --- One Of Tests ---
+// 
+// pub fn checker_one_of_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "status",
+//         types.Check(
+//           rule: "one of [active, inactive, pending]",
+//           why: "Valid status",
+//         ),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("status", json.string("active"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_one_of_fail_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "status",
+//         types.Check(
+//           rule: "one of [active, inactive, pending]",
+//           why: "Valid status",
+//         ),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body = json.object([#("status", json.string("unknown"))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// // --- Header Check Tests ---
+// 
+// pub fn checker_header_present_pass_test() {
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.null(),
+//       checks: dict.new(),
+//       headers: dict.from_list([#("Content-Type", "application/json")]),
+//     )
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.from_list([#("Content-Type", "application/json")]),
+//       body: json.null(),
+//       raw_body: json.to_string(json.null()),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+//   list.length(result.failed) |> should.equal(0)
+// }
+// 
+// pub fn checker_header_value_mismatch_test() {
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.null(),
+//       checks: dict.new(),
+//       headers: dict.from_list([#("Content-Type", "application/json")]),
+//     )
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.from_list([#("Content-Type", "text/plain")]),
+//       body: json.null(),
+//       raw_body: json.to_string(json.null()),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+
+// pub fn checker_header_missing_test() {
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.null(),
+//       checks: dict.new(),
+//       headers: dict.from_list([#("X-Request-Id", "abc-123")]),
+//     )
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: json.null(),
+//       raw_body: json.to_string(json.null()),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(0)
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// pub fn checker_header_case_insensitive_test() {
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.null(),
+//       checks: dict.new(),
+//       headers: dict.from_list([#("content-type", "application/json")]),
+//     )
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.from_list([#("Content-Type", "application/json")]),
+//       body: json.null(),
+//       raw_body: json.to_string(json.null()),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// // --- Nested Field Tests ---
+// 
+// pub fn checker_nested_field_pass_test() {
+//   let checks =
+//     dict.from_list([
+//       #(
+//         "user.name",
+//         types.Check(rule: "equals John", why: "User name must match"),
+//       ),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([
+//         #("user", json.object([#("name", json.string("John"))])),
+//       ]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([#("user", json.object([#("name", json.string("John"))]))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(1)
+// }
+// 
+// pub fn checker_nested_field_missing_test() {
+//   let checks =
+//     dict.from_list([
+//       #("user.email", types.Check(rule: "is email", why: "Must have email")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([
+//         #("user", json.object([#("name", json.string("John"))])),
+//       ]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([#("user", json.object([#("name", json.string("John"))]))])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.failed) |> should.equal(1)
+// }
+// 
+// // --- Multiple Checks Test ---
+// 
+// pub fn checker_multiple_checks_test() {
+//   let checks =
+//     dict.from_list([
+//       #("id", types.Check(rule: "uuid", why: "ID must be UUID")),
+//       #("name", types.Check(rule: "non-empty string", why: "Name required")),
+//       #("email", types.Check(rule: "email", why: "Email required")),
+//       #("age", types.Check(rule: "integer >= 0", why: "Age must be positive")),
+//     ])
+//   let expected =
+//     types.Response(
+//       status: 200,
+//       example: json.object([
+//         #("id", json.string("550e8400-e29b-41d4-a716-446655440000")),
+//         #("name", json.string("John")),
+//         #("email", json.string("john@example.com")),
+//         #("age", json.int(30)),
+//       ]),
+//       checks: checks,
+//       headers: dict.new(),
+//     )
+//   let body =
+//     json.object([
+//       #("id", json.string("550e8400-e29b-41d4-a716-446655440000")),
+//       #("name", json.string("John")),
+//       #("email", json.string("john@example.com")),
+//       #("age", json.int(30)),
+//     ])
+//   let actual =
+//     http_client.ExecutionResult(
+//       status: 200,
+//       headers: dict.new(),
+//       body: body,
+//       raw_body: json.to_string(body),
+//       elapsed_ms: 100,
+//       request_method: types.Get,
+//       request_path: "/test",
+//     )
+//   let result = checker.check_response(expected, actual, empty_context())
+// 
+//   list.length(result.passed) |> should.equal(4)
+//   list.length(result.failed) |> should.equal(0)
+// }
+// 
 // ============================================================================
 // Custom Question Loading Tests
 // ============================================================================

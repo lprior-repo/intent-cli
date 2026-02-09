@@ -1,23 +1,21 @@
 /// Parser for Intent specs from JSON (exported from CUE)
+/// v3.0 - Declarative format
 import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type DecodeError, type Dynamic}
-import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/result
 import gleam/string
 import intent/types.{
-  type AIHints, type AntiPattern, type Behavior, type Check, type Config,
-  type EntityHint, type Feature, type ImplementationHints, type Method,
-  type Request, type Response, type Rule, type RuleCheck, type SecurityHints,
-  type Spec, type When, AIHints, AntiPattern, Behavior, Check, Config, Delete,
-  EntityHint, Feature, Get, Head, ImplementationHints, Options, Patch, Post, Put,
-  Request, Response, Rule, RuleCheck, SecurityHints, Spec, When,
+  type AIHints, type AntiPattern, type Behavior, type EntityHint, type Feature,
+  type ImplementationHints, type Invariant, type SecurityHints, type Spec,
+  type Verification, AIHints, AntiPattern, Behavior, EntityHint, Feature,
+  ImplementationHints, Invariant, SecurityHints, Spec, Verification,
 }
 
 /// Parse a spec from a JSON value
-/// All fields are required - no backwards compatibility defaults
+/// v3.0 format - All fields are required
 pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
   use name <- result.try(dynamic.field("name", parse_non_empty_string)(data))
   use description <- result.try(dynamic.field(
@@ -34,12 +32,14 @@ pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
     "success_criteria",
     dynamic.list(dynamic.string),
   )(data))
-  use config <- result.try(dynamic.field("config", parse_config)(data))
   use features <- result.try(dynamic.field(
     "features",
     dynamic.list(parse_feature),
   )(data))
-  use rules <- result.try(dynamic.field("rules", dynamic.list(parse_rule))(data))
+  use invariants <- result.try(dynamic.field(
+    "invariants",
+    dynamic.list(parse_invariant),
+  )(data))
   use anti_patterns <- result.try(dynamic.field(
     "anti_patterns",
     dynamic.list(parse_anti_pattern),
@@ -52,31 +52,11 @@ pub fn parse_spec(data: Dynamic) -> Result(Spec, List(DecodeError)) {
     audience: audience,
     version: version,
     success_criteria: success_criteria,
-    config: config,
     features: features,
-    rules: rules,
+    invariants: invariants,
     anti_patterns: anti_patterns,
     ai_hints: ai_hints,
   ))
-}
-
-fn parse_config(data: Dynamic) -> Result(Config, List(DecodeError)) {
-  use base_url <- result.try(dynamic.field("base_url", parse_sanitized_string)(
-    data,
-  ))
-  use timeout_ms <- result.try(dynamic.field("timeout_ms", dynamic.int)(data))
-  use headers <- result.try(dynamic.field("headers", parse_string_dict)(data))
-  case timeout_ms {
-    t if t <= 0 ->
-      Error([
-        dynamic.DecodeError(
-          expected: "positive timeout_ms (> 0)",
-          found: int.to_string(t),
-          path: ["config", "timeout_ms"],
-        ),
-      ])
-    _ -> Ok(Config(base_url, timeout_ms, headers))
-  }
 }
 
 fn sanitize_string(s: String) -> String {
@@ -102,12 +82,6 @@ fn parse_non_empty_string(data: Dynamic) -> Result(String, List(DecodeError)) {
   })
 }
 
-fn parse_string_dict(
-  data: Dynamic,
-) -> Result(Dict(String, String), List(DecodeError)) {
-  dynamic.dict(parse_sanitized_string, parse_sanitized_string)(data)
-}
-
 fn parse_feature(data: Dynamic) -> Result(Feature, List(DecodeError)) {
   use name <- result.try(dynamic.field("name", parse_non_empty_string)(data))
   use description <- result.try(dynamic.field(
@@ -124,54 +98,79 @@ fn parse_feature(data: Dynamic) -> Result(Feature, List(DecodeError)) {
 fn parse_behavior(data: Dynamic) -> Result(Behavior, List(DecodeError)) {
   use name <- result.try(dynamic.field("name", parse_non_empty_string)(data))
   use intent <- result.try(dynamic.field("intent", parse_sanitized_string)(data))
-  use notes <- result.try(dynamic.field("notes", parse_sanitized_string)(data))
-  use requires <- result.try(dynamic.field(
-    "requires",
-    dynamic.list(dynamic.string),
-  )(data))
-  use tags <- result.try(dynamic.field("tags", dynamic.list(dynamic.string))(
-    data,
-  ))
-  use request <- result.try(dynamic.field("request", parse_request)(data))
-  use response <- result.try(dynamic.field("response", parse_response)(data))
-  use captures <- result.try(dynamic.field("captures", parse_string_dict)(data))
+  // Notes is optional - default to empty string
+  let notes =
+    dynamic.field("notes", parse_sanitized_string)(data)
+    |> result.unwrap("")
+  // Requires is optional - default to empty list
+  let requires =
+    dynamic.field("requires", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  // Tags is optional - default to empty list
+  let tags =
+    dynamic.field("tags", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  // Preconditions is optional - default to empty list
+  let preconditions =
+    dynamic.field("preconditions", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  // Postconditions is optional - default to empty list
+  let postconditions =
+    dynamic.field("postconditions", dynamic.list(dynamic.string))(data)
+    |> result.unwrap([])
+  // Verifications is optional - default to empty list
+  let verifications =
+    dynamic.field("verifications", dynamic.list(parse_verification))(data)
+    |> result.unwrap([])
+
   Ok(Behavior(
     name: name,
     intent: intent,
     notes: notes,
     requires: requires,
     tags: tags,
-    request: request,
-    response: response,
-    captures: captures,
+    preconditions: preconditions,
+    postconditions: postconditions,
+    verifications: verifications,
   ))
 }
 
-fn parse_method(data: Dynamic) -> Result(Method, List(DecodeError)) {
-  data
-  |> dynamic.string
-  |> result.then(fn(s) {
-    case s {
-      "GET" -> Ok(Get)
-      "POST" -> Ok(Post)
-      "PUT" -> Ok(Put)
-      "PATCH" -> Ok(Patch)
-      "DELETE" -> Ok(Delete)
-      "HEAD" -> Ok(Head)
-      "OPTIONS" -> Ok(Options)
-      _ ->
-        Error([dynamic.DecodeError(expected: "HTTP method", found: s, path: [])])
-    }
-  })
+fn parse_invariant(data: Dynamic) -> Result(Invariant, List(DecodeError)) {
+  use name <- result.try(dynamic.field("name", parse_non_empty_string)(data))
+  use description <- result.try(dynamic.field(
+    "description",
+    parse_sanitized_string,
+  )(data))
+  use criteria <- result.try(dynamic.field(
+    "criteria",
+    dynamic.list(dynamic.string),
+  )(data))
+  Ok(Invariant(
+    name: name,
+    description: description,
+    criteria: criteria,
+  ))
 }
 
-fn parse_request(data: Dynamic) -> Result(Request, List(DecodeError)) {
-  use method <- result.try(dynamic.field("method", parse_method)(data))
-  use path <- result.try(dynamic.field("path", parse_sanitized_string)(data))
-  use headers <- result.try(dynamic.field("headers", parse_string_dict)(data))
-  use query <- result.try(dynamic.field("query", parse_json_dict)(data))
-  use body <- result.try(dynamic.field("body", parse_json_value)(data))
-  Ok(Request(method, path, headers, query, body))
+fn parse_verification(data: Dynamic) -> Result(Verification, List(DecodeError)) {
+  use description <- result.try(dynamic.field(
+    "description",
+    parse_sanitized_string,
+  )(data))
+  use criteria <- result.try(dynamic.field(
+    "criteria",
+    dynamic.list(dynamic.string),
+  )(data))
+  // Examples is optional - default to empty list
+  let examples =
+    dynamic.field("examples", dynamic.list(parse_json_value))(data)
+    |> result.unwrap([])
+
+  Ok(Verification(
+    description: description,
+    criteria: criteria,
+    examples: examples,
+  ))
 }
 
 fn parse_json_dict(
@@ -226,114 +225,6 @@ pub fn dynamic_to_json(data: Dynamic) -> Json {
       }
     _ -> json.null()
   }
-}
-
-fn parse_response(data: Dynamic) -> Result(Response, List(DecodeError)) {
-  use status <- result.try(dynamic.field("status", dynamic.int)(data))
-  use example <- result.try(dynamic.field("example", parse_json_value)(data))
-  use checks <- result.try(dynamic.field("checks", parse_checks)(data))
-  // Headers are optional - use empty dict if not present
-  let headers =
-    dynamic.field("headers", parse_string_dict)(data)
-    |> result.unwrap(dict.new())
-  Ok(Response(status, example, checks, headers))
-}
-
-fn parse_checks(data: Dynamic) -> Result(Dict(String, Check), List(DecodeError)) {
-  data
-  |> dynamic.dict(dynamic.string, parse_check)
-}
-
-fn parse_check(data: Dynamic) -> Result(Check, List(DecodeError)) {
-  use rule <- result.try(dynamic.field("rule", parse_sanitized_string)(data))
-  use why <- result.try(dynamic.field("why", parse_sanitized_string)(data))
-  Ok(Check(rule, why))
-}
-
-fn parse_rule(data: Dynamic) -> Result(Rule, List(DecodeError)) {
-  use name <- result.try(dynamic.field("name", parse_non_empty_string)(data))
-  use description <- result.try(dynamic.field(
-    "description",
-    parse_sanitized_string,
-  )(data))
-  use when <- result.try(parse_optional_when(data))
-  use check <- result.try(dynamic.field("check", parse_rule_check)(data))
-  use example <- result.try(dynamic.field("example", parse_json_value)(data))
-  Ok(Rule(name, description, when, check, example))
-}
-
-fn parse_optional_when(data: Dynamic) -> Result(When, List(DecodeError)) {
-  case dynamic.field("when", dynamic.dynamic)(data) {
-    Ok(when_data) -> {
-      case dynamic.classify(when_data) {
-        "Nil" | "Null" -> Ok(When("", Get, ""))
-        _ -> parse_when(when_data)
-      }
-    }
-    Error(_) -> Ok(When("", Get, ""))
-  }
-}
-
-fn parse_when(data: Dynamic) -> Result(When, List(DecodeError)) {
-  let status =
-    dynamic.field("status", parse_sanitized_string)(data)
-    |> result.unwrap("")
-  let method =
-    dynamic.field("method", parse_sanitized_string)(data)
-    |> result.map(parse_method_from_string)
-    |> result.unwrap(Get)
-  let path =
-    dynamic.field("path", parse_sanitized_string)(data)
-    |> result.unwrap("")
-  Ok(When(status, method, path))
-}
-
-fn parse_method_from_string(s: String) -> Method {
-  case string.uppercase(s) {
-    "GET" -> Get
-    "POST" -> Post
-    "PUT" -> Put
-    "PATCH" -> Patch
-    "DELETE" -> Delete
-    _ -> Get
-  }
-}
-
-fn parse_rule_check(data: Dynamic) -> Result(RuleCheck, List(DecodeError)) {
-  let body_must_not_contain =
-    dynamic.field("body_must_not_contain", dynamic.list(parse_sanitized_string))(
-      data,
-    )
-    |> result.unwrap([])
-  let body_must_contain =
-    dynamic.field("body_must_contain", dynamic.list(parse_sanitized_string))(
-      data,
-    )
-    |> result.unwrap([])
-  let fields_must_exist =
-    dynamic.field("fields_must_exist", dynamic.list(parse_sanitized_string))(
-      data,
-    )
-    |> result.unwrap([])
-  let fields_must_not_exist =
-    dynamic.field("fields_must_not_exist", dynamic.list(parse_sanitized_string))(
-      data,
-    )
-    |> result.unwrap([])
-  let header_must_exist =
-    dynamic.field("header_must_exist", parse_sanitized_string)(data)
-    |> result.unwrap("")
-  let header_must_not_exist =
-    dynamic.field("header_must_not_exist", parse_sanitized_string)(data)
-    |> result.unwrap("")
-  Ok(RuleCheck(
-    body_must_not_contain,
-    body_must_contain,
-    fields_must_exist,
-    fields_must_not_exist,
-    header_must_exist,
-    header_must_not_exist,
-  ))
 }
 
 fn parse_anti_pattern(data: Dynamic) -> Result(AntiPattern, List(DecodeError)) {
@@ -392,7 +283,7 @@ fn parse_entities(
 }
 
 fn parse_entity_hint(data: Dynamic) -> Result(EntityHint, List(DecodeError)) {
-  use fields <- result.try(dynamic.field("fields", parse_string_dict)(data))
+  use fields <- result.try(dynamic.field("fields", parse_json_dict)(data))
   Ok(EntityHint(fields))
 }
 

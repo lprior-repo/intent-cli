@@ -81,7 +81,15 @@ fn append_coverage_suggestions(
   _report: QualityReport,
   behaviors: List(Behavior),
 ) -> List(ImprovementSuggestion) {
-  let has_error_tests = list.any(behaviors, fn(b) { b.response.status >= 400 })
+  // In v3.0, error conditions are expressed through intent descriptions
+  let has_error_tests =
+    list.any(behaviors, fn(b) {
+      let intent_lower = string.lowercase(b.intent)
+      string.contains(intent_lower, "error")
+      || string.contains(intent_lower, "fail")
+      || string.contains(intent_lower, "invalid")
+      || string.contains(intent_lower, "not found")
+    })
 
   case has_error_tests {
     True -> suggestions
@@ -89,12 +97,12 @@ fn append_coverage_suggestions(
       list.append(suggestions, [
         ImprovementSuggestion(
           title: "Add error case tests",
-          description: "No behaviors test error responses (4xx, 5xx status codes)",
-          reasoning: "Testing error cases ensures the API handles failures gracefully and helps AI understand error conditions",
+          description: "No behaviors test error conditions",
+          reasoning: "Testing error cases ensures the system handles failures gracefully and helps AI understand error conditions",
           impact_score: 25,
           proposed_change: AddMissingTest(
             "test-error-not-found",
-            "Test 404 Not Found response for missing resource",
+            "Test system behavior when resource is not found",
           ),
         ),
       ])
@@ -142,7 +150,11 @@ fn append_testability_suggestions(
 ) -> List(ImprovementSuggestion) {
   let missing_examples =
     behaviors
-    |> list.filter(fn(b) { b.response.example == json.null() })
+    |> list.filter(fn(b) {
+      list.is_empty(b.verifications) || list.all(b.verifications, fn(v) {
+        list.is_empty(v.examples)
+      })
+    })
     |> list.length
 
   case missing_examples > 0 {
@@ -150,9 +162,9 @@ fn append_testability_suggestions(
     True -> {
       list.append(suggestions, [
         ImprovementSuggestion(
-          title: "Add response examples",
+          title: "Add verification examples",
           description: int.to_string(missing_examples)
-            <> " behavior(s) lack response examples",
+            <> " behavior(s) lack verification examples",
           reasoning: "Examples make the spec executable and give AI concrete data structures to work with",
           impact_score: 20,
           proposed_change: AddResponseExample("test-success"),
@@ -168,26 +180,29 @@ fn append_ai_readiness_suggestions(
   _report: QualityReport,
   behaviors: List(Behavior),
 ) -> List(ImprovementSuggestion) {
-  let missing_why =
+  let missing_criteria =
     behaviors
-    |> list.flat_map(fn(b) { dict.values(b.response.checks) })
-    |> list.filter(fn(c) { string.is_empty(c.why) })
+    |> list.filter(fn(b) {
+      list.is_empty(b.verifications) || list.any(b.verifications, fn(v) {
+        list.is_empty(v.criteria)
+      })
+    })
     |> list.length
 
-  case missing_why > 0 {
+  case missing_criteria > 0 {
     False -> suggestions
     True -> {
       list.append(suggestions, [
         ImprovementSuggestion(
-          title: "Add validation explanations",
-          description: int.to_string(missing_why)
-            <> " validation rule(s) lack 'why' explanations",
-          reasoning: "Explanations help AI understand the business logic behind each validation check",
+          title: "Add verification criteria",
+          description: int.to_string(missing_criteria)
+            <> " behavior(s) lack verification criteria",
+          reasoning: "Explanations help AI understand the business logic behind each verification",
           impact_score: 18,
           proposed_change: AddExplanation(
             "test-success",
-            "why",
-            "Ensures email field contains valid RFC 5322 compliant email address",
+            "criteria",
+            "Field must not be empty and must match expected format",
           ),
         ),
       ])
@@ -205,30 +220,30 @@ fn suggest_from_lint_warnings(
       warnings
       |> list.filter_map(fn(warning) {
         case warning {
-          spec_linter.VagueRule(behavior, field, _rule) -> {
+          spec_linter.VagueVerification(behavior, verification, criteria) -> {
             Ok(ImprovementSuggestion(
-              title: "Clarify validation rule",
+              title: "Clarify verification criteria",
               description: "Behavior '"
                 <> behavior
-                <> "', field '"
-                <> field
+                <> "', verification '"
+                <> verification
                 <> "' uses vague language",
-              reasoning: "Specific validation rules are more testable and easier for AI to implement",
+              reasoning: "Specific verification criteria are more testable and easier for AI to implement",
               impact_score: 22,
               proposed_change: RefineVagueRule(
                 behavior,
-                field,
-                "email | format:email or similar concrete format",
+                criteria,
+                "Add specific, testable criteria with examples",
               ),
             ))
           }
 
           spec_linter.MissingExample(behavior) -> {
             Ok(ImprovementSuggestion(
-              title: "Add response example",
+              title: "Add verification example",
               description: "Behavior '"
                 <> behavior
-                <> "' has no response example",
+                <> "' has no verification examples",
               reasoning: "Examples make specifications executable and concrete",
               impact_score: 20,
               proposed_change: AddResponseExample(behavior),
@@ -298,6 +313,38 @@ fn suggest_from_lint_warnings(
                 behavior1,
                 "consolidation",
                 "Merge with " <> behavior2 <> " or clarify differences",
+              ),
+            ))
+          }
+
+          spec_linter.MissingPreconditions(behavior) -> {
+            Ok(ImprovementSuggestion(
+              title: "Add preconditions",
+              description: "Behavior '"
+                <> behavior
+                <> "' lacks preconditions",
+              reasoning: "Preconditions clarify what must be true before execution, improving testability",
+              impact_score: 20,
+              proposed_change: AddExplanation(
+                behavior,
+                "preconditions",
+                "Define what must be true before this behavior executes",
+              ),
+            ))
+          }
+
+          spec_linter.MissingPostconditions(behavior) -> {
+            Ok(ImprovementSuggestion(
+              title: "Add postconditions",
+              description: "Behavior '"
+                <> behavior
+                <> "' lacks postconditions",
+              reasoning: "Postconditions clarify what must be true after execution, improving testability",
+              impact_score: 20,
+              proposed_change: AddExplanation(
+                behavior,
+                "postconditions",
+                "Define what must be true after this behavior executes",
               ),
             ))
           }

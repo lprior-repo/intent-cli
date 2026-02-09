@@ -11,20 +11,14 @@ import intent/spec_linter.{
   MissingExample, NamingConvention, UnusedAntiPattern, VagueRule,
 }
 import intent/types.{
-  type AIHints, type AntiPattern, type Behavior, type Check, type Config,
-  type Request, type Response, type Spec, AIHints, AntiPattern, Behavior, Check,
-  Config, Feature, Get, ImplementationHints, Post, Request, Response,
-  SecurityHints, Spec,
+  type AIHints, type AntiPattern, type Behavior, type Verification,
+  AIHints, AntiPattern, Behavior, Feature, ImplementationHints, SecurityHints,
+  Spec, Verification,
 }
 
 // ============================================================================
 // Test Helpers
 // ============================================================================
-
-/// Create a minimal Config
-fn make_config() -> Config {
-  Config(base_url: "http://localhost", timeout_ms: 5000, headers: dict.new())
-}
 
 /// Create minimal AI hints
 fn make_ai_hints() -> AIHints {
@@ -41,51 +35,38 @@ fn make_ai_hints() -> AIHints {
   )
 }
 
-/// Create a minimal Request
-fn make_request(method: types.Method, path: String) -> Request {
-  Request(
-    method: method,
-    path: path,
-    headers: dict.new(),
-    query: dict.new(),
-    body: json.null(),
-  )
-}
-
-/// Create a minimal Response with no checks
-fn make_response(example: json.Json) -> Response {
-  Response(
-    status: 200,
-    example: example,
-    checks: dict.new(),
-    headers: dict.new(),
-  )
-}
-
-/// Create a Response with checks
-fn make_response_with_checks(
-  example: json.Json,
-  checks: List(#(String, Check)),
-) -> Response {
-  Response(
-    status: 200,
-    example: example,
-    checks: dict.from_list(checks),
-    headers: dict.new(),
-  )
-}
-
 /// Create a minimal Behavior
-fn make_behavior(name: String, request: Request, response: Response) -> Behavior {
+fn make_behavior(name: String, example: json.Json) -> Behavior {
   Behavior(
     name: name,
     intent: "Test behavior",
     notes: "",
     requires: [],
     tags: [],
-    request: request,
-    response: response,
-    captures: dict.new(),
+    preconditions: [],
+    postconditions: [],
+    verifications: [Verification(
+      description: "Example",
+      criteria: [],
+      examples: [example],
+    )],
+  )
+}
+
+/// Create a behavior with custom verifications
+fn make_behavior_with_verifications(
+  name: String,
+  verifications: List(Verification),
+) -> Behavior {
+  Behavior(
+    name: name,
+    intent: "Test behavior",
+    notes: "",
+    requires: [],
+    tags: [],
+    preconditions: [],
+    postconditions: [],
+    verifications: verifications,
   )
 }
 
@@ -101,9 +82,8 @@ fn make_spec(
     audience: "Developers",
     version: "1.0.0",
     success_criteria: [],
-    config: make_config(),
     features: [feature],
-    rules: [],
+    invariants: [],
     anti_patterns: anti_patterns,
     ai_hints: make_ai_hints(),
   )

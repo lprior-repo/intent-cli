@@ -5,7 +5,7 @@ import gleam/int
 import gleam/json.{type Json}
 import gleam/list
 import gleam/string
-import intent/types.{type Behavior, type Rule, type Spec}
+import intent/types.{type Behavior, type Invariant, type Spec}
 
 /// Generate a ready document from a spec
 pub fn generate_ready_document(spec: Spec) -> String {
@@ -75,19 +75,57 @@ fn generate_behaviors(spec: Spec) -> String {
 }
 
 fn generate_behavior_details(behavior: Behavior) -> String {
+  let preconditions = case behavior.preconditions {
+    [] -> ""
+    preconditions -> {
+      let pre_list =
+        list.map(preconditions, fn(p) { "- " <> p })
+        |> string.join("\n")
+      "\n**Preconditions:**\n" <> pre_list
+    }
+  }
+
+  let postconditions = case behavior.postconditions {
+    [] -> ""
+    postconditions -> {
+      let post_list =
+        list.map(postconditions, fn(p) { "- " <> p })
+        |> string.join("\n")
+      "\n**Postconditions:**\n" <> post_list
+    }
+  }
+
+  let verifications = case behavior.verifications {
+    [] -> ""
+    verifications -> {
+      let ver_list =
+        list.map(verifications, fn(v) {
+          "#### " <> v.description <> "\n\n"
+          <> list.map(v.criteria, fn(c) { "- " <> c })
+          |> string.join("\n")
+          <> case list.is_empty(v.examples) {
+            True -> ""
+            False -> "\n\n**Examples:**\n" <> generate_verification_examples(v.examples)
+          }
+        })
+        |> string.join("\n\n")
+      "\n**Verifications:**\n" <> ver_list
+    }
+  }
+
   let requires = case behavior.requires {
     [] -> ""
-    deps -> "\n**Dependencies:** " <> string.join(deps, ", ") <> "\n"
+    deps -> "\n**Dependencies:** " <> string.join(deps, ", ")
   }
 
   let tags = case behavior.tags {
     [] -> ""
-    tags_list -> "\n**Tags:** " <> string.join(tags_list, ", ") <> "\n"
+    tags_list -> "\n**Tags:** " <> string.join(tags_list, ", ")
   }
 
   let notes = case string.is_empty(behavior.notes) {
     True -> ""
-    False -> "\n**Notes:** " <> behavior.notes <> "\n"
+    False -> "\n**Notes:** " <> behavior.notes
   }
 
   "#### "
@@ -96,186 +134,57 @@ fn generate_behavior_details(behavior: Behavior) -> String {
   <> "**Intent:** "
   <> behavior.intent
   <> "\n"
+  <> notes
   <> requires
   <> tags
-  <> notes
-  <> "\n"
-  <> generate_request_details(behavior.request)
-  <> "\n\n"
-  <> generate_response_details(behavior.response)
+  <> preconditions
+  <> postconditions
+  <> verifications
 }
 
-fn generate_request_details(request: types.Request) -> String {
-  let headers = case dict.size(request.headers) {
-    0 -> ""
-    _ ->
-      "\nHeaders:\n"
-      <> dict.to_list(request.headers)
-      |> list.map(fn(pair) { "  - " <> pair.0 <> ": " <> pair.1 })
-      |> string.join("\n")
-  }
-
-  let query = case dict.size(request.query) {
-    0 -> ""
-    _ ->
-      "\nQuery Parameters:\n"
-      <> dict.to_list(request.query)
-      |> list.map(fn(pair) {
-        "  - " <> pair.0 <> ": " <> json_to_string(pair.1)
-      })
-      |> string.join("\n")
-  }
-
-  let body_str = json.to_string(request.body)
-  let body = case body_str {
-    "null" -> ""
-    _ -> "\nBody:\n```json\n" <> body_str <> "\n```"
-  }
-
-  "**Request:** "
-  <> types.method_to_string(request.method)
-  <> " "
-  <> request.path
-  <> headers
-  <> query
-  <> body
-}
-
-fn generate_response_details(response: types.Response) -> String {
-  let checks = case dict.size(response.checks) {
-    0 -> ""
-    _ ->
-      "\n\nChecks:\n"
-      <> dict.to_list(response.checks)
-      |> list.map(fn(pair) {
-        "  - **"
-        <> pair.0
-        <> "**: "
-        <> { pair.1 }.rule
-        <> "\n    *Why:* "
-        <> { pair.1 }.why
-      })
-      |> string.join("\n")
-  }
-
-  let headers = case dict.size(response.headers) {
-    0 -> ""
-    _ ->
-      "\n\nHeaders:\n"
-      <> dict.to_list(response.headers)
-      |> list.map(fn(pair) { "  - " <> pair.0 <> ": " <> pair.1 })
-      |> string.join("\n")
-  }
-
-  "**Response:** Status "
-  <> int.to_string(response.status)
-  <> "\n```json\n"
-  <> json_to_string(response.example)
-  <> "\n```"
-  <> checks
-  <> headers
-}
-
-fn generate_invariants(spec: Spec) -> String {
-  "## Invariants\n\n"
-  <> "These global rules apply to all behaviors:\n\n"
-  <> list.map(spec.rules, fn(rule) {
-    "### "
-    <> rule.name
-    <> "\n\n"
-    <> rule.description
-    <> "\n\n"
-    <> generate_rule_details(rule)
+fn generate_verification_examples(examples: List(Json)) -> String {
+  examples
+  |> list.map(fn(example) {
+    "```json\n" <> json.to_string(example) <> "\n```"
   })
   |> string.join("\n\n")
 }
 
-fn generate_rule_details(rule: Rule) -> String {
-  let when_clause = case rule.when {
-    types.When("", _, _) -> ""
-    types.When(status, method, path) ->
-      "**When:** "
-      <> case string.is_empty(status) {
-        True -> "Any status"
-        False -> "Status " <> status
-      }
-      <> ", "
-      <> types.method_to_string(method)
-      <> " "
-      <> path
-      <> "\n\n"
-  }
-
-  let checks = generate_rule_check_details(rule.check)
-
-  when_clause <> checks
-}
-
-fn generate_rule_check_details(check: types.RuleCheck) -> String {
-  let items =
-    []
-    |> append_non_empty_list(
-      "Body must not contain",
-      check.body_must_not_contain,
-    )
-    |> append_non_empty_list("Body must contain", check.body_must_contain)
-    |> append_non_empty_list("Fields must exist", check.fields_must_exist)
-    |> append_non_empty_list(
-      "Fields must not exist",
-      check.fields_must_not_exist,
-    )
-    |> append_non_empty_string("Header must exist", check.header_must_exist)
-    |> append_non_empty_string(
-      "Header must not exist",
-      check.header_must_not_exist,
-    )
-
-  case items {
-    [] -> ""
-    _ -> "**Checks:**\n" <> string.join(items, "\n")
-  }
-}
-
-fn append_non_empty_list(
-  items: List(String),
-  label: String,
-  values: List(String),
-) -> List(String) {
-  case values {
-    [] -> items
-    _ ->
-      items
-      |> list.append(["- " <> label <> ": " <> string.join(values, ", ")])
-  }
-}
-
-fn append_non_empty_string(
-  items: List(String),
-  label: String,
-  value: String,
-) -> List(String) {
-  case string.is_empty(value) {
-    True -> items
-    False ->
-      items
-      |> list.append(["- " <> label <> ": " <> value])
+fn generate_invariants(spec: Spec) -> String {
+  case list.is_empty(spec.invariants) {
+    True -> ""
+    False -> {
+      "## Invariants\n\n"
+      <> "These global rules apply to all behaviors:\n\n"
+      <> list.map(spec.invariants, fn(invariant) {
+        "### "
+        <> invariant.name
+        <> "\n\n"
+        <> invariant.description
+        <> "\n\n"
+        <> "**Criteria:**\n"
+        <> list.map(invariant.criteria, fn(c) { "- " <> c })
+        |> string.join("\n")
+      })
+      |> string.join("\n\n")
+    }
   }
 }
 
 fn generate_verification_criteria(_spec: Spec) -> String {
   "## Verification Criteria\n\n"
   <> "Each behavior should be verified against:\n\n"
-  <> "1. **Request validation**: Ensure requests match the specified format\n"
-  <> "2. **Response validation**: Verify responses match expected structure and values\n"
-  <> "3. **Check assertions**: All specified checks must pass\n"
+  <> "1. **Preconditions**: Verify all preconditions are met before execution\n"
+  <> "2. **Postconditions**: Verify all postconditions are true after execution\n"
+  <> "3. **Verifications**: Execute all verification criteria specified\n"
   <> "4. **Error handling**: Verify error cases are handled correctly\n"
   <> "5. **Edge cases**: Test boundary conditions and unusual inputs\n\n"
   <> "### Automated Testing\n\n"
   <> "All behaviors should have automated tests that:\n"
-  <> "- Send the exact request specified\n"
-  <> "- Validate the response status code\n"
-  <> "- Check all response fields against their rules\n"
-  <> "- Verify headers are correct\n"
+  <> "- Verify preconditions are satisfied\n"
+  <> "- Execute the behavior\n"
+  <> "- Validate postconditions\n"
+  <> "- Check all verification criteria\n"
   <> "- Test error conditions explicitly"
 }
 
@@ -288,10 +197,10 @@ fn generate_anti_patterns(spec: Spec) -> String {
     <> anti_pattern.description
     <> "\n\n"
     <> "**Bad Example:**\n```json\n"
-    <> json_to_string(anti_pattern.bad_example)
+    <> json.to_string(anti_pattern.bad_example)
     <> "\n```\n\n"
     <> "**Good Example:**\n```json\n"
-    <> json_to_string(anti_pattern.good_example)
+    <> json.to_string(anti_pattern.good_example)
     <> "\n```\n\n"
     <> "**Why:** "
     <> anti_pattern.why
@@ -329,10 +238,16 @@ fn generate_entity_hint(name: String, hint: types.EntityHint) -> String {
   "**"
   <> name
   <> "**\n\n"
-  <> "Fields:\n"
-  <> dict.to_list(hint.fields)
-  |> list.map(fn(pair) { "  - **" <> pair.0 <> "**: " <> pair.1 })
-  |> string.join("\n")
+  <> case dict.size(hint.fields) {
+    0 -> "No field definitions"
+    _ ->
+      "Fields:\n"
+      <> dict.to_list(hint.fields)
+      |> list.map(fn(pair) {
+        "  - **" <> pair.0 <> "**: " <> json.to_string(pair.1)
+      })
+      |> string.join("\n")
+  }
 }
 
 fn generate_common_pitfalls(pitfalls: List(String)) -> String {
@@ -361,10 +276,6 @@ fn generate_security_guidelines(spec: Spec) -> String {
   <> "\n\n"
   <> "### Rate Limiting\n\n"
   <> security.rate_limiting
-}
-
-fn json_to_string(json: Json) -> String {
-  json.to_string(json)
 }
 
 fn get_current_timestamp() -> String {

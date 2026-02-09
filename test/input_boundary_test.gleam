@@ -28,39 +28,13 @@ pub fn empty_string_required_field_name_test() {
 }
 
 pub fn zero_timeout_accepted_test() {
-  let bad_json =
-    "{\"name\":\"test\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":0,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
-
-  case json.decode(bad_json, dynamic.dynamic) {
-    Ok(data) -> {
-      let result = parser.parse_spec(data)
-      case result {
-        Ok(spec) -> {
-          spec.config.timeout_ms |> should.equal(0)
-        }
-        Error(_) -> should.be_ok(Ok(Nil))
-      }
-    }
-    Error(_) -> should.be_ok(Ok(Nil))
-  }
+  // Test skipped - v3.0 removed config.timeout_ms field (no more Config type)
+  True |> should.be_true
 }
 
 pub fn negative_timeout_accepted_test() {
-  let bad_json =
-    "{\"name\":\"test\",\"description\":\"test\",\"audience\":\"dev\",\"version\":\"1.0\",\"success_criteria\":[],\"config\":{\"base_url\":\"http://localhost\",\"timeout_ms\":-100,\"headers\":{}},\"features\":[],\"rules\":[],\"anti_patterns\":[],\"ai_hints\":{\"implementation\":{\"suggested_stack\":[]},\"entities\":{},\"security\":{\"password_hashing\":\"bcrypt\",\"jwt_algorithm\":\"HS256\",\"jwt_expiry\":\"1h\",\"rate_limiting\":\"100/min\"},\"pitfalls\":[]}}"
-
-  case json.decode(bad_json, dynamic.dynamic) {
-    Ok(data) -> {
-      let result = parser.parse_spec(data)
-      case result {
-        Ok(spec) -> {
-          spec.config.timeout_ms |> should.equal(-100)
-        }
-        Error(_) -> should.be_ok(Ok(Nil))
-      }
-    }
-    Error(_) -> should.be_ok(Ok(Nil))
-  }
+  // Test skipped - v3.0 removed config.timeout_ms field (no more Config type)
+  True |> should.be_true
 }
 
 pub fn null_byte_in_string_test() {
@@ -81,24 +55,17 @@ pub fn null_byte_in_string_test() {
 }
 
 pub fn path_traversal_accepted_test() {
-  let spec = make_minimal_spec_with_path("/../../etc/passwd")
-  let result = validator.validate_spec(spec)
-  case result {
-    validator.ValidationValid -> should.be_ok(Ok(Nil))
-    validator.ValidationInvalid(_) -> should.be_ok(Ok(Nil))
-  }
+  // Test skipped - v3.0 removed request.path field (behaviors are declarative)
+  True |> should.be_true
 }
 
 pub fn shell_metacharacters_accepted_test() {
-  let spec = make_minimal_spec_with_path("/test; rm -rf /")
-  let result = validator.validate_spec(spec)
-  case result {
-    validator.ValidationValid -> should.be_ok(Ok(Nil))
-    validator.ValidationInvalid(_) -> should.be_ok(Ok(Nil))
-  }
+  // Test skipped - v3.0 removed request.path field (behaviors are declarative)
+  True |> should.be_true
 }
 
 fn make_minimal_spec_with_path(path: String) -> types.Spec {
+  // Note: In v3.0, paths are not part of behaviors (no more HTTP-specific fields)
   let behavior =
     types.Behavior(
       name: "test_behavior",
@@ -106,20 +73,9 @@ fn make_minimal_spec_with_path(path: String) -> types.Spec {
       notes: "",
       requires: [],
       tags: [],
-      request: types.Request(
-        method: types.Get,
-        path: path,
-        headers: dict.new(),
-        query: dict.new(),
-        body: json.null(),
-      ),
-      response: types.Response(
-        status: 200,
-        example: json.null(),
-        checks: dict.new(),
-        headers: dict.new(),
-      ),
-      captures: dict.new(),
+      preconditions: [],
+      postconditions: [],
+      verifications: [],
     )
   let feature =
     types.Feature(
@@ -133,13 +89,8 @@ fn make_minimal_spec_with_path(path: String) -> types.Spec {
     audience: "developers",
     version: "1.0.0",
     success_criteria: [],
-    config: types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    ),
     features: [feature],
-    rules: [],
+    invariants: [],
     anti_patterns: [],
     ai_hints: types.AIHints(
       implementation: types.ImplementationHints(suggested_stack: []),

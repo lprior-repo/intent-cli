@@ -354,13 +354,8 @@ pub fn validate_spec_duplicate_behavior_names_same_feature_test() {
       audience: "developers",
       version: "1.0.0",
       success_criteria: [],
-      config: types.Config(
-        base_url: "http://localhost:8080",
-        timeout_ms: 5000,
-        headers: dict.new(),
-      ),
       features: [feature],
-      rules: [],
+      invariants: [],
       anti_patterns: [],
       ai_hints: types.AIHints(
         implementation: types.ImplementationHints(suggested_stack: []),
@@ -412,13 +407,8 @@ pub fn validate_spec_duplicate_behavior_names_different_features_test() {
       audience: "developers",
       version: "1.0.0",
       success_criteria: [],
-      config: types.Config(
-        base_url: "http://localhost:8080",
-        timeout_ms: 5000,
-        headers: dict.new(),
-      ),
       features: [feature1, feature2],
-      rules: [],
+      invariants: [],
       anti_patterns: [],
       ai_hints: types.AIHints(
         implementation: types.ImplementationHints(suggested_stack: []),
@@ -738,13 +728,8 @@ fn make_minimal_spec(behaviors: List(types.Behavior)) -> types.Spec {
     audience: "developers",
     version: "1.0.0",
     success_criteria: [],
-    config: types.Config(
-      base_url: "http://localhost:8080",
-      timeout_ms: 5000,
-      headers: dict.new(),
-    ),
     features: [feature],
-    rules: [],
+    invariants: [],
     anti_patterns: [],
     ai_hints: types.AIHints(
       implementation: types.ImplementationHints(suggested_stack: []),
@@ -767,37 +752,17 @@ fn make_behavior(
   path: String,
   captures: dict.Dict(String, String),
 ) -> types.Behavior {
-  let gleam_method = case method {
-    "GET" -> types.Get
-    "POST" -> types.Post
-    "PUT" -> types.Put
-    "PATCH" -> types.Patch
-    "DELETE" -> types.Delete
-    "HEAD" -> types.Head
-    "OPTIONS" -> types.Options
-    _ -> types.Get
-  }
-
+  // Note: In v3.0, behaviors are declarative and don't have HTTP-specific fields
+  // The method, path, and captures parameters are kept for compatibility but not used
   types.Behavior(
     name: name,
     intent: "Test intent for " <> name,
     notes: "",
     requires: requires,
     tags: [],
-    request: types.Request(
-      method: gleam_method,
-      path: path,
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    ),
-    response: types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.new(),
-    ),
-    captures: captures,
+    preconditions: [],
+    postconditions: [],
+    verifications: [],
   )
 }
 
@@ -825,37 +790,16 @@ fn make_behavior_with_header(
   header_name: String,
   header_value: String,
 ) -> types.Behavior {
-  let gleam_method = case method {
-    "GET" -> types.Get
-    "POST" -> types.Post
-    "PUT" -> types.Put
-    "PATCH" -> types.Patch
-    "DELETE" -> types.Delete
-    "HEAD" -> types.Head
-    "OPTIONS" -> types.Options
-    _ -> types.Get
-  }
-
+  // Note: In v3.0, behaviors are declarative and don't have HTTP-specific fields
   types.Behavior(
     name: name,
     intent: "Test intent for " <> name,
     notes: "",
     requires: requires,
     tags: [],
-    request: types.Request(
-      method: gleam_method,
-      path: path,
-      headers: dict.from_list([#(header_name, header_value)]),
-      query: dict.new(),
-      body: json.null(),
-    ),
-    response: types.Response(
-      status: 200,
-      example: json.null(),
-      checks: dict.new(),
-      headers: dict.new(),
-    ),
-    captures: dict.new(),
+    preconditions: [],
+    postconditions: [],
+    verifications: [],
   )
 }
 
@@ -1048,36 +992,19 @@ fn make_behavior_with_example(
   path: String,
   example: json.Json,
 ) -> types.Behavior {
-  let gleam_method = case method {
-    "GET" -> types.Get
-    "POST" -> types.Post
-    "PUT" -> types.Put
-    "PATCH" -> types.Patch
-    "DELETE" -> types.Delete
-    "HEAD" -> types.Head
-    "OPTIONS" -> types.Options
-    _ -> types.Get
-  }
-
+  // Note: In v3.0, examples go in verifications, not as a direct field
   types.Behavior(
     name: name,
     intent: "Test intent for " <> name,
     notes: "",
     requires: requires,
     tags: [],
-    request: types.Request(
-      method: gleam_method,
-      path: path,
-      headers: dict.new(),
-      query: dict.new(),
-      body: json.null(),
-    ),
-    response: types.Response(
-      status: 200,
-      example: example,
-      checks: dict.new(),
-      headers: dict.new(),
-    ),
-    captures: dict.new(),
+    preconditions: [],
+    postconditions: [],
+    verifications: [types.Verification(
+      description: "Example response",
+      criteria: [],
+      examples: [example],
+    )],
   )
 }

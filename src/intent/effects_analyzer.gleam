@@ -1,9 +1,7 @@
-import gleam/json
 import gleam/list
 import gleam/string
-import intent/types.{
-  type Behavior, type Spec, Delete, Get, Head, Options, Patch, Post, Put,
-}
+import intent/types.{type Behavior, type Spec}
+import intent/case_insensitive.{contains_any_ignore_case}
 
 /// Effect types for second-order analysis
 pub type EffectType {
@@ -45,9 +43,9 @@ pub type SpecAnalysis {
 pub fn analyze_behavior(behavior: Behavior) -> List(Effect) {
   let effects = []
 
-  // Analyze based on HTTP method
-  let method_effects = analyze_http_method(behavior)
-  let effects = list.append(effects, method_effects)
+  // Analyze based on behavior intent and keywords
+  let intent_effects = analyze_behavior_intent(behavior)
+  let effects = list.append(effects, intent_effects)
 
   // Check for cascade effects
   let cascade_effects = analyze_cascade_effects(behavior)
@@ -64,27 +62,33 @@ pub fn analyze_behavior(behavior: Behavior) -> List(Effect) {
   effects
 }
 
-/// Analyze HTTP method for implications
-fn analyze_http_method(behavior: Behavior) -> List(Effect) {
-  case behavior.request.method {
-    Post | Put | Patch -> [
+/// Analyze behavior intent for implications
+fn analyze_behavior_intent(behavior: Behavior) -> List(Effect) {
+  let name_lower = string.lowercase(behavior.name)
+  let intent_lower = string.lowercase(behavior.intent)
+
+  // Check for state-changing operations
+  let is_create =
+    contains_any_ignore_case(behavior.name, ["create", "add", "new", "insert"])
+    || contains_any_ignore_case(behavior.intent, ["create", "add", "insert"])
+
+  let is_update =
+    contains_any_ignore_case(behavior.name, ["update", "modify", "change", "edit"])
+    || contains_any_ignore_case(behavior.intent, ["update", "modify", "change"])
+
+  let is_delete =
+    contains_any_ignore_case(behavior.name, ["delete", "remove", "destroy"])
+    || contains_any_ignore_case(behavior.intent, ["delete", "remove", "destroy"])
+
+  let is_read =
+    contains_any_ignore_case(behavior.name, ["get", "fetch", "list", "show", "find"])
+    || contains_any_ignore_case(behavior.intent, ["get", "fetch", "list", "find"])
+
+  case True {
+    _ if is_delete -> [
       Effect(
         type_: StateChange,
-        description: "Creates or modifies resource in database",
-        severity: Medium,
-        suggestion: "Add behavior to test duplicate creation/updates",
-      ),
-      Effect(
-        type_: Notification,
-        description: "May trigger notification events",
-        severity: Low,
-        suggestion: "Add behavior to test notification failure handling",
-      ),
-    ]
-    Delete -> [
-      Effect(
-        type_: StateChange,
-        description: "Removes resource from database",
+        description: "Removes resource from data store",
         severity: High,
         suggestion: "Add behavior to test orphaned data cleanup",
       ),
@@ -95,7 +99,21 @@ fn analyze_http_method(behavior: Behavior) -> List(Effect) {
         suggestion: "Add behavior to test soft-delete or restoration",
       ),
     ]
-    Get | Head | Options -> [
+    _ if is_create || is_update -> [
+      Effect(
+        type_: StateChange,
+        description: "Creates or modifies resource in data store",
+        severity: Medium,
+        suggestion: "Add behavior to test duplicate creation/updates",
+      ),
+      Effect(
+        type_: Notification,
+        description: "May trigger notification events",
+        severity: Low,
+        suggestion: "Add behavior to test notification failure handling",
+      ),
+    ]
+    _ if is_read -> [
       Effect(
         type_: Cascade,
         description: "Read operations may trigger cache updates",
@@ -103,28 +121,36 @@ fn analyze_http_method(behavior: Behavior) -> List(Effect) {
         suggestion: "Add behavior to test cache consistency",
       ),
     ]
+    _ -> []
   }
 }
 
 /// Analyze potential cascade effects
 fn analyze_cascade_effects(behavior: Behavior) -> List(Effect) {
-  case behavior.request.method {
-    Delete | Post | Put | Patch -> [
+  let is_state_change =
+    contains_any_ignore_case(behavior.name, ["create", "update", "delete", "modify"])
+    || contains_any_ignore_case(behavior.intent, ["create", "update", "delete"])
+
+  case is_state_change {
+    True -> [
       Effect(
         type_: Cascade,
-        description: "Operation may affect related records",
+        description: "Operation may affect related records or data",
         severity: High,
-        suggestion: "Add behavior to test referential integrity",
+        suggestion: "Add behavior to test referential integrity and data consistency",
       ),
     ]
-    Get | Head | Options -> []
+    False -> []
   }
 }
 
 /// Analyze potential race conditions
 fn analyze_race_conditions(behavior: Behavior) -> List(Effect) {
-  case behavior.request.method {
-    Post | Put | Patch | Delete -> [
+  let is_concurrent =
+    contains_any_ignore_case(behavior.name, ["create", "update", "delete", "modify"])
+
+  case is_concurrent {
+    True -> [
       Effect(
         type_: RaceCondition,
         description: "Concurrent modifications may conflict",
@@ -132,14 +158,17 @@ fn analyze_race_conditions(behavior: Behavior) -> List(Effect) {
         suggestion: "Add behavior to test optimistic locking or conflict resolution",
       ),
     ]
-    Get | Head | Options -> []
+    False -> []
   }
 }
 
 /// Analyze rollback requirements
 fn analyze_rollback_needs(behavior: Behavior) -> List(Effect) {
-  case behavior.request.method {
-    Post | Put | Patch | Delete -> [
+  let is_state_change =
+    contains_any_ignore_case(behavior.name, ["create", "update", "delete", "modify"])
+
+  case is_state_change {
+    True -> [
       Effect(
         type_: RollbackRequired,
         description: "Operation should be reversible or compensatable",
@@ -147,7 +176,7 @@ fn analyze_rollback_needs(behavior: Behavior) -> List(Effect) {
         suggestion: "Add compensating transaction behavior",
       ),
     ]
-    Get | Head | Options -> []
+    False -> []
   }
 }
 
@@ -176,18 +205,26 @@ pub fn format_effects_json(effects: List(Effect)) -> Result(String, String) {
       let type_str = effect_type_to_string(effect.type_)
       let severity_str = severity_to_string(effect.severity)
 
-      json.object([
-        #("type", json.string(type_str)),
-        #("description", json.string(effect.description)),
-        #("severity", json.string(severity_str)),
-        #("suggestion", json.string(effect.suggestion)),
-      ])
+      [
+        #("type", type_str),
+        #("description", effect.description),
+        #("severity", severity_str),
+        #("suggestion", effect.suggestion),
+      ]
     })
 
-  Ok(
-    json.array(from: json_objects, of: fn(_) { json.object([]) })
-    |> json.to_string(),
-  )
+  // Convert to JSON string manually
+  Ok("[" <> string.join(
+    list.map(json_objects, fn(obj) {
+      "{"
+      <> string.join(
+        list.map(obj, fn(pair) { "\"" <> pair.0 <> "\": \"" <> pair.1 <> "\"" }),
+        ", ",
+      )
+      <> "}"
+    }),
+    ", ",
+  ) <> "]")
 }
 
 /// Format effects for CLI display
