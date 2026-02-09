@@ -228,6 +228,67 @@ gleam run -- interview --profile api
 export PATH="$PATH:$(pwd)/build/dev/erlang/<app>/bin"
 ```
 
+## Shell Completion
+
+Intent CLI provides shell completion for bash and zsh to improve usability with tab completion.
+
+### Bash Completion
+
+1. Install the completion script:
+
+```bash
+# Copy the completion script to your completions directory
+mkdir -p ~/.bash/completions
+cp completions/intent.bash ~/.bash/completions/intent
+
+# Add to your ~/.bashrc or ~/.bash_profile
+echo 'source ~/.bash/completions/intent' >> ~/.bashrc
+
+# Reload your shell
+source ~/.bashrc
+```
+
+### Zsh Completion
+
+1. Install the completion script:
+
+```bash
+# Copy the completion script to your fpath
+mkdir -p ~/.zsh/completions
+cp completions/intent.zsh ~/.zsh/completions/_intent
+
+# Add to your ~/.zshrc
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -U compinit && compinit' >> ~/.zshrc
+
+# Reload your shell
+source ~/.zshrc
+```
+
+### Features
+
+Completion supports:
+- **Commands**: All Intent CLI commands (interview, beads, plan, effects, etc.)
+- **Subcommands**: Plan subcommands (plan, plan-next, plan-approve, plan-emit-beads)
+- **Flags**: All available CLI flags with descriptions
+- **Profile types**: api, cli, event, data, workflow, ui
+- **Output formats**: json, jsonl, markdown
+- **Session IDs**: Automatically extracts from `.interview/sessions.jsonl`
+- **Strategies**: page_rank, critical_path, shortest, risk_first
+- **File completion**: CUE files for commands that take spec files
+
+### Manual Installation
+
+If you prefer manual installation, you can also:
+
+```bash
+# For bash
+eval "$(_INTENT_COMPLETE=bash source completions/intent.bash)"
+
+# For zsh
+eval "$(_INTENT_COMPLETE=zsh source completions/intent.zsh)"
+```
+
 ## Profiles
 
 Available interview profiles:
