@@ -1,5 +1,5 @@
 -module(intent_ffi).
--export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0]).
+-export([now_ms/0, halt/1, base64_url_decode/1, generate_uuid/0, current_timestamp/0, current_iso8601_timestamp/0, get_env/1]).
 
 now_ms() ->
     erlang:system_time(millisecond).
@@ -52,3 +52,12 @@ current_timestamp() ->
 %% Get current timestamp in ISO 8601 format (alias for current_timestamp)
 current_iso8601_timestamp() ->
     current_timestamp().
+
+%% Get environment variable value
+%% Returns {ok, Value} if set, {error, nil} if not set
+get_env(Key) when is_binary(Key) ->
+    KeyString = binary_to_list(Key),
+    case os:getenv(KeyString) of
+        false -> {error, nil};
+        Value -> {ok, list_to_binary(Value)}
+    end.

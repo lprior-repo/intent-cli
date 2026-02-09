@@ -12,6 +12,7 @@ import glint
 import glint/flag
 import intent/bead_templates
 import intent/cli_ui
+import intent/env
 import intent/effects_analyzer.{
   type EffectType, type SpecAnalysis, Cascade, High, Low, Medium, Notification,
   RaceCondition, RollbackRequired, StateChange,
@@ -178,6 +179,7 @@ fn is_known_bool_flag(flag_name: String) -> Bool {
     "confirm" -> True
     "dry-run" -> True
     "execute" -> True
+    "no-config" -> True
     _ -> False
   }
 }
@@ -225,7 +227,7 @@ fn interview_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let profile =
       flag.get_string(input.flags, "profile")
-      |> result.unwrap("")
+      |> result.unwrap(env.get_default_profile() |> result.unwrap(""))
 
     let resume_session =
       flag.get_string(input.flags, "resume")
@@ -319,7 +321,7 @@ fn beads_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let format =
       flag.get_string(input.flags, "format")
-      |> result.unwrap("")
+      |> result.unwrap(env.get_default_format())
 
     let output_dir =
       flag.get_string(input.flags, "out")
@@ -1343,7 +1345,7 @@ fn plan_next_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
     let strategy =
       flag.get_string(input.flags, "strategy")
-      |> result.unwrap("")
+      |> result.unwrap(env.get_default_strategy())
 
     // Validate no extra arguments
     case validation.validate_no_args(input.args, "plan-next") {

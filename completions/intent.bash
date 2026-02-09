@@ -9,19 +9,19 @@ _intent_completion() {
     local cur prev words cword
     _get_comp_words_by_ref -n : cur prev words cword
 
-    # Store all possible commands
+    # Store all possible commands (including aliases)
     local commands=(
-        "interview" "beads" "bead-status" "history" "diff" "sessions"
+        "interview" "int" "beads" "bead-status" "history" "hist" "diff" "sessions" "sess"
         "plan" "plan-next" "plan-approve" "plan-emit-beads" "beads-regenerate"
-        "vision" "ready" "effects"
+        "vision" "vis" "ready" "effects" "eff"
     )
 
-    # Store all flags
+    # Store all flags (including shortcuts)
     local flags=(
-        "--profile" "--session" "--format" "--out" "--output"
+        "--profile" "-p" "--session" "-s" "--format" "-f" "--out" "-o" "--output"
         "--resume" "--answer" "--bead-id" "--status" "--reason"
         "--notes" "--strategy" "--name" "--target" "--feature"
-        "--export-answers-template" "--vision" "--json" "--verbose"
+        "--export-answers-template" "--vision" "--json" "-j" "--verbose"
         "--quiet" "--yes" "--draft" "--confirm" "--dry-run"
         "--execute" "--force" "--help" "--version"
     )
@@ -50,11 +50,11 @@ _intent_completion() {
 
     # Complete based on the command
     case "${command}" in
-        interview)
+        interview|int)
             # Interview subcommand completion
             if [[ ${cword} -eq 2 ]]; then
-                COMPREPLY=( $(compgen -W "--profile --resume --help" -- "${cur}") )
-            elif [[ ${cword} -eq 3 && ${prev} == "--profile" ]]; then
+                COMPREPLY=( $(compgen -W "--profile -p --resume --help" -- "${cur}") )
+            elif [[ ${cword} -eq 3 && (${prev} == "--profile" || ${prev} == "-p") ]]; then
                 COMPREPLY=( $(compgen -W "${profiles[*]}" -- "${cur}") )
             elif [[ ${cword} -eq 3 && ${prev} == "--resume" ]]; then
                 # Try to get session IDs
@@ -62,6 +62,40 @@ _intent_completion() {
             fi
             ;;
         beads|beads-regenerate)
+            # Beads subcommand completion
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "--session -s --format -f --out --help" -- "${cur}") )
+            elif [[ ${cword} -eq 3 && (${prev} == "--session" || ${prev} == "-s") ]]; then
+                _complete_intent_sessions
+            elif [[ ${cword} -eq 3 && (${prev} == "--format" || ${prev} == "-f") ]]; then
+                COMPREPLY=( $(compgen -W "${formats[*]}" -- "${cur}") )
+            elif [[ ${cword} -eq 3 && ${prev} == "--out" ]]; then
+                COMPREPLY=( $(compgen -W " --" -- "${cur}") )
+            fi
+            ;;
+        history|hist)
+            # History subcommand completion
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "--help" -- "${cur}") )
+            fi
+            ;;
+        diff)
+            # Diff subcommand completion
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "--session -s --help" -- "${cur}") )
+            elif [[ ${cword} -eq 3 && (${prev} == "--session" || ${prev} == "-s") ]]; then
+                _complete_intent_sessions
+            fi
+            ;;
+        sessions|sess)
+            # Sessions subcommand completion
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "--profile -p --help" -- "${cur}") )
+            elif [[ ${cword} -eq 3 && (${prev} == "--profile" || ${prev} == "-p") ]]; then
+                COMPREPLY=( $(compgen -W "${profiles[*]}" -- "${cur}") )
+            fi
+            ;;
+        effects|eff)
             # Beads subcommand completion
             if [[ ${cword} -eq 2 ]]; then
                 COMPREPLY=( $(compgen -W "--session --format --out --help" -- "${cur}") )
@@ -142,33 +176,22 @@ _intent_completion() {
                 COMPREPLY=( $(compgen -W "br --" -- "${cur}") )
             fi
             ;;
-        vision|ready|effects)
-            # Commands that take a file argument
+        vision|vis)
+            # Vision command completion
             if [[ ${cword} -eq 2 ]]; then
-                COMPREPLY=( $(compgen -W "--out --output --help" -- "${cur}") )
-            elif [[ ${cword} -eq 3 ]]; then
-                # Complete CUE files by default
-                COMPREPLY=( $(compgen -f -G "*.cue" -- "${cur}") )
-            elif [[ ${cword} -eq 3 && ${prev} == "--out" ]]; then
-                COMPREPLY=( $(compgen -W " --" -- "${cur}") )
-            elif [[ ${cword} -eq 3 && ${prev} == "--output" ]]; then
-                COMPREPLY=( $(compgen -W " --" -- "${cur}") )
-            elif [[ ${cword} -eq 4 && ${prev} == "--out" ]]; then
-                COMPREPLY=( $(compgen -W " --" -- "${cur}") )
-            elif [[ ${cword} -eq 4 && ${prev} == "--output" ]]; then
-                COMPREPLY=( $(compgen -W " --" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "--out -o --help" -- "${cur}") )
             fi
-
-            # For effects command, also complete --behavior flag
-            if [[ "${command}" == "effects" ]]; then
-                if [[ ${cword} -eq 2 ]]; then
-                    COMPREPLY=( $(compgen -W "--behavior --json --help" -- "${cur}") )
-                elif [[ ${cword} -eq 3 && ${prev} == "--behavior" ]]; then
-                    # Could add behavior completion here if needed
-                    COMPREPLY=( $(compgen -W " --" -- "${cur}") )
-                elif [[ ${cword} -eq 3 && ${prev} == "--json" ]]; then
-                    COMPREPLY=( $(compgen -W "true false --" -- "${cur}") )
-                fi
+            ;;
+        ready)
+            # Ready command completion
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "--out -o --help" -- "${cur}") )
+            fi
+            ;;
+        effects|eff)
+            # Effects command completion
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "--behavior --json -j --help" -- "${cur}") )
             fi
             ;;
         *)

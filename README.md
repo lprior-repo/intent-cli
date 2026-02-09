@@ -211,6 +211,70 @@ gleam run -- vision --out <dir>                      # Generate vision document
 gleam run -- ready --out <dir>                       # Generate ready document
 ```
 
+## Command Aliases and Flag Shortcuts
+
+Intent CLI provides convenient aliases for common commands and shortcuts for frequently used flags to improve your workflow efficiency.
+
+### Command Aliases
+
+| Alias    | Full Command   | Description                        |
+|----------|---------------|------------------------------------|
+| `int`    | `interview`   | Start interactive interview        |
+| `hist`   | `history`     | List all interview sessions        |
+| `sess`   | `sessions`    | List sessions with filtering       |
+| `eff`    | `effects`     | Analyze second-order effects       |
+| `vis`    | `vision`      | Generate vision document           |
+
+**Examples:**
+
+```bash
+# Using aliases
+gleam run -- int -p api                    # Same as: gleam run -- interview --profile api
+gleam run -- hist                          # Same as: gleam run -- history
+gleam run -- sess -p api                   # Same as: gleam run -- sessions --profile api
+gleam run -- eff examples/spec.cue         # Same as: gleam run -- effects examples/spec.cue
+gleam run -- vis examples/spec.cue         # Same as: gleam run -- vision examples/spec.cue
+```
+
+### Flag Shortcuts
+
+| Shortcut | Full Flag     | Description                        |
+|----------|--------------|------------------------------------|
+| `-p`     | `--profile`   | Profile type for interview         |
+| `-s`     | `--session`   | Session ID                         |
+| `-f`     | `--format`    | Output format                      |
+| `-o`     | `--out`       | Output directory                   |
+| `-j`     | `--json`      | JSON output                        |
+
+**Examples:**
+
+```bash
+# Using flag shortcuts
+gleam run -- interview -p api              # Same as: gleam run -- interview --profile api
+gleam run -- beads -s abc123 -f json      # Same as: gleam run -- beads --session abc123 --format json
+gleam run -- effects examples/spec.cue -j  # Same as: gleam run -- effects examples/spec.cue --json
+gleam run -- vision spec.cue -o docs/      # Same as: gleam run -- vision spec.cue --out docs/
+```
+
+### Combining Aliases and Shortcuts
+
+You can combine command aliases with flag shortcuts for maximum efficiency:
+
+```bash
+# Full command: gleam run -- interview --profile api --session abc123
+gleam run -- int -p api -s abc123
+
+# Full command: gleam run -- beads --session abc123 --format json --out output/
+gleam run -- beads -s abc123 -f json -o output/
+
+# Full command: gleam run -- effects examples/spec.cue --json
+gleam run -- eff examples/spec.cue -j
+```
+
+### Shell Completion
+
+The bash and zsh completion scripts include support for all aliases and shortcuts. Tab completion works seamlessly with both full commands/flags and their aliases/shortcuts.
+
 ## Installation
 
 ```bash
@@ -268,9 +332,9 @@ source ~/.zshrc
 ### Features
 
 Completion supports:
-- **Commands**: All Intent CLI commands (interview, beads, plan, effects, etc.)
+- **Commands**: All Intent CLI commands and aliases (int/interview, hist/history, sess/sessions, eff/effects, vis/vision)
 - **Subcommands**: Plan subcommands (plan, plan-next, plan-approve, plan-emit-beads)
-- **Flags**: All available CLI flags with descriptions
+- **Flags**: All available CLI flags with descriptions and shortcuts (-p/--profile, -s/--session, -f/--format, -o/--out, -j/--json)
 - **Profile types**: api, cli, event, data, workflow, ui
 - **Output formats**: json, jsonl, markdown
 - **Session IDs**: Automatically extracts from `.interview/sessions.jsonl`
