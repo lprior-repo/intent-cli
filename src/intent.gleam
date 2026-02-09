@@ -10,6 +10,7 @@ import gleam/string
 import gleam_community/ansi
 import glint
 import glint/flag
+import intent/batch
 import intent/bead_templates
 import intent/cli_ui
 import intent/env
@@ -17,6 +18,7 @@ import intent/effects_analyzer.{
   type EffectType, type SpecAnalysis, Cascade, High, Low, Medium, Notification,
   RaceCondition, RollbackRequired, StateChange,
 }
+import intent/init_prompt
 import intent/interview
 import intent/interview_storage
 import intent/loader
@@ -25,6 +27,8 @@ import intent/plan_emit_beads
 import intent/plan_mode
 import intent/ready_document
 import intent/security
+import intent/spec_templates
+import intent/spec_validator
 import intent/validation
 import intent/vision_document
 import shellout
@@ -34,6 +38,9 @@ import simplifile
 const exit_pass = 0
 
 const exit_fail = 1
+
+@external(erlang, "erlang", "halt")
+fn exit(code: Int) -> Nil
 
 pub fn main() {
   let args = argv.load().arguments
@@ -71,6 +78,7 @@ pub fn main() {
     glint.new()
     |> glint.with_name("intent")
     |> glint.with_pretty_help(glint.default_pretty_help())
+    |> glint.add(at: ["init"], do: init_command())
     |> glint.add(at: ["interview"], do: interview_command())
     |> glint.add(at: ["beads"], do: beads_command())
     |> glint.add(at: ["bead-status"], do: bead_status_command())
@@ -88,6 +96,10 @@ pub fn main() {
     |> glint.add(at: ["ready"], do: ready_command())
     // KIRK commands
     |> glint.add(at: ["effects"], do: effects_command())
+    // Validation command
+    |> glint.add(at: ["validate"], do: validate_command())
+    // Batch command
+    |> glint.add(at: ["batch"], do: batch_command())
 
   case glint.execute(app, processed_args) {
     Ok(glint.Out(_)) -> {
@@ -180,6 +192,8 @@ fn is_known_bool_flag(flag_name: String) -> Bool {
     "dry-run" -> True
     "execute" -> True
     "no-config" -> True
+    "parallel" -> True
+    "continue-on-error" -> True
     _ -> False
   }
 }
@@ -204,6 +218,7 @@ fn is_known_value_flag(flag_name: String) -> Bool {
     "feature" -> True
     "export-answers-template" -> True
     "vision" -> True
+    "dir" -> True
     _ -> False
   }
 }
@@ -217,6 +232,219 @@ fn is_bool_literal(value: String) -> Bool {
     "true" -> True
     "false" -> True
     _ -> False
+  }
+}
+
+
+/// ============================================================================
+/// INIT COMMAND
+/// ============================================================================
+fn init_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let template =
+      flag.get_string(input.flags, "profile")
+      |> result.unwrap("")
+
+    let output =
+      flag.get_string(input.flags, "output")
+      |> result.unwrap("")
+
+    // Validate argument count (0 or 1 - spec name)
+    case input.args {
+      [] -> {
+        // Interactive mode - prompt for everything
+        run_init_interactive(template, output)
+      }
+      [spec_name] -> {
+        // Use provided spec name
+        run_init_with_name(spec_name, template, output)
+      }
+      _ -> {
+        cli_ui.print_error(
+          "Error: init takes at most one argument (spec name)",
+        )
+        io.println(
+          "\nUsage: intent init [<name>] [--profile <template>] [--output <file>]",
+        )
+        exit(exit_fail)
+      }
+    }
+  })
+  |> glint.description(
+    "Initialize a new Intent spec from a template
+
+Creates a new Intent specification file (.cue) from a template. Templates
+provide a starting point with common patterns, examples, and best practices
+pre-configured for different project types.
+
+Interactive mode (no arguments):
+  intent init
+
+Quick start with flags:
+  intent init \"My API\" --profile api-spec --output my-api.cue
+
+Available templates:
+  api-spec       - REST/GraphQL API with endpoints and auth
+  cli-tool       - Command-line tool with commands and flags
+  data-pipeline  - Data processing with ETL operations
+  workflow       - Business workflow with states and transitions
+
+The generated spec includes:
+  - Pre-configured features and behaviors
+  - Helpful comments and TODO markers
+  - Anti-patterns with good/bad examples
+  - AI implementation hints
+  - Security best practices
+
+Next steps:
+  1. Customize the spec for your needs
+  2. Run: intent validate <spec-file>
+  3. Generate docs: intent vision <spec-file>",
+  )
+  |> glint.flag(
+    "profile",
+    flag.string()
+      |> flag.default("")
+      |> flag.description(
+        "Template to use (api-spec|cli-tool|data-pipeline|workflow)
+
+Skips interactive template selection when provided.",
+      ),
+  )
+  |> glint.flag(
+    "output",
+    flag.string()
+      |> flag.default("")
+      |> flag.description(
+        "Output filename (default: <name>.cue)
+
+Skips interactive filename prompt when provided.",
+      ),
+  )
+}
+
+fn run_init_interactive(template_flag: String, output_flag: String) -> Nil {
+  cli_ui.print_header("Initialize New Spec")
+
+  // Prompt for spec name
+  let spec_name = case init_prompt.prompt_spec_name() {
+    Ok(name) -> name
+    Error(err) -> {
+      cli_ui.print_error("Failed to get spec name: " <> err)
+      exit(exit_fail)
+      "" // Never reached, but needed for type consistency
+    }
+  }
+
+  run_init_with_name(spec_name, template_flag, output_flag)
+}
+
+fn run_init_with_name(
+  spec_name: String,
+  template_flag: String,
+  output_flag: String,
+) -> Nil {
+  cli_ui.print_header("Initialize: " <> spec_name)
+
+  // Validate spec name
+  let valid_name = case spec_templates.validate_spec_name(spec_name) {
+    Ok(name) -> name
+    Error(err) -> {
+      cli_ui.print_error(err)
+      exit(exit_fail)
+      "" // Never reached, but needed for type consistency
+    }
+  }
+
+  // Determine template type
+  let template_type = case template_flag {
+    "" -> {
+      // Interactive: prompt for template
+      case init_prompt.prompt_template(spec_templates.list_templates()) {
+        Ok(t) -> t
+        Error(err) -> {
+          cli_ui.print_error("Failed to get template selection: " <> err)
+          exit(exit_fail)
+          spec_templates.ApiSpec // Never reached, but needed for type consistency
+        }
+      }
+    }
+    _ -> {
+      // Use template from flag
+      case spec_templates.find_template(template_flag) {
+        Ok(t) -> t
+        Error(err) -> {
+          cli_ui.print_error(err)
+          exit(exit_fail)
+          spec_templates.ApiSpec // Never reached, but needed for type consistency
+        }
+      }
+    }
+  }
+
+  // Generate package name
+  let package_name = spec_templates.generate_package_name(valid_name)
+
+  // Generate spec content
+  let spec_content =
+    spec_templates.generate_spec(template_type, valid_name, package_name)
+
+  // Determine output filename
+  let output_file = case output_flag {
+    "" -> {
+      // Interactive: prompt for filename
+      let default_name = string.lowercase(package_name) <> ".cue"
+
+      case init_prompt.prompt_output_filename(default_name) {
+        Ok(name) -> name
+        Error(err) -> {
+          cli_ui.print_error("Failed to get output filename: " <> err)
+          exit(exit_fail)
+          "" // Never reached, but needed for type consistency
+        }
+      }
+    }
+    _ -> {
+      // Use output from flag
+      case string.ends_with(output_flag, ".cue") {
+        True -> output_flag
+        False -> output_flag <> ".cue"
+      }
+    }
+  }
+
+  // Write spec file
+  case simplifile.write(output_file, spec_content) {
+    Ok(_) -> {
+      io.println("")
+      io.println("Created: " <> ansi.green(output_file))
+      io.println("")
+
+      cli_ui.print_success("Spec initialized successfully!")
+      io.println("")
+      io.println("Template: " <> spec_templates.format_template_type(template_type))
+      io.println("")
+      io.println("Next steps:")
+      io.println("  1. Review and customize the spec:")
+      io.println("     " <> ansi.cyan("cat " <> output_file))
+      io.println("")
+      io.println("  2. Validate the spec:")
+      io.println("     " <> ansi.cyan("intent validate " <> output_file))
+      io.println("")
+      io.println("  3. Generate documentation:")
+      io.println("     " <> ansi.cyan("intent vision " <> output_file))
+      io.println("")
+      exit(exit_pass)
+    }
+    Error(_err) -> {
+      cli_ui.print_error("Failed to write spec file")
+      io.println("\nError details:")
+      io.println("\nTroubleshooting:")
+      io.println("  1. Check file permissions: ls -l " <> output_file)
+      io.println("  2. Verify directory exists: ls .")
+      io.println("  3. Check disk space: df -h")
+      exit(exit_fail)
+    }
   }
 }
 
@@ -2245,6 +2473,129 @@ fn format_parse_errors(errors: List(dynamic.DecodeError)) -> String {
 }
 
 /// ============================================================================
+/// VALIDATE COMMAND
+/// ============================================================================
+fn validate_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let json =
+      flag.get_bool(input.flags, "json")
+      |> result.unwrap(False)
+
+    // Validate single argument (spec file)
+    case input.args {
+      [] -> {
+        cli_ui.print_error("Error: spec file required")
+        io.println("\nUsage: intent validate <spec-file> [--json]")
+        exit(exit_fail)
+      }
+      [spec_file] -> {
+        validate_spec_file(spec_file, json)
+      }
+      _ -> {
+        cli_ui.print_error(
+          "Error: validate command takes exactly one argument (spec file)",
+        )
+        exit(exit_fail)
+      }
+    }
+  })
+  |> glint.description(
+    "Validate a CUE spec file for syntax and schema compliance
+
+Performs comprehensive validation of Intent spec files:
+  • CUE syntax validity (file compiles)
+  • Schema compliance (all required fields present)
+  • No duplicate behavior names
+  • No circular dependencies in requires
+  • Valid behavior references (invariants exist, behaviors valid)
+
+Exit codes:
+  0 - Spec is valid
+  1 - Spec has validation errors
+
+Examples:
+  intent validate examples/user-api.cue
+  intent validate examples/user-api.cue --json
+
+Output formats:
+  Default - Human-readable error messages with line numbers
+  --json  - Machine-readable JSON output for CI/CD integration",
+  )
+  |> glint.flag(
+    "json",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description("Output validation results as JSON"),
+  )
+}
+
+fn validate_spec_file(spec_file: String, as_json: Bool) -> Nil {
+  cli_ui.print_header("Spec Validation")
+
+  // Validate file path for security
+  case security.validate_file_path(spec_file) {
+    Error(err) -> {
+      cli_ui.print_error(
+        "Invalid file path: " <> security.format_security_error(err),
+      )
+      exit(exit_fail)
+    }
+    Ok(validated_path) -> {
+      // Run validation
+      let result = spec_validator.validate_spec_file(validated_path)
+
+      // Output results
+      case as_json {
+        True -> {
+          io.println(spec_validator.format_validation_result_json(result))
+        }
+        False -> {
+          io.println("\n" <> spec_validator.format_validation_result(result))
+
+          // Show spec summary if valid
+          case result {
+            spec_validator.ValidationValid -> {
+              case spec_validator.load_and_parse_spec(validated_path) {
+                Ok(spec) -> {
+                  io.println("\nSpec Summary:")
+                  cli_ui.print_labeled("Name", spec.name)
+                  cli_ui.print_labeled("Version", spec.version)
+                  cli_ui.print_labeled(
+                    "Features",
+                    int.to_string(list.length(spec.features)),
+                  )
+                  let behavior_count =
+                    spec.features
+                    |> list.flat_map(fn(f) { f.behaviors })
+                    |> list.length
+                  cli_ui.print_labeled(
+                    "Behaviors",
+                    int.to_string(behavior_count),
+                  )
+                }
+                Error(_) -> Nil
+              }
+            }
+            spec_validator.ValidationInvalid(_) -> Nil
+          }
+        }
+      }
+
+      // Exit with appropriate code
+      case result {
+        spec_validator.ValidationValid -> {
+          cli_ui.print_success("Validation passed")
+          exit(exit_pass)
+        }
+        spec_validator.ValidationInvalid(_) -> {
+          exit(exit_fail)
+        }
+      }
+    }
+  }
+}
+
+/// ============================================================================
 /// ERROR HANDLING HELPERS
 /// ============================================================================
 /// Format file not found error with helpful suggestions
@@ -2275,8 +2626,179 @@ fn format_br_command_error(stderr: String) -> Nil {
   io.println("  4. Check br logs: br log --tail 50")
 }
 
-@external(erlang, "erlang", "halt")
-fn exit(code: Int) -> Nil
-
 @external(erlang, "intent_ffi", "current_iso8601_timestamp")
 fn current_iso8601_timestamp() -> String
+
+
+/// ============================================================================
+/// BATCH COMMAND
+/// ============================================================================
+fn batch_command() -> glint.Command(Nil) {
+  glint.command(fn(input: glint.CommandInput) {
+    let output_dir =
+      flag.get_string(input.flags, "out")
+      |> result.unwrap("")
+
+    let dir =
+      flag.get_string(input.flags, "dir")
+      |> result.unwrap("")
+
+    let parallel =
+      flag.get_bool(input.flags, "parallel")
+      |> result.unwrap(False)
+
+    let verbose =
+      flag.get_bool(input.flags, "verbose")
+      |> result.unwrap(False)
+
+    let continue_on_error =
+      flag.get_bool(input.flags, "continue-on-error")
+      |> result.unwrap(False)
+
+    // Determine files to process
+    let files_result = case input.args {
+      [] -> {
+        // No files provided, check --dir flag
+        case dir {
+          "" -> Error("No spec files provided")
+          _ -> batch.get_specs_from_dir(dir)
+        }
+      }
+      args -> Ok(args)
+    }
+
+    // Handle file errors
+    let files = case files_result {
+      Ok(file_list) -> file_list
+      Error(err) -> {
+        cli_ui.print_error("Error: " <> err)
+        io.println(
+          "\nUsage: intent batch <spec1.cue> [<spec2.cue> ...] [--dir <directory>]",
+        )
+        io.println("\nExamples:")
+        io.println("  intent batch spec1.cue spec2.cue spec3.cue")
+        io.println("  intent batch --dir examples/")
+        io.println("  intent batch --dir specs/ --verbose")
+        exit(exit_fail)
+        // This is unreachable but needed for type checking
+        []
+      }
+    }
+
+    // Create batch config
+    let config =
+      batch.BatchConfig(
+        output_dir: output_dir,
+        parallel: parallel,
+        verbose: verbose,
+        continue_on_error: continue_on_error,
+      )
+
+    // Process specs
+    let summary = batch.process_specs(files, config)
+
+    // Exit with appropriate code
+    case summary.failed > 0 {
+      True -> exit(exit_fail)
+      False -> exit(exit_pass)
+    }
+  })
+  |> glint.description(
+    "Process multiple spec files and generate summary report
+
+Processes multiple CUE spec files sequentially or in parallel, analyzing
+each for quality and generating a comprehensive summary report.
+
+Examples:
+  # Process specific files
+  intent batch spec1.cue spec2.cue spec3.cue
+
+  # Process all .cue files in a directory
+  intent batch --dir examples/
+
+  # Verbose output with detailed results
+  intent batch --dir specs/ --verbose
+
+  # Continue processing even if some files fail
+  intent batch *.cue --continue-on-error
+
+  # Specify output directory for results
+  intent batch --dir specs/ --out results/
+
+Output includes:
+  - Progress indicator: [1/3] processing spec1.cue...
+  - Per-file status with behavior count and quality score
+  - Summary statistics (successful, failed, skipped)
+  - Average quality score across all specs
+  - Detailed error messages for failed files (with --verbose)
+
+Quality scoring:
+  - 90-100: Excellent (comprehensive, well-tested)
+  - 75-89:  Good (solid coverage, minor gaps)
+  - 60-74:  Fair (basic coverage, needs improvement)
+  - 0-59:   Poor (significant gaps or issues)
+
+Related commands:
+  - effects    Analyze second-order effects
+  - vision     Generate vision document
+  - ready      Generate ready document",
+  )
+  |> glint.flag(
+    "dir",
+    flag.string()
+      |> flag.default("")
+      |> flag.description(
+        "Directory containing .cue spec files
+
+Process all .cue files in the specified directory. Hidden files
+(starting with .) are ignored.
+
+Example: intent batch --dir examples/",
+      ),
+  )
+  |> glint.flag(
+    "out",
+    flag.string()
+      |> flag.default("")
+      |> flag.description(
+        "Output directory for batch results (default: current directory)
+
+Reserved for future use - currently results are printed to stdout.",
+      ),
+  )
+  |> glint.flag(
+    "parallel",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Process specs in parallel (experimental, not yet implemented)
+
+Currently all specs are processed sequentially. This flag is reserved
+for future parallel processing support.",
+      ),
+  )
+  |> glint.flag(
+    "verbose",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Enable verbose output with detailed results
+
+Shows detailed breakdown for each spec including:
+  - Quality issues found
+  - Detailed error messages
+  - Per-file result details",
+      ),
+  )
+  |> glint.flag(
+    "continue-on-error",
+    flag.bool()
+      |> flag.default(False)
+      |> flag.description(
+        "Continue processing remaining files if one fails
+
+By default, batch processing stops on the first error. Use this flag
+to continue processing all files and report all errors at the end.",
+      ),
+  )
+}
