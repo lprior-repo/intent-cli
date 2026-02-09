@@ -459,7 +459,7 @@ fn parse_bead_response(
   json_data: dynamic.Dynamic,
 ) -> Result(BeadStatus, String) {
   // br show returns an array, try to decode as list first
-  case dynamic.list(dynamic.dynamic)(json_data) {
+  case dynamic.list(decode_bead_helper)(json_data) {
     Ok(beads_list) -> {
       case beads_list {
         [] -> Error("Empty bead list returned from br")
@@ -473,6 +473,11 @@ fn parse_bead_response(
   }
 }
 
+/// Helper to decode any bead item in the list
+fn decode_bead_helper(data: dynamic.Dynamic) -> dynamic.Dynamic {
+  data
+}
+
 /// Decode a single bead from dynamic
 fn decode_bead_from_dynamic(
   bead_dynamic: dynamic.Dynamic,
@@ -484,19 +489,15 @@ fn decode_bead_from_dynamic(
   let created_at = dynamic.field("created_at", dynamic.string)(bead_dynamic)
   let updated_at = dynamic.field("updated_at", dynamic.string)(bead_dynamic)
 
-  // Optional fields - use field with fallback
-  let description =
-    dynamic.field("description", dynamic.string)(bead_dynamic)
-    |> result.unwrap("")
-  let issue_type =
-    dynamic.field("issue_type", dynamic.string)(bead_dynamic)
-    |> result.unwrap("unknown")
-  let closed_at =
-    dynamic.field("closed_at", dynamic.string)(bead_dynamic)
-    |> result.unwrap("")
-  let labels =
-    dynamic.field("labels", dynamic.list(dynamic.string))(bead_dynamic)
-    |> result.unwrap([])
+  // Optional fields
+  let description_result =
+    dynamic.optional_field("description", dynamic.string)(bead_dynamic)
+  let issue_type_result =
+    dynamic.optional_field("issue_type", dynamic.string)(bead_dynamic)
+  let closed_at_result =
+    dynamic.optional_field("closed_at", dynamic.string)(bead_dynamic)
+  let labels_result =
+    dynamic.optional_field("labels", dynamic.list(dynamic.string))(bead_dynamic)
 
   case
     id,
@@ -509,6 +510,23 @@ fn decode_bead_from_dynamic(
     Ok(id_val), Ok(title_val), Ok(status_val), Ok(priority_val), Ok(created_val), Ok(
       updated_val,
     ) -> {
+      let description = case description_result {
+        Ok(Some(desc)) -> desc
+        _ -> ""
+      }
+      let issue_type = case issue_type_result {
+        Ok(Some(t)) -> t
+        _ -> "unknown"
+      }
+      let closed_at = case closed_at_result {
+        Ok(Some(c)) -> c
+        _ -> ""
+      }
+      let labels = case labels_result {
+        Ok(Some(l)) -> l
+        _ -> []
+      }
+
       Ok(BeadStatus(
         id: id_val,
         title: title_val,
@@ -1904,6 +1922,3 @@ fn format_parse_errors(
 
 @external(erlang, "erlang", "halt")
 fn exit(code: Int) -> Nil
-
-@external(erlang, "intent_ffi", "current_iso8601_timestamp")
-fn current_iso8601_timestamp() -> String

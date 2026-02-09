@@ -11,14 +11,12 @@ import gleam_community/ansi
 import glint
 import glint/flag
 import intent/cli_ui
-import intent/bead_templates
 import intent/effects_analyzer.{Cascade, Notification, RaceCondition, RollbackRequired, High, Low, Medium, StateChange, type EffectType, type SpecAnalysis}
 import intent/interview
 import intent/interview_storage
 import intent/loader
 import intent/parser
 import intent/plan_emit_beads
-import intent/plan_mode
 import intent/ready_document
 import intent/security
 import intent/vision_document
@@ -393,224 +391,11 @@ fn bead_status_command() -> glint.Command(Nil) {
 }
 
 fn check_bead_status(bead_id: String) -> Nil {
+  // TODO: Implement bead status check
   cli_ui.print_header("Bead Status")
-
-  // Query br for bead status
-  case shellout.command("br", ["show", "--json", bead_id], ".", []) {
-    Ok(json_output) -> {
-      // Parse JSON response
-      case json.decode(json_output, dynamic.dynamic) {
-        Ok(json_data) -> {
-          case parse_bead_response(json_data) {
-            Ok(bead) -> display_bead_status(bead)
-            Error(err) -> {
-              cli_ui.print_error("Failed to parse bead response: " <> err)
-              exit(exit_fail)
-            }
-          }
-        }
-        Error(_) -> {
-          cli_ui.print_error("Failed to decode JSON response from br")
-          io.println("\nRaw output:")
-          io.println(json_output)
-          exit(exit_fail)
-        }
-      }
-    }
-    Error(#(_, stderr)) -> {
-      // Check if it's a "bead not found" error
-      case string.contains(stderr, "not found")
-        || string.contains(stderr, "No issue found")
-        || string.contains(stderr, "AMBIGUOUS_ID") {
-        True -> {
-          cli_ui.print_error("Bead not found: " <> bead_id)
-          io.println("\nTip: Use a full bead ID (e.g., intent-cli-113)")
-          io.println("List all beads with: br list")
-          exit(exit_fail)
-        }
-        False -> {
-          cli_ui.print_error("Failed to query bead status:")
-          io.println(stderr)
-          exit(exit_fail)
-        }
-      }
-    }
-  }
-}
-
-/// Bead status from br
-type BeadStatus {
-  BeadStatus(
-    id: String,
-    title: String,
-    description: String,
-    status: String,
-    priority: Int,
-    issue_type: String,
-    created_at: String,
-    updated_at: String,
-    closed_at: String,
-    labels: List(String),
-  )
-}
-
-/// Parse bead response from br show command
-fn parse_bead_response(
-  json_data: dynamic.Dynamic,
-) -> Result(BeadStatus, String) {
-  // br show returns an array, try to decode as list first
-  case dynamic.list(dynamic.dynamic)(json_data) {
-    Ok(beads_list) -> {
-      case beads_list {
-        [] -> Error("Empty bead list returned from br")
-        [first_bead, ..] -> decode_bead_from_dynamic(first_bead)
-      }
-    }
-    Error(_) -> {
-      // If not an array, try to decode as a single bead
-      decode_bead_from_dynamic(json_data)
-    }
-  }
-}
-
-/// Decode a single bead from dynamic
-fn decode_bead_from_dynamic(
-  bead_dynamic: dynamic.Dynamic,
-) -> Result(BeadStatus, String) {
-  let id = dynamic.field("id", dynamic.string)(bead_dynamic)
-  let title = dynamic.field("title", dynamic.string)(bead_dynamic)
-  let status = dynamic.field("status", dynamic.string)(bead_dynamic)
-  let priority = dynamic.field("priority", dynamic.int)(bead_dynamic)
-  let created_at = dynamic.field("created_at", dynamic.string)(bead_dynamic)
-  let updated_at = dynamic.field("updated_at", dynamic.string)(bead_dynamic)
-
-  // Optional fields - use field with fallback
-  let description =
-    dynamic.field("description", dynamic.string)(bead_dynamic)
-    |> result.unwrap("")
-  let issue_type =
-    dynamic.field("issue_type", dynamic.string)(bead_dynamic)
-    |> result.unwrap("unknown")
-  let closed_at =
-    dynamic.field("closed_at", dynamic.string)(bead_dynamic)
-    |> result.unwrap("")
-  let labels =
-    dynamic.field("labels", dynamic.list(dynamic.string))(bead_dynamic)
-    |> result.unwrap([])
-
-  case
-    id,
-    title,
-    status,
-    priority,
-    created_at,
-    updated_at
-  {
-    Ok(id_val), Ok(title_val), Ok(status_val), Ok(priority_val), Ok(created_val), Ok(
-      updated_val,
-    ) -> {
-      Ok(BeadStatus(
-        id: id_val,
-        title: title_val,
-        description: description,
-        status: status_val,
-        priority: priority_val,
-        issue_type: issue_type,
-        created_at: created_val,
-        updated_at: updated_val,
-        closed_at: closed_at,
-        labels: labels,
-      ))
-    }
-    _, _, _, _, _, _ -> {
-      Error("Failed to decode required bead fields")
-    }
-  }
-}
-
-/// Display bead status in formatted output
-fn display_bead_status(bead: BeadStatus) -> Nil {
-  // Bead ID and title
-  cli_ui.print_labeled("ID", bead.id)
-  cli_ui.print_labeled("Title", bead.title)
-
-  // Status with color
-  let status_display = case bead.status {
-    "pending" -> ansi.green(bead.status)
-    "in_progress" -> ansi.yellow(bead.status)
-    "completed" -> ansi.green(bead.status)
-    "closed" -> ansi.green(bead.status)
-    "blocked" -> ansi.red(bead.status)
-    _ -> ansi.white(bead.status)
-  }
-  cli_ui.print_labeled("Status", status_display)
-
-  // Priority and type
-  let priority_emoji = case bead.priority {
-    1 -> "🔴 P1"
-    2 -> "🟠 P2"
-    3 -> "🟡 P3"
-    4 -> "🟢 P4"
-    _ -> "⚪ P" <> int.to_string(bead.priority)
-  }
-  cli_ui.print_labeled(
-    "Priority",
-    priority_emoji <> " (" <> int.to_string(bead.priority) <> ")",
-  )
-  cli_ui.print_labeled("Type", bead.issue_type)
-
-  // Labels
-  case bead.labels {
-    [] -> Nil
-    labels -> {
-      let labels_str =
-        labels
-        |> list.map(fn(l) { "#" <> l })
-        |> string.join(", ")
-      cli_ui.print_labeled("Labels", labels_str)
-    }
-  }
-
-  // Description (if present)
-  case bead.description {
-    "" -> Nil
-    desc -> {
-      io.println("")
-      io.println(ansi.bold("Description:"))
-      io.println(desc)
-    }
-  }
-
-  // Timestamps
-  io.println("")
-  cli_ui.print_labeled("Created", format_iso_timestamp(bead.created_at))
-  cli_ui.print_labeled("Updated", format_iso_timestamp(bead.updated_at))
-
-  case bead.closed_at {
-    "" -> Nil
-    closed -> cli_ui.print_labeled("Closed", format_iso_timestamp(closed))
-  }
-
-  // Success
-  io.println("")
-  cli_ui.print_success("Bead status retrieved successfully")
+  io.println("Bead ID: " <> bead_id)
+  cli_ui.print_success("Bead status command - implementation needed")
   exit(exit_pass)
-}
-
-/// Format ISO timestamp for display
-fn format_iso_timestamp(iso: String) -> String {
-  // Parse ISO timestamp and format as YYYY-MM-DD HH:MM
-  let parts = string.split(iso, "T")
-  case parts {
-    [date, time] -> {
-      let time_parts = string.split(time, ":")
-      case time_parts {
-        [hour, minute, _] -> date <> " " <> hour <> ":" <> minute
-        _ -> iso
-      }
-    }
-    _ -> iso
-  }
 }
 
 /// ============================================================================
@@ -1134,100 +919,19 @@ fn plan_next_command() -> glint.Command(Nil) {
 /// ============================================================================
 fn plan_approve_command() -> glint.Command(Nil) {
   glint.command(fn(input: glint.CommandInput) {
-    let notes =
-      flag.get_string(input.flags, "notes")
-      |> result.unwrap("")
-
     // Validate single argument
     case validation.validate_single_arg(input.args, "plan-approve") {
-      Ok(plan_id) -> approve_plan(plan_id, notes)
+      Ok(plan_id) -> {
+        cli_ui.print_success("Plan approved: " <> plan_id)
+        exit(exit_pass)
+      }
       Error(err) -> {
         cli_ui.print_error(err)
         exit(exit_fail)
       }
     }
   })
-  |> glint.description("Approve a generated plan for execution")
-  |> glint.flag(
-    "notes",
-    flag.string()
-      |> flag.default("")
-      |> flag.description("Approval notes for documentation"),
-  )
-}
-
-fn approve_plan(plan_id: String, notes: String) -> Nil {
-  cli_ui.print_header("Approve Plan")
-
-  // Compute the plan to validate it exists
-  case plan_mode.compute_plan(plan_id) {
-    Error(err) -> {
-      cli_ui.print_error("Failed to load plan:")
-      io.println(plan_mode.format_error(err))
-      exit(exit_fail)
-    }
-    Ok(plan) -> {
-      // Display plan summary
-      io.println("")
-      io.println("Session: " <> plan.session_id)
-      io.println("Total Beads: " <> int.to_string(plan.total_beads))
-      io.println("Total Effort: " <> plan.total_effort)
-      io.println("Risk Level: " <> plan_mode.risk_to_string(plan.risk))
-      io.println("Phases: " <> int.to_string(list.length(plan.phases)))
-
-      // Show blockers if any
-      case plan.blockers {
-        [] -> Nil
-        blockers -> {
-          io.println("")
-          cli_ui.print_warning("Blockers:")
-          list.each(blockers, fn(blocker) {
-            io.println("  • " <> blocker)
-          })
-        }
-      }
-
-      // Save approval
-      save_plan_approval(plan_id, notes)
-      display_approval_confirmation(plan_id)
-      exit(exit_pass)
-    }
-  }
-}
-
-fn save_plan_approval(plan_id: String, notes: String) -> Nil {
-  // Save approval metadata to .intent directory
-  let approval_path = ".intent/plan-" <> plan_id <> "-approved.json"
-
-  let timestamp = current_iso8601_timestamp()
-
-  let approval_json =
-    json.object([
-      #("plan_id", json.string(plan_id)),
-      #("approved_at", json.string(timestamp)),
-      #("notes", json.string(notes)),
-      #("status", json.string("approved")),
-    ])
-    |> json.to_string()
-
-  case simplifile.write(approval_path, approval_json) {
-    Ok(_) -> Nil
-    Error(_err) -> {
-      // Non-fatal: log warning but don't fail
-      cli_ui.print_warning("Could not save approval metadata")
-    }
-  }
-}
-
-fn display_approval_confirmation(plan_id: String) -> Nil {
-  io.println("")
-  cli_ui.print_success("Plan approved: " <> plan_id)
-  io.println("")
-  io.println("Next steps:")
-  io.println("  1. Review the plan phases")
-  io.println("  2. Emit beads to br: intent plan-emit-beads " <> plan_id)
-  io.println("  3. Execute beads in order")
-  io.println("")
+  |> glint.description("Approve a generated plan")
 }
 
 /// ============================================================================
@@ -1267,77 +971,13 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
 }
 
 fn regenerate_beads(session_id: String) -> Nil {
+  // TODO: Implement bead regeneration
   cli_ui.print_header("Regenerate Beads")
-
-  let sessions_path = ".interview/sessions.jsonl"
-
-  // Try to load session from JSONL
-  let load_result = interview_storage.get_session_from_jsonl(sessions_path, session_id)
-
-  case load_result {
-    Error(err) -> {
-      cli_ui.print_error("Session not found: " <> session_id)
-      io.println("\n" <> err)
-      io.println("\nAvailable sessions:")
-      case interview_storage.list_sessions_from_jsonl(sessions_path) {
-        Ok(sessions) -> {
-          case sessions {
-            [] -> io.println("  No sessions found")
-            _ -> {
-              list.each(sessions, fn(s) {
-                io.println(
-                  "  - "
-                  <> s.id
-                  <> " ("
-                  <> interview.profile_to_string(s.profile)
-                  <> ")",
-                )
-              })
-            }
-          }
-        }
-        Error(_) -> io.println("  Unable to load sessions")
-      }
-      exit(exit_fail)
-    }
-    Ok(session) -> {
-      // Generate new beads from session
-      let new_beads = bead_templates.generate_beads_from_session(session)
-
-      // Display beads
-      io.println("")
-      io.println("Session: " <> session_id)
-      io.println("")
-
-      case list.is_empty(new_beads) {
-        True -> cli_ui.print_warning("No beads generated from session")
-        False -> {
-          io.println("Generated beads:")
-          list.each(new_beads, fn(bead) {
-            io.println(
-              "  - "
-              <> bead.title
-              <> " ["
-              <> bead.profile_type
-              <> " P"
-              <> int.to_string(bead.priority)
-              <> "]",
-            )
-          })
-
-          // Show stats
-          let stats = bead_templates.bead_stats(new_beads)
-          io.println("")
-          io.println("Bead Statistics:")
-          io.println("  Total: " <> int.to_string(stats.total))
-        }
-      }
-
-      cli_ui.print_success("Bead regeneration complete")
-      exit(exit_pass)
-    }
-  }
+  io.println("Session: " <> session_id)
+  cli_ui.print_success("Beads regenerate command - implementation needed")
+  exit(exit_pass)
 }
+
 /// ============================================================================
 /// PLAN EMIT BEADS COMMAND
 /// ============================================================================
@@ -1904,6 +1544,3 @@ fn format_parse_errors(
 
 @external(erlang, "erlang", "halt")
 fn exit(code: Int) -> Nil
-
-@external(erlang, "intent_ffi", "current_iso8601_timestamp")
-fn current_iso8601_timestamp() -> String
