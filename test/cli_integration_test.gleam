@@ -8,10 +8,10 @@ pub fn main() {
 }
 
 pub fn given_bare_bool_flag_when_normalizing_then_true_is_assumed_test() {
-  let args = ["check", "examples/user-api.cue", "--json"]
+  let args = ["validate", "examples/user-api.cue", "--json"]
 
   intent.normalize_cli_args(args)
-  |> should.equal(["check", "examples/user-api.cue", "--json=true"])
+  |> should.equal(["validate", "examples/user-api.cue", "--json=true"])
 }
 
 pub fn given_bool_literal_value_when_normalizing_then_equals_syntax_is_used_test() {
@@ -23,12 +23,12 @@ pub fn given_bool_literal_value_when_normalizing_then_equals_syntax_is_used_test
 
 pub fn given_non_bool_flag_when_normalizing_then_arguments_are_preserved_test() {
   let args = [
-    "check", "examples/user-api.cue", "--feature", "Users", "--only", "login",
+    "interview", "--profile", "api", "--notes", "Build user management system",
   ]
 
   intent.normalize_cli_args(args)
   |> should.equal([
-    "check", "examples/user-api.cue", "--feature=Users", "--only=login",
+    "interview", "--profile=api", "--notes=Build user management system",
   ])
 }
 
@@ -52,10 +52,10 @@ pub fn given_draft_bool_flag_when_normalizing_then_true_is_assumed_test() {
 }
 
 pub fn given_value_flag_missing_value_when_normalizing_then_flag_is_preserved_test() {
-  let args = ["check", "examples/user-api.cue", "--target", "--json"]
+  let args = ["interview", "--profile", "api", "--session", "--json"]
 
   intent.normalize_cli_args(args)
-  |> should.equal(["check", "examples/user-api.cue", "--target", "--json=true"])
+  |> should.equal(["interview", "--profile=api", "--session", "--json=true"])
 }
 
 pub fn given_export_template_value_flag_when_normalizing_then_equals_syntax_is_used_test() {
@@ -111,14 +111,14 @@ pub fn given_plan_emit_beads_flags_when_normalizing_then_bool_and_values_are_enc
 
 pub fn command_inventory_count_is_current_test() {
   let commands = [
-    "analyze", "bead-status", "beads", "beads-regenerate", "check", "compact",
-    "coverage", "diff", "ears", "effects", "export", "gaps", "history",
-    "improve", "interview", "invert", "lint", "plan", "plan-approve",
-    "plan-emit-beads", "plan-next", "plan-status", "plan-work", "prototext",
-    "quality", "sessions", "show", "validate", "validate-bead",
+    "analyze", "bead-status", "beads", "beads-regenerate", "compact", "coverage",
+    "diff", "ears", "effects", "export", "gaps", "history", "improve", "interview",
+    "invert", "lint", "plan", "plan-approve", "plan-emit-beads", "plan-next",
+    "plan-status", "plan-work", "prototext", "quality", "sessions", "show",
+    "validate", "validate-bead", "vision", "ready",
   ]
 
   commands
   |> list.length
-  |> should.equal(29)
+  |> should.equal(30)
 }

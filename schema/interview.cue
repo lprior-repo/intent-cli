@@ -63,7 +63,7 @@ package intent
 
 	// Constraints and rules
 	constraints?:    [...#Constraint]
-	rules?:          [...#Rule]
+	rules?:          [...#Invariant]
 	anti_patterns?:  [...#AntiPattern]
 
 	// Security and compliance

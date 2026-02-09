@@ -53,12 +53,15 @@ gleam run -- --help
 You should see output like:
 
 ```
-Intent CLI - Contract-Driven API Testing
+Intent CLI - Planning and Bead Generation Tool
 
 Usage: intent [COMMAND] [OPTIONS]
 
 Commands:
-  check - Validate an API specification against a running server
+  interview - Run interactive interview to capture requirements
+  plan - Generate plan from specification
+  effects - Analyze second-order effects
+  quality - Analyze specification quality
 
 Options:
   --help, -h      Show this help message
@@ -70,64 +73,19 @@ Options:
 To ensure everything is working correctly:
 
 ```bash
-# Create a simple test spec
-cat > test-api.cue << 'EOF'
-package api
+# Start an interactive interview
+gleam run -- interview --profile api
 
-spec: {
-    name: "Test API"
-    description: "Simple test"
-    audience: "Everyone"
-    version: "1.0.0"
+# Answer a few questions, then save and exit
 
-    config: {
-        base_url: "https://httpbin.org"
-        timeout_ms: 5000
-        headers: {}
-    }
+# View the generated specification
+gleam run -- show --session <session-id>
 
-    features: [{
-        name: "Basic"
-        description: "Basic test"
-        behaviors: [{
-            name: "get-root"
-            intent: "Get the root endpoint"
-            request: {
-                method: "GET"
-                path: "/get"
-                headers: {}
-                query: {}
-                body: null
-            }
-            response: {
-                status: 200
-                example: { url: "https://httpbin.org/get" }
-                checks: {}
-                headers: {}
-            }
-            captures: {}
-        }]
-    }]
+# Generate a plan from the specification
+gleam run -- plan --session <session-id>
 
-    rules: []
-    anti_patterns: []
-    success_criteria: []
-    ai_hints: {
-        implementation: { suggested_stack: [] }
-        entities: {}
-        security: {
-            password_hashing: ""
-            jwt_algorithm: ""
-            jwt_expiry: ""
-            rate_limiting: ""
-        }
-        pitfalls: []
-    }
-}
-EOF
-
-# Run Intent against the test API
-gleam run -- check test-api.cue --target https://httpbin.org
+# Run quality analysis
+gleam run -- quality examples/spec.cue
 ```
 
 ## Troubleshooting

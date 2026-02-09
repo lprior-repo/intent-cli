@@ -134,7 +134,7 @@ package intent
 #Coverage: {
 	methods: [string]:      int
 	status_codes: [string]: int
-	paths: [string]:        [...#Method]
+	paths: [string]:        [...string]
 	edge_cases?:            #EdgeCaseCoverage
 	owasp?:                 #OWASPCoverage
 }

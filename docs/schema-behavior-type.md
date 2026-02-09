@@ -92,9 +92,9 @@ Behavior dependencies.
 Classification tags for filtering and reporting.
 - Examples: `["auth"]`, `["happy-path"]`, `["error-case"]`, `["integration"]`
 - Used for:
-  - Running subsets of tests: `gleam run -- check spec.cue --tags auth`
   - Coverage reporting: group results by tag
   - Documentation: categorize test types
+  - Plan generation: organize work by tag
 - Common tag patterns:
   - **Happy path**: `"happy-path"`, `"success"`
   - **Error cases**: `"error"`, `"error-case"`, `"validation"`

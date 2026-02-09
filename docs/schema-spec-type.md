@@ -208,9 +208,10 @@ spec: intent.#Spec & {
 The `#Spec` type is used by all Intent CLI commands:
 
 - **`gleam run -- validate <spec.cue>`**: Validates spec against schema and structure
-- **`gleam run -- check <spec.cue> --target <url>`**: Executes all behaviors against target
 - **`gleam run -- lint <spec.cue>`**: Checks for common issues and improvements
-- **`gleam run -- analyze <spec.cue>`**: Generates insights and coverage analysis
+- **`gleam run -- quality <spec.cue>`**: Analyzes specification quality
+- **`gleam run -- effects <spec.cue>`**: Analyzes second-order effects
+- **`gleam run -- plan --session <id>`**: Generates plan from specification
 
 ## See Also
 

@@ -25,16 +25,24 @@ bv --robot-graph --graph-format=json  # Dependency graph export
 
 ## Project Context
 
-This is **Intent**, a contract-driven API testing CLI written in Gleam. It:
-- Parses CUE specification files
-- Validates them against a schema
-- Executes HTTP requests against target APIs
-- Verifies responses match expected behaviors
+This is **Intent**, a planning and bead generation tool written in Gleam. It:
+- Runs interactive interviews to capture requirements
+- Generates structured CUE specifications from interviews
+- Creates beads (tasks) from specifications for use with br (beads_rust)
+- Analyzes specifications for quality, security, and second-order effects
+- Supports multiple output formats (vision documents, ready documents, etc.)
 
 ## Key Files
 
 - `src/intent.gleam` - CLI entry point with glint commands
-- `src/intent/checker.gleam` - Response validation (largest module, ~900 lines)
+- `src/intent/interview.gleam` - Interactive interview system for requirement capture
+- `src/intent/interview_storage.gleam` - Session management for interviews
+- `src/intent/bead_templates.gleam` - Bead generation templates and logic
+- `src/intent/plan_mode.gleam` - Plan generation and analysis
+- `src/intent/plan_emit_beads.gleam` - Emit beads to br (idempotent)
+- `src/intent/effects_analyzer.gleam` - Second-order effects analysis
+- `src/intent/quality_analyzer.gleam` - Specification quality analysis
+- `src/intent/semantic_validator.gleam` - Semantic validation of specs
 - `src/intent/parser.gleam` - JSON parsing with shared `dynamic_to_json` utility
 - `src/intent_ffi.erl` - Erlang FFI for system operations
 
@@ -43,7 +51,6 @@ This is **Intent**, a contract-driven API testing CLI written in Gleam. It:
 ```bash
 gleam build    # Compile
 gleam test     # Run tests
-gleam run -- check examples/user-api.cue --target http://localhost:8080
 ```
 
 ## Spec Format Requirements
@@ -53,14 +60,13 @@ All fields in Intent specifications are **required**. No backwards compatibility
 ### Required Spec Fields
 - `name` - Spec name
 - `description` - Human-readable description
-- `audience` - Target users of the API
+- `audience` - Target users of the system
 - `version` - Semantic version
 - `success_criteria` - List of acceptance criteria
-- `config` - Configuration with `base_url`, `timeout_ms`, and `headers`
 - `features` - List of feature specifications
-- `rules` - Global validation rules
+- `invariants` - Global invariants that apply to all behaviors
 - `anti_patterns` - Anti-patterns to avoid
-- `ai_hints` - Implementation guidance
+- `ai_hints` - Implementation guidance for AI
 
 ### Required Feature Fields
 - `name` - Feature name
@@ -68,20 +74,28 @@ All fields in Intent specifications are **required**. No backwards compatibility
 - `behaviors` - List of behavior specifications (cannot be empty)
 
 ### Required Behavior Fields
-- `name` - Behavior identifier
-- `intent` - What this behavior demonstrates
-- `request` - HTTP request with `method`, `path`, `headers`, `query`, `body`
-- `response` - Expected response with `status`, `example`, `checks`, `headers`
-- `notes` - Implementation notes (can be empty string)
-- `requires` - Behavior dependencies (can be empty list)
-- `tags` - Classification tags (can be empty list)
-- `captures` - Output values for later use (can be empty dict)
+- `name` - Behavior identifier (must match `[a-z][a-z0-9_-]*`)
+- `intent` - Plain English description of what this behavior demonstrates
+- `preconditions` - What must be true before this behavior (optional, defaults to empty)
+- `postconditions` - What must be true after this behavior (optional, defaults to empty)
+- `verifications` - How to verify the behavior works (optional, defaults to empty)
+- `notes` - Additional context (optional, defaults to empty string)
+- `requires` - Behavior dependencies (optional, defaults to empty list)
+- `tags` - Classification tags (optional, defaults to empty list)
 
-### Required Check Fields
-- `rule` - Validation rule expression
-- `why` - Explanation of why this check matters
+### Optional Verification Fields (within verifications array)
+- `description` - What is being verified
+- `criteria` - List of verification criteria
+- `examples` - JSON examples demonstrating the criteria (optional)
+
+### Required Invariant Fields
+- `name` - Invariant name
+- `description` - What this invariant ensures
+- `criteria` - What must always be true
 
 All optional-looking fields (like empty strings, empty lists) must be explicitly provided in CUE specs.
+
+**Note**: The schema no longer includes HTTP-specific fields like `request`, `response`, `config`, `captures`, or `checks`. Behaviors are now declarative and focus on preconditions, postconditions, and verifications.
 
 ## Code Style
 

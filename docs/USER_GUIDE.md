@@ -1,14 +1,14 @@
 # Intent CLI User Guide
 
-This comprehensive guide covers everything you need to know to use Intent effectively for API testing.
+This comprehensive guide covers everything you need to know to use Intent effectively for requirement planning and specification generation.
 
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Writing Specifications](#writing-specifications)
-3. [Running Tests](#running-tests)
-4. [Understanding Results](#understanding-results)
-5. [Advanced Features](#advanced-features)
+2. [Interactive Interviews](#interactive-interviews)
+3. [Writing Specifications](#writing-specifications)
+4. [Plan Generation](#plan-generation)
+5. [Analysis Tools](#analysis-tools)
 6. [Best Practices](#best-practices)
 7. [Common Patterns](#common-patterns)
 8. [Troubleshooting](#troubleshooting)
@@ -19,95 +19,99 @@ This comprehensive guide covers everything you need to know to use Intent effect
 
 The typical Intent workflow is:
 
-1. **Create a specification** - Write a CUE file describing your API
-2. **Start your API server** - Ensure your API is running
-3. **Run Intent** - Execute the specification against your API
-4. **Review results** - Analyze test results and fix any failures
-5. **Iterate** - Improve your spec and API until all tests pass
+1. **Run an interview** - Use interactive interviews to capture requirements
+2. **Generate specification** - Intent creates a structured CUE specification
+3. **Generate plan** - Create a structured plan from the specification
+4. **Emit beads** - Convert plan items into beads for br (beads_rust)
+5. **Analyze quality** - Review specification for quality and security issues
+6. **Iterate** - Refine specification and plan as needed
 
-### Your First Specification
+### Your First Interview
 
-Create a file named `api.cue`:
-
-```cue
-package api
-
-spec: {
-    name: "My API"
-    description: "API for managing items"
-    audience: "API consumers"
-    version: "1.0.0"
-
-    config: {
-        base_url: "http://localhost:8080"
-        timeout_ms: 5000
-        headers: {
-            "Content-Type": "application/json"
-        }
-    }
-
-    features: [{
-        name: "Item Management"
-        description: "Create and retrieve items"
-        behaviors: [{
-            name: "list-items"
-            intent: "Retrieve all items"
-            request: {
-                method: "GET"
-                path: "/items"
-                headers: {}
-                query: {}
-                body: null
-            }
-            response: {
-                status: 200
-                example: [{
-                    id: "item-1"
-                    name: "Test Item"
-                    created_at: "2024-01-04T12:00:00Z"
-                }]
-                checks: {}
-                headers: {}
-            }
-            captures: {}
-        }]
-    }]
-
-    rules: []
-    anti_patterns: []
-    success_criteria: ["All behaviors pass"]
-    ai_hints: {
-        implementation: { suggested_stack: [] }
-        entities: {}
-        security: {
-            password_hashing: ""
-            jwt_algorithm: ""
-            jwt_expiry: ""
-            rate_limiting: ""
-        }
-        pitfalls: []
-    }
-}
-```
-
-### Running Your First Test
+Start an interactive interview to capture requirements:
 
 ```bash
-# Start your API server in one terminal
-npm start  # or however you start your API
+# Start an interview with the API profile
+gleam run -- interview --profile api
 
-# In another terminal, run Intent
-gleam run -- check api.cue --target http://localhost:8080
+# Resume a previous session
+gleam run -- interview --resume <session-id>
+
+# List all interview sessions
+gleam run -- history
 ```
 
-You should see output like:
+During the interview, you'll be prompted to describe:
+- System overview and goals
+- User roles and actors
+- Features and behaviors
+- Success criteria
+- Constraints and anti-patterns
+
+### Viewing Your Specification
+
+After completing an interview, Intent generates a CUE specification:
+
+```bash
+# View the specification
+gleam run -- show --session <session-id>
+
+# Export to a file
+gleam run -- show --session <session-id> --out spec.cue
+```
+
+## Interactive Interviews
+
+### Starting an Interview
+
+Intent uses interactive interviews to capture requirements:
+
+```bash
+# Start with a specific profile
+gleam run -- interview --profile api
+
+# Start with custom session notes
+gleam run -- interview --profile api --notes "Building a REST API for e-commerce"
+
+# Resume a previous session
+gleam run -- interview --resume <session-id>
+```
+
+### Interview Profiles
+
+Available profiles:
+- `api` - REST API design and behavior specification
+- `system` - System architecture and component design
+- `cli` - Command-line interface design
+
+### Answering Questions
+
+During the interview, you'll see prompts like:
 
 ```
-Running 1 behaviors...
+[1/15] What is the primary purpose of this system?
 
-PASS
-Passed: 1 / Failed: 0 / Blocked: 0 / Total: 1
-All behaviors passed
+Enter your response (or 'skip' to defer):
+```
+
+Tips for good answers:
+- Be specific and concise
+- Use plain English, not technical jargon
+- Provide examples when helpful
+- Use "THE SYSTEM SHALL" format for requirements
+- Can use "skip" to defer and come back later
+
+### Session Management
+
+```bash
+# List all sessions
+gleam run -- history
+
+# Show diff between sessions
+gleam run -- diff --session <session-id>
+
+# List sessions by profile
+gleam run -- sessions --profile api
 ```
 
 ## Writing Specifications
@@ -118,31 +122,15 @@ Every Intent specification has this structure:
 
 ```cue
 spec: {
-    name: String                    // Name of the API
-    description: String             // What this API does
+    name: String                    // Name of the system
+    description: String             // What this system does
     audience: String                // Who uses it
     version: String                 // Version (semantic versioning)
     success_criteria: [String]      // What success looks like
-    config: Config                  // Global configuration
     features: [Feature]             // Groups of related behaviors
-    rules: [Rule]                   // Global validation rules
+    invariants: [Invariant]         // Global invariants
     anti_patterns: [AntiPattern]   // Common mistakes to detect
     ai_hints: AIHints              // Hints for AI implementation
-}
-```
-
-### Configuration
-
-The `config` section sets defaults for all requests:
-
-```cue
-config: {
-    base_url: "http://localhost:8080"           // Base URL for all requests
-    timeout_ms: 5000                             // Request timeout in milliseconds
-    headers: {                                   // Default headers
-        "Content-Type": "application/json"
-        "Authorization": "Bearer token"
-    }
 }
 ```
 
@@ -162,314 +150,243 @@ features: [{
 
 ### Behaviors
 
-A behavior is a single test case:
+A behavior describes a system capability:
 
 ```cue
 {
-    name: "create-user"                              // Unique name
-    intent: "Create a new user with valid email"     // What we're testing
-    notes: "User email must be unique"               // Additional notes
+    name: "create-user"                              // Unique identifier
+    intent: "Create a new user with valid email"     // What this behavior demonstrates
+    preconditions: [                                 // What must be true first
+        "User provides valid email",
+        "User provides valid password"
+    ]
+    postconditions: [                                // What must be true after
+        "User account exists in system",
+        "User can authenticate with credentials"
+    ]
+    verifications: [{                                // How to verify it works
+        description: "User can log in"
+        criteria: [
+            "Authentication succeeds with valid credentials",
+            "Authentication fails with invalid credentials"
+        ]
+    }]
+    notes: "User email must be unique"               // Additional context
     requires: ["setup-database"]                     // Dependencies
-    tags: ["happy-path", "create"]                   // Tags for filtering
-
-    request: {
-        method: "POST"
-        path: "/users"
-        headers: {
-            "X-API-Key": "secret-key"
-        }
-        query: {
-            "notify": "true"
-        }
-        body: {
-            name: "John Doe"
-            email: "john@example.com"
-        }
-    }
-
-    response: {
-        status: 201
-        example: {
-            id: "user-123"
-            name: "John Doe"
-            email: "john@example.com"
-            created_at: "2024-01-04T12:00:00Z"
-        }
-        checks: {
-            "id": {
-                rule: "is uuid"
-                why: "User IDs are UUIDs"
-            }
-            "created_at": {
-                rule: "is iso8601"
-                why: "Timestamps are ISO8601 format"
-            }
-        }
-        headers: {
-            "Content-Type": "application/json"
-        }
-    }
-
-    captures: {
-        user_id: "id"
-        created_at: "created_at"
-    }
+    tags: ["happy-path", "create"]                   // Classification tags
 }
 ```
 
-### Request Fields
+### Invariants
 
-- **method** - HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
-- **path** - Request path (can include variables: `/users/${user_id}`)
-- **headers** - Request headers (merged with config headers)
-- **query** - Query parameters
-- **body** - Request body (JSON)
-
-### Response Fields
-
-- **status** - Expected HTTP status code
-- **example** - Example response body
-- **checks** - Field-level validation rules
-- **headers** - Expected response headers
-
-### Response Checks
-
-Validate specific fields in the response:
+Global invariants apply to all behaviors:
 
 ```cue
-checks: {
-    "user.id": {
-        rule: "is uuid"
-        why: "User IDs must be valid UUIDs"
-    }
-    "user.email": {
-        rule: "matches ^[^@]+@[^@]+\\.[^@]+$"
-        why: "Email must be valid format"
-    }
-    "created_at": {
-        rule: "is iso8601"
-        why: "Must be ISO8601 timestamp"
-    }
-}
-```
-
-Available rules:
-- `is uuid` - Valid UUID
-- `is iso8601` - ISO8601 timestamp
-- `is email` - Valid email
-- `is url` - Valid URL
-- `matches <regex>` - Regex match
-- `equals <value>` - Exact match
-- `length <n>` - Exact length
-- And many more...
-
-## Running Tests
-
-### Basic Execution
-
-```bash
-gleam run -- check spec.cue --target http://localhost:8080
-```
-
-### Command Options
-
-```bash
-# Verbose output with detailed information
-gleam run -- check spec.cue --target http://localhost:8080 --verbose
-
-# Filter to specific feature
-gleam run -- check spec.cue --target http://localhost:8080 --feature "User Management"
-
-# Filter to specific behavior
-gleam run -- check spec.cue --target http://localhost:8080 --behavior "create-user"
-
-# Output as JSON
-gleam run -- check spec.cue --target http://localhost:8080 --output json
-
-# Short flags
-gleam run -- check spec.cue -t http://localhost:8080 -v -f "Users" -o json
-```
-
-### Running Multiple Specs
-
-```bash
-# Run multiple specification files
-gleam run -- check spec1.cue --target http://localhost:8080
-gleam run -- check spec2.cue --target http://localhost:8080
-
-# Or use a script to run all specs in a directory
-for spec in specs/*.cue; do
-    gleam run -- check "$spec" --target http://localhost:8080
-done
-```
-
-## Understanding Results
-
-### Success Output
-
-When all tests pass:
-
-```
-PASS
-Passed: 5 / Failed: 0 / Blocked: 0 / Total: 5
-All 5 behaviors passed
-```
-
-### Failure Output
-
-When tests fail:
-
-```
-FAIL
-Passed: 3 / Failed: 2 / Blocked: 0 / Total: 5
-2 failures, 0 blocked out of 5 behaviors
-
-FAILURES:
-
-[User Management] create-user
-Intent: Create a new user with valid data
-Problems:
-  - status: HTTP status code mismatch
-    Expected: 201
-    Actual: 200
-  - id: Value mismatch
-    Expected: uuid
-    Actual: not-a-uuid
-Request: POST /users
-Response: 200
-Hint: Check that the API is returning the correct status code
-```
-
-### Result Interpretation
-
-- **PASS** - All behaviors passed and no rule violations
-- **FAIL** - One or more behaviors failed or rules were violated
-- **Problems** - Specific issues with the behavior
-- **Hint** - Suggestion for fixing the problem
-- **See Also** - Related behaviors in the spec
-
-## Advanced Features
-
-### Variable Capture and Interpolation
-
-Capture values from responses and use them in subsequent requests:
-
-```cue
-// First behavior: Create a user and capture the ID
-{
-    name: "create-user"
-    // ... request and response ...
-    captures: {
-        user_id: "id"           // Capture response.id as ${user_id}
-        created_at: "created_at" // Capture response.created_at as ${created_at}
-    }
-}
-
-// Second behavior: Get the user using captured ID
-{
-    name: "get-user"
-    requires: ["create-user"]  // Must run after create-user
-    request: {
-        method: "GET"
-        path: "/users/${user_id}"  // Use the captured user_id
-        headers: {}
-        query: {}
-        body: null
-    }
-    // ... rest of behavior ...
-    captures: {}
-}
-
-// Third behavior: Use multiple captured values
-{
-    name: "verify-timestamps"
-    requires: ["create-user"]
-    request: {
-        method: "GET"
-        path: "/users/${user_id}/events?since=${created_at}"
-    }
-    // ... rest of behavior ...
-    captures: {}
-}
-```
-
-### Behavior Dependencies
-
-Control execution order with dependencies:
-
-```cue
-{
-    name: "update-user"
-    requires: ["create-user"]      // Single dependency
-    // ...
-}
-
-{
-    name: "share-item"
-    requires: ["create-item", "create-user"]  // Multiple dependencies
-    // ...
-}
-```
-
-Intent automatically determines the correct order and blocks behaviors if dependencies fail.
-
-### Global Rules
-
-Apply rules across multiple endpoints:
-
-```cue
-rules: [
-    {
-        name: "no-exposed-secrets"
-        description: "Responses should never expose secrets"
-        when: {
-            status: ">= 200"                    // Status condition
-            method: "GET"                        // Method condition
-            path: "/users.*"                     // Path regex pattern
-        }
-        check: {
-            body_must_not_contain: [             // Forbidden strings
-                "password",
-                "secret",
-                "token",
-                "api_key"
-            ]
-            body_must_contain: []                // Required strings
-            fields_must_exist: ["id"]            // Required fields
-            fields_must_not_exist: []            // Forbidden fields
-            header_must_exist: ""                // Required headers
-            header_must_not_exist: ""            // Forbidden headers
-        }
-        example: {
-            error: "Secrets exposed in response"
-        }
-    }
-]
+invariants: [{
+    name: "data-consistency"
+    description: "All data operations maintain consistency"
+    criteria: [
+        "Database transactions are atomic",
+        "No partial updates on failure",
+        "Rollback on error"
+    ]
+}]
 ```
 
 ### Anti-Patterns
 
-Detect common mistakes in API design:
+Document common mistakes to avoid:
 
 ```cue
-anti_patterns: [
-    {
-        name: "missing-timestamps"
-        description: "Responses should include created_at and updated_at"
-        bad_example: {
-            id: "123"
-            name: "Product"
-            // Missing timestamps!
-        }
-        good_example: {
-            id: "123"
-            name: "Product"
-            created_at: "2024-01-04T12:00:00Z"
-            updated_at: "2024-01-04T12:00:00Z"
-        }
-        why: "Timestamps are essential for auditing and debugging"
+anti_patterns: [{
+    name: "missing-timestamps"
+    description: "Responses should include created_at and updated_at"
+    bad_example: {
+        id: "123"
+        name: "Product"
+        // Missing timestamps!
     }
-]
+    good_example: {
+        id: "123"
+        name: "Product"
+        created_at: "2024-01-04T12:00:00Z"
+        updated_at: "2024-01-04T12:00:00Z"
+    }
+    why: "Timestamps are essential for auditing and debugging"
+}]
+```
+
+## Plan Generation
+
+### Creating a Plan
+
+Generate a structured plan from your specification:
+
+```bash
+# Generate a plan from current context
+gleam run -- plan
+
+# Generate with additional notes
+gleam run -- plan --notes "Focus on authentication first"
+
+# Generate from a specific session
+gleam run -- plan --session <session-id>
+```
+
+### Managing Plans
+
+```bash
+# Get next task recommendation
+gleam run -- plan-next
+
+# Approve a plan
+gleam run -- plan-approve <plan-id>
+
+# Check plan status
+gleam run -- plan-status
+
+# Emit beads to br (beads_rust)
+gleam run -- plan-emit-beads <session-id>
+
+# Emit and execute immediately
+gleam run -- plan-emit-beads <session-id> --execute
+```
+
+### Plan Workflows
+
+```bash
+# Start a new planning session
+gleam run -- plan-work --profile cli
+
+# Add vision statement
+gleam run -- plan-work --vision "Build a developer-focused planning tool"
+
+# Export beads for tracking
+gleam run -- plan-emit-beads <session-id> --target br --json
+```
+
+## Analysis Tools
+
+### Effects Analysis
+
+Analyze second-order effects and system impacts:
+
+```bash
+# Analyze entire specification
+gleam run -- effects examples/spec.cue
+
+# Analyze specific behavior
+gleam run -- effects examples/spec.cue --behavior <name>
+
+# Output JSON for processing
+gleam run -- effects examples/spec.cue --json
+```
+
+### Quality Analysis
+
+Check specification quality and completeness:
+
+```bash
+# Analyze quality
+gleam run -- quality examples/spec.cue
+
+# Get detailed report
+gleam run -- quality examples/spec.cue --verbose
+```
+
+### Semantic Validation
+
+Validate semantics and detect issues:
+
+```bash
+# Validate semantics
+gleam run -- validate examples/spec.cue
+
+# Show specific validation checks
+gleam run -- validate examples/spec.cue --checks
+```
+
+### Coverage Analysis
+
+Check specification coverage:
+
+```bash
+# Analyze coverage
+gleam run -- coverage examples/spec.cue
+
+# Identify gaps
+gleam run -- gaps examples/spec.cue
+```
+
+### Linting
+
+Lint specifications for style and consistency:
+
+```bash
+# Lint a specification
+gleam run -- lint examples/spec.cue
+
+# Auto-fix issues
+gleam run -- lint examples/spec.cue --fix
+```
+
+## Advanced Features
+
+### Bead Generation
+
+Convert specifications into beads for br (beads_rust):
+
+```bash
+# Generate beads from a session
+gleam run -- beads --session <session-id>
+
+# Generate in JSON format
+gleam run -- beads --session <session-id> --format json
+
+# Regenerate beads
+gleam run -- beads-regenerate --session <session-id>
+
+# Check bead status
+gleam run -- bead-status --bead-id <id>
+```
+
+### Documentation Generation
+
+Generate documentation from specifications:
+
+```bash
+# Generate vision document
+gleam run -- vision --out ./docs/vision.md
+
+# Generate ready document
+gleam run -- ready --out ./docs/ready.md
+
+# Export specification
+gleam run -- export --session <session-id> --out spec.cue
+```
+
+### Answer Templates
+
+Export and reuse interview answers:
+
+```bash
+# Export answer template
+gleam run -- interview --profile api --export-answers-template template.json
+
+# Import answers from file
+gleam run -- interview --profile api --import-answers template.json
+```
+
+### Session Diffing
+
+Compare changes between sessions:
+
+```bash
+# Show diff between sessions
+gleam run -- diff --session <session-id>
+
+# Show diff with specific base
+gleam run -- diff --session <session-id> --base <base-session-id>
 ```
 
 ## Best Practices
@@ -483,13 +400,13 @@ features: [
     {
         name: "User Management"
         behaviors: [
-            // Create, read, update, delete
+            // Create, read, update, delete behaviors
         ]
     }
     {
-        name: "Item Management"
+        name: "Authentication"
         behaviors: [
-            // Create, read, update, delete
+            // Login, logout, session management
         ]
     }
 ]
@@ -501,86 +418,102 @@ Write intent statements that describe the business value:
 
 ```cue
 // Good
-intent: "Create a new user with valid email and validate response format"
+intent: "Enable users to authenticate securely with email and password"
 
 // Bad
-intent: "POST to /users"
+intent: "Login endpoint"
 ```
 
-### 3. Test Both Happy Path and Error Cases
+### 3. Comprehensive Preconditions and Postconditions
+
+Document what must be true before and after:
 
 ```cue
-behaviors: [
-    {
-        name: "create-user-success"
-        intent: "Successfully create a new user"
-        request: { /* valid data */ }
-        response: { status: 201 }
-    }
-    {
-        name: "create-user-invalid-email"
-        intent: "Reject user creation with invalid email"
-        request: { /* invalid email */ }
-        response: { status: 400 }
-    }
-    {
-        name: "create-user-duplicate-email"
-        intent: "Reject user creation with duplicate email"
-        requires: ["create-user-success"]
-        request: { /* duplicate email */ }
-        response: { status: 409 }
-    }
-]
-```
-
-### 4. Validate at the Field Level
-
-Check specific fields to catch subtle issues:
-
-```cue
-checks: {
-    "id": { rule: "is uuid" }
-    "email": { rule: "matches ^[^@]+@[^@]+\\.[^@]+$" }
-    "age": { rule: "length 2" }
-    "created_at": { rule: "is iso8601" }
-}
-```
-
-### 5. Use Rules for Cross-Behavior Validation
-
-```cue
-rules: [
-    {
-        name: "consistent-status-codes"
-        description: "Error responses should be 4xx"
-        when: {
-            status: ">= 400"
-            method: "GET"
-            path: ".*"
-        }
-        check: {
-            fields_must_exist: ["error", "message"]
-        }
-    }
-]
-```
-
-### 6. Document Edge Cases and Pitfalls
-
-```cue
-ai_hints: {
-    pitfalls: [
-        "User IDs must be stable across multiple requests",
-        "Email addresses are case-insensitive but stored lowercase",
-        "Passwords must never be returned in responses",
-        "Rate limiting should return Retry-After header"
+{
+    name: "create-user"
+    intent: "Create a new user account"
+    preconditions: [
+        "User provides valid email address",
+        "User provides strong password",
+        "Email address not already registered"
+    ]
+    postconditions: [
+        "User account exists in database",
+        "User receives confirmation email",
+        "User can authenticate with credentials"
     ]
 }
 ```
 
+### 4. Use Dependencies Wisely
+
+Model behavior dependencies accurately:
+
+```cue
+{
+    name: "update-user"
+    requires: ["create-user"]      // Single dependency
+    // ...
+}
+
+{
+    name: "delete-user"
+    requires: ["create-user", "update-user"]  // Multiple dependencies
+    // ...
+}
+```
+
+### 5. Document Verifications
+
+Provide clear verification criteria:
+
+```cue
+verifications: [{
+    description: "User can authenticate"
+    criteria: [
+        "Authentication succeeds with valid credentials",
+        "Authentication fails with invalid credentials",
+        "Account locks after 5 failed attempts"
+    ]
+    examples: [
+        {
+            input: { email: "user@example.com", password: "valid-pass" }
+            expected: { success: true, token: "<jwt_token>" }
+        }
+    ]
+}]
+```
+
+### 6. Use Global Invariants
+
+Document system-wide invariants:
+
+```cue
+invariants: [
+    {
+        name: "data-consistency"
+        description: "All data operations maintain ACID properties"
+        criteria: [
+            "Database transactions are atomic",
+            "No partial updates on failure",
+            "Rollback on error"
+        ]
+    }
+    {
+        name: "security"
+        description: "Security is never compromised"
+        criteria: [
+            "Passwords are hashed before storage",
+            "Sensitive data is encrypted at rest",
+            "Authentication is required for protected resources"
+        ]
+    }
+]
+```
+
 ## Common Patterns
 
-### Pattern: Create-Read-Update-Delete (CRUD)
+### Pattern: CRUD Operations
 
 ```cue
 features: [{
@@ -588,169 +521,214 @@ features: [{
     behaviors: [
         {
             name: "create-user"
-            intent: "Create a new user"
-            request: {
-                method: "POST"
-                path: "/users"
-                body: { name: "John", email: "john@example.com" }
-            }
-            response: { status: 201 }
-            captures: { user_id: "id" }
+            intent: "Create a new user account"
+            preconditions: [
+                "User provides valid email",
+                "User provides strong password"
+            ]
+            postconditions: [
+                "User account exists",
+                "User can authenticate"
+            ]
         }
         {
             name: "read-user"
-            intent: "Read user details"
+            intent: "Retrieve user details"
             requires: ["create-user"]
-            request: {
-                method: "GET"
-                path: "/users/${user_id}"
-            }
-            response: { status: 200 }
+            preconditions: ["User account exists"]
+            postconditions: ["User details are displayed"]
         }
         {
             name: "update-user"
-            intent: "Update user details"
+            intent: "Update user information"
             requires: ["create-user"]
-            request: {
-                method: "PUT"
-                path: "/users/${user_id}"
-                body: { name: "Jane" }
-            }
-            response: { status: 200 }
+            preconditions: ["User account exists", "User provides updated data"]
+            postconditions: ["User information is updated"]
         }
         {
             name: "delete-user"
-            intent: "Delete a user"
+            intent: "Delete user account"
             requires: ["create-user"]
-            request: {
-                method: "DELETE"
-                path: "/users/${user_id}"
-            }
-            response: { status: 204 }
+            preconditions: ["User account exists", "User confirms deletion"]
+            postconditions: ["User account is removed", "User cannot authenticate"]
         }
     ]
 }]
 ```
 
-### Pattern: Pagination
+### Pattern: Authentication Flow
 
 ```cue
-{
-    name: "list-users-page-1"
-    intent: "List first page of users"
-    request: {
-        method: "GET"
-        path: "/users"
-        query: {
-            "page": "1"
-            "size": "10"
+features: [{
+    name: "Authentication"
+    behaviors: [
+        {
+            name: "register-user"
+            intent: "Register a new user account"
+            preconditions: [
+                "User provides unique email",
+                "User provides strong password"
+            ]
+            postconditions: [
+                "Account is created",
+                "Confirmation email is sent"
+            ]
         }
-    }
-    response: {
-        status: 200
-        checks: {
-            "total": { rule: "length 3" }
-            "items": { rule: "length 3" }
+        {
+            name: "login-user"
+            intent: "Authenticate user with credentials"
+            requires: ["register-user"]
+            preconditions: [
+                "User account exists",
+                "User provides valid credentials"
+            ]
+            postconditions: [
+                "User is authenticated",
+                "Session token is issued"
+            ]
         }
-    }
-    captures: {
-        next_page_url: "links.next"
-    }
-}
+        {
+            name: "logout-user"
+            intent: "End user session"
+            requires: ["login-user"]
+            preconditions: ["User is authenticated"]
+            postconditions: [
+                "Session is terminated",
+                "Token is invalidated"
+            ]
+        }
+    ]
+}]
 ```
 
-### Pattern: Authentication
+### Pattern: Data Validation
 
 ```cue
-{
-    name: "authenticate"
-    intent: "Get authentication token"
-    request: {
-        method: "POST"
-        path: "/auth/login"
-        body: {
-            username: "admin"
-            password: "secret"
+features: [{
+    name: "Input Validation"
+    behaviors: [
+        {
+            name: "validate-email-format"
+            intent: "Ensure email addresses are valid"
+            preconditions: ["User provides email address"]
+            postconditions: [
+                "Valid email is accepted",
+                "Invalid email is rejected with error"
+            ]
+            verifications: [{
+                description: "Email format validation"
+                criteria: [
+                    "Valid format: user@domain.com",
+                    "Invalid format: rejected with 400",
+                    "Missing @ symbol: rejected",
+                    "Missing domain: rejected"
+                ]
+            }]
         }
-    }
-    response: {
-        status: 200
-        checks: {
-            "token": { rule: "length 32" }
+        {
+            name: "validate-password-strength"
+            intent: "Ensure passwords meet security requirements"
+            preconditions: ["User provides password"]
+            postconditions: [
+                "Strong password is accepted",
+                "Weak password is rejected with requirements"
+            ]
+            verifications: [{
+                description: "Password strength validation"
+                criteria: [
+                    "Minimum 8 characters",
+                    "Contains uppercase letter",
+                    "Contains lowercase letter",
+                    "Contains number",
+                    "Contains special character"
+                ]
+            }]
         }
-    }
-    captures: {
-        auth_token: "token"
-    }
-}
-
-{
-    name: "use-token"
-    intent: "Use authentication token"
-    requires: ["authenticate"]
-    request: {
-        method: "GET"
-        path: "/protected/data"
-        headers: {
-            "Authorization": "Bearer ${auth_token}"
-        }
-    }
-    response: { status: 200 }
-}
+    ]
+}]
 ```
 
 ## Troubleshooting
 
-### Issue: Behaviors Execute in Wrong Order
+### Issue: Interview Session Not Found
 
-Intent automatically resolves dependencies. If a behavior is blocked:
+If you try to resume a session that doesn't exist:
 
 ```
-[Example Feature] update-item
-Intent: Update an item
-Blocked: Requires 'create-item' which failed
+Error: Session 'interview-123' not found
 ```
 
 **Solution:**
-1. Check that the dependency is spelled correctly
-2. Check that the dependency doesn't have its own failures
-3. Check that dependencies form a DAG (no cycles)
+1. List all sessions: `gleam run -- history`
+2. Check the session ID is correct
+3. Verify the session file exists in the interview storage directory
 
-### Issue: Capture Not Working
+### Issue: Plan Generation Fails
 
-If a variable isn't being interpolated:
+If plan generation fails:
 
-```bash
-# Use verbose output to see what's captured
-gleam run -- check spec.cue --target http://localhost:8080 --verbose
+```
+Error: No specification found for session
 ```
 
 **Solution:**
-1. Check that the behavior it captures from runs first
-2. Check that the path to the field is correct (e.g., "user.id" not "id")
-3. Check that the field exists in the response
+1. Complete an interview first
+2. Check that the session has a generated specification
+3. Use `gleam run -- show --session <id>` to verify
 
-### Issue: Rule Violations Not Shown
+### Issue: Bead Emission Fails
 
-Rules require both a `when` match and a violation:
-
-**Solution:**
-1. Check that the rule's `when` conditions match your behavior
-2. Check that the `check` conditions fail for your response
-3. Check status conditions: `">= 200"`, `"< 300"`, etc.
-4. Check path patterns: `/users.*` matches `/users` and `/users/123`
-
-### Issue: JSON Parse Errors
-
-If responses aren't being parsed correctly:
+If bead emission to br fails:
 
 ```
-Error: Failed to parse response body as JSON
+Error: Failed to emit beads to br
 ```
 
 **Solution:**
-1. Verify your API returns valid JSON
-2. Check Content-Type header is `application/json`
-3. Check the response isn't empty
+1. Ensure br (beads_rust) is installed
+2. Check that br is properly configured
+3. Verify the plan is approved: `gleam run -- plan-status`
+4. Try emitting without --execute first to preview
+
+### Issue: Quality Analysis Shows Warnings
+
+If quality analysis reports issues:
+
+```
+Warning: 3 behaviors missing verifications
+Warning: 5 behaviors missing postconditions
+```
+
+**Solution:**
+1. Review each warning in the output
+2. Add missing verifications to behaviors
+3. Document preconditions and postconditions
+4. Use `gleam run -- improve` for suggestions
+
+### Issue: Effects Analysis Not Working
+
+If effects analysis doesn't show results:
+
+```
+Error: No behaviors found for analysis
+```
+
+**Solution:**
+1. Check that specification has behaviors defined
+2. Verify behavior names are valid (use lowercase, hyphens, underscores)
+3. Check for syntax errors in the specification
+
+### Issue: Lint Shows Style Issues
+
+If lint reports style problems:
+
+```
+Warning: Behavior name 'CreateUser' should use lowercase
+```
+
+**Solution:**
+1. Follow naming conventions (lowercase, hyphens, underscores)
+2. Use `gleam run -- lint --fix` to auto-fix
+3. Review the lint output for specific issues
 
 See [SPEC_FORMAT.md](SPEC_FORMAT.md) for more details on specification syntax.
