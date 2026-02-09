@@ -21,10 +21,10 @@ The typical Intent workflow is:
 
 1. **Run an interview** - Use interactive interviews to capture requirements
 2. **Generate specification** - Intent creates a structured CUE specification
-3. **Generate plan** - Create a structured plan from the specification
-4. **Emit beads** - Convert plan items into beads for br (beads_rust)
-5. **Analyze quality** - Review specification for quality and security issues
-6. **Iterate** - Refine specification and plan as needed
+3. **Generate beads** - Convert behaviors into work items for br (beads_rust)
+4. **Emit to br** - Create beads in the issue tracker
+5. **Analyze effects** - Review second-order impacts
+6. **Iterate** - Refine specification and beads as needed
 
 ### Your First Interview
 
@@ -50,14 +50,12 @@ During the interview, you'll be prompted to describe:
 
 ### Viewing Your Specification
 
-After completing an interview, Intent generates a CUE specification:
+After completing an interview, Intent generates a CUE specification. You can view examples in the `examples/` directory to understand the format:
 
 ```bash
-# View the specification
-gleam run -- show --session <session-id>
-
-# Export to a file
-gleam run -- show --session <session-id> --out spec.cue
+# View example specifications
+ls examples/
+cat examples/user-api.cue
 ```
 
 ## Interactive Interviews
@@ -216,53 +214,43 @@ anti_patterns: [{
 }]
 ```
 
-## Plan Generation
+## Bead Generation
 
-### Creating a Plan
+### Creating Beads
 
-Generate a structured plan from your specification:
+Generate beads (work items) from your interview session:
 
 ```bash
-# Generate a plan from current context
-gleam run -- plan
+# Generate beads from a session
+gleam run -- beads --session <session-id>
 
-# Generate with additional notes
-gleam run -- plan --notes "Focus on authentication first"
+# Generate in JSON format
+gleam run -- beads --session <session-id> --format json
 
-# Generate from a specific session
-gleam run -- plan --session <session-id>
+# Generate in JSON Lines format
+gleam run -- beads --session <session-id> --format jsonl
+
+# Generate in Markdown format
+gleam run -- beads --session <session-id> --format markdown
 ```
 
-### Managing Plans
+### Managing Beads
 
 ```bash
-# Get next task recommendation
-gleam run -- plan-next
+# Regenerate beads with updated templates
+gleam run -- beads-regenerate --session <session-id>
 
-# Approve a plan
-gleam run -- plan-approve <plan-id>
-
-# Check plan status
-gleam run -- plan-status
+# Check bead status in br
+gleam run -- bead-status --bead-id <id>
 
 # Emit beads to br (beads_rust)
 gleam run -- plan-emit-beads <session-id>
 
-# Emit and execute immediately
+# Preview before emitting (dry-run)
+gleam run -- plan-emit-beads <session-id>
+
+# Actually create beads in br
 gleam run -- plan-emit-beads <session-id> --execute
-```
-
-### Plan Workflows
-
-```bash
-# Start a new planning session
-gleam run -- plan-work --profile cli
-
-# Add vision statement
-gleam run -- plan-work --vision "Build a developer-focused planning tool"
-
-# Export beads for tracking
-gleam run -- plan-emit-beads <session-id> --target br --json
 ```
 
 ## Analysis Tools
@@ -282,73 +270,14 @@ gleam run -- effects examples/spec.cue --behavior <name>
 gleam run -- effects examples/spec.cue --json
 ```
 
-### Quality Analysis
-
-Check specification quality and completeness:
-
-```bash
-# Analyze quality
-gleam run -- quality examples/spec.cue
-
-# Get detailed report
-gleam run -- quality examples/spec.cue --verbose
-```
-
-### Semantic Validation
-
-Validate semantics and detect issues:
-
-```bash
-# Validate semantics
-gleam run -- validate examples/spec.cue
-
-# Show specific validation checks
-gleam run -- validate examples/spec.cue --checks
-```
-
-### Coverage Analysis
-
-Check specification coverage:
-
-```bash
-# Analyze coverage
-gleam run -- coverage examples/spec.cue
-
-# Identify gaps
-gleam run -- gaps examples/spec.cue
-```
-
-### Linting
-
-Lint specifications for style and consistency:
-
-```bash
-# Lint a specification
-gleam run -- lint examples/spec.cue
-
-# Auto-fix issues
-gleam run -- lint examples/spec.cue --fix
-```
+Effects analysis identifies:
+- **Cascade effects**: Changes that trigger other changes
+- **State changes**: Modifications to system state
+- **Race conditions**: Potential concurrent access issues
+- **Rollback scenarios**: When operations need to be undone
+- **Notifications**: Events that need to be communicated
 
 ## Advanced Features
-
-### Bead Generation
-
-Convert specifications into beads for br (beads_rust):
-
-```bash
-# Generate beads from a session
-gleam run -- beads --session <session-id>
-
-# Generate in JSON format
-gleam run -- beads --session <session-id> --format json
-
-# Regenerate beads
-gleam run -- beads-regenerate --session <session-id>
-
-# Check bead status
-gleam run -- bead-status --bead-id <id>
-```
 
 ### Documentation Generation
 
@@ -360,21 +289,6 @@ gleam run -- vision --out ./docs/vision.md
 
 # Generate ready document
 gleam run -- ready --out ./docs/ready.md
-
-# Export specification
-gleam run -- export --session <session-id> --out spec.cue
-```
-
-### Answer Templates
-
-Export and reuse interview answers:
-
-```bash
-# Export answer template
-gleam run -- interview --profile api --export-answers-template template.json
-
-# Import answers from file
-gleam run -- interview --profile api --import-answers template.json
 ```
 
 ### Session Diffing
@@ -382,11 +296,14 @@ gleam run -- interview --profile api --import-answers template.json
 Compare changes between sessions:
 
 ```bash
-# Show diff between sessions
+# Show diff for a session
 gleam run -- diff --session <session-id>
 
-# Show diff with specific base
-gleam run -- diff --session <session-id> --base <base-session-id>
+# List all sessions
+gleam run -- history
+
+# Filter sessions by profile
+gleam run -- sessions --profile api
 ```
 
 ## Best Practices
@@ -703,7 +620,7 @@ Warning: 5 behaviors missing postconditions
 1. Review each warning in the output
 2. Add missing verifications to behaviors
 3. Document preconditions and postconditions
-4. Use `gleam run -- improve` for suggestions
+4. Use examples in `examples/` directory as reference
 
 ### Issue: Effects Analysis Not Working
 
@@ -717,18 +634,6 @@ Error: No behaviors found for analysis
 1. Check that specification has behaviors defined
 2. Verify behavior names are valid (use lowercase, hyphens, underscores)
 3. Check for syntax errors in the specification
-
-### Issue: Lint Shows Style Issues
-
-If lint reports style problems:
-
-```
-Warning: Behavior name 'CreateUser' should use lowercase
-```
-
-**Solution:**
-1. Follow naming conventions (lowercase, hyphens, underscores)
-2. Use `gleam run -- lint --fix` to auto-fix
-3. Review the lint output for specific issues
+4. Use `cue eval` to validate CUE syntax
 
 See [SPEC_FORMAT.md](SPEC_FORMAT.md) for more details on specification syntax.

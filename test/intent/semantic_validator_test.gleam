@@ -1,9 +1,9 @@
-import gleeunit
-import gleeunit/should
 import gleam/dict
 import gleam/list
 import gleam/option
 import gleam/string
+import gleeunit
+import gleeunit/should
 import intent/semantic_validator
 
 pub fn main() -> Nil {
@@ -44,7 +44,12 @@ fn valid_spec() -> semantic_validator.Spec {
             response: semantic_validator.Response(
               status: 200,
               example: option.None,
-              checks: dict.from_list([#("test", semantic_validator.Check(rule: "present", why: "Test check"))]),
+              checks: dict.from_list([
+                #(
+                  "test",
+                  semantic_validator.Check(rule: "present", why: "Test check"),
+                ),
+              ]),
               headers: option.None,
             ),
             captures: dict.new(),
@@ -102,8 +107,7 @@ pub fn empty_description_fails_validation_test() {
     semantic_validator.Invalid(errors) -> {
       errors
       |> list.any(fn(e) {
-        e.field == "description"
-        && e.rule == "non_empty_string"
+        e.field == "description" && e.rule == "non_empty_string"
       })
       |> should.be_true
     }
@@ -119,10 +123,7 @@ pub fn empty_version_fails_validation_test() {
     semantic_validator.Valid -> should.fail()
     semantic_validator.Invalid(errors) -> {
       errors
-      |> list.any(fn(e) {
-        e.field == "version"
-        && e.rule == "non_empty_string"
-      })
+      |> list.any(fn(e) { e.field == "version" && e.rule == "non_empty_string" })
       |> should.be_true
     }
   }
@@ -159,8 +160,7 @@ pub fn zero_timeout_fails_validation_test() {
     semantic_validator.Invalid(errors) -> {
       errors
       |> list.any(fn(e) {
-        e.field == "config.timeout_ms"
-        && e.rule == "positive_integer"
+        e.field == "config.timeout_ms" && e.rule == "positive_integer"
       })
       |> should.be_true
     }

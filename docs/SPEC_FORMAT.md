@@ -1,61 +1,82 @@
-# CUE Specification Format Reference
+# Intent Specification Format Reference
 
-Complete reference for the Intent CUE specification format.
+Complete reference for the Intent CUE specification format (v3.0).
+
+## Overview
+
+Intent v3.0 uses **declarative specifications** focused on planning and verification rather than HTTP testing. Specifications define what a system should do through behaviors, preconditions, postconditions, and verifications.
 
 ## Top-Level Structure
 
 ```cue
 package api
 
-spec: {
-    // Basic metadata
-    name: String
-    description: String
-    audience: String
-    version: String
-    success_criteria: [String]
+import "github.com/intent-cli/intent/schema:intent"
 
-    // Configuration
-    config: Config
+spec: intent.#Spec & {
+    // Basic metadata (all required)
+    name: "User Management API"
+    description: "API for user authentication and profile management"
+    audience: "Mobile and web clients"
+    version: "1.0.0"
 
-    // Test definitions
-    features: [Feature]
+    // Success criteria
+    success_criteria: [
+        "Users can register and login",
+        "Passwords never exposed in responses",
+    ]
 
-    // Global validation
-    rules: [Rule]
-    anti_patterns: [AntiPattern]
+    // Features (required, at least one)
+    features: [...]
 
-    // Implementation hints
-    ai_hints: AIHints
+    // Invariants (required)
+    invariants: [...]
+
+    // Anti-patterns (required)
+    anti_patterns: [...]
+
+    // AI hints (required)
+    ai_hints: {...}
 }
 ```
 
-## Config
+### Required Fields
 
-Global configuration for all requests.
-
-```cue
-config: {
-    base_url: "http://localhost:8080"
-    timeout_ms: 5000
-    headers: {
-        "Content-Type": "application/json"
-        "Authorization": "Bearer token"
-    }
-}
-```
-
-### Fields
+All fields in Intent specifications are **required**. No defaults are provided for backwards compatibility.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `base_url` | String | Base URL for all requests (required) |
-| `timeout_ms` | Int | Request timeout in milliseconds (required) |
-| `headers` | Dict | Default headers merged with request headers (required) |
+| `name` | string | Specification name |
+| `description` | string | What this specification describes |
+| `audience` | string | Target users of the system |
+| `version` | string | Semantic version |
+| `success_criteria` | [string] | List of acceptance criteria |
+| `features` | [#Feature] | List of feature specifications |
+| `invariants` | [#Invariant] | Global invariants |
+| `anti_patterns` | [#AntiPattern] | Anti-patterns to avoid |
+| `ai_hints` | #AIHints | Implementation guidance |
 
-## Feature
+## Features
 
-A logical grouping of related behaviors.
+Features group related behaviors together.
+
+```cue
+features: [{
+    name: "User Management"
+    description: "User CRUD operations"
+
+    // Required: at least one behavior
+    behaviors: [...]
+}]
+```
+
+### Feature Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Feature name (required) |
+| `description` | string | Feature description (required) |
+| `behaviors` | [#Behavior] | List of behaviors (required, cannot be empty) |
 
 ```cue
 {
@@ -65,250 +86,133 @@ A logical grouping of related behaviors.
 }
 ```
 
-### Fields
+## Behaviors
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | String | Feature name (required) |
-| `description` | String | Feature description (required) |
-| `behaviors` | [Behavior] | List of behaviors in this feature (required) |
-
-## Behavior
-
-A single test case - one request-response pair.
+Behaviors describe what a system does, not how to test it. They are **declarative** specifications.
 
 ```cue
 {
-    name: "create-user"
-    intent: "Create a new user with valid data"
+    name: "successful-user-registration"
+    intent: "A new user can create an account with valid email and password"
+
+    // Additional context (optional)
     notes: "User email must be unique"
-    requires: ["setup-users"]
-    tags: ["happy-path", "create"]
-    request: Request
-    response: Response
-    captures: { user_id: "id" }
+
+    // Dependencies (optional)
+    requires: ["setup-database"]
+
+    // Tags for filtering (optional)
+    tags: ["happy-path", "authentication"]
+
+    // Preconditions (optional, defaults to empty)
+    preconditions: [
+        "User provides valid email address",
+        "User provides strong password",
+        "Email address not already registered",
+    ]
+
+    // Postconditions (optional, defaults to empty)
+    postconditions: [
+        "User account exists in database",
+        "User can authenticate with credentials",
+        "Password is hashed before storage",
+    ]
+
+    // Verifications (optional, defaults to empty)
+    verifications: [{
+        description: "User can log in"
+        criteria: [
+            "Authentication succeeds with valid credentials",
+            "Authentication fails with invalid credentials",
+        ]
+        examples: [
+            {
+                input: { email: "user@example.com", password: "valid-pass" }
+                expected: { success: true, token: "<jwt_token>" }
+            }
+        ]
+    }]
 }
 ```
 
-### Fields
+### Behavior Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | String | Unique behavior name (required) |
-| `intent` | String | What this behavior tests (required) |
-| `notes` | String | Additional notes (required, can be empty) |
-| `requires` | [String] | Behavior names this depends on (required, can be empty) |
-| `tags` | [String] | Tags for filtering (required, can be empty) |
-| `request` | Request | Request definition (required) |
-| `response` | Response | Expected response (required) |
-| `captures` | Dict | Values to capture from response (required, can be empty) |
+| `name` | #Identifier | Behavior name (required, must match `[a-z][a-z0-9_-]*`) |
+| `intent` | string | What this behavior demonstrates (required) |
+| `notes` | string | Additional context (optional, defaults to empty string) |
+| `requires` | [#Identifier] | Behavior dependencies (optional, defaults to empty list) |
+| `tags` | [string] | Classification tags (optional, defaults to empty list) |
+| `preconditions` | [string] | What must be true first (optional, defaults to empty list) |
+| `postconditions` | [string] | What must be true after (optional, defaults to empty list) |
+| `verifications` | [#Verification] | How to verify it works (optional, defaults to empty list) |
 
-## Request
+## Verifications
 
-HTTP request definition.
+Verifications describe how to confirm that a behavior works correctly.
 
 ```cue
-request: {
-    method: "POST"
-    path: "/users/${user_id}"
-    headers: {
-        "X-API-Key": "secret"
-    }
-    query: {
-        "page": "1"
-        "size": "10"
-    }
-    body: {
-        name: "John"
-        email: "john@example.com"
-    }
-}
+verifications: [{
+    description: "User can authenticate with credentials"
+    criteria: [
+        "Valid credentials return 200 with JWT token",
+        "Invalid credentials return 401",
+        "Account locks after 5 failed attempts",
+    ]
+    examples: [
+        {
+            input: { email: "user@example.com", password: "valid-pass" }
+            expected: { success: true, token: "<jwt_token>" }
+        }
+        {
+            input: { email: "user@example.com", password: "wrong-pass" }
+            expected: { success: false, error: "Invalid credentials" }
+        }
+    ]
+}]
 ```
 
-### Methods
-
-- `"GET"` - Retrieve resource
-- `"POST"` - Create resource
-- `"PUT"` - Replace resource
-- `"PATCH"` - Partial update
-- `"DELETE"` - Delete resource
-- `"HEAD"` - Like GET but no body
-- `"OPTIONS"` - Query available methods
-
-### Fields
+### Verification Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `method` | String | HTTP method (required) |
-| `path` | String | Request path, may include variables (required) |
-| `headers` | Dict | Request headers (required) |
-| `query` | Dict | Query parameters (required) |
-| `body` | Json | Request body (required) |
+| `description` | string | What is being verified (required) |
+| `criteria` | [string] | Verification criteria (required) |
+| `examples` | [...] | JSON examples demonstrating criteria (optional) |
 
-### Variable Interpolation
+## Invariants
 
-Use captured values from previous behaviors:
+Invariants are global rules that apply to all behaviors. They describe what must always be true.
 
 ```cue
-path: "/users/${user_id}/items/${item_id}"
+invariants: [{
+    name: "no-password-exposure"
+    description: "Passwords never appear in any API response"
+    criteria: [
+        "Password field absent from all user responses",
+        "Password hash never returned",
+        "Password never logged or exposed in errors",
+    ]
+}]
 ```
 
-Variables are available from:
-- Captures from dependent behaviors
-- Response bodies and fields
-
-## Response
-
-Expected response definition.
-
-```cue
-response: {
-    status: 200
-    example: {
-        id: "123"
-        name: "John"
-        created_at: "2024-01-04T12:00:00Z"
-    }
-    checks: {
-        "id": { rule: "is uuid", why: "..." }
-        "email": { rule: "is email", why: "..." }
-    }
-    headers: {
-        "Content-Type": "application/json"
-    }
-}
-```
-
-### Fields
+### Invariant Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `status` | Int | Expected HTTP status code (required) |
-| `example` | Json | Example response body (required) |
-| `checks` | Dict | Field-level validation rules (required) |
-| `headers` | Dict | Expected response headers (required) |
+| `name` | string | Invariant name (required) |
+| `description` | string | What this invariant ensures (required) |
+| `criteria` | [string] | What must always be true (required) |
 
-### Check Rules
+## Anti-Patterns
 
-Field validation rules. Use field paths with dot notation:
-
-```cue
-checks: {
-    "id": { rule: "is uuid" }
-    "user.id": { rule: "is uuid" }
-    "items[0].id": { rule: "is uuid" }
-}
-```
-
-#### Available Rules
-
-| Rule | Description | Example |
-|------|-------------|---------|
-| `is uuid` | Valid UUID v4 | `"550e8400-e29b-41d4-a716-446655440000"` |
-| `is email` | Valid email | `"user@example.com"` |
-| `is url` | Valid URL | `"https://example.com"` |
-| `is iso8601` | ISO8601 timestamp | `"2024-01-04T12:00:00Z"` |
-| `is json` | Valid JSON | Any valid JSON value |
-| `matches <regex>` | Regex pattern | `matches "^[0-9]+$"` |
-| `equals <value>` | Exact value | `equals "active"` |
-| `length <n>` | String/array length | `length 36` |
-| `min_length <n>` | Minimum length | `min_length 8` |
-| `max_length <n>` | Maximum length | `max_length 255` |
-| `is integer` | Integer value | `123` |
-| `is number` | Number (int or float) | `123.45` |
-| `is string` | String value | `"text"` |
-| `is boolean` | Boolean value | `true` |
-| `is array` | Array value | `[]` |
-| `is object` | Object value | `{}` |
-| `is null` | Null value | `null` |
-
-## Rule
-
-Global rule applying to multiple behaviors.
+Anti-patterns document common mistakes to avoid, with good and bad examples.
 
 ```cue
-{
-    name: "no-exposed-secrets"
-    description: "Responses should not expose secrets"
-    when: {
-        status: ">= 200"
-        method: "GET"
-        path: "/users.*"
-    }
-    check: {
-        body_must_not_contain: ["password", "secret"]
-        body_must_contain: []
-        fields_must_exist: ["id"]
-        fields_must_not_exist: []
-        header_must_exist: ""
-        header_must_not_exist: ""
-    }
-    example: {
-        error: "Secrets exposed"
-    }
-}
-```
-
-### Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | String | Rule name (required) |
-| `description` | String | What the rule validates (required) |
-| `when` | When | Conditions for rule application (required) |
-| `check` | RuleCheck | What to check (required) |
-| `example` | Json | Example of violation (required) |
-
-### When Conditions
-
-```cue
-when: {
-    status: ">= 200"     // Status condition
-    method: "GET"        // HTTP method
-    path: "/users.*"     // Path regex
-}
-```
-
-All conditions must match for the rule to apply.
-
-#### Status Conditions
-
-- `"200"` - Exact status
-- `">= 200"` - Greater than or equal
-- `"> 200"` - Greater than
-- `"<= 299"` - Less than or equal
-- `"< 300"` - Less than
-
-#### Path Patterns
-
-Paths are treated as regex patterns:
-- `/users.*` - Matches `/users`, `/users/123`, `/users/123/items`
-- `/items/[0-9]+` - Matches `/items/123` but not `/items/abc`
-- `/api/v[12]/users` - Matches `/api/v1/users` and `/api/v2/users`
-
-### RuleCheck
-
-```cue
-check: {
-    body_must_not_contain: ["password", "secret"]
-    body_must_contain: []
-    fields_must_exist: ["id", "created_at"]
-    fields_must_not_exist: ["internal_notes"]
-    header_must_exist: "Content-Type"
-    header_must_not_exist: ""
-}
-```
-
-All fields are required but can be empty lists/strings.
-
-## AntiPattern
-
-Detect common mistakes in API responses.
-
-```cue
-{
+anti_patterns: [{
     name: "missing-timestamps"
-    description: "Responses should include created_at and updated_at"
+    description: "All responses should include created_at and updated_at"
     bad_example: {
         id: "123"
         name: "Product"
@@ -319,23 +223,23 @@ Detect common mistakes in API responses.
         created_at: "2024-01-04T12:00:00Z"
         updated_at: "2024-01-04T12:00:00Z"
     }
-    why: "Timestamps are essential for auditing"
-}
+    why: "Timestamps are essential for auditing and debugging"
+}]
 ```
 
-### Fields
+### Anti-Pattern Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | String | Pattern name (required) |
-| `description` | String | Pattern description (required) |
-| `bad_example` | Json | Example showing the anti-pattern (required) |
-| `good_example` | Json | Example showing correct implementation (required) |
-| `why` | String | Explanation of why it matters (required) |
+| `name` | string | Pattern name (required) |
+| `description` | string | Pattern description (required) |
+| `bad_example` | {...} | Example showing the anti-pattern (required) |
+| `good_example` | {...} | Example showing correct implementation (required) |
+| `why` | string | Explanation of why it matters (optional) |
 
-## AIHints
+## AI Hints
 
-Guidance for AI-powered implementation.
+AI hints provide implementation guidance for AI systems or developers.
 
 ```cue
 ai_hints: {
@@ -377,194 +281,150 @@ ai_hints: {
 }
 ```
 
-### Fields
+### AI Hint Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `implementation` | ImplementationHints | Stack recommendations (required) |
-| `entities` | Dict | Entity/model definitions (required) |
-| `security` | SecurityHints | Security best practices (required) |
-| `pitfalls` | [String] | Common mistakes to avoid (required) |
+| `implementation` | {...} | Stack recommendations (optional) |
+| `entities` | {string: #EntityHint} | Entity/model definitions (optional) |
+| `security` | {...} | Security best practices (optional) |
+| `pitfalls` | [string] | Common mistakes to avoid (optional) |
 
 ## Complete Example
 
 ```cue
 package api
 
-spec: {
-    name: "Item API"
-    description: "API for managing items"
+import "github.com/intent-cli/intent/schema:intent"
+
+spec: intent.#Spec & {
+    name: "User Management API"
+    description: "API for user authentication and profile management"
     audience: "Mobile and web clients"
     version: "1.0.0"
 
-    config: {
-        base_url: "https://api.example.com"
-        timeout_ms: 5000
-        headers: {
-            "Content-Type": "application/json"
-            "Accept": "application/json"
-        }
-    }
+    success_criteria: [
+        "Users can register and login",
+        "Passwords never exposed in responses",
+        "All errors return structured error objects",
+    ]
 
     features: [
         {
-            name: "Item Management"
-            description: "Create, read, update, and delete items"
+            name: "User Registration"
+            description: "New user registration flow"
             behaviors: [
                 {
-                    name: "create-item"
-                    intent: "Create a new item with valid data"
-                    notes: "Item names must be unique per user"
-                    requires: []
-                    tags: ["create", "happy-path"]
-                    request: {
-                        method: "POST"
-                        path: "/items"
-                        headers: {}
-                        query: {}
-                        body: {
-                            title: "Test Item"
-                            description: "A test item"
-                            category: "test"
-                        }
-                    }
-                    response: {
-                        status: 201
-                        example: {
-                            id: "item-123"
-                            user_id: "user-456"
-                            title: "Test Item"
-                            description: "A test item"
-                            category: "test"
-                            created_at: "2024-01-04T12:00:00Z"
-                            updated_at: "2024-01-04T12:00:00Z"
-                        }
-                        checks: {
-                            "id": { rule: "is uuid", why: "IDs are UUIDs" }
-                            "created_at": { rule: "is iso8601", why: "Timestamps are ISO8601" }
-                        }
-                        headers: {
-                            "Content-Type": "application/json"
-                        }
-                    }
-                    captures: {
-                        item_id: "id"
-                    }
-                }
-                {
-                    name: "get-item"
-                    intent: "Retrieve a specific item"
-                    notes: ""
-                    requires: ["create-item"]
-                    tags: ["read", "happy-path"]
-                    request: {
-                        method: "GET"
-                        path: "/items/${item_id}"
-                        headers: {}
-                        query: {}
-                        body: null
-                    }
-                    response: {
-                        status: 200
-                        example: {
-                            id: "item-123"
-                            title: "Test Item"
-                            created_at: "2024-01-04T12:00:00Z"
-                        }
-                        checks: {
-                            "id": { rule: "equals item-123", why: "Should return the requested item" }
-                        }
-                        headers: {}
-                    }
-                    captures: {}
+                    name: "successful-registration"
+                    intent: "A new user can create an account"
+                    preconditions: [
+                        "User provides valid email",
+                        "User provides strong password",
+                    ]
+                    postconditions: [
+                        "User account exists in system",
+                        "Password is hashed",
+                        "User can authenticate",
+                    ]
+                    verifications: [{
+                        description: "User can log in"
+                        criteria: [
+                            "Authentication succeeds with valid credentials",
+                            "Authentication fails with invalid credentials",
+                        ]
+                    }]
                 }
             ]
         }
     ]
 
-    rules: [
+    invariants: [
         {
-            name: "no-internal-fields"
-            description: "Responses should not expose internal fields"
-            when: {
-                status: ">= 200"
-                method: "GET"
-                path: "/items.*"
-            }
-            check: {
-                body_must_not_contain: []
-                body_must_contain: []
-                fields_must_exist: ["id", "created_at"]
-                fields_must_not_exist: ["internal_id", "_version"]
-                header_must_exist: "Content-Type"
-                header_must_not_exist: ""
-            }
-            example: {
-                error: "Internal fields exposed"
-            }
+            name: "no-password-exposure"
+            description: "Passwords never appear in responses"
+            criteria: [
+                "Password field absent from all user responses",
+                "Password hash never returned",
+            ]
         }
     ]
 
     anti_patterns: [
         {
             name: "missing-timestamps"
-            description: "All items should have timestamps"
-            bad_example: { id: "123", title: "Item" }
+            description: "All responses should include timestamps"
+            bad_example: { id: "123", name: "User" }
             good_example: {
                 id: "123"
-                title: "Item"
+                name: "User"
                 created_at: "2024-01-04T12:00:00Z"
                 updated_at: "2024-01-04T12:00:00Z"
             }
-            why: "Timestamps enable auditing and caching"
+            why: "Timestamps are essential for auditing"
         }
     ]
 
     ai_hints: {
         implementation: {
-            suggested_stack: ["PostgreSQL", "Python/FastAPI", "Docker"]
+            suggested_stack: ["PostgreSQL", "Node.js", "Express"]
         }
         entities: {
-            Item: {
+            User: {
                 fields: {
                     id: "UUID primary key"
-                    user_id: "UUID foreign key to User"
-                    title: "String (100 chars max, required)"
-                    description: "String (500 chars max)"
-                    category: "String (required)"
+                    email: "Unique email address"
+                    password_hash: "Bcrypt hash"
                     created_at: "ISO8601 timestamp"
-                    updated_at: "ISO8601 timestamp"
                 }
             }
         }
         security: {
-            password_hashing: "Use argon2"
+            password_hashing: "bcrypt with cost factor 12"
             jwt_algorithm: "HS256"
             jwt_expiry: "1 hour"
-            rate_limiting: "100 requests/min per user"
         }
         pitfalls: [
-            "Ensure items belong to the requesting user",
-            "Validate category values",
-            "Sanitize title and description",
-            "Use transactions for multi-step operations"
+            "Never return passwords in responses",
+            "Always validate input on server",
+            "Use HTTPS in production",
         ]
     }
-
-    success_criteria: [
-        "All behaviors pass"
-        "No rule violations"
-        "Response times < 200ms"
-        "No anti-patterns detected"
-    ]
 }
 ```
 
 ## Tips for Writing Specifications
 
-1. **Use descriptive names** - Names should clearly indicate what's being tested
-2. **Keep checks focused** - Check specific important fields, not everything
-3. **Document the why** - Explain why each rule exists
-4. **Test error cases** - Don't only test happy paths
-5. **Use realistic examples** - Examples should match real API responses
-6. **Keep it maintainable** - Avoid overly complex checks or patterns
+1. **All fields are required** - Even optional-looking fields must be explicitly provided
+2. **Use descriptive behavior names** - Names should clearly indicate what the behavior does
+3. **Focus on intent** - Describe what the system does, not how to test it
+4. **Document preconditions and postconditions** - What must be true before and after
+5. **Provide clear verifications** - How to confirm the behavior works
+6. **Use global invariants** - Document system-wide rules
+7. **Include anti-patterns** - Help implementers avoid common mistakes
+8. **Provide AI hints** - Guide implementation with suggestions
+
+## Key Differences from v2.0
+
+### Removed Fields
+- `config` - No HTTP execution configuration
+- `request` - No HTTP request definitions
+- `response` - No HTTP response definitions
+- `captures` - No variable capture
+- `checks` - No field-level validation rules
+- `when` - No conditional rule application
+
+### New Fields
+- `preconditions` - What must be true before
+- `postconditions` - What must be true after
+- `verifications` - How to verify correctness
+- `invariants` - Global rules (renamed from `rules`)
+
+### Conceptual Changes
+- **v2.0**: "Define HTTP requests and validate responses"
+- **v3.0**: "Describe behaviors declaratively and verify correctness"
+
+## See Also
+
+- [User Guide](USER_GUIDE.md) - Comprehensive usage guide
+- [Schema Documentation](schema-spec-type.md) - Schema type reference
+- [Migration Guide](../MIGRATION.md) - Migrating from v2.0

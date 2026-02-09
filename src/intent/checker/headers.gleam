@@ -6,7 +6,9 @@ import intent/checker/types.{type CheckResult, CheckFailed, CheckPassed}
 
 /// Cache of lowercased headers for O(1) case-insensitive lookups
 /// Created once per response, reused for all header checks
-fn lowercase_headers(headers: dict.Dict(String, String)) -> dict.Dict(String, String) {
+fn lowercase_headers(
+  headers: dict.Dict(String, String),
+) -> dict.Dict(String, String) {
   headers
   |> dict.to_list
   |> list.map(fn(pair) {

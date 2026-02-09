@@ -54,7 +54,6 @@ pub fn invalid_json_includes_error_details_test() {
       let _ = decode_error.message
       should.be_true(True)
     }
-    Error(_) -> should.be_true(False)
     // Wrong error type
     Ok(_) -> should.be_true(False)
     // Should have errored
@@ -73,8 +72,6 @@ pub fn root_not_object_includes_type_details_test() {
       should.equal(decode_error.actual, "String")
       should.equal(decode_error.path, "<root>")
     }
-    Error(_) -> should.be_true(False)
-    // Wrong error type
     Ok(_) -> should.be_true(False)
     // Should have errored
   }
@@ -97,8 +94,6 @@ pub fn array_at_root_includes_type_details_test() {
       should.equal(decode_error.expected, "Object")
       should.equal(decode_error.actual, "List")
     }
-    Error(_) -> should.be_true(False)
-    // Wrong error type
     Ok(_) -> should.be_true(False)
     // Should have errored
   }

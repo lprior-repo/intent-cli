@@ -1,7 +1,9 @@
 import gleam/json
 import gleam/list
 import gleam/string
-import intent/types.{type Behavior, type Spec, Delete, Get, Head, Options, Patch, Post, Put}
+import intent/types.{
+  type Behavior, type Spec, Delete, Get, Head, Options, Patch, Post, Put,
+}
 
 /// Effect types for second-order analysis
 pub type EffectType {
@@ -65,60 +67,56 @@ pub fn analyze_behavior(behavior: Behavior) -> List(Effect) {
 /// Analyze HTTP method for implications
 fn analyze_http_method(behavior: Behavior) -> List(Effect) {
   case behavior.request.method {
-    Post | Put | Patch ->
-      [
-        Effect(
-          type_: StateChange,
-          description: "Creates or modifies resource in database",
-          severity: Medium,
-          suggestion: "Add behavior to test duplicate creation/updates",
-        ),
-        Effect(
-          type_: Notification,
-          description: "May trigger notification events",
-          severity: Low,
-          suggestion: "Add behavior to test notification failure handling",
-        ),
-      ]
-    Delete ->
-      [
-        Effect(
-          type_: StateChange,
-          description: "Removes resource from database",
-          severity: High,
-          suggestion: "Add behavior to test orphaned data cleanup",
-        ),
-        Effect(
-          type_: RollbackRequired,
-          description: "Deletion should be reversible or soft-delete",
-          severity: High,
-          suggestion: "Add behavior to test soft-delete or restoration",
-        ),
-      ]
-    Get | Head | Options ->
-      [
-        Effect(
-          type_: Cascade,
-          description: "Read operations may trigger cache updates",
-          severity: Low,
-          suggestion: "Add behavior to test cache consistency",
-        ),
-      ]
+    Post | Put | Patch -> [
+      Effect(
+        type_: StateChange,
+        description: "Creates or modifies resource in database",
+        severity: Medium,
+        suggestion: "Add behavior to test duplicate creation/updates",
+      ),
+      Effect(
+        type_: Notification,
+        description: "May trigger notification events",
+        severity: Low,
+        suggestion: "Add behavior to test notification failure handling",
+      ),
+    ]
+    Delete -> [
+      Effect(
+        type_: StateChange,
+        description: "Removes resource from database",
+        severity: High,
+        suggestion: "Add behavior to test orphaned data cleanup",
+      ),
+      Effect(
+        type_: RollbackRequired,
+        description: "Deletion should be reversible or soft-delete",
+        severity: High,
+        suggestion: "Add behavior to test soft-delete or restoration",
+      ),
+    ]
+    Get | Head | Options -> [
+      Effect(
+        type_: Cascade,
+        description: "Read operations may trigger cache updates",
+        severity: Low,
+        suggestion: "Add behavior to test cache consistency",
+      ),
+    ]
   }
 }
 
 /// Analyze potential cascade effects
 fn analyze_cascade_effects(behavior: Behavior) -> List(Effect) {
   case behavior.request.method {
-    Delete | Post | Put | Patch ->
-      [
-        Effect(
-          type_: Cascade,
-          description: "Operation may affect related records",
-          severity: High,
-          suggestion: "Add behavior to test referential integrity",
-        ),
-      ]
+    Delete | Post | Put | Patch -> [
+      Effect(
+        type_: Cascade,
+        description: "Operation may affect related records",
+        severity: High,
+        suggestion: "Add behavior to test referential integrity",
+      ),
+    ]
     Get | Head | Options -> []
   }
 }
@@ -126,15 +124,14 @@ fn analyze_cascade_effects(behavior: Behavior) -> List(Effect) {
 /// Analyze potential race conditions
 fn analyze_race_conditions(behavior: Behavior) -> List(Effect) {
   case behavior.request.method {
-    Post | Put | Patch | Delete ->
-      [
-        Effect(
-          type_: RaceCondition,
-          description: "Concurrent modifications may conflict",
-          severity: Medium,
-          suggestion: "Add behavior to test optimistic locking or conflict resolution",
-        ),
-      ]
+    Post | Put | Patch | Delete -> [
+      Effect(
+        type_: RaceCondition,
+        description: "Concurrent modifications may conflict",
+        severity: Medium,
+        suggestion: "Add behavior to test optimistic locking or conflict resolution",
+      ),
+    ]
     Get | Head | Options -> []
   }
 }
@@ -142,15 +139,14 @@ fn analyze_race_conditions(behavior: Behavior) -> List(Effect) {
 /// Analyze rollback requirements
 fn analyze_rollback_needs(behavior: Behavior) -> List(Effect) {
   case behavior.request.method {
-    Post | Put | Patch | Delete ->
-      [
-        Effect(
-          type_: RollbackRequired,
-          description: "Operation should be reversible or compensatable",
-          severity: Medium,
-          suggestion: "Add compensating transaction behavior",
-        ),
-      ]
+    Post | Put | Patch | Delete -> [
+      Effect(
+        type_: RollbackRequired,
+        description: "Operation should be reversible or compensatable",
+        severity: Medium,
+        suggestion: "Add compensating transaction behavior",
+      ),
+    ]
     Get | Head | Options -> []
   }
 }

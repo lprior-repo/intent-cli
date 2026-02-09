@@ -112,10 +112,10 @@ pub fn given_plan_emit_beads_flags_when_normalizing_then_bool_and_values_are_enc
 pub fn command_inventory_count_is_current_test() {
   let commands = [
     "analyze", "bead-status", "beads", "beads-regenerate", "compact", "coverage",
-    "diff", "ears", "effects", "export", "gaps", "history", "improve", "interview",
-    "invert", "lint", "plan", "plan-approve", "plan-emit-beads", "plan-next",
-    "plan-status", "plan-work", "prototext", "quality", "sessions", "show",
-    "validate", "validate-bead", "vision", "ready",
+    "diff", "ears", "effects", "export", "gaps", "history", "improve",
+    "interview", "invert", "lint", "plan", "plan-approve", "plan-emit-beads",
+    "plan-next", "plan-status", "plan-work", "prototext", "quality", "sessions",
+    "show", "validate", "validate-bead", "vision", "ready",
   ]
 
   commands

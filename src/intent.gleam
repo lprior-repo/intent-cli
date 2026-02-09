@@ -10,9 +10,12 @@ import gleam/string
 import gleam_community/ansi
 import glint
 import glint/flag
-import intent/cli_ui
 import intent/bead_templates
-import intent/effects_analyzer.{Cascade, Notification, RaceCondition, RollbackRequired, High, Low, Medium, StateChange, type EffectType, type SpecAnalysis}
+import intent/cli_ui
+import intent/effects_analyzer.{
+  type EffectType, type SpecAnalysis, Cascade, High, Low, Medium, Notification,
+  RaceCondition, RollbackRequired, StateChange,
+}
 import intent/interview
 import intent/interview_storage
 import intent/loader
@@ -21,8 +24,8 @@ import intent/plan_emit_beads
 import intent/plan_mode
 import intent/ready_document
 import intent/security
-import intent/vision_document
 import intent/validation
+import intent/vision_document
 import shellout
 import simplifile
 
@@ -498,10 +501,14 @@ fn check_bead_status(bead_id: String) -> Nil {
               cli_ui.print_error("Failed to parse bead response")
               io.println("
 Specific error: " <> err)
-              io.println("
-This usually indicates a problem with br's JSON output format.")
-              io.println("
-Troubleshooting:")
+              io.println(
+                "
+This usually indicates a problem with br's JSON output format.",
+              )
+              io.println(
+                "
+Troubleshooting:",
+              )
               io.println("  1. Check br version: br --version")
               io.println("  2. Verify br is working: br list")
               io.println("  3. Check br logs: br log --tail 50")
@@ -511,11 +518,15 @@ Troubleshooting:")
         }
         Error(_) -> {
           cli_ui.print_error("Failed to decode JSON response from br")
-          io.println("
-Raw output:")
+          io.println(
+            "
+Raw output:",
+          )
           io.println(json_output)
-          io.println("
-Troubleshooting:")
+          io.println(
+            "
+Troubleshooting:",
+          )
           io.println("  1. Check br version: br --version")
           io.println("  2. Verify br is working: br list")
           exit(exit_fail)
@@ -524,16 +535,22 @@ Troubleshooting:")
     }
     Error(#(_, stderr)) -> {
       // Check if it's a "bead not found" error
-      case string.contains(stderr, "not found")
+      case
+        string.contains(stderr, "not found")
         || string.contains(stderr, "No issue found")
-        || string.contains(stderr, "AMBIGUOUS_ID") {
+        || string.contains(stderr, "AMBIGUOUS_ID")
+      {
         True -> {
           cli_ui.print_error("Bead not found: " <> bead_id)
-          io.println("
-Tip: Use a full bead ID (e.g., intent-cli-113)")
+          io.println(
+            "
+Tip: Use a full bead ID (e.g., intent-cli-113)",
+          )
           io.println("List all beads with: br list")
-          io.println("
-If you expected this bead to exist:")
+          io.println(
+            "
+If you expected this bead to exist:",
+          )
           io.println("  1. Check the bead ID for typos")
           io.println("  2. Verify you're in the correct project")
           io.println("  3. Ensure beads have been emitted to br")
@@ -565,9 +582,7 @@ type BeadStatus {
 }
 
 /// Parse bead response from br show command
-fn parse_bead_response(
-  json_data: dynamic.Dynamic,
-) -> Result(BeadStatus, String) {
+fn parse_bead_response(json_data: dynamic.Dynamic) -> Result(BeadStatus, String) {
   // br show returns an array, try to decode as list first
   case dynamic.list(dynamic.dynamic)(json_data) {
     Ok(beads_list) -> {
@@ -608,17 +623,14 @@ fn decode_bead_from_dynamic(
     dynamic.field("labels", dynamic.list(dynamic.string))(bead_dynamic)
     |> result.unwrap([])
 
-  case
-    id,
-    title,
-    status,
-    priority,
-    created_at,
-    updated_at
-  {
-    Ok(id_val), Ok(title_val), Ok(status_val), Ok(priority_val), Ok(created_val), Ok(
-      updated_val,
-    ) -> {
+  case id, title, status, priority, created_at, updated_at {
+    Ok(id_val),
+      Ok(title_val),
+      Ok(status_val),
+      Ok(priority_val),
+      Ok(created_val),
+      Ok(updated_val)
+    -> {
       Ok(BeadStatus(
         id: id_val,
         title: title_val,
@@ -797,9 +809,11 @@ fn show_history() -> Nil {
     }
     Error(err) -> {
       // Check if it's a "file not found" error
-      case string.contains(err, "No such file")
+      case
+        string.contains(err, "No such file")
         || string.contains(err, "not found")
-        || string.contains(err, "Enoent") {
+        || string.contains(err, "Enoent")
+      {
         True -> {
           cli_ui.print_warning("No sessions found")
           io.println("")
@@ -996,19 +1010,42 @@ fn show_session_diff(session_id: String) -> Nil {
           // No history available yet - show basic session info
           cli_ui.print_warning("No previous snapshots found for this session")
           io.println("\nCurrent session state:")
-          io.println("  Profile: " <> interview.profile_to_string(current_session.profile))
-          io.println("  Stage: " <> interview.stage_to_string(current_session.stage))
+          io.println(
+            "  Profile: "
+            <> interview.profile_to_string(current_session.profile),
+          )
+          io.println(
+            "  Stage: " <> interview.stage_to_string(current_session.stage),
+          )
           io.println("  Updated: " <> current_session.updated_at)
-          io.println("  Answers: " <> int.to_string(list.length(current_session.answers)))
-          io.println("  Unresolved gaps: " <> int.to_string(list.length(list.filter(current_session.gaps, fn(g) { !g.resolved }))))
-          io.println("  Unresolved conflicts: " <> int.to_string(list.length(list.filter(current_session.conflicts, fn(c) { c.chosen < 0 }))))
+          io.println(
+            "  Answers: " <> int.to_string(list.length(current_session.answers)),
+          )
+          io.println(
+            "  Unresolved gaps: "
+            <> int.to_string(
+              list.length(
+                list.filter(current_session.gaps, fn(g) { !g.resolved }),
+              ),
+            ),
+          )
+          io.println(
+            "  Unresolved conflicts: "
+            <> int.to_string(
+              list.length(
+                list.filter(current_session.conflicts, fn(c) { c.chosen < 0 }),
+              ),
+            ),
+          )
           exit(exit_pass)
         }
         Ok(snapshots) -> {
           case snapshots {
             [] -> {
               // No snapshots yet
-              cli_ui.print_warning("No previous snapshots found for this session")
+              cli_ui.print_warning(
+                "No previous snapshots found for this session",
+              )
               io.println("\nThis is the first version of this session.")
               exit(exit_pass)
             }
@@ -1029,25 +1066,29 @@ fn show_session_diff(session_id: String) -> Nil {
                 Ok(prev_snap) -> {
                   // We need to load the previous session state
                   // For now, compare with an empty session to show what was added
-                  let empty_session = interview.InterviewSession(
-                    id: session_id <> "-previous",
-                    profile: current_session.profile,
-                    created_at: prev_snap.timestamp,
-                    updated_at: prev_snap.timestamp,
-                    completed_at: "",
-                    stage: interview.Discovery,
-                    rounds_completed: 0,
-                    answers: [],
-                    gaps: [],
-                    conflicts: [],
-                    raw_notes: "",
-                    current_phase: 1,
-                    completed_phases: [],
-                  )
+                  let empty_session =
+                    interview.InterviewSession(
+                      id: session_id <> "-previous",
+                      profile: current_session.profile,
+                      created_at: prev_snap.timestamp,
+                      updated_at: prev_snap.timestamp,
+                      completed_at: "",
+                      stage: interview.Discovery,
+                      rounds_completed: 0,
+                      answers: [],
+                      gaps: [],
+                      conflicts: [],
+                      raw_notes: "",
+                      current_phase: 1,
+                      completed_phases: [],
+                    )
 
                   // Generate diff
                   let diff =
-                    interview_storage.diff_sessions(empty_session, current_session)
+                    interview_storage.diff_sessions(
+                      empty_session,
+                      current_session,
+                    )
 
                   // Format and display
                   io.println(interview_storage.format_diff(diff))
@@ -1430,9 +1471,7 @@ fn approve_plan(plan_id: String, notes: String) -> Nil {
         blockers -> {
           io.println("")
           cli_ui.print_warning("Blockers:")
-          list.each(blockers, fn(blocker) {
-            io.println("  • " <> blocker)
-          })
+          list.each(blockers, fn(blocker) { io.println("  • " <> blocker) })
         }
       }
 
@@ -1521,7 +1560,8 @@ fn regenerate_beads(session_id: String) -> Nil {
   let sessions_path = ".interview/sessions.jsonl"
 
   // Try to load session from JSONL
-  let load_result = interview_storage.get_session_from_jsonl(sessions_path, session_id)
+  let load_result =
+    interview_storage.get_session_from_jsonl(sessions_path, session_id)
 
   case load_result {
     Error(err) -> {
@@ -1587,6 +1627,7 @@ fn regenerate_beads(session_id: String) -> Nil {
     }
   }
 }
+
 /// ============================================================================
 /// PLAN EMIT BEADS COMMAND
 /// ============================================================================
@@ -1754,7 +1795,9 @@ fn generate_vision_document(spec_file: String, output_dir: String) -> Nil {
   // Validate file path for security
   case security.validate_file_path(spec_file) {
     Error(err) -> {
-      cli_ui.print_error("Invalid file path: " <> security.format_security_error(err))
+      cli_ui.print_error(
+        "Invalid file path: " <> security.format_security_error(err),
+      )
       exit(exit_fail)
     }
     Ok(validated_path) -> {
@@ -1766,8 +1809,10 @@ fn generate_vision_document(spec_file: String, output_dir: String) -> Nil {
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
+          io.println(
+            "
+Troubleshooting:",
+          )
           io.println("  1. Check file permissions: ls -l " <> spec_file)
           io.println("  2. Verify file is not locked by another process")
           io.println("  3. Ensure you have read access to the file")
@@ -1783,7 +1828,8 @@ Troubleshooting:")
                   case parser.decode_dynamic(json_data) {
                     Ok(spec) -> {
                       // Generate vision document
-                      let vision_doc = vision_document.generate_vision_document(spec)
+                      let vision_doc =
+                        vision_document.generate_vision_document(spec)
 
                       // Determine output path
                       let out_dir = case output_dir {
@@ -1797,12 +1843,16 @@ Troubleshooting:")
                       case simplifile.write(output_path, vision_doc) {
                         Ok(_) -> {
                           io.println("\nOutput: " <> output_path)
-                          cli_ui.print_success("Vision document generated successfully")
+                          cli_ui.print_success(
+                            "Vision document generated successfully",
+                          )
                           exit(exit_pass)
                         }
                         Error(_err) -> {
                           cli_ui.print_error("Failed to write vision document:")
-                          io.println("Could not write file - check permissions and disk space")
+                          io.println(
+                            "Could not write file - check permissions and disk space",
+                          )
                           exit(exit_fail)
                         }
                       }
@@ -1826,11 +1876,15 @@ Troubleshooting:")
               cli_ui.print_error("Failed to export CUE spec to JSON")
               io.println("
 Spec file: " <> spec_file)
-              io.println("
-CUE error:")
+              io.println(
+                "
+CUE error:",
+              )
               io.println(stderr)
-              io.println("
-Troubleshooting:")
+              io.println(
+                "
+Troubleshooting:",
+              )
               io.println("  1. Validate CUE syntax: cue vet " <> spec_file)
               io.println("  2. Check CUE version: cue version")
               io.println("  3. Verify spec schema matches expected format")
@@ -1885,7 +1939,9 @@ fn generate_ready_document(spec_file: String, output_dir: String) -> Nil {
   // Validate file path for security
   case security.validate_file_path(spec_file) {
     Error(err) -> {
-      cli_ui.print_error("Invalid file path: " <> security.format_security_error(err))
+      cli_ui.print_error(
+        "Invalid file path: " <> security.format_security_error(err),
+      )
       exit(exit_fail)
     }
     Ok(validated_path) -> {
@@ -1897,8 +1953,10 @@ fn generate_ready_document(spec_file: String, output_dir: String) -> Nil {
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
+          io.println(
+            "
+Troubleshooting:",
+          )
           io.println("  1. Check file permissions: ls -l " <> spec_file)
           io.println("  2. Verify file is not locked by another process")
           io.println("  3. Ensure you have read access to the file")
@@ -1922,8 +1980,7 @@ Troubleshooting:")
                 _ -> output_dir
               }
 
-              let output_path =
-                out_dir <> "/" <> "ready.md"
+              let output_path = out_dir <> "/" <> "ready.md"
 
               // Write document
               case simplifile.write(output_path, ready_doc) {
@@ -1998,7 +2055,9 @@ fn analyze_effects(
   // Validate file path for security
   case security.validate_file_path(spec_file) {
     Error(err) -> {
-      cli_ui.print_error("Invalid file path: " <> security.format_security_error(err))
+      cli_ui.print_error(
+        "Invalid file path: " <> security.format_security_error(err),
+      )
       exit(exit_fail)
     }
     Ok(validated_path) -> {
@@ -2010,8 +2069,10 @@ fn analyze_effects(
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
+          io.println(
+            "
+Troubleshooting:",
+          )
           io.println("  1. Check file permissions: ls -l " <> spec_file)
           io.println("  2. Verify file is not locked by another process")
           io.println("  3. Ensure you have read access to the file")
@@ -2063,11 +2124,15 @@ Troubleshooting:")
               cli_ui.print_error("Failed to export CUE spec to JSON")
               io.println("
 Spec file: " <> spec_file)
-              io.println("
-CUE error:")
+              io.println(
+                "
+CUE error:",
+              )
               io.println(stderr)
-              io.println("
-Troubleshooting:")
+              io.println(
+                "
+Troubleshooting:",
+              )
               io.println("  1. Validate CUE syntax: cue vet " <> spec_file)
               io.println("  2. Check CUE version: cue version")
               io.println("  3. Verify spec schema matches expected format")
@@ -2140,18 +2205,13 @@ fn output_effects_json(analysis: SpecAnalysis) -> Nil {
     })
 
   let output_json =
-    json.object([
-      #("spec", json.string(analysis.spec_name)),
-      ..behaviors_json,
-    ])
+    json.object([#("spec", json.string(analysis.spec_name)), ..behaviors_json])
     |> json.to_string()
 
   io.println(output_json)
 }
 
-fn effect_type_to_json_string(
-  type_: EffectType,
-) -> String {
+fn effect_type_to_json_string(type_: EffectType) -> String {
   case type_ {
     StateChange -> "state_change"
     Notification -> "notification"
@@ -2169,9 +2229,7 @@ fn severity_to_json_string(severity: effects_analyzer.Severity) -> String {
   }
 }
 
-fn format_parse_errors(
-  errors: List(dynamic.DecodeError),
-) -> String {
+fn format_parse_errors(errors: List(dynamic.DecodeError)) -> String {
   errors
   |> list.map(fn(err) {
     "  - "
@@ -2184,18 +2242,16 @@ fn format_parse_errors(
   |> string.join("\n")
 }
 
-
 /// ============================================================================
 /// ERROR HANDLING HELPERS
 /// ============================================================================
-
 /// Format file not found error with helpful suggestions
 fn format_file_not_found_with_context(
   file_path: String,
   file_type: String,
 ) -> Nil {
   cli_ui.print_error(file_type <> " file not found: " <> file_path)
-  
+
   io.println("\nTroubleshooting:")
   io.println("  1. Check the file path for typos")
   io.println("  2. Verify the file exists in the current directory")
@@ -2206,10 +2262,10 @@ fn format_file_not_found_with_context(
 /// Format br command error with troubleshooting
 fn format_br_command_error(stderr: String) -> Nil {
   cli_ui.print_error("Failed to execute br command")
-  
+
   io.println("\nError details:")
   io.println(stderr)
-  
+
   io.println("\nTroubleshooting:")
   io.println("  1. Ensure br is installed: br --version")
   io.println("  2. Check br configuration: br config show")

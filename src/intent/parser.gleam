@@ -419,6 +419,8 @@ fn parse_security_hints(
 }
 
 /// Decode a spec from a dynamic JSON value (for use with shellout cue export)
-pub fn decode_dynamic(data: dynamic.Dynamic) -> Result(Spec, List(dynamic.DecodeError)) {
+pub fn decode_dynamic(
+  data: dynamic.Dynamic,
+) -> Result(Spec, List(dynamic.DecodeError)) {
   parse_spec(data)
 }

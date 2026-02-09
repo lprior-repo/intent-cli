@@ -51,10 +51,7 @@ fn generate_overview(spec: Spec) -> String {
 fn generate_features(spec: Spec) -> String {
   let features_list =
     list.map(spec.features, fn(feature) {
-      "### "
-      <> feature.name
-      <> "\n\n"
-      <> feature.description
+      "### " <> feature.name <> "\n\n" <> feature.description
     })
     |> string.join("\n\n")
 
@@ -70,10 +67,7 @@ fn generate_behaviors(spec: Spec) -> String {
         })
         |> string.join("\n\n")
 
-      "### "
-      <> feature.name
-      <> "\n\n"
-      <> behaviors
+      "### " <> feature.name <> "\n\n" <> behaviors
     })
     |> string.join("\n\n")
 
@@ -81,29 +75,20 @@ fn generate_behaviors(spec: Spec) -> String {
 }
 
 fn generate_behavior_details(behavior: Behavior) -> String {
-  let requires =
-    case behavior.requires {
-      [] -> ""
-      deps ->
-        "\n**Dependencies:** "
-        <> string.join(deps, ", ")
-        <> "\n"
-    }
+  let requires = case behavior.requires {
+    [] -> ""
+    deps -> "\n**Dependencies:** " <> string.join(deps, ", ") <> "\n"
+  }
 
-  let tags =
-    case behavior.tags {
-      [] -> ""
-      tags_list ->
-        "\n**Tags:** "
-        <> string.join(tags_list, ", ")
-        <> "\n"
-    }
+  let tags = case behavior.tags {
+    [] -> ""
+    tags_list -> "\n**Tags:** " <> string.join(tags_list, ", ") <> "\n"
+  }
 
-  let notes =
-    case string.is_empty(behavior.notes) {
-      True -> ""
-      False -> "\n**Notes:** " <> behavior.notes <> "\n"
-    }
+  let notes = case string.is_empty(behavior.notes) {
+    True -> ""
+    False -> "\n**Notes:** " <> behavior.notes <> "\n"
+  }
 
   "#### "
   <> behavior.name
@@ -121,45 +106,31 @@ fn generate_behavior_details(behavior: Behavior) -> String {
 }
 
 fn generate_request_details(request: types.Request) -> String {
-  let headers =
-    case dict.size(request.headers) {
-      0 -> ""
-      _ ->
-        "\nHeaders:\n"
-        <> dict.to_list(request.headers)
-        |> list.map(fn(pair) {
-          "  - "
-          <> pair.0
-          <> ": "
-          <> pair.1
-        })
-        |> string.join("\n")
-    }
+  let headers = case dict.size(request.headers) {
+    0 -> ""
+    _ ->
+      "\nHeaders:\n"
+      <> dict.to_list(request.headers)
+      |> list.map(fn(pair) { "  - " <> pair.0 <> ": " <> pair.1 })
+      |> string.join("\n")
+  }
 
-  let query =
-    case dict.size(request.query) {
-      0 -> ""
-      _ ->
-        "\nQuery Parameters:\n"
-        <> dict.to_list(request.query)
-        |> list.map(fn(pair) {
-          "  - "
-          <> pair.0
-          <> ": "
-          <> json_to_string(pair.1)
-        })
-        |> string.join("\n")
-    }
+  let query = case dict.size(request.query) {
+    0 -> ""
+    _ ->
+      "\nQuery Parameters:\n"
+      <> dict.to_list(request.query)
+      |> list.map(fn(pair) {
+        "  - " <> pair.0 <> ": " <> json_to_string(pair.1)
+      })
+      |> string.join("\n")
+  }
 
   let body_str = json.to_string(request.body)
-  let body =
-    case body_str {
-      "null" -> ""
-      _ ->
-        "\nBody:\n```json\n"
-        <> body_str
-        <> "\n```"
-    }
+  let body = case body_str {
+    "null" -> ""
+    _ -> "\nBody:\n```json\n" <> body_str <> "\n```"
+  }
 
   "**Request:** "
   <> types.method_to_string(request.method)
@@ -171,37 +142,30 @@ fn generate_request_details(request: types.Request) -> String {
 }
 
 fn generate_response_details(response: types.Response) -> String {
-  let checks =
-    case dict.size(response.checks) {
-      0 -> ""
-      _ ->
-        "\n\nChecks:\n"
-        <> dict.to_list(response.checks)
-        |> list.map(fn(pair) {
-          "  - **"
-          <> pair.0
-          <> "**: "
-          <> pair.1.rule
-          <> "\n    *Why:* "
-          <> pair.1.why
-        })
-        |> string.join("\n")
-    }
+  let checks = case dict.size(response.checks) {
+    0 -> ""
+    _ ->
+      "\n\nChecks:\n"
+      <> dict.to_list(response.checks)
+      |> list.map(fn(pair) {
+        "  - **"
+        <> pair.0
+        <> "**: "
+        <> { pair.1 }.rule
+        <> "\n    *Why:* "
+        <> { pair.1 }.why
+      })
+      |> string.join("\n")
+  }
 
-  let headers =
-    case dict.size(response.headers) {
-      0 -> ""
-      _ ->
-        "\n\nHeaders:\n"
-        <> dict.to_list(response.headers)
-        |> list.map(fn(pair) {
-          "  - "
-          <> pair.0
-          <> ": "
-          <> pair.1
-        })
-        |> string.join("\n")
-    }
+  let headers = case dict.size(response.headers) {
+    0 -> ""
+    _ ->
+      "\n\nHeaders:\n"
+      <> dict.to_list(response.headers)
+      |> list.map(fn(pair) { "  - " <> pair.0 <> ": " <> pair.1 })
+      |> string.join("\n")
+  }
 
   "**Response:** Status "
   <> int.to_string(response.status)
@@ -227,21 +191,20 @@ fn generate_invariants(spec: Spec) -> String {
 }
 
 fn generate_rule_details(rule: Rule) -> String {
-  let when_clause =
-    case rule.when {
-      types.When("", _, _) -> ""
-      types.When(status, method, path) ->
-        "**When:** "
-        <> case string.is_empty(status) {
-          True -> "Any status"
-          False -> "Status " <> status
-        }
-        <> ", "
-        <> types.method_to_string(method)
-        <> " "
-        <> path
-        <> "\n\n"
-    }
+  let when_clause = case rule.when {
+    types.When("", _, _) -> ""
+    types.When(status, method, path) ->
+      "**When:** "
+      <> case string.is_empty(status) {
+        True -> "Any status"
+        False -> "Status " <> status
+      }
+      <> ", "
+      <> types.method_to_string(method)
+      <> " "
+      <> path
+      <> "\n\n"
+  }
 
   let checks = generate_rule_check_details(rule.check)
 
@@ -251,7 +214,10 @@ fn generate_rule_details(rule: Rule) -> String {
 fn generate_rule_check_details(check: types.RuleCheck) -> String {
   let items =
     []
-    |> append_non_empty_list("Body must not contain", check.body_must_not_contain)
+    |> append_non_empty_list(
+      "Body must not contain",
+      check.body_must_not_contain,
+    )
     |> append_non_empty_list("Body must contain", check.body_must_contain)
     |> append_non_empty_list("Fields must exist", check.fields_must_exist)
     |> append_non_empty_list(
@@ -266,9 +232,7 @@ fn generate_rule_check_details(check: types.RuleCheck) -> String {
 
   case items {
     [] -> ""
-    _ ->
-      "**Checks:**\n"
-      <> string.join(items, "\n")
+    _ -> "**Checks:**\n" <> string.join(items, "\n")
   }
 }
 
@@ -281,12 +245,7 @@ fn append_non_empty_list(
     [] -> items
     _ ->
       items
-      |> list.append([
-        "- "
-        <> label
-        <> ": "
-        <> string.join(values, ", "),
-      ])
+      |> list.append(["- " <> label <> ": " <> string.join(values, ", ")])
   }
 }
 
@@ -353,7 +312,9 @@ fn generate_implementation_hints(spec: Spec) -> String {
   <> generate_common_pitfalls(hints.pitfalls)
 }
 
-fn generate_entity_hints(entities: dict.Dict(String, types.EntityHint)) -> String {
+fn generate_entity_hints(
+  entities: dict.Dict(String, types.EntityHint),
+) -> String {
   case dict.size(entities) {
     0 -> ""
     _ ->
@@ -370,12 +331,7 @@ fn generate_entity_hint(name: String, hint: types.EntityHint) -> String {
   <> "**\n\n"
   <> "Fields:\n"
   <> dict.to_list(hint.fields)
-  |> list.map(fn(pair) {
-    "  - **"
-    <> pair.0
-    <> "**: "
-    <> pair.1
-  })
+  |> list.map(fn(pair) { "  - **" <> pair.0 <> "**: " <> pair.1 })
   |> string.join("\n")
 }
 

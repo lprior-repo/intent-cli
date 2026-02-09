@@ -229,7 +229,9 @@ fn dynamic_to_type_name(value: dynamic.Dynamic) -> String {
                   case dynamic.list(dynamic.dynamic)(value) {
                     Ok(_) -> "List"
                     Error(_) -> {
-                      case dynamic.dict(dynamic.string, dynamic.dynamic)(value) {
+                      case
+                        dynamic.dict(dynamic.string, dynamic.dynamic)(value)
+                      {
                         Ok(_) -> "Dict"
                         Error(_) -> "Unknown"
                       }
@@ -251,5 +253,10 @@ pub type ParseErrorWithDetails {
 }
 
 pub type DecodeErrorDetails {
-  DecodeErrorDetails(path: String, expected: String, actual: String, message: String)
+  DecodeErrorDetails(
+    path: String,
+    expected: String,
+    actual: String,
+    message: String,
+  )
 }

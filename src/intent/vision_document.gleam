@@ -4,7 +4,7 @@ import gleam/dict
 import gleam/json
 import gleam/list
 import gleam/string
-import intent/types.{type Feature, type Spec, type Behavior}
+import intent/types.{type Behavior, type Feature, type Spec}
 
 /// Generate a vision document from a spec
 pub fn generate_vision_document(spec: Spec) -> String {
@@ -35,10 +35,7 @@ fn generate_overview(spec: Spec) -> String {
   let description = "## Description\n\n" <> spec.description <> "\n\n"
   let audience = "## Target Audience\n\n" <> spec.audience <> "\n\n"
 
-  "## Overview\n\n"
-  <> version
-  <> description
-  <> audience
+  "## Overview\n\n" <> version <> description <> audience
 }
 
 fn generate_success_criteria(spec: Spec) -> String {
@@ -47,9 +44,7 @@ fn generate_success_criteria(spec: Spec) -> String {
     |> list.map(fn(criteria) { "- " <> criteria })
     |> string.join("\n")
 
-  "## Success Criteria\n\n"
-  <> criteria_items
-  <> "\n"
+  "## Success Criteria\n\n" <> criteria_items <> "\n"
 }
 
 fn generate_features(spec: Spec) -> String {
@@ -58,8 +53,7 @@ fn generate_features(spec: Spec) -> String {
     |> list.map(generate_feature_section)
     |> string.join("\n\n")
 
-  "## Features\n\n"
-  <> features_content
+  "## Features\n\n" <> features_content
 }
 
 fn generate_feature_section(feature: Feature) -> String {
@@ -67,9 +61,7 @@ fn generate_feature_section(feature: Feature) -> String {
   let description = feature.description <> "\n\n"
   let behaviors = generate_behaviors(feature.behaviors)
 
-  header
-  <> description
-  <> behaviors
+  header <> description <> behaviors
 }
 
 fn generate_behaviors(behaviors) -> String {
@@ -81,9 +73,7 @@ fn generate_behaviors(behaviors) -> String {
         |> list.map(generate_behavior_summary)
         |> string.join("\n")
 
-      "#### Behaviors\n\n"
-      <> behavior_list
-      <> "\n"
+      "#### Behaviors\n\n" <> behavior_list <> "\n"
     }
   }
 }
@@ -113,12 +103,7 @@ fn generate_behavior_summary(behavior: Behavior) -> String {
     }
   }
 
-  "- "
-  <> name
-  <> intent
-  <> notes
-  <> requires
-  <> tags
+  "- " <> name <> intent <> notes <> requires <> tags
 }
 
 fn generate_rules(spec: Spec) -> String {
@@ -131,15 +116,11 @@ fn generate_rules(spec: Spec) -> String {
           let name = "### " <> rule.name
           let description = rule.description
 
-          name
-          <> "\n\n"
-          <> description
+          name <> "\n\n" <> description
         })
         |> string.join("\n\n")
 
-      "## Global Rules\n\n"
-      <> rule_items
-      <> "\n"
+      "## Global Rules\n\n" <> rule_items <> "\n"
     }
   }
 }
@@ -169,71 +150,53 @@ fn generate_anti_patterns(spec: Spec) -> String {
             why -> "\n#### Why\n\n" <> why <> "\n"
           }
 
-          name
-          <> "\n\n"
-          <> description
-          <> bad_example
-          <> good_example
-          <> why
+          name <> "\n\n" <> description <> bad_example <> good_example <> why
         })
         |> string.join("\n\n")
 
-      "## Anti-Patterns\n\n"
-      <> pattern_items
-      <> "\n"
+      "## Anti-Patterns\n\n" <> pattern_items <> "\n"
     }
   }
 }
 
 fn generate_technical_considerations(spec: Spec) -> String {
-  let stack =
-    case spec.ai_hints.implementation.suggested_stack {
-      [] -> ""
-      stack -> {
-        let stack_list =
-          stack
-          |> list.map(fn(s) { "- " <> s })
-          |> string.join("\n")
+  let stack = case spec.ai_hints.implementation.suggested_stack {
+    [] -> ""
+    stack -> {
+      let stack_list =
+        stack
+        |> list.map(fn(s) { "- " <> s })
+        |> string.join("\n")
 
-        "### Suggested Stack\n\n"
-        <> stack_list
-        <> "\n\n"
-      }
+      "### Suggested Stack\n\n" <> stack_list <> "\n\n"
     }
+  }
 
-  let entities =
-    case dict.keys(spec.ai_hints.entities) {
-      [] -> ""
-      keys -> {
-        let entity_list =
-          keys
-          |> list.map(fn(key) {
-            let entity = dict.get(spec.ai_hints.entities, key)
-            case entity {
-              Ok(e) -> {
-                let fields =
-                  e.fields
-                  |> dict.to_list
-                  |> list.map(fn(pair) {
-                    "- **" <> pair.0 <> "**: " <> pair.1
-                  })
-                  |> string.join("\n")
+  let entities = case dict.keys(spec.ai_hints.entities) {
+    [] -> ""
+    keys -> {
+      let entity_list =
+        keys
+        |> list.map(fn(key) {
+          let entity = dict.get(spec.ai_hints.entities, key)
+          case entity {
+            Ok(e) -> {
+              let fields =
+                e.fields
+                |> dict.to_list
+                |> list.map(fn(pair) { "- **" <> pair.0 <> "**: " <> pair.1 })
+                |> string.join("\n")
 
-                "#### "
-                <> key
-                <> "\n\n"
-                <> fields
-              }
-              Error(_) -> ""
+              "#### " <> key <> "\n\n" <> fields
             }
-          })
-          |> string.join("\n\n")
+            Error(_) -> ""
+          }
+        })
+        |> string.join("\n\n")
 
-        "### Data Entities\n\n"
-        <> entity_list
-        <> "\n\n"
-      }
+      "### Data Entities\n\n" <> entity_list <> "\n\n"
     }
+  }
 
   let security = {
     let security_items =
@@ -248,31 +211,21 @@ fn generate_technical_considerations(spec: Spec) -> String {
 
     case security_items {
       "" -> ""
-      _ ->
-        "### Security Considerations\n\n"
-        <> security_items
-        <> "\n\n"
+      _ -> "### Security Considerations\n\n" <> security_items <> "\n\n"
     }
   }
 
-  let pitfalls =
-    case spec.ai_hints.pitfalls {
-      [] -> ""
-      pitfalls -> {
-        let pitfall_list =
-          pitfalls
-          |> list.map(fn(p) { "- " <> p })
-          |> string.join("\n")
+  let pitfalls = case spec.ai_hints.pitfalls {
+    [] -> ""
+    pitfalls -> {
+      let pitfall_list =
+        pitfalls
+        |> list.map(fn(p) { "- " <> p })
+        |> string.join("\n")
 
-        "### Common Pitfalls\n\n"
-        <> pitfall_list
-        <> "\n"
-      }
+      "### Common Pitfalls\n\n" <> pitfall_list <> "\n"
     }
+  }
 
-  "## Technical Considerations\n\n"
-  <> stack
-  <> entities
-  <> security
-  <> pitfalls
+  "## Technical Considerations\n\n" <> stack <> entities <> security <> pitfalls
 }
