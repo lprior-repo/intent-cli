@@ -14,9 +14,12 @@ import intent/cli_ui
 import intent/effects_analyzer.{Cascade, Notification, RaceCondition, RollbackRequired, High, Low, Medium, StateChange, type EffectType, type SpecAnalysis}
 import intent/interview
 import intent/interview_storage
+import intent/loader
 import intent/parser
 import intent/plan_emit_beads
+import intent/ready_document
 import intent/security
+import intent/vision_document
 import intent/validation
 import shellout
 import simplifile
@@ -1109,29 +1112,112 @@ fn vision_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "out")
       |> result.unwrap("")
 
-    // Validate no extra arguments
-    case validation.validate_no_args(input.args, "vision") {
-      Ok(Nil) -> {
-        case output_dir {
-          "" -> io.println("Generate vision document")
-          _ -> io.println("Generate vision document to: " <> output_dir)
-        }
-        cli_ui.print_success("Vision command - implementation needed")
-        exit(exit_pass)
+    // Validate argument count (0 or 1)
+    case input.args {
+      [] -> {
+        cli_ui.print_error("Error: spec file required")
+        io.println("\nUsage: intent vision <spec-file> [--out <dir>]")
+        exit(exit_fail)
       }
-      Error(err) -> {
-        cli_ui.print_error(err)
+      [spec_file] -> {
+        generate_vision_document(spec_file, output_dir)
+      }
+      _ -> {
+        cli_ui.print_error(
+          "Error: vision command takes at most one argument (spec file)",
+        )
         exit(exit_fail)
       }
     }
   })
-  |> glint.description("Generate vision document")
+  |> glint.description("Generate vision document from spec")
   |> glint.flag(
     "out",
     flag.string()
       |> flag.default("")
-      |> flag.description("Output directory"),
+      |> flag.description("Output directory (default: current directory)"),
   )
+}
+
+fn generate_vision_document(spec_file: String, output_dir: String) -> Nil {
+  cli_ui.print_header("Vision Document Generation")
+
+  // Validate file path for security
+  case security.validate_file_path(spec_file) {
+    Error(err) -> {
+      cli_ui.print_error("Invalid file path: " <> security.format_security_error(err))
+      exit(exit_fail)
+    }
+    Ok(validated_path) -> {
+      // Verify file exists
+      case simplifile.verify_is_file(validated_path) {
+        Ok(False) -> {
+          cli_ui.print_error("Spec file not found: " <> spec_file)
+          exit(exit_fail)
+        }
+        Error(_) -> {
+          cli_ui.print_error("Cannot access file: " <> spec_file)
+          exit(exit_fail)
+        }
+        Ok(True) -> {
+          // Export CUE to JSON
+          case shellout.command("cue", ["export", validated_path], ".", []) {
+            Ok(json_str) -> {
+              // Parse JSON to get spec
+              case json.decode(json_str, dynamic.dynamic) {
+                Ok(json_data) -> {
+                  case parser.decode_dynamic(json_data) {
+                    Ok(spec) -> {
+                      // Generate vision document
+                      let vision_doc = vision_document.generate_vision_document(spec)
+
+                      // Determine output path
+                      let out_dir = case output_dir {
+                        "" -> "."
+                        _ -> output_dir
+                      }
+
+                      let output_path = out_dir <> "/" <> "vision.md"
+
+                      // Write document
+                      case simplifile.write(output_path, vision_doc) {
+                        Ok(_) -> {
+                          io.println("\nOutput: " <> output_path)
+                          cli_ui.print_success("Vision document generated successfully")
+                          exit(exit_pass)
+                        }
+                        Error(err) -> {
+                          cli_ui.print_error("Failed to write vision document:")
+                          io.println("Could not write file - check permissions and disk space")
+                          exit(exit_fail)
+                        }
+                      }
+                    }
+                    Error(parse_errors) -> {
+                      cli_ui.print_error("Failed to parse spec:")
+                      io.println(format_parse_errors(parse_errors))
+                      exit(exit_fail)
+                    }
+                  }
+                }
+                Error(_) -> {
+                  cli_ui.print_error(
+                    "Failed to decode JSON output from CUE export",
+                  )
+                  exit(exit_fail)
+                }
+              }
+            }
+            Error(#(_, stderr)) -> {
+              cli_ui.print_error("Failed to export CUE to JSON:")
+              io.println(stderr)
+              exit(exit_fail)
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /// ============================================================================
@@ -1143,29 +1229,92 @@ fn ready_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "out")
       |> result.unwrap("")
 
-    // Validate no extra arguments
-    case validation.validate_no_args(input.args, "ready") {
-      Ok(Nil) -> {
-        case output_dir {
-          "" -> io.println("Generate ready document")
-          _ -> io.println("Generate ready document to: " <> output_dir)
-        }
-        cli_ui.print_success("Ready command - implementation needed")
-        exit(exit_pass)
+    // Validate single argument (spec file)
+    case input.args {
+      [] -> {
+        cli_ui.print_error("Error: spec file required")
+        io.println("\nUsage: intent ready <spec-file> [--out <dir>]")
+        exit(exit_fail)
       }
-      Error(err) -> {
-        cli_ui.print_error(err)
+      [spec_file] -> {
+        generate_ready_document(spec_file, output_dir)
+      }
+      _ -> {
+        cli_ui.print_error(
+          "Error: ready command takes exactly one argument (spec file)",
+        )
         exit(exit_fail)
       }
     }
   })
-  |> glint.description("Generate ready document")
+  |> glint.description("Generate ready document for implementation")
   |> glint.flag(
     "out",
     flag.string()
       |> flag.default("")
-      |> flag.description("Output directory"),
+      |> flag.description("Output directory (default: current directory)"),
   )
+}
+
+fn generate_ready_document(spec_file: String, output_dir: String) -> Nil {
+  cli_ui.print_header("Ready Document Generation")
+
+  // Validate file path for security
+  case security.validate_file_path(spec_file) {
+    Error(err) -> {
+      cli_ui.print_error("Invalid file path: " <> security.format_security_error(err))
+      exit(exit_fail)
+    }
+    Ok(validated_path) -> {
+      // Verify file exists
+      case simplifile.verify_is_file(validated_path) {
+        Ok(False) -> {
+          cli_ui.print_error("Spec file not found: " <> spec_file)
+          exit(exit_fail)
+        }
+        Error(_) -> {
+          cli_ui.print_error("Cannot access file: " <> spec_file)
+          exit(exit_fail)
+        }
+        Ok(True) -> {
+          // Load spec
+          case loader.load_spec_quiet(validated_path) {
+            Error(err) -> {
+              cli_ui.print_error("Failed to load spec:")
+              io.println(loader.format_error(err))
+              exit(exit_fail)
+            }
+            Ok(spec) -> {
+              // Generate ready document
+              let ready_doc = ready_document.generate_ready_document(spec)
+
+              // Determine output path
+              let out_dir = case output_dir {
+                "" -> "."
+                _ -> output_dir
+              }
+
+              let output_path =
+                out_dir <> "/" <> "ready.md"
+
+              // Write document
+              case simplifile.write(output_path, ready_doc) {
+                Ok(_) -> {
+                  io.println("\nOutput: " <> output_path)
+                  cli_ui.print_success("Ready document generated successfully")
+                  exit(exit_pass)
+                }
+                Error(_) -> {
+                  cli_ui.print_error("Failed to write ready document")
+                  exit(exit_fail)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /// ============================================================================
