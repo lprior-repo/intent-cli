@@ -21,10 +21,18 @@ pub fn parse_nested_answers_test() {
   let json_str = "{\"user\": {\"name\": \"Bob\"}}"
   let result = answer_loader.parse_answers_json_for_test("test.cue", json_str)
 
-  should.equal(
-    result,
-    Ok(dict.from_list([#("user.name", "Bob"), #("user", "{\"name\":\"Bob\"}")])),
-  )
+  // Should have:
+  // - Full path: "user.name" = "Bob"
+  // - Parent key with JSON: "user" = "{\"name\":\"Bob\"}"
+  // - Short key (leaf name): "name" = "Bob"
+  case result {
+    Ok(parsed) -> {
+      should.equal(dict.get(parsed, "user.name"), Ok("Bob"))
+      should.equal(dict.get(parsed, "user"), Ok("{\"name\":\"Bob\"}"))
+      should.equal(dict.get(parsed, "name"), Ok("Bob"))
+    }
+    Error(_) -> should.be_true(False)
+  }
 }
 
 // Test: Invalid JSON with decode details

@@ -495,29 +495,15 @@ fn check_bead_status(bead_id: String) -> Nil {
           case parse_bead_response(json_data) {
             Ok(bead) -> display_bead_status(bead)
             Error(err) -> {
-              cli_ui.print_error("Failed to parse bead response")
-              io.println("
-Specific error: " <> err)
-              io.println("
-This usually indicates a problem with br's JSON output format.")
-              io.println("
-Troubleshooting:")
-              io.println("  1. Check br version: br --version")
-              io.println("  2. Verify br is working: br list")
-              io.println("  3. Check br logs: br log --tail 50")
+              cli_ui.print_error("Failed to parse bead response: " <> err)
               exit(exit_fail)
             }
           }
         }
         Error(_) -> {
           cli_ui.print_error("Failed to decode JSON response from br")
-          io.println("
-Raw output:")
+          io.println("\nRaw output:")
           io.println(json_output)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check br version: br --version")
-          io.println("  2. Verify br is working: br list")
           exit(exit_fail)
         }
       }
@@ -529,18 +515,13 @@ Troubleshooting:")
         || string.contains(stderr, "AMBIGUOUS_ID") {
         True -> {
           cli_ui.print_error("Bead not found: " <> bead_id)
-          io.println("
-Tip: Use a full bead ID (e.g., intent-cli-113)")
+          io.println("\nTip: Use a full bead ID (e.g., intent-cli-113)")
           io.println("List all beads with: br list")
-          io.println("
-If you expected this bead to exist:")
-          io.println("  1. Check the bead ID for typos")
-          io.println("  2. Verify you're in the correct project")
-          io.println("  3. Ensure beads have been emitted to br")
           exit(exit_fail)
         }
         False -> {
-          format_br_command_error(stderr)
+          cli_ui.print_error("Failed to query bead status:")
+          io.println(stderr)
           exit(exit_fail)
         }
       }
@@ -1761,16 +1742,11 @@ fn generate_vision_document(spec_file: String, output_dir: String) -> Nil {
       // Verify file exists
       case simplifile.verify_is_file(validated_path) {
         Ok(False) -> {
-          format_file_not_found_with_context(spec_file, "Spec")
+          cli_ui.print_error("Spec file not found: " <> spec_file)
           exit(exit_fail)
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check file permissions: ls -l " <> spec_file)
-          io.println("  2. Verify file is not locked by another process")
-          io.println("  3. Ensure you have read access to the file")
           exit(exit_fail)
         }
         Ok(True) -> {
@@ -1800,7 +1776,7 @@ Troubleshooting:")
                           cli_ui.print_success("Vision document generated successfully")
                           exit(exit_pass)
                         }
-                        Error(_err) -> {
+                        Error(err) -> {
                           cli_ui.print_error("Failed to write vision document:")
                           io.println("Could not write file - check permissions and disk space")
                           exit(exit_fail)
@@ -1823,17 +1799,8 @@ Troubleshooting:")
               }
             }
             Error(#(_, stderr)) -> {
-              cli_ui.print_error("Failed to export CUE spec to JSON")
-              io.println("
-Spec file: " <> spec_file)
-              io.println("
-CUE error:")
+              cli_ui.print_error("Failed to export CUE to JSON:")
               io.println(stderr)
-              io.println("
-Troubleshooting:")
-              io.println("  1. Validate CUE syntax: cue vet " <> spec_file)
-              io.println("  2. Check CUE version: cue version")
-              io.println("  3. Verify spec schema matches expected format")
               exit(exit_fail)
             }
           }
@@ -1892,16 +1859,11 @@ fn generate_ready_document(spec_file: String, output_dir: String) -> Nil {
       // Verify file exists
       case simplifile.verify_is_file(validated_path) {
         Ok(False) -> {
-          format_file_not_found_with_context(spec_file, "Spec")
+          cli_ui.print_error("Spec file not found: " <> spec_file)
           exit(exit_fail)
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check file permissions: ls -l " <> spec_file)
-          io.println("  2. Verify file is not locked by another process")
-          io.println("  3. Ensure you have read access to the file")
           exit(exit_fail)
         }
         Ok(True) -> {
@@ -2005,16 +1967,11 @@ fn analyze_effects(
       // Verify file exists
       case simplifile.verify_is_file(validated_path) {
         Ok(False) -> {
-          format_file_not_found_with_context(spec_file, "Spec")
+          cli_ui.print_error("Spec file not found: " <> spec_file)
           exit(exit_fail)
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check file permissions: ls -l " <> spec_file)
-          io.println("  2. Verify file is not locked by another process")
-          io.println("  3. Ensure you have read access to the file")
           exit(exit_fail)
         }
         Ok(True) -> {
@@ -2060,17 +2017,8 @@ Troubleshooting:")
               }
             }
             Error(#(_, stderr)) -> {
-              cli_ui.print_error("Failed to export CUE spec to JSON")
-              io.println("
-Spec file: " <> spec_file)
-              io.println("
-CUE error:")
+              cli_ui.print_error("Failed to export CUE to JSON:")
               io.println(stderr)
-              io.println("
-Troubleshooting:")
-              io.println("  1. Validate CUE syntax: cue vet " <> spec_file)
-              io.println("  2. Check CUE version: cue version")
-              io.println("  3. Verify spec schema matches expected format")
               exit(exit_fail)
             }
           }
@@ -2182,39 +2130,6 @@ fn format_parse_errors(
     <> err.found
   })
   |> string.join("\n")
-}
-
-
-/// ============================================================================
-/// ERROR HANDLING HELPERS
-/// ============================================================================
-
-/// Format file not found error with helpful suggestions
-fn format_file_not_found_with_context(
-  file_path: String,
-  file_type: String,
-) -> Nil {
-  cli_ui.print_error(file_type <> " file not found: " <> file_path)
-  
-  io.println("\nTroubleshooting:")
-  io.println("  1. Check the file path for typos")
-  io.println("  2. Verify the file exists in the current directory")
-  io.println("  3. List .cue files: find . -name '*.cue' -type f")
-  io.println("  4. Check examples directory: ls examples/")
-}
-
-/// Format br command error with troubleshooting
-fn format_br_command_error(stderr: String) -> Nil {
-  cli_ui.print_error("Failed to execute br command")
-  
-  io.println("\nError details:")
-  io.println(stderr)
-  
-  io.println("\nTroubleshooting:")
-  io.println("  1. Ensure br is installed: br --version")
-  io.println("  2. Check br configuration: br config show")
-  io.println("  3. Verify repository is initialized: br list")
-  io.println("  4. Check br logs: br log --tail 50")
 }
 
 @external(erlang, "erlang", "halt")

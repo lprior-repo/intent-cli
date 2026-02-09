@@ -82,33 +82,32 @@ fn flatten_dynamic(
 ) -> Dict(String, String) {
   case dynamic.dict(dynamic.string, dynamic.dynamic)(value) {
     Ok(nested) -> {
+      // First, insert the JSON representation of the nested object (without short key)
+      let json_repr = dynamic_value_to_string(value)
+      let with_json = dict.insert(acc, key_path, json_repr)
+
+      // Then recursively flatten the nested object
       nested
       |> dict.to_list
-      |> list.fold(acc, fn(inner_acc, entry) {
+      |> list.fold(with_json, fn(inner_acc, entry) {
         let #(nested_key, nested_value) = entry
         flatten_dynamic(key_path <> "." <> nested_key, nested_value, inner_acc)
       })
     }
     Error(_) -> {
+      // For leaf values, insert full path AND short key (last segment)
       let value_as_text = dynamic_value_to_string(value)
-      insert_answer_key_variants(acc, key_path, value_as_text)
-    }
-  }
-}
+      let with_path = dict.insert(acc, key_path, value_as_text)
 
-fn insert_answer_key_variants(
-  acc: Dict(String, String),
-  key_path: String,
-  value: String,
-) -> Dict(String, String) {
-  let with_path = dict.insert(acc, key_path, value)
-
-  case last_key_segment(key_path) {
-    "" -> with_path
-    short_key -> {
-      case dict.get(with_path, short_key) {
-        Ok(_) -> with_path
-        Error(_) -> dict.insert(with_path, short_key, value)
+      // Also insert short key if it doesn't exist
+      case last_key_segment(key_path) {
+        "" -> with_path
+        short_key -> {
+          case dict.get(with_path, short_key) {
+            Ok(_) -> with_path
+            Error(_) -> dict.insert(with_path, short_key, value_as_text)
+          }
+        }
       }
     }
   }

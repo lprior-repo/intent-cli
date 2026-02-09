@@ -495,29 +495,15 @@ fn check_bead_status(bead_id: String) -> Nil {
           case parse_bead_response(json_data) {
             Ok(bead) -> display_bead_status(bead)
             Error(err) -> {
-              cli_ui.print_error("Failed to parse bead response")
-              io.println("
-Specific error: " <> err)
-              io.println("
-This usually indicates a problem with br's JSON output format.")
-              io.println("
-Troubleshooting:")
-              io.println("  1. Check br version: br --version")
-              io.println("  2. Verify br is working: br list")
-              io.println("  3. Check br logs: br log --tail 50")
+              cli_ui.print_error("Failed to parse bead response: " <> err)
               exit(exit_fail)
             }
           }
         }
         Error(_) -> {
           cli_ui.print_error("Failed to decode JSON response from br")
-          io.println("
-Raw output:")
+          io.println("\nRaw output:")
           io.println(json_output)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check br version: br --version")
-          io.println("  2. Verify br is working: br list")
           exit(exit_fail)
         }
       }
@@ -529,18 +515,13 @@ Troubleshooting:")
         || string.contains(stderr, "AMBIGUOUS_ID") {
         True -> {
           cli_ui.print_error("Bead not found: " <> bead_id)
-          io.println("
-Tip: Use a full bead ID (e.g., intent-cli-113)")
+          io.println("\nTip: Use a full bead ID (e.g., intent-cli-113)")
           io.println("List all beads with: br list")
-          io.println("
-If you expected this bead to exist:")
-          io.println("  1. Check the bead ID for typos")
-          io.println("  2. Verify you're in the correct project")
-          io.println("  3. Ensure beads have been emitted to br")
           exit(exit_fail)
         }
         False -> {
-          format_br_command_error(stderr)
+          cli_ui.print_error("Failed to query bead status:")
+          io.println(stderr)
           exit(exit_fail)
         }
       }
@@ -1396,12 +1377,40 @@ fn plan_approve_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Approve a generated plan for execution")
+  |> glint.description(
+    "Approve a generated plan for execution
+
+Reviews the plan details and marks it as approved for execution. This is
+a safety check before emitting beads to br, ensuring the plan has been
+reviewed and accepted.
+
+Process:
+1. Displays plan summary (beads, effort, risk, phases)
+2. Shows any blockers or warnings
+3. Saves approval metadata with timestamp and notes
+4. Unlocks plan-emit-beads for execution
+
+Example:
+  intent plan-approve plan-abc123 --notes \"Reviewed with team\"
+
+Required before:
+  intent plan-emit-beads <session-id> --execute
+
+Related commands:
+  - plan             Generate or review plan
+  - plan-emit-beads  Execute approved plan",
+  )
   |> glint.flag(
     "notes",
     flag.string()
       |> flag.default("")
-      |> flag.description("Approval notes for documentation"),
+      |> flag.description(
+        "Approval notes for documentation
+
+Record why the plan was approved, any concerns, or decisions made
+during the review process. These notes are saved with the approval
+metadata for future reference.",
+      ),
   )
 }
 
@@ -1506,12 +1515,39 @@ fn beads_regenerate_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Regenerate beads from session")
+  |> glint.description(
+    "Regenerate beads from a session using updated templates
+
+Re-creates beads from an existing session using the latest bead templates.
+Use this when:
+- Bead templates have been improved
+- Session answers were modified
+- Previous bead generation had issues
+
+Unlike 'beads', this regenerates from an existing session rather than
+creating new beads. Useful for iterative refinement.
+
+Example:
+  intent beads-regenerate --session abc123
+
+Output shows:
+- Number of beads regenerated
+- Bead statistics by type
+- Any warnings or issues
+
+Related commands:
+  - beads            Generate beads for the first time
+  - history          List available sessions",
+  )
   |> glint.flag(
     "session",
     flag.string()
       |> flag.default("")
-      |> flag.description("Session ID to regenerate beads from"),
+      |> flag.description(
+        "Session ID to regenerate beads from (required)
+
+Find session IDs with: intent history",
+      ),
   )
 }
 
@@ -1761,16 +1797,11 @@ fn generate_vision_document(spec_file: String, output_dir: String) -> Nil {
       // Verify file exists
       case simplifile.verify_is_file(validated_path) {
         Ok(False) -> {
-          format_file_not_found_with_context(spec_file, "Spec")
+          cli_ui.print_error("Spec file not found: " <> spec_file)
           exit(exit_fail)
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check file permissions: ls -l " <> spec_file)
-          io.println("  2. Verify file is not locked by another process")
-          io.println("  3. Ensure you have read access to the file")
           exit(exit_fail)
         }
         Ok(True) -> {
@@ -1800,7 +1831,7 @@ Troubleshooting:")
                           cli_ui.print_success("Vision document generated successfully")
                           exit(exit_pass)
                         }
-                        Error(_err) -> {
+                        Error(err) -> {
                           cli_ui.print_error("Failed to write vision document:")
                           io.println("Could not write file - check permissions and disk space")
                           exit(exit_fail)
@@ -1823,17 +1854,8 @@ Troubleshooting:")
               }
             }
             Error(#(_, stderr)) -> {
-              cli_ui.print_error("Failed to export CUE spec to JSON")
-              io.println("
-Spec file: " <> spec_file)
-              io.println("
-CUE error:")
+              cli_ui.print_error("Failed to export CUE to JSON:")
               io.println(stderr)
-              io.println("
-Troubleshooting:")
-              io.println("  1. Validate CUE syntax: cue vet " <> spec_file)
-              io.println("  2. Check CUE version: cue version")
-              io.println("  3. Verify spec schema matches expected format")
               exit(exit_fail)
             }
           }
@@ -1870,12 +1892,42 @@ fn ready_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Generate ready document for implementation")
+  |> glint.description(
+    "Generate a ready document from a CUE specification
+
+Creates an implementation-ready document with detailed specifications
+for each behavior. This is useful for:
+- Developer handoff
+- Implementation planning
+- Test case generation
+- API documentation
+
+The ready document includes:
+- Detailed behavior descriptions
+- Preconditions and postconditions
+- Verification criteria
+- Test scenarios
+- Implementation hints
+
+Example:
+  intent ready spec.cue --out docs/
+
+Output:
+  docs/ready.md - Implementation-ready specification
+
+Related commands:
+  - vision   Generate high-level vision document
+  - effects  Analyze second-order effects",
+  )
   |> glint.flag(
     "out",
     flag.string()
       |> flag.default("")
-      |> flag.description("Output directory (default: current directory)"),
+      |> flag.description(
+        "Output directory for generated document (default: current directory)
+
+Document is written as 'ready.md' in the specified directory.",
+      ),
   )
 }
 
@@ -1892,16 +1944,11 @@ fn generate_ready_document(spec_file: String, output_dir: String) -> Nil {
       // Verify file exists
       case simplifile.verify_is_file(validated_path) {
         Ok(False) -> {
-          format_file_not_found_with_context(spec_file, "Spec")
+          cli_ui.print_error("Spec file not found: " <> spec_file)
           exit(exit_fail)
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check file permissions: ls -l " <> spec_file)
-          io.println("  2. Verify file is not locked by another process")
-          io.println("  3. Ensure you have read access to the file")
           exit(exit_fail)
         }
         Ok(True) -> {
@@ -1973,18 +2020,66 @@ fn effects_command() -> glint.Command(Nil) {
       }
     }
   })
-  |> glint.description("Analyze behaviors for second-order effects")
+  |> glint.description(
+    "Analyze behaviors for second-order effects (KIRK analysis)
+
+Performs deep analysis of behaviors to identify potential second-order
+effects, cascading impacts, and system-wide consequences. This helps
+identify:
+- State changes and side effects
+- Cascading failures
+- Race conditions
+- Notification requirements
+- Rollback scenarios
+
+Effect types detected:
+  state_change      - System state modifications
+  notification      - Event notifications required
+  cascade           - Cascading impacts to other components
+  race_condition    - Potential race conditions
+  rollback_required - Rollback scenarios needed
+
+Each effect includes:
+  - Description of the potential effect
+  - Severity level (high/medium/low)
+  - Suggestions for mitigation
+
+Examples:
+  intent effects spec.cue                          # Analyze all behaviors
+  intent effects spec.cue --behavior create-user   # Analyze one behavior
+  intent effects spec.cue --json                   # JSON output for tools
+
+Related commands:
+  - vision   Generate vision document
+  - ready    Generate implementation document",
+  )
   |> glint.flag(
     "behavior",
     flag.string()
       |> flag.default("")
-      |> flag.description("Analyze specific behavior only"),
+      |> flag.description(
+        "Analyze a specific behavior only (optional)
+
+Filters analysis to a single behavior by name. If not specified,
+analyzes all behaviors in the specification.
+
+Example: --behavior create-user",
+      ),
   )
   |> glint.flag(
     "json",
     flag.bool()
       |> flag.default(False)
-      |> flag.description("Output as JSON"),
+      |> flag.description(
+        "Output effects as JSON (default: false)
+
+JSON output is useful for:
+- Programmatic processing
+- Integration with other tools
+- Storing analysis results
+- Generating reports",
+
+      ),
   )
 }
 
@@ -2005,16 +2100,11 @@ fn analyze_effects(
       // Verify file exists
       case simplifile.verify_is_file(validated_path) {
         Ok(False) -> {
-          format_file_not_found_with_context(spec_file, "Spec")
+          cli_ui.print_error("Spec file not found: " <> spec_file)
           exit(exit_fail)
         }
         Error(_) -> {
           cli_ui.print_error("Cannot access file: " <> spec_file)
-          io.println("
-Troubleshooting:")
-          io.println("  1. Check file permissions: ls -l " <> spec_file)
-          io.println("  2. Verify file is not locked by another process")
-          io.println("  3. Ensure you have read access to the file")
           exit(exit_fail)
         }
         Ok(True) -> {
@@ -2060,17 +2150,8 @@ Troubleshooting:")
               }
             }
             Error(#(_, stderr)) -> {
-              cli_ui.print_error("Failed to export CUE spec to JSON")
-              io.println("
-Spec file: " <> spec_file)
-              io.println("
-CUE error:")
+              cli_ui.print_error("Failed to export CUE to JSON:")
               io.println(stderr)
-              io.println("
-Troubleshooting:")
-              io.println("  1. Validate CUE syntax: cue vet " <> spec_file)
-              io.println("  2. Check CUE version: cue version")
-              io.println("  3. Verify spec schema matches expected format")
               exit(exit_fail)
             }
           }
@@ -2215,6 +2296,96 @@ fn format_br_command_error(stderr: String) -> Nil {
   io.println("  2. Check br configuration: br config show")
   io.println("  3. Verify repository is initialized: br list")
   io.println("  4. Check br logs: br log --tail 50")
+}
+
+/// Format CUE export error with context
+fn format_cue_export_error(
+  spec_file: String,
+  stderr: String,
+) -> Nil {
+  cli_ui.print_error("Failed to export CUE spec to JSON")
+  
+  io.println("\nSpec file: " <> spec_file)
+  io.println("\nCUE error:")
+  io.println(stderr)
+  
+  io.println("\nTroubleshooting:")
+  io.println("  1. Validate CUE syntax: cue vet " <> spec_file)
+  io.println("  2. Check CUE version: cue version")
+  io.println("  3. Verify spec schema matches expected format")
+  io.println("  4. See CUE docs: https://cue.go/")
+}
+
+/// Format JSON parse error with field context
+fn format_json_parse_error(
+  context: String,
+  json_output: String,
+) -> Nil {
+  cli_ui.print_error("Failed to parse JSON response: " <> context)
+  
+  io.println("\nThis usually indicates a problem with the data format.")
+  io.println("\nRaw output (first 500 chars):")
+  let preview =
+    case string.length(json_output) > 500 {
+    True -> string.slice(json_output, 0, 500) <> "..."
+    False -> json_output
+  }
+  io.println(preview)
+  
+  io.println("\nTroubleshooting:")
+  io.println("  1. Check if the data source format has changed")
+  io.println("  2. Verify JSON structure matches expectations")
+  io.println("  3. Try parsing manually: echo '...' | jq .")
+}
+      #(
+        behavior_effect.behavior_name,
+        json.array(from: effects_json, of: fn(_) { json.object([]) }),
+      )
+    })
+
+  let output_json =
+    json.object([
+      #("spec", json.string(analysis.spec_name)),
+      ..behaviors_json,
+    ])
+    |> json.to_string()
+
+  io.println(output_json)
+}
+
+fn effect_type_to_json_string(
+  type_: EffectType,
+) -> String {
+  case type_ {
+    StateChange -> "state_change"
+    Notification -> "notification"
+    Cascade -> "cascade"
+    RaceCondition -> "race_condition"
+    RollbackRequired -> "rollback_required"
+  }
+}
+
+fn severity_to_json_string(severity: effects_analyzer.Severity) -> String {
+  case severity {
+    High -> "high"
+    Medium -> "medium"
+    Low -> "low"
+  }
+}
+
+fn format_parse_errors(
+  errors: List(dynamic.DecodeError),
+) -> String {
+  errors
+  |> list.map(fn(err) {
+    "  - "
+    <> string.join(err.path, ".")
+    <> ": expected "
+    <> err.expected
+    <> ", found "
+    <> err.found
+  })
+  |> string.join("\n")
 }
 
 @external(erlang, "erlang", "halt")
