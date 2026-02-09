@@ -2082,7 +2082,7 @@ Troubleshooting:",
         }
         Ok(True) -> {
           // Export CUE to JSON
-          case shellout.command("cue", ["export", validated_path], ".", []) {
+          case shellout.command("cue", ["export", validated_path, "-e", "spec"], ".", []) {
             Ok(json_str) -> {
               // Parse JSON to get spec
               case json.decode(json_str, dynamic.dynamic) {
@@ -2342,7 +2342,7 @@ Troubleshooting:",
         }
         Ok(True) -> {
           // Export CUE to JSON
-          case shellout.command("cue", ["export", validated_path], ".", []) {
+          case shellout.command("cue", ["export", validated_path, "-e", "spec"], ".", []) {
             Ok(json_str) -> {
               // Parse JSON to get spec
               case json.decode(json_str, dynamic.dynamic) {

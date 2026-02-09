@@ -239,7 +239,10 @@ fn parse_anti_pattern(data: Dynamic) -> Result(AntiPattern, List(DecodeError)) {
   use good_example <- result.try(dynamic.field("good_example", parse_json_value)(
     data,
   ))
-  use why <- result.try(dynamic.field("why", parse_sanitized_string)(data))
+  // why is optional - default to empty string
+  let why =
+    dynamic.field("why", parse_sanitized_string)(data)
+    |> result.unwrap("")
 
   Ok(AntiPattern(
     name: name,
