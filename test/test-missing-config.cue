@@ -10,7 +10,7 @@ spec: intent.#Spec & {
 
 	features: []
 
-	rules: []
+	invariants: []
 
 	anti_patterns: []
 

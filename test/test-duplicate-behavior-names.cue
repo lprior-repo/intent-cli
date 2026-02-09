@@ -4,11 +4,6 @@ description: "Spec with duplicate behavior names"
 audience: "developers"
 version: "1.0.0"
 success_criteria: ["API works"]
-config: {
-  base_url: "https://api.example.com"
-  timeout_ms: 5000
-  headers: {}
-}
 features: [
   {
     name: "feature1"
@@ -17,31 +12,20 @@ features: [
       {
         name: "duplicate_behavior"
         intent: "Test behavior in first feature"
-        request: {
-          method: "GET"
-          path: "/test1"
-          headers: {}
-          query: {}
-          body: null
-        }
-        response: {
-          status: 200
-          example: {"message": "ok1"}
-          checks: [
-            {
-              rule: "status == 200"
-              why: "Request should succeed"
-            }
-          ]
-          headers: {}
-        }
+        preconditions: ["System ready"]
+        postconditions: ["Behavior completed"]
+        verifications: [
+          {
+            description: "Verify behavior"
+            criteria: ["Condition met"]
+          },
+        ]
         notes: ""
         requires: []
         tags: ["test"]
-        captures: {}
-      }
+      },
     ]
-  }
+  },
   {
     name: "feature2"
     description: "Second feature with duplicate name"
@@ -49,32 +33,21 @@ features: [
       {
         name: "duplicate_behavior"
         intent: "Test behavior in second feature"
-        request: {
-          method: "GET"
-          path: "/test2"
-          headers: {}
-          query: {}
-          body: null
-        }
-        response: {
-          status: 200
-          example: {"message": "ok2"}
-          checks: [
-            {
-              rule: "status == 200"
-              why: "Request should succeed"
-            }
-          ]
-          headers: {}
-        }
+        preconditions: ["System ready"]
+        postconditions: ["Behavior completed"]
+        verifications: [
+          {
+            description: "Verify behavior"
+            criteria: ["Condition met"]
+          },
+        ]
         notes: ""
         requires: []
         tags: ["test"]
-        captures: {}
-      }
+      },
     ]
-  }
+  },
 ]
-rules: []
+invariants: []
 anti_patterns: []
-ai_hints: []
+ai_hints: {}

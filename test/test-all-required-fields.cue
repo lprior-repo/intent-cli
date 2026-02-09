@@ -10,8 +10,8 @@ echo "Comprehensive CUE Required Field Validation Tests"
 echo "=================================================="
 echo
 
-# Test spec-level required fields
-required_fields=("name" "description" "audience" "version" "success_criteria" "config" "features" "rules" "anti_patterns" "ai_hints")
+# Test spec-level required fields (v3.0 schema - config removed)
+required_fields=("name" "description" "audience" "version" "success_criteria" "features" "invariants" "anti_patterns" "ai_hints")
 
 echo "Testing spec-level required fields..."
 for field in "${required_fields[@]}"; do

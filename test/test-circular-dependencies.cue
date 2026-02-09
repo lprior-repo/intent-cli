@@ -4,11 +4,6 @@ description: "Spec with circular behavior dependencies"
 audience: "developers"
 version: "1.0.0"
 success_criteria: ["API works"]
-config: {
-  base_url: "https://api.example.com"
-  timeout_ms: 5000
-  headers: {}
-}
 features: [
   {
     name: "feature1"
@@ -17,58 +12,36 @@ features: [
       {
         name: "behavior1"
         intent: "Test behavior 1"
-        request: {
-          method: "GET"
-          path: "/test1"
-          headers: {}
-          query: {}
-          body: null
-        }
-        response: {
-          status: 200
-          example: {"message": "ok1"}
-          checks: [
-            {
-              rule: "status == 200"
-              why: "Request should succeed"
-            }
-          ]
-          headers: {}
-        }
+        preconditions: ["System is ready"]
+        postconditions: ["Behavior 1 completed"]
+        verifications: [
+          {
+            description: "Verify behavior 1"
+            criteria: ["Condition met"]
+          },
+        ]
         notes: "Behavior 1 depends on behavior 2"
         requires: ["behavior2"]
         tags: ["test"]
-        captures: {}
-      }
+      },
       {
         name: "behavior2"
         intent: "Test behavior 2"
-        request: {
-          method: "GET"
-          path: "/test2"
-          headers: {}
-          query: {}
-          body: null
-        }
-        response: {
-          status: 200
-          example: {"message": "ok2"}
-          checks: [
-            {
-              rule: "status == 200"
-              why: "Request should succeed"
-            }
-          ]
-          headers: {}
-        }
+        preconditions: ["System is ready"]
+        postconditions: ["Behavior 2 completed"]
+        verifications: [
+          {
+            description: "Verify behavior 2"
+            criteria: ["Condition met"]
+          },
+        ]
         notes: "Behavior 2 depends on behavior 1"
         requires: ["behavior1"]
         tags: ["test"]
-        captures: {}
-      }
+      },
     ]
-  }
+  },
 ]
-rules: []
+invariants: []
 anti_patterns: []
-ai_hints: []
+ai_hints: {}

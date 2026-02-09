@@ -7,16 +7,3 @@ spec: intent.#Spec & {
 
 	success_criteria: ["Test criterion"]
 
-	config: {
-		base_url: "http://localhost:8080"
-		timeout_ms: 5000
-	}
-
-	features: []
-
-	rules: []
-
-	anti_patterns: []
-
-	ai_hints: {}
-}

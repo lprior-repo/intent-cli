@@ -5,15 +5,10 @@ import "github.com/intent-cli/intent/schema:intent"
 
 spec: intent.#Spec & {
   name: "Test Spec"
-  description: "Spec missing required response.checks field"
+  description: "Spec missing verifications in behavior"
   audience: "developers"
   version: "1.0.0"
   success_criteria: ["API works"]
-  config: {
-    base_url: "https://api.example.com"
-    timeout_ms: 5000
-    headers: {}
-  }
   features: [
     {
       name: "feature1"
@@ -21,27 +16,15 @@ spec: intent.#Spec & {
       behaviors: [
         {
           name: "behavior1"
-          intent: "Test behavior missing required response fields"
-          request: {
-            method: "GET"
-            path: "/test"
-            headers: {}
-            query: {}
-          }
-          response: {
-            status: 200
-            // Missing 'checks' field (required)
-            headers: {}
-          }
-          notes: ""
+          intent: "Test behavior - this spec intentionally has minimal fields"
+          notes: "Testing optional fields"
           requires: []
           tags: ["test"]
-          captures: {}
         }
       ]
     }
   ]
-  rules: []
+  invariants: []
   anti_patterns: []
   ai_hints: {}
 }

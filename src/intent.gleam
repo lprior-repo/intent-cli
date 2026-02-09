@@ -1,5 +1,6 @@
 /// Intent CLI - Planning and bead generation tool
 import argv
+import gleam/int
 import gleam/io
 import gleam/list
 import gleam/result
@@ -7,6 +8,8 @@ import gleam/string
 import glint
 import glint/flag
 import intent/cli_ui
+import intent/interview
+import intent/interview_storage
 import intent/plan_emit_beads
 import intent/validation
 

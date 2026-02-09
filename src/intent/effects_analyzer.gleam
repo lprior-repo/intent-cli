@@ -1,6 +1,7 @@
 import gleam/json
 import gleam/list
 import gleam/string
+import intent/types.{type Behavior, type Spec, Delete, Get, Head, Options, Patch, Post, Put}
 
 /// Effect types for second-order analysis
 pub type EffectType {
@@ -39,7 +40,7 @@ pub type SpecAnalysis {
 }
 
 /// Analyze a single behavior for second-order effects
-pub fn analyze_behavior(behavior: a) -> List(Effect) {
+pub fn analyze_behavior(behavior: Behavior) -> List(Effect) {
   let effects = []
 
   // Analyze based on HTTP method
@@ -62,75 +63,114 @@ pub fn analyze_behavior(behavior: a) -> List(Effect) {
 }
 
 /// Analyze HTTP method for implications
-fn analyze_http_method(_behavior: a) -> List(Effect) {
-  // POST operations create state changes
-  [
-    Effect(
-      type_: StateChange,
-      description: "Creates new resource in database",
-      severity: Medium,
-      suggestion: "Add behavior to test duplicate creation",
-    ),
-    Effect(
-      type_: Notification,
-      description: "May trigger welcome/notification events",
-      severity: Low,
-      suggestion: "Add behavior to test notification failure handling",
-    ),
-  ]
+fn analyze_http_method(behavior: Behavior) -> List(Effect) {
+  case behavior.request.method {
+    Post | Put | Patch ->
+      [
+        Effect(
+          type_: StateChange,
+          description: "Creates or modifies resource in database",
+          severity: Medium,
+          suggestion: "Add behavior to test duplicate creation/updates",
+        ),
+        Effect(
+          type_: Notification,
+          description: "May trigger notification events",
+          severity: Low,
+          suggestion: "Add behavior to test notification failure handling",
+        ),
+      ]
+    Delete ->
+      [
+        Effect(
+          type_: StateChange,
+          description: "Removes resource from database",
+          severity: High,
+          suggestion: "Add behavior to test orphaned data cleanup",
+        ),
+        Effect(
+          type_: RollbackRequired,
+          description: "Deletion should be reversible or soft-delete",
+          severity: High,
+          suggestion: "Add behavior to test soft-delete or restoration",
+        ),
+      ]
+    Get | Head | Options ->
+      [
+        Effect(
+          type_: Cascade,
+          description: "Read operations may trigger cache updates",
+          severity: Low,
+          suggestion: "Add behavior to test cache consistency",
+        ),
+      ]
+  }
 }
 
 /// Analyze potential cascade effects
-fn analyze_cascade_effects(_behavior: a) -> List(Effect) {
-  [
-    Effect(
-      type_: Cascade,
-      description: "Deletion may orphan related records",
-      severity: High,
-      suggestion: "Add behavior to test orphaned data cleanup",
-    ),
-  ]
+fn analyze_cascade_effects(behavior: Behavior) -> List(Effect) {
+  case behavior.request.method {
+    Delete | Post | Put | Patch ->
+      [
+        Effect(
+          type_: Cascade,
+          description: "Operation may affect related records",
+          severity: High,
+          suggestion: "Add behavior to test referential integrity",
+        ),
+      ]
+    Get | Head | Options -> []
+  }
 }
 
 /// Analyze potential race conditions
-fn analyze_race_conditions(_behavior: a) -> List(Effect) {
-  [
-    Effect(
-      type_: RaceCondition,
-      description: "Concurrent updates may conflict",
-      severity: Medium,
-      suggestion: "Add behavior to test concurrent modification",
-    ),
-  ]
+fn analyze_race_conditions(behavior: Behavior) -> List(Effect) {
+  case behavior.request.method {
+    Post | Put | Patch | Delete ->
+      [
+        Effect(
+          type_: RaceCondition,
+          description: "Concurrent modifications may conflict",
+          severity: Medium,
+          suggestion: "Add behavior to test optimistic locking or conflict resolution",
+        ),
+      ]
+    Get | Head | Options -> []
+  }
 }
 
 /// Analyze rollback requirements
-fn analyze_rollback_needs(_behavior: a) -> List(Effect) {
-  [
-    Effect(
-      type_: RollbackRequired,
-      description: "Operation should be reversible",
-      severity: Medium,
-      suggestion: "Add compensating delete behavior",
-    ),
-  ]
+fn analyze_rollback_needs(behavior: Behavior) -> List(Effect) {
+  case behavior.request.method {
+    Post | Put | Patch | Delete ->
+      [
+        Effect(
+          type_: RollbackRequired,
+          description: "Operation should be reversible or compensatable",
+          severity: Medium,
+          suggestion: "Add compensating transaction behavior",
+        ),
+      ]
+    Get | Head | Options -> []
+  }
 }
 
 /// Analyze entire spec
-pub fn analyze_spec(_spec: a) -> Result(SpecAnalysis, String) {
-  // Return mock analysis for now
-  Ok(
-    SpecAnalysis(spec_name: "Mock Spec", behavior_effects: [
+pub fn analyze_spec(spec: Spec) -> SpecAnalysis {
+  // Collect all behaviors from all features
+  let all_behaviors =
+    list.flat_map(spec.features, fn(feature) { feature.behaviors })
+
+  // Analyze each behavior
+  let behavior_effects =
+    list.map(all_behaviors, fn(behavior) {
       BehaviorEffect(
-        behavior_name: "mock-behavior-1",
-        effects: analyze_behavior(Nil),
-      ),
-      BehaviorEffect(
-        behavior_name: "mock-behavior-2",
-        effects: analyze_behavior(Nil),
-      ),
-    ]),
-  )
+        behavior_name: behavior.name,
+        effects: analyze_behavior(behavior),
+      )
+    })
+
+  SpecAnalysis(spec_name: spec.name, behavior_effects: behavior_effects)
 }
 
 /// Format effects as JSON
