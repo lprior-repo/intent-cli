@@ -1,6 +1,6 @@
-// Test case: Circular dependencies in behaviors
-name: "circular-dependencies-spec"
-description: "Spec with circular behavior dependencies"
+// Test case: Duplicate behavior names in features
+name: "duplicate-names-spec"
+description: "Spec with duplicate behavior names"
 audience: "developers"
 version: "1.0.0"
 success_criteria: ["API works"]
@@ -12,11 +12,11 @@ config: {
 features: [
   {
     name: "feature1"
-    description: "A test feature with circular deps"
+    description: "First feature"
     behaviors: [
       {
-        name: "behavior1"
-        intent: "Test behavior 1"
+        name: "duplicate_behavior"
+        intent: "Test behavior in first feature"
         request: {
           method: "GET"
           path: "/test1"
@@ -35,14 +35,20 @@ features: [
           ]
           headers: {}
         }
-        notes: "Behavior 1 depends on behavior 2"
-        requires: ["behavior2"]
+        notes: ""
+        requires: []
         tags: ["test"]
         captures: {}
       }
+    ]
+  }
+  {
+    name: "feature2"
+    description: "Second feature with duplicate name"
+    behaviors: [
       {
-        name: "behavior2"
-        intent: "Test behavior 2"
+        name: "duplicate_behavior"
+        intent: "Test behavior in second feature"
         request: {
           method: "GET"
           path: "/test2"
@@ -61,8 +67,8 @@ features: [
           ]
           headers: {}
         }
-        notes: "Behavior 2 depends on behavior 1"
-        requires: ["behavior1"]
+        notes: ""
+        requires: []
         tags: ["test"]
         captures: {}
       }

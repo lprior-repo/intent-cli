@@ -1,0 +1,589 @@
+import gleam/dict
+import gleam/json
+import gleam/list
+import gleam/result
+import gleam/string
+import gleeunit/should
+import intent/parser
+import intent/types
+
+// ============================================================================
+// CUE Parser Stress Test Suite
+//
+// This comprehensive test suite validates the parser's resilience against:
+// 1. Deeply nested structures
+// 2. Complex expressions
+// 3. Imports and references
+// 4. Invalid syntax
+// 5. Large files
+// 6. Edge cases and corner cases
+// ============================================================================
+
+pub fn main() -> Nil {
+  gleeunit.main()
+}
+
+// Test 1: Deeply Nested CUE Structures
+fn test_deeply_nested_structures() {
+  // Test 100 levels of nesting
+  let deep_data = create_deeply_nested_json(100)
+  let result = parser.parse_spec(deep_data)
+
+  case result {
+    Ok(_) -> should.fail("Parser should fail with deeply nested structures")
+    Error(_) -> should.be_true(True) // Expected failure
+  }
+}
+
+fn create_deeply_nested_json(depth: Int) -> dynamic.Dynamic {
+  let create_level = fn(current_depth: Int) -> dynamic.Dynamic {
+    if current_depth <= 0 {
+      json.object([#("value", json.string("deep"))])
+    } else {
+      json.object([#(
+        "level_" <> string.from_int(current_depth),
+        create_level(current_depth - 1),
+      )])
+    }
+  }
+
+  create_level(depth)
+}
+
+// Test 2: Complex CUE Expressions
+fn test_complex_expressions() {
+  // Test complex logical expressions and conditionals
+  let complex_data = json.object([
+    #("name", json.string("complex_test")),
+    #("description", json.string("Complex expressions test")),
+    #("audience", json.string("developers")),
+    #("version", json.string("1.0.0")),
+    #("success_criteria", json.array([
+      json.string("Criteria 1"),
+      json.string("Criteria 2"),
+    ], json.string)),
+    #("config", json.object([
+      #("base_url", json.string("http://example.com")),
+      #("timeout_ms", json.int(5000)),
+      #("headers", json.object([
+        #("Authorization", json.string("Bearer {{token}}")),
+        #("X-Custom-Header", json.string("value")),
+      ])),
+    ])),
+    #("features", json.array([
+      json.object([
+        #("name", json.string("complex_feature")),
+        #("description", json.string("Complex behavior")),
+        #("behaviors", json.array([
+          json.object([
+            #("name", json.string("complex_behavior")),
+            #("intent", json.string("Test complex request")),
+            #("notes", json.string("")),
+            #("requires", json.array([], json.string)),
+            #("tags", json.array([], json.string)),
+            #("request", json.object([
+              #("method", json.string("GET")),
+              #("path", json.string("/complex/{{id}}")),
+              #("headers", json.object([
+                #("X-Complex-Header", json.string("{{complex_value}}")),
+              ])),
+              #("query", json.object([
+                #("filter", json.string("complex==true")),
+                #("sort", json.string("field{{direction}}")),
+              ])),
+              #("body", json.object([
+                #("complex_field", json.object([
+                  #("nested", json.array([
+                    json.object([
+                      #("key", json.string("value")),
+                      #("metadata", json.object([
+                        #("created_at", json.string("{{timestamp}}")),
+                        #("updated_at", json.string("{{timestamp}}")),
+                      ])),
+                    ]),
+                  ], json.object)),
+                ])),
+              ])),
+            ])),
+            #("response", json.object([
+              #("status", json.int(200)),
+              #("example", json.object([
+                #("result", json.array([
+                  json.object([
+                    #("id", json.string("123")),
+                    #("data", json.object([
+                      #("complex_array", json.array([
+                        json.string("item1"),
+                        json.string("item2"),
+                      ], json.string)),
+                    ])),
+                  ]),
+                ], json.object)),
+              ])),
+              #("checks", json.object([
+                #("complex_check", json.object([
+                  #("rule", json.string("$.result[0].data.complex_array | length == 2")),
+                  #("why", json.string("Complex array validation")),
+                ])),
+              ])),
+            ])),
+          ]),
+        ], json.object)),
+      ]),
+    ], json.object)),
+    #("rules", json.array([
+      json.object([
+        #("name", json.string("complex_rule")),
+        #("description", json.string("Complex validation rule")),
+        #("when", json.object([
+          #("status", json.string("200")),
+          #("method", json.string("GET")),
+          #("path", json.string("/complex")),
+        ])),
+        #("check", json.object([
+          #("body_must_contain", json.array([json.string("complex")], json.string)),
+          #("body_must_not_contain", json.array([json.string("error")], json.string)),
+          #("fields_must_exist", json.array([json.string("result"), json.string("id")], json.string)),
+        ])),
+        #("example", json.object([
+          #("result", json.string("success")),
+        ])),
+      ]),
+    ], json.object)),
+    #("anti_patterns", json.array([
+      json.object([
+        #("name", json.string("complex_bad")),
+        #("description", json.string("Complex anti-pattern")),
+        #("bad_example", json.object([
+          #("complex_field", json.object([
+            #("invalid", json.string("structure")),
+          ])),
+        ])),
+        #("good_example", json.object([
+          #("complex_field", json.object([
+            #("valid", json.string("structure")),
+          ])),
+        ])),
+        #("why", json.string("Complex patterns should be clear")),
+      ]),
+    ], json.object)),
+    #("ai_hints", json.object([
+      #("implementation", json.object([
+        #("suggested_stack", json.array([
+          json.string("react"),
+          json.string("typescript"),
+          json.string("node.js"),
+        ], json.string)),
+      ])),
+      #("entities", json.object([
+        #("User", json.object([
+          #("fields", json.object([
+            #("id", json.string("string")),
+            #("name", json.string("string")),
+            #("email", json.string("email")),
+            #("metadata", json.object([
+              #("preferences", json.object([
+                #("notifications", json.string("boolean")),
+                #("theme", json.string("string")),
+              ])),
+            ])),
+          ])),
+        ])),
+      ])),
+      #("security", json.object([
+        #("password_hashing", json.string("bcrypt")),
+        #("jwt_algorithm", json.string("RS256")),
+        #("jwt_expiry", json.string("24h")),
+        #("rate_limiting", json.string("1000/hour")),
+      ])),
+      #("pitfalls", json.array([
+        json.string("Circular dependencies"),
+        json.string("Infinite recursion"),
+        json.string("Memory leaks"),
+      ], json.string)),
+    ])),
+  ])
+
+  let result = parser.parse_spec(complex_data)
+  should.be_ok(result)
+}
+
+// Test 3: CUE Imports and References
+fn test_cue_imports_and_references() {
+  // Test parser with CUE-style imports (simulated in JSON)
+  let import_data = json.object([
+    #("name", json.string("import_test")),
+    #("description", json.string("Imports and references test")),
+    #("audience", json.string("testers")),
+    #("version", json.string("1.0.0")),
+    #("success_criteria", json.array([], json.string)),
+    #("config", json.object([
+      #("base_url", json.string("http://example.com")),
+      #("timeout_ms", json.int(5000)),
+      #("headers", json.object([])),
+    ])),
+    #("features", json.array([
+      json.object([
+        #("name", json.string("imported_feature")),
+        #("description", json.string("Feature with imported behavior")),
+        #("behaviors", json.array([
+          json.object([
+            #("name", json.string("imported_behavior")),
+            #("intent", json.string("Test imported request")),
+            #("notes", json.string("")),
+            #("requires", json.array([], json.string)),
+            #("tags", json.array([], json.string)),
+            #("request", json.object([
+              #("method", json.string("GET")),
+              #("path", json.string("/import/{{ref:base_url}}/resource")),
+              #("headers", json.object([])),
+              #("query", json.object([])),
+              #("body", json.null()),
+            ])),
+            #("response", json.object([
+              #("status", json.int(200)),
+              #("example", json.object([
+                #("reference", json.string("{{ref:base_url}}")),
+              ])),
+              #("checks", json.object([]),
+            ])),
+          ]),
+        ], json.object)),
+      ]),
+    ], json.object)),
+    #("rules", json.array([], json.object)),
+    #("anti_patterns", json.array([], json.object)),
+    #("ai_hints", json.object([
+      #("implementation", json.object([])),
+      #("entities", json.object([
+        #("Product", json.object([
+          #("fields", json.object([
+            #("id", json.string("string")),
+            #("name", json.string("string")),
+            #("price", json.string("number")),
+          ])),
+        ])),
+      ])),
+      #("security", json.object([
+        #("password_hashing", json.string("bcrypt")),
+        #("jwt_algorithm", json.string("HS256")),
+        #("jwt_expiry", json.string("1h")),
+        #("rate_limiting", json.string("100/hour")),
+      ])),
+      #("pitfalls", json.array([], json.string)),
+    ])),
+  ])
+
+  let result = parser.parse_spec(import_data)
+  should.be_ok(result)
+}
+
+// Test 4: Invalid CUE (Various Syntax Errors)
+fn test_invalid_cue_syntax() {
+  // Test missing required fields
+  let invalid_data = json.object([
+    #("name", json.string("invalid_test")),
+    #("description", json.string("Invalid types test")),
+    #("audience", json.string("testers")),
+    #("version", json.string("1.0.0")),
+    #("success_criteria", json.array([json.string("criteria")], json.string)),
+    #("config", json.object([
+      #("base_url", json.string("http://example.com")),
+      #("timeout_ms", json.string("not_a_number")), // Invalid type
+      #("headers", json.object([]),
+    ])),
+    #("features", json.array([json.object([
+      #("name", json.string("test")),
+      #("description", json.string("test")),
+      #("behaviors", json.array([json.object([
+        #("name", json.string("test")),
+        #("intent", json.string("test")),
+        #("notes", json.string("")),
+        #("requires", json.array([], json.string)),
+        #("tags", json.array([], json.string)),
+        #("request", json.object([
+          #("method", json.string("INVALID_METHOD")),
+          #("path", json.string("/test")),
+          #("headers", json.object([])),
+          #("query", json.object([])),
+          #("body", json.null()),
+        ])),
+        #("response", json.object([
+          #("status", json.int(200)),
+          #("example", json.null()),
+          #("checks", json.object([]),
+        ])),
+      ])], json.object))], json.object)),
+    #("rules", json.array([], json.object)),
+    #("anti_patterns", json.array([], json.object)),
+    #("ai_hints", json.object([
+      #("implementation", json.object([])),
+      #("entities", json.object([])),
+      #("security", json.object([
+        #("password_hashing", json.string("bcrypt")),
+        #("jwt_algorithm", json.string("HS256")),
+        #("jwt_expiry", json.string("1h")),
+        #("rate_limiting", json.string("100/hour")),
+      ])),
+      #("pitfalls", json.array([], json.string)),
+    ])),
+  ])
+
+  let result = parser.parse_spec(invalid_data)
+  should.be_error(result)
+}
+
+// Test 5: Large CUE Files
+fn test_large_spec_file() {
+  // Test parser with a large spec file
+  let large_data = create_large_spec_file(50) // 50 features
+
+  let result = parser.parse_spec(large_data)
+  should.be_ok(result)
+}
+
+fn create_large_spec_file(feature_count: Int) -> dynamic.Dynamic {
+  let features = list.range(1, feature_count)
+  |> list.map(fn(i) {
+    json.object([
+      #("name", json.string("feature_" <> string.from_int(i))),
+      #("description", json.string("Large feature " <> string.from_int(i))),
+      #("behaviors", list.range(1, 5)
+      |> list.map(fn(j) {
+        json.object([
+          #("name", json.string("behavior_" <> string.from_int(i) <> "_" <> string.from_int(j))),
+          #("intent", json.string("Intent for behavior " <> string.from_int(i) <> "_" <> string.from_int(j))),
+          #("notes", json.string("")),
+          #("requires", json.array([], json.string)),
+          #("tags", json.array([], json.string)),
+          #("request", json.object([
+            #("method", json.string("GET")),
+            #("path", json.string("/test/" <> string.from_int(i) <> "/" <> string.from_int(j))),
+            #("headers", json.object([])),
+            #("query", json.object([])),
+            #("body", json.null()),
+          ])),
+          #("response", json.object([
+            #("status", json.int(200)),
+            #("example", json.object([
+              #("id", json.string(string.from_int(i))),
+              #("result", json.string("success")),
+            ])),
+            #("checks", json.object([
+              #("check_" <> string.from_int(j), json.object([
+                #("rule", json.string("$.result == 'success'")),
+                #("why", json.string("Check " <> string.from_int(j))),
+              ])),
+            ])),
+          ])),
+        ])
+      }, json.object)),
+    ])
+  }, json.array)
+
+  json.object([
+    #("name", json.string("large_spec_test")),
+    #("description", json.string("Large specification test")),
+    #("audience", json.string("testers")),
+    #("version", json.string("1.0.0")),
+    #("success_criteria", json.array([json.string("Handle large files")], json.string)),
+    #("config", json.object([
+      #("base_url", json.string("http://example.com")),
+      #("timeout_ms", json.int(5000)),
+      #("headers", json.object([])),
+    ])),
+    #("features", features),
+    #("rules", json.array([
+      json.object([
+        #("name", json.string("large_rule")),
+        #("description", json.string("Rule for large spec")),
+        #("when", json.object([])),
+        #("check", json.object([
+          #("body_must_contain", json.array([], json.string)),
+          #("body_must_not_contain", json.array([], json.string)),
+          #("fields_must_exist", json.array([], json.string)),
+        ])),
+        #("example", json.object([]),
+      ]),
+    ], json.object)),
+    #("anti_patterns", json.array([], json.object)),
+    #("ai_hints", json.object([
+      #("implementation", json.object([])),
+      #("entities", json.object([])),
+      #("security", json.object([
+        #("password_hashing", json.string("bcrypt")),
+        #("jwt_algorithm", json.string("HS256")),
+        #("jwt_expiry", json.string("1h")),
+        #("rate_limiting", json.string("100/hour")),
+      ])),
+      #("pitfalls", json.array([], json.string)),
+    ])),
+  ])
+}
+
+// Test 6: CUE Edge Cases and Corner Cases
+fn test_unicode_characters() {
+  // Test Unicode characters in various fields
+  let unicode_data = json.object([
+    #("name", json.string("测试名称")),
+    #("description", json.string("带有特殊字符的描述: ñáéíóú 中文 русский 日本語")),
+    #("audience", json.string("👨‍💻👩‍💻测试人员")),
+    #("version", json.string("1.0.0-β")),
+    #("success_criteria", json.array([
+      json.string("标准1: 基本功能"),
+      json.string("标准2: 性能要求"),
+    ], json.string)),
+    #("config", json.object([
+      #("base_url", json.string("http://例子.com")),
+      #("timeout_ms", json.int(5000)),
+      #("headers", json.object([
+        #("X-Content-Language", json.string("zh-CN,en-US")),
+        #("X-Emoji", json.string("😀🎉🚀")),
+      ])),
+    ])),
+    #("features", json.array([
+      json.object([
+        #("name", json.string("功能测试")),
+        #("description", json.string("多语言功能描述")),
+        #("behaviors", json.array([
+          json.object([
+            #("name", json.string("行为测试")),
+            #("intent", json.string("测试意图")),
+            #("notes", json.string("")),
+            #("requires", json.array([], json.string)),
+            #("tags", json.array([json.string("🔥重要"), json.string("🆕新功能")], json.string)),
+            #("request", json.object([
+              #("method", json.string("GET")),
+              #("path", json.string("/测试/路径")),
+              #("headers", json.object([])),
+              #("query", json.object([
+                #("q", json.string("搜索")),
+                #("lang", json.string("zh")),
+              ])),
+              #("body", json.object([
+                #("text", json.string("你好，世界！")),
+              ])),
+            ])),
+            #("response", json.object([
+              #("status", json.int(200)),
+              #("example", json.object([
+                #("message", json.string("你好，世界！")),
+              ])),
+              #("checks", json.object([]),
+            ])),
+          ]),
+        ], json.object)),
+      ]),
+    ], json.object)),
+    #("rules", json.array([
+      json.object([
+        #("name", json.string("Unicode规则")),
+        #("description", json.string("Unicode字符规则")),
+        #("when", json.object([
+          #("status", json.string("200")),
+          #("method", json.string("GET")),
+          #("path", json.string("/测试")),
+        ])),
+        #("check", json.object([
+          #("body_must_contain", json.array([json.string("你好")], json.string)),
+        ])),
+        #("example", json.object([
+          #("message", json.string("Unicode测试")),
+        ])),
+      ]),
+    ], json.object)),
+    #("anti_patterns", json.array([
+      json.object([
+        #("name", json.string("坏模式")),
+        #("description", json.string("Unicode坏例子")),
+        #("bad_example", json.object([
+          #("error", json.string("乱码: ñáéíóú")),
+        ])),
+        #("good_example", json.object([
+          #("correct", json.string("正确编码: ñáéíóú")),
+        ])),
+        #("why", json.string("Unicode字符应该正确处理")),
+      ]),
+    ], json.object)),
+    #("ai_hints", json.object([
+      #("implementation", json.object([])),
+      #("entities", json.object([])),
+      #("security", json.object([
+        #("password_hashing", json.string("bcrypt")),
+        #("jwt_algorithm", json.string("HS256")),
+        #("jwt_expiry", json.string("1h")),
+        #("rate_limiting", json.string("100/hour")),
+      ])),
+      #("pitfalls", json.array([
+        json.string("编码问题"),
+        json.string("字符集不匹配"),
+      ], json.string)),
+    ])),
+  ])
+
+  let result = parser.parse_spec(unicode_data)
+  should.be_ok(result)
+}
+
+// Test 7: Verify Parser Error Messages
+fn test_error_message_quality() {
+  // Test that parser provides clear error messages
+  let invalid_data = json.object([
+    #("name", json.string("test")),
+    #("description", json.string("test")),
+    #("audience", json.string("testers")),
+    #("version", json.string("1.0.0")),
+    #("success_criteria", json.array([json.string("criteria")], json.string)),
+    #("config", json.object([
+      #("base_url", json.string("http://example.com")),
+      #("timeout_ms", json.string("not_a_number")), // Invalid type
+      #("headers", json.object([]),
+    ])),
+    #("features", json.array([json.object([
+      #("name", json.string("test")),
+      #("description", json.string("test")),
+      #("behaviors", json.array([json.object([
+        #("name", json.string("test")),
+        #("intent", json.string("test")),
+        #("notes", json.string("")),
+        #("requires", json.array([], json.string)),
+        #("tags", json.array([], json.string)),
+        #("request", json.object([
+          #("method", json.string("INVALID_METHOD")), // Invalid method
+          #("path", json.string("/test")),
+          #("headers", json.object([])),
+          #("query", json.object([])),
+          #("body", json.null()),
+        ])),
+        #("response", json.object([
+          #("status", json.int(200)),
+          #("example", json.null()),
+          #("checks", json.object([]),
+        ])),
+      ])], json.object))], json.object)),
+    #("rules", json.array([], json.object)),
+    #("anti_patterns", json.array([], json.object)),
+    #("ai_hints", json.object([
+      #("implementation", json.object([])),
+      #("entities", json.object([])),
+      #("security", json.object([
+        #("password_hashing", json.string("bcrypt")),
+        #("jwt_algorithm", json.string("HS256")),
+        #("jwt_expiry", json.string("1h")),
+        #("rate_limiting", json.string("100/hour")),
+      ])),
+      #("pitfalls", json.array([], json.string)),
+    ])),
+  ])
+
+  let result = parser.parse_spec(invalid_data)
+  case result {
+    Error(errors) -> {
+      // Verify error messages are helpful
+      let error_count = list.length(errors)
+      should.be_greater_than_or_equal(error_count, 1)
+      should.be_less_than_or_equal(error_count, 10)
+    }
+    Ok(_) -> should.fail("Expected errors but got success")
+  }
+}

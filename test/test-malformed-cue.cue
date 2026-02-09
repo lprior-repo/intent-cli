@@ -1,6 +1,6 @@
-// Test case: Invalid JSON in examples
-name: "invalid-json-spec"
-description: "Spec with invalid JSON in examples"
+// Test case: Malformed CUE syntax
+name: "malformed-spec"
+description: "Spec with malformed CUE syntax"
 audience: "developers"
 version: "1.0.0"
 success_criteria: ["API works"]
@@ -26,7 +26,7 @@ features: [
         }
         response: {
           status: 200
-          example: {"message": "ok", invalid: json}
+          example: {"message": "ok"}
           checks: [
             {
               rule: "status == 200"
@@ -42,7 +42,6 @@ features: [
       }
     ]
   }
-]
 rules: []
 anti_patterns: []
 ai_hints: []

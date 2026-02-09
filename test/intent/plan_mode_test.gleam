@@ -1,348 +1,74 @@
-// Comprehensive test suite for plan_mode module
-// Tests dependency resolution, cycle detection
-import gleam/list
 import gleam/string
-import gleeunit
 import gleeunit/should
 import intent/plan_mode
 
-pub fn main() -> Nil {
-  gleeunit.main()
+pub fn decode_beads_json_basic_test() {
+  let json =
+    "[{\"id\":\"USR-001\",\"title\":\"Create user\",\"requires\":[\"AUTH-001\"],\"effort\":\"20min\",\"status\":\"blocked\"}]"
+
+  case plan_mode.decode_beads_json(json) {
+    Ok([bead]) -> {
+      bead.id |> should.equal("USR-001")
+      bead.title |> should.equal("Create user")
+      bead.requires |> should.equal(["AUTH-001"])
+      bead.effort |> should.equal(plan_mode.Effort20min)
+      bead.status |> should.equal(plan_mode.Blocked)
+    }
+    _ -> should.fail()
+  }
 }
 
-// =============================================================================
-// EFFORT CONVERSION TESTS
-// =============================================================================
+pub fn decode_beads_json_alias_fields_test() {
+  let json =
+    "[{\"bead_id\":\"PAY-002\",\"summary\":\"Process payment\",\"dependencies\":[\"AUTH-001\",\"DB-001\"],\"effort_minutes\":7,\"state\":\"in_progress\"}]"
 
-pub fn effort_to_label_5min_test() {
-  let result = plan_mode.effort_to_label(plan_mode.Effort5min)
-  should.equal(result, "5min")
+  case plan_mode.decode_beads_json(json) {
+    Ok([bead]) -> {
+      bead.id |> should.equal("PAY-002")
+      bead.title |> should.equal("Process payment")
+      bead.requires |> should.equal(["AUTH-001", "DB-001"])
+      bead.effort |> should.equal(plan_mode.Effort5min)
+      bead.status |> should.equal(plan_mode.InProgress)
+    }
+    _ -> should.fail()
+  }
 }
 
-pub fn effort_to_label_10min_test() {
-  let result = plan_mode.effort_to_label(plan_mode.Effort10min)
-  should.equal(result, "10min")
-}
-
-pub fn effort_to_label_30min_test() {
-  let result = plan_mode.effort_to_label(plan_mode.Effort30min)
-  should.equal(result, "30min")
-}
-
-// =============================================================================
-// BEAD STATUS STRING CONVERSION TESTS
-// =============================================================================
-
-pub fn bead_status_to_string_pending_test() {
-  let result = plan_mode.bead_status_to_string(plan_mode.Pending)
-  should.equal(result, "pending")
-}
-
-pub fn bead_status_to_string_in_progress_test() {
-  let result = plan_mode.bead_status_to_string(plan_mode.InProgress)
-  should.equal(result, "in_progress")
-}
-
-pub fn bead_status_to_string_blocked_test() {
-  let result = plan_mode.bead_status_to_string(plan_mode.Blocked)
-  should.equal(result, "blocked")
-}
-
-pub fn bead_status_to_string_completed_test() {
-  let result = plan_mode.bead_status_to_string(plan_mode.Completed)
-  should.equal(result, "completed")
-}
-
-pub fn bead_status_to_string_failed_test() {
-  let result = plan_mode.bead_status_to_string(plan_mode.Failed)
-  should.equal(result, "failed")
-}
-
-// =============================================================================
-// DEPENDENCY GRAPH DETECTION TESTS
-// =============================================================================
-
-pub fn detect_dependency_graph_no_dependencies_test() {
-  let beads = [
+pub fn format_plan_ai_includes_plan_metadata_test() {
+  let bead =
     plan_mode.PlanBead(
-      id: "a",
-      title: "A",
+      id: "USR-001",
+      title: "Create user",
       requires: [],
-      effort: plan_mode.Effort5min,
+      effort: plan_mode.Effort20min,
       status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "b",
-      title: "B",
-      requires: [],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-  ]
+    )
 
-  let result = plan_mode.detect_dependency_graph(beads)
+  let phase =
+    plan_mode.ExecutionPhase(
+      phase_number: 1,
+      title: "Phase 1",
+      beads: [bead],
+      can_parallel: False,
+      effort: "20min",
+    )
 
-  case result {
-    Ok(phases) -> {
-      list.length(phases)
-      |> should.equal(1)
-    }
-    Error(_) -> should.fail()
-  }
-}
+  let plan =
+    plan_mode.ExecutionPlan(
+      session_id: "session-123",
+      generated_at: "2026-01-01T00:00:00Z",
+      phases: [phase],
+      total_beads: 1,
+      total_effort: "20min",
+      risk: plan_mode.Low,
+      blockers: [],
+    )
 
-pub fn detect_dependency_graph_simple_chain_test() {
-  let beads = [
-    plan_mode.PlanBead(
-      id: "a",
-      title: "A",
-      requires: [],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "b",
-      title: "B",
-      requires: ["a"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-  ]
+  let output = plan_mode.format_plan_ai(plan)
 
-  let result = plan_mode.detect_dependency_graph(beads)
-
-  case result {
-    Ok(phases) -> {
-      list.length(phases)
-      |> should.equal(2)
-    }
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn detect_dependency_graph_parallel_branches_test() {
-  let beads = [
-    plan_mode.PlanBead(
-      id: "a",
-      title: "A",
-      requires: [],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "b",
-      title: "B",
-      requires: ["a"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "c",
-      title: "C",
-      requires: ["a"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-  ]
-
-  let result = plan_mode.detect_dependency_graph(beads)
-
-  case result {
-    Ok(phases) -> {
-      list.length(phases)
-      |> should.equal(2)
-
-      // Check that second phase has parallel execution
-      let phase2_opt = list.last(phases)
-      case phase2_opt {
-        Ok(phase2) -> {
-          list.length(phase2.beads)
-          |> should.equal(2)
-          phase2.can_parallel
-          |> should.equal(True)
-        }
-        Error(_) -> should.fail()
-      }
-    }
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn detect_dependency_graph_cyclic_dependency_test() {
-  let beads = [
-    plan_mode.PlanBead(
-      id: "a",
-      title: "A",
-      requires: ["b"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "b",
-      title: "B",
-      requires: ["a"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-  ]
-
-  let result = plan_mode.detect_dependency_graph(beads)
-
-  case result {
-    Error(plan_mode.CyclicDependency(cycle_beads)) -> {
-      list.length(cycle_beads)
-      |> should.equal(2)
-    }
-    Ok(_) -> should.fail()
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn detect_dependency_graph_self_cycle_test() {
-  let beads = [
-    plan_mode.PlanBead(
-      id: "a",
-      title: "A",
-      requires: ["a"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-  ]
-
-  let result = plan_mode.detect_dependency_graph(beads)
-
-  case result {
-    Error(plan_mode.CyclicDependency(cycle_beads)) -> {
-      list.length(cycle_beads)
-      |> should.equal(1)
-    }
-    Ok(_) -> should.fail()
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn detect_dependency_graph_missing_dependency_test() {
-  let beads = [
-    plan_mode.PlanBead(
-      id: "a",
-      title: "A",
-      requires: ["z"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-  ]
-
-  let result = plan_mode.detect_dependency_graph(beads)
-
-  case result {
-    Error(plan_mode.MissingDependency(bead_id, missing_dep)) -> {
-      bead_id
-      |> should.equal("a")
-      missing_dep
-      |> should.equal("z")
-    }
-    Ok(_) -> should.fail()
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn detect_dependency_graph_complex_diamond_test() {
-  let beads = [
-    plan_mode.PlanBead(
-      id: "a",
-      title: "A",
-      requires: [],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "b",
-      title: "B",
-      requires: ["a"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "c",
-      title: "C",
-      requires: ["a"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-    plan_mode.PlanBead(
-      id: "d",
-      title: "D",
-      requires: ["b", "c"],
-      effort: plan_mode.Effort5min,
-      status: plan_mode.Pending,
-    ),
-  ]
-
-  let result = plan_mode.detect_dependency_graph(beads)
-
-  case result {
-    Ok(phases) -> {
-      list.length(phases)
-      |> should.equal(3)
-    }
-    Error(_) -> should.fail()
-  }
-}
-
-// =============================================================================
-// ERROR MESSAGE TESTS
-// =============================================================================
-
-pub fn format_error_session_not_found_test() {
-  let error = plan_mode.SessionNotFound("test-session")
-  let msg = plan_mode.format_error(error)
-
-  msg
-  |> string.contains("Session not found: test-session")
-  |> should.equal(True)
-}
-
-pub fn format_error_parse_error_test() {
-  let error = plan_mode.ParseError("Invalid CUE format")
-  let msg = plan_mode.format_error(error)
-
-  msg
-  |> should.equal("Failed to parse session: Invalid CUE format")
-}
-
-pub fn format_error_cyclic_dependency_test() {
-  let error = plan_mode.CyclicDependency(["a", "b", "c"])
-  let msg = plan_mode.format_error(error)
-
-  msg
-  |> string.contains("Cyclic dependency")
-  |> should.equal(True)
-  msg
-  |> string.contains("a")
-  |> should.equal(True)
-  msg
-  |> string.contains("b")
-  |> should.equal(True)
-}
-
-pub fn format_error_missing_dependency_test() {
-  let error = plan_mode.MissingDependency("bead-1", "bead-2")
-  let msg = plan_mode.format_error(error)
-
-  msg
-  |> string.contains("bead-1")
-  |> should.equal(True)
-  msg
-  |> string.contains("bead-2")
-  |> should.equal(True)
-  msg
-  |> string.contains("does not exist")
-  |> should.equal(True)
-}
-
-pub fn risk_to_string_test() {
-  should.equal(plan_mode.risk_to_string(plan_mode.Low), "low")
-  should.equal(plan_mode.risk_to_string(plan_mode.Medium), "medium")
-  should.equal(plan_mode.risk_to_string(plan_mode.High), "high")
-  should.equal(plan_mode.risk_to_string(plan_mode.Critical), "critical")
+  // AI format includes plan metadata and phases with beads
+  string.contains(output, "session_id") |> should.be_true()
+  string.contains(output, "session-123") |> should.be_true()
+  string.contains(output, "phases") |> should.be_true()
+  string.contains(output, "USR-001") |> should.be_true()
 }

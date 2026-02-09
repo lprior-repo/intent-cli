@@ -2,8 +2,7 @@
 /// Loads interview questions from CUE files at runtime
 /// Supports custom questions from .intent/custom-questions.cue
 import gleam/dynamic.{type Dynamic}
-
-// import gleam/json  // UNUSED: Kept for potential future use
+import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
@@ -12,9 +11,8 @@ import intent/question_types.{
   Business, Constraint, Critical, Dependency, Developer, EdgeCase, ErrorCase,
   HappyPath, Important, NiceTohave, NonFunctional, Ops, Question, Security, User,
 }
-
-// import intent/security
-// import shellout
+import intent/security
+import shellout
 
 /// Error types for question loading
 pub type QuestionLoadError {
@@ -88,12 +86,10 @@ pub fn load_questions(
   case string.is_empty(path) {
     True -> Error(FileNotFound(path))
     False ->
-      // TODO: Re-enable security validation when security module is restored
-      // case security.validate_file_path(path) {
-      //   Ok(validated_path) -> export_and_parse(validated_path)
-      //   Error(security_error) -> Error(map_security_error(security_error))
-      // }
-      export_and_parse(path)
+      case security.validate_file_path(path) {
+        Ok(validated_path) -> export_and_parse(validated_path)
+        Error(security_error) -> Error(map_security_error(security_error))
+      }
   }
 }
 
@@ -120,91 +116,86 @@ pub fn load_custom_questions(
   case string.is_empty(path) {
     True -> Error(FileNotFound(path))
     False ->
-      // TODO: Re-enable security validation when security module is restored
-      export_and_parse_custom(path)
+      case security.validate_file_path(path) {
+        Ok(validated_path) -> export_and_parse_custom(validated_path)
+        Error(security_error) -> Error(map_security_error(security_error))
+      }
   }
 }
 
 fn export_and_parse_custom(
   path: String,
 ) -> Result(CustomQuestions, QuestionLoadError) {
-  // TODO: Re-enable when shellout is restored
-  Error(FileNotFound(path))
-  // case
-  //   shellout.command("cue", ["export", path, "-e", "custom_questions"], ".", [])
-  // {
-  //   Ok(json_str) -> parse_custom_questions_json(json_str)
-  //   Error(#(_, stderr)) -> Error(CueExportError(stderr))
-  // }
+  case
+    shellout.command("cue", ["export", path, "-e", "custom_questions"], ".", [])
+  {
+    Ok(json_str) -> parse_custom_questions_json(json_str)
+    Error(#(_, stderr)) -> Error(CueExportError(stderr))
+  }
 }
 
-// UNUSED: Kept for potential future use
-// fn parse_custom_questions_json(
-//   json_str: String,
-// ) -> Result(CustomQuestions, QuestionLoadError) {
-//   case json.decode(json_str, dynamic.dynamic) {
-//     Ok(data) -> parse_custom_database(data)
-//     Error(_) -> Error(JsonParseError("Failed to decode custom questions JSON"))
-//   }
-// }
+fn parse_custom_questions_json(
+  json_str: String,
+) -> Result(CustomQuestions, QuestionLoadError) {
+  case json.decode(json_str, dynamic.dynamic) {
+    Ok(data) -> parse_custom_database(data)
+    Error(_) -> Error(JsonParseError("Failed to decode custom questions JSON"))
+  }
+}
 
-// TODO: Re-enable when security module is restored
-// fn map_security_error(error: security.SecurityError) -> QuestionLoadError {
-//   case error {
-//     security.FileNotAccessible(path) -> FileNotFound(path)
-//     security.InvalidPath(path, _) -> FileNotFound(path)
-//     security.ShellMetacharactersDetected(path) -> FileNotFound(path)
-//     _ -> SecurityError(security.format_security_error(error))
-//   }
-// }
+fn map_security_error(error: security.SecurityError) -> QuestionLoadError {
+  case error {
+    security.FileNotAccessible(path) -> FileNotFound(path)
+    security.InvalidPath(path, _) -> FileNotFound(path)
+    security.ShellMetacharactersDetected(path) -> FileNotFound(path)
+    _ -> SecurityError(security.format_security_error(error))
+  }
+}
 
-// UNUSED: Kept for potential future use
-// fn parse_custom_database(
-//   data: Dynamic,
-// ) -> Result(CustomQuestions, QuestionLoadError) {
-//   let decoder =
-//     dynamic.decode7(
-//       CustomQuestions,
-//       dynamic.optional_field("api", parse_custom_profile_questions),
-//       dynamic.optional_field("cli", parse_custom_profile_questions),
-//       dynamic.optional_field("event", parse_custom_profile_questions),
-//       dynamic.optional_field("data", parse_custom_profile_questions),
-//       dynamic.optional_field("workflow", parse_custom_profile_questions),
-//       dynamic.optional_field("ui", parse_custom_profile_questions),
-//       dynamic.optional_field("common", parse_custom_common_questions),
-//     )
-//
-//   case decoder(data) {
-//     Ok(custom) -> Ok(custom)
-//     Error(errs) ->
-//       Error(QuestionParseError(
-//         "Failed to parse custom questions: " <> format_decode_errors(errs),
-//       ))
-//   }
-// }
+fn parse_custom_database(
+  data: Dynamic,
+) -> Result(CustomQuestions, QuestionLoadError) {
+  let decoder =
+    dynamic.decode7(
+      CustomQuestions,
+      dynamic.optional_field("api", parse_custom_profile_questions),
+      dynamic.optional_field("cli", parse_custom_profile_questions),
+      dynamic.optional_field("event", parse_custom_profile_questions),
+      dynamic.optional_field("data", parse_custom_profile_questions),
+      dynamic.optional_field("workflow", parse_custom_profile_questions),
+      dynamic.optional_field("ui", parse_custom_profile_questions),
+      dynamic.optional_field("common", parse_custom_common_questions),
+    )
 
-// UNUSED: Kept for potential future use
-// fn parse_custom_profile_questions(
-//   data: Dynamic,
-// ) -> Result(CustomProfileQuestions, List(dynamic.DecodeError)) {
-//   dynamic.decode2(
-//     CustomProfileQuestions,
-//     dynamic.optional_field("round_1", dynamic.list(parse_question)),
-//     dynamic.optional_field("round_2", dynamic.list(parse_question)),
-//   )(data)
-// }
+  case decoder(data) {
+    Ok(custom) -> Ok(custom)
+    Error(errs) ->
+      Error(QuestionParseError(
+        "Failed to parse custom questions: " <> format_decode_errors(errs),
+      ))
+  }
+}
 
-// UNUSED: Kept for potential future use
-// fn parse_custom_common_questions(
-//   data: Dynamic,
-// ) -> Result(CustomCommonQuestions, List(dynamic.DecodeError)) {
-//   dynamic.decode3(
-//     CustomCommonQuestions,
-//     dynamic.optional_field("round_3", dynamic.list(parse_question)),
-//     dynamic.optional_field("round_4", dynamic.list(parse_question)),
-//     dynamic.optional_field("round_5", dynamic.list(parse_question)),
-//   )(data)
-// }
+fn parse_custom_profile_questions(
+  data: Dynamic,
+) -> Result(CustomProfileQuestions, List(dynamic.DecodeError)) {
+  dynamic.decode2(
+    CustomProfileQuestions,
+    dynamic.optional_field("round_1", dynamic.list(parse_question)),
+    dynamic.optional_field("round_2", dynamic.list(parse_question)),
+  )(data)
+}
+
+fn parse_custom_common_questions(
+  data: Dynamic,
+) -> Result(CustomCommonQuestions, List(dynamic.DecodeError)) {
+  dynamic.decode3(
+    CustomCommonQuestions,
+    dynamic.optional_field("round_3", dynamic.list(parse_question)),
+    dynamic.optional_field("round_4", dynamic.list(parse_question)),
+    dynamic.optional_field("round_5", dynamic.list(parse_question)),
+  )(data)
+}
 
 /// Merge custom questions with built-in questions
 /// Custom questions with same ID override built-ins; new IDs are added
@@ -275,185 +266,177 @@ fn merge_question_list(
 fn export_and_parse(
   path: String,
 ) -> Result(QuestionsDatabase, QuestionLoadError) {
-  // TODO: Re-enable when shellout is restored
-  Error(FileNotFound(path))
-  // case shellout.command("cue", ["export", path, "-e", "questions"], ".", []) {
-  //   Ok(json_str) -> parse_questions_json(json_str)
-  //   Error(#(_, stderr)) -> Error(CueExportError(stderr))
-  // }
+  case shellout.command("cue", ["export", path, "-e", "questions"], ".", []) {
+    Ok(json_str) -> parse_questions_json(json_str)
+    Error(#(_, stderr)) -> Error(CueExportError(stderr))
+  }
 }
 
-// UNUSED: Kept for potential future use
-// fn parse_questions_json(
-//   json_str: String,
-// ) -> Result(QuestionsDatabase, QuestionLoadError) {
-//   case json.decode(json_str, dynamic.dynamic) {
-//     Ok(data) -> parse_database(data)
-//     Error(_) -> Error(JsonParseError("Failed to decode JSON"))
-//   }
-// }
+fn parse_questions_json(
+  json_str: String,
+) -> Result(QuestionsDatabase, QuestionLoadError) {
+  case json.decode(json_str, dynamic.dynamic) {
+    Ok(data) -> parse_database(data)
+    Error(_) -> Error(JsonParseError("Failed to decode JSON"))
+  }
+}
 
-// UNUSED: Kept for potential future use
-// fn parse_database(data: Dynamic) -> Result(QuestionsDatabase, QuestionLoadError) {
-//   let decoder =
-//     dynamic.decode7(
-//       QuestionsDatabase,
-//       dynamic.field("api", parse_profile_questions),
-//       dynamic.field("cli", parse_profile_questions),
-//       dynamic.field("event", parse_profile_questions),
-//       dynamic.field("data", parse_profile_questions),
-//       dynamic.field("workflow", parse_profile_questions),
-//       dynamic.field("ui", parse_profile_questions),
-//       dynamic.field("common", parse_common_questions),
-//     )
-//
-//   case decoder(data) {
-//     Ok(db) -> Ok(db)
-//     Error(errs) ->
-//       Error(QuestionParseError(
-//         "Failed to parse questions: " <> format_decode_errors(errs),
-//       ))
-//   }
-// }
+fn parse_database(data: Dynamic) -> Result(QuestionsDatabase, QuestionLoadError) {
+  let decoder =
+    dynamic.decode7(
+      QuestionsDatabase,
+      dynamic.field("api", parse_profile_questions),
+      dynamic.field("cli", parse_profile_questions),
+      dynamic.field("event", parse_profile_questions),
+      dynamic.field("data", parse_profile_questions),
+      dynamic.field("workflow", parse_profile_questions),
+      dynamic.field("ui", parse_profile_questions),
+      dynamic.field("common", parse_common_questions),
+    )
 
-// UNUSED: Kept for potential future use
-// fn parse_profile_questions(
-//   data: Dynamic,
-// ) -> Result(ProfileQuestions, List(dynamic.DecodeError)) {
-//   dynamic.decode2(
-//     ProfileQuestions,
-//     dynamic.field("round_1", dynamic.list(parse_question)),
-//     dynamic.field("round_2", dynamic.list(parse_question)),
-//   )(data)
-// }
+  case decoder(data) {
+    Ok(db) -> Ok(db)
+    Error(errs) ->
+      Error(QuestionParseError(
+        "Failed to parse questions: " <> format_decode_errors(errs),
+      ))
+  }
+}
 
-// UNUSED: Kept for potential future use
-// fn parse_common_questions(
-//   data: Dynamic,
-// ) -> Result(CommonQuestions, List(dynamic.DecodeError)) {
-//   dynamic.decode3(
-//     CommonQuestions,
-//     dynamic.field("round_3", dynamic.list(parse_question)),
-//     dynamic.field("round_4", dynamic.list(parse_question)),
-//     dynamic.field("round_5", dynamic.list(parse_question)),
-//   )(data)
-// }
+fn parse_profile_questions(
+  data: Dynamic,
+) -> Result(ProfileQuestions, List(dynamic.DecodeError)) {
+  dynamic.decode2(
+    ProfileQuestions,
+    dynamic.field("round_1", dynamic.list(parse_question)),
+    dynamic.field("round_2", dynamic.list(parse_question)),
+  )(data)
+}
 
-// UNUSED: Kept for potential future use when JSON parsing is re-enabled
-// fn parse_question(data: Dynamic) -> Result(Question, List(dynamic.DecodeError)) {
-//   // Use decode8 + additional fields
-//   let base_decoder =
-//     dynamic.decode8(
-//       fn(id, round, perspective, category, priority, question, context, example) {
-//         #(
-//           id,
-//           round,
-//           perspective,
-//           category,
-//           priority,
-//           question,
-//           context,
-//           example,
-//         )
-//       },
-//       dynamic.field("id", dynamic.string),
-//       dynamic.field("round", dynamic.int),
-//       dynamic.field("perspective", dynamic.string),
-//       dynamic.field("category", dynamic.string),
-//       dynamic.field("priority", dynamic.string),
-//       dynamic.field("question", dynamic.string),
-//       dynamic.field("context", dynamic.string),
-//       dynamic.field("example", dynamic.string),
-//     )
-//
-//   let extra_decoder =
-//     dynamic.decode4(
-//       fn(expected_type, extract_into, depends_on, blocks) {
-//         #(expected_type, extract_into, depends_on, blocks)
-//       },
-//       dynamic.optional_field("expected_type", dynamic.string),
-//       dynamic.optional_field("extract_into", dynamic.list(dynamic.string)),
-//       dynamic.optional_field("depends_on", dynamic.list(dynamic.string)),
-//       dynamic.optional_field("blocks", dynamic.list(dynamic.string)),
-//     )
-//
-//   case base_decoder(data), extra_decoder(data) {
-//     Ok(#(
-//       id,
-//       round,
-//       perspective_str,
-//       category_str,
-//       priority_str,
-//       question,
-//       context,
-//       example,
-//     )),
-//       Ok(#(expected_type_opt, extract_into_opt, depends_on_opt, blocks_opt))
-//     -> {
-//       let perspective = parse_perspective(perspective_str)
-//       let category = parse_category(category_str)
-//       let priority = parse_priority(priority_str)
-//
-//       Ok(Question(
-//         id: id,
-//         round: round,
-//         perspective: perspective,
-//         category: category,
-//         priority: priority,
-//         question: question,
-//         context: context,
-//         example: example,
-//         expected_type: option.unwrap(expected_type_opt, "text"),
-//         extract_into: option.unwrap(extract_into_opt, []),
-//         depends_on: option.unwrap(depends_on_opt, []),
-//         blocks: option.unwrap(blocks_opt, []),
-//       ))
-//     }
-//     Error(errs), _ -> Error(errs)
-//     _, Error(errs) -> Error(errs)
-//   }
-// }
-//
-// fn parse_perspective(s: String) -> Perspective {
-//   case string.lowercase(s) {
-//     "user" -> User
-//     "developer" -> Developer
-//     "ops" -> Ops
-//     "security" -> Security
-//     "business" -> Business
-//     _ -> User
-//   }
-// }
-//
-// fn parse_category(s: String) -> QuestionCategory {
-//   case string.lowercase(s) {
-//     "happy_path" -> HappyPath
-//     "error_case" -> ErrorCase
-//     "edge_case" -> EdgeCase
-//     "constraint" -> Constraint
-//     "dependency" -> Dependency
-//     "nonfunctional" -> NonFunctional
-//     _ -> HappyPath
-//   }
-// }
-//
-// fn parse_priority(s: String) -> QuestionPriority {
-//   case string.lowercase(s) {
-//     "critical" -> Critical
-//     "important" -> Important
-//     "nice_to_have" -> NiceTohave
-//     _ -> Important
-//   }
-// }
+fn parse_common_questions(
+  data: Dynamic,
+) -> Result(CommonQuestions, List(dynamic.DecodeError)) {
+  dynamic.decode3(
+    CommonQuestions,
+    dynamic.field("round_3", dynamic.list(parse_question)),
+    dynamic.field("round_4", dynamic.list(parse_question)),
+    dynamic.field("round_5", dynamic.list(parse_question)),
+  )(data)
+}
 
-// UNUSED: Kept for potential future use
-// fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
-//   errors
-//   |> list.map(fn(e) {
-//     "Expected " <> e.expected <> " at " <> string.join(e.path, ".")
-//   })
-//   |> string.join(", ")
-// }
+fn parse_question(data: Dynamic) -> Result(Question, List(dynamic.DecodeError)) {
+  // Use decode8 + additional fields
+  let base_decoder =
+    dynamic.decode8(
+      fn(id, round, perspective, category, priority, question, context, example) {
+        #(
+          id,
+          round,
+          perspective,
+          category,
+          priority,
+          question,
+          context,
+          example,
+        )
+      },
+      dynamic.field("id", dynamic.string),
+      dynamic.field("round", dynamic.int),
+      dynamic.field("perspective", dynamic.string),
+      dynamic.field("category", dynamic.string),
+      dynamic.field("priority", dynamic.string),
+      dynamic.field("question", dynamic.string),
+      dynamic.field("context", dynamic.string),
+      dynamic.field("example", dynamic.string),
+    )
+
+  let extra_decoder =
+    dynamic.decode4(
+      fn(expected_type, extract_into, depends_on, blocks) {
+        #(expected_type, extract_into, depends_on, blocks)
+      },
+      dynamic.optional_field("expected_type", dynamic.string),
+      dynamic.optional_field("extract_into", dynamic.list(dynamic.string)),
+      dynamic.optional_field("depends_on", dynamic.list(dynamic.string)),
+      dynamic.optional_field("blocks", dynamic.list(dynamic.string)),
+    )
+
+  case base_decoder(data), extra_decoder(data) {
+    Ok(#(
+      id,
+      round,
+      perspective_str,
+      category_str,
+      priority_str,
+      question,
+      context,
+      example,
+    )),
+      Ok(#(expected_type_opt, extract_into_opt, depends_on_opt, blocks_opt))
+    -> {
+      let perspective = parse_perspective(perspective_str)
+      let category = parse_category(category_str)
+      let priority = parse_priority(priority_str)
+
+      Ok(Question(
+        id: id,
+        round: round,
+        perspective: perspective,
+        category: category,
+        priority: priority,
+        question: question,
+        context: context,
+        example: example,
+        expected_type: option.unwrap(expected_type_opt, "text"),
+        extract_into: option.unwrap(extract_into_opt, []),
+        depends_on: option.unwrap(depends_on_opt, []),
+        blocks: option.unwrap(blocks_opt, []),
+      ))
+    }
+    Error(errs), _ -> Error(errs)
+    _, Error(errs) -> Error(errs)
+  }
+}
+
+fn parse_perspective(s: String) -> Perspective {
+  case string.lowercase(s) {
+    "user" -> User
+    "developer" -> Developer
+    "ops" -> Ops
+    "security" -> Security
+    "business" -> Business
+    _ -> User
+  }
+}
+
+fn parse_category(s: String) -> QuestionCategory {
+  case string.lowercase(s) {
+    "happy_path" -> HappyPath
+    "error_case" -> ErrorCase
+    "edge_case" -> EdgeCase
+    "constraint" -> Constraint
+    "dependency" -> Dependency
+    "nonfunctional" -> NonFunctional
+    _ -> HappyPath
+  }
+}
+
+fn parse_priority(s: String) -> QuestionPriority {
+  case string.lowercase(s) {
+    "critical" -> Critical
+    "important" -> Important
+    "nice_to_have" -> NiceTohave
+    _ -> Important
+  }
+}
+
+fn format_decode_errors(errors: List(dynamic.DecodeError)) -> String {
+  errors
+  |> list.map(fn(e) {
+    "Expected " <> e.expected <> " at " <> string.join(e.path, ".")
+  })
+  |> string.join(", ")
+}
 
 /// Get questions for a specific profile and round from a loaded database
 pub fn get_questions(

@@ -1,6 +1,6 @@
-// Test case: Invalid JSON in examples
-name: "invalid-json-spec"
-description: "Spec with invalid JSON in examples"
+// Test case: Invalid regex patterns
+name: "invalid-regex-spec"
+description: "Spec with invalid regex patterns"
 audience: "developers"
 version: "1.0.0"
 success_criteria: ["API works"]
@@ -12,11 +12,11 @@ config: {
 features: [
   {
     name: "feature1"
-    description: "A test feature"
+    description: "A test feature with invalid regex"
     behaviors: [
       {
         name: "behavior1"
-        intent: "Test the API"
+        intent: "Test behavior with invalid regex"
         request: {
           method: "GET"
           path: "/test"
@@ -26,16 +26,16 @@ features: [
         }
         response: {
           status: 200
-          example: {"message": "ok", invalid: json}
+          example: {"message": "ok"}
           checks: [
             {
-              rule: "status == 200"
-              why: "Request should succeed"
+              rule: "body.message matches [a-z"
+              why: "Message should match pattern"
             }
           ]
           headers: {}
         }
-        notes: "This is a test behavior"
+        notes: ""
         requires: []
         tags: ["test"]
         captures: {}
