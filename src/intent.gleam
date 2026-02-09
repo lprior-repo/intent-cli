@@ -1,17 +1,24 @@
 /// Intent CLI - Planning and bead generation tool
 import argv
+import gleam/dynamic
 import gleam/int
 import gleam/io
+import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
 import glint
 import glint/flag
 import intent/cli_ui
+import intent/effects_analyzer.{Cascade, Notification, RaceCondition, RollbackRequired, High, Low, Medium, StateChange, type EffectType, type SpecAnalysis}
 import intent/interview
 import intent/interview_storage
+import intent/parser
 import intent/plan_emit_beads
+import intent/security
 import intent/validation
+import shellout
+import simplifile
 
 /// Exit codes
 const exit_pass = 0
@@ -877,29 +884,180 @@ fn analyze_effects(
   as_json: Bool,
 ) -> Nil {
   cli_ui.print_header("Second-Order Effects Analysis")
-  io.println("Spec file: " <> spec_file)
 
-  case behavior_filter {
-    "" -> io.println("Analyzing all behaviors")
-    _ -> io.println("Analyzing behavior: " <> behavior_filter)
+  // Validate file path for security
+  case security.validate_file_path(spec_file) {
+    Error(err) -> {
+      cli_ui.print_error("Invalid file path: " <> security.format_security_error(err))
+      exit(exit_fail)
+    }
+    Ok(validated_path) -> {
+      // Verify file exists
+      case simplifile.verify_is_file(validated_path) {
+        Ok(False) -> {
+          cli_ui.print_error("Spec file not found: " <> spec_file)
+          exit(exit_fail)
+        }
+        Error(_) -> {
+          cli_ui.print_error("Cannot access file: " <> spec_file)
+          exit(exit_fail)
+        }
+        Ok(True) -> {
+          // Export CUE to JSON
+          case shellout.command("cue", ["export", validated_path], ".", []) {
+            Ok(json_str) -> {
+              // Parse JSON to get spec
+              case json.decode(json_str, dynamic.dynamic) {
+                Ok(json_data) -> {
+                  case parser.decode_dynamic(json_data) {
+                    Ok(spec) -> {
+                      // Analyze effects
+                      let analysis = effects_analyzer.analyze_spec(spec)
+
+                      // Filter by behavior if requested
+                      let filtered_analysis = case behavior_filter {
+                        "" -> analysis
+                        _ -> filter_by_behavior(analysis, behavior_filter)
+                      }
+
+                      // Output results
+                      case as_json {
+                        True -> output_effects_json(filtered_analysis)
+                        False -> output_effects_cli(filtered_analysis)
+                      }
+
+                      cli_ui.print_success("Effects analysis complete")
+                      exit(exit_pass)
+                    }
+                    Error(parse_errors) -> {
+                      cli_ui.print_error("Failed to parse spec:")
+                      io.println(format_parse_errors(parse_errors))
+                      exit(exit_fail)
+                    }
+                  }
+                }
+                Error(_) -> {
+                  cli_ui.print_error(
+                    "Failed to decode JSON output from CUE export",
+                  )
+                  exit(exit_fail)
+                }
+              }
+            }
+            Error(#(_, stderr)) -> {
+              cli_ui.print_error("Failed to export CUE to JSON:")
+              io.println(stderr)
+              exit(exit_fail)
+            }
+          }
+        }
+      }
+    }
   }
+}
 
-  case as_json {
-    True -> io.println("\nOutput format: JSON")
-    False -> io.println("\nOutput format: CLI")
+fn filter_by_behavior(
+  analysis: SpecAnalysis,
+  behavior_name: String,
+) -> SpecAnalysis {
+  let filtered_behaviors =
+    list.filter(analysis.behavior_effects, fn(behavior_effect) {
+      behavior_effect.behavior_name == behavior_name
+    })
+
+  effects_analyzer.SpecAnalysis(
+    spec_name: analysis.spec_name,
+    behavior_effects: filtered_behaviors,
+  )
+}
+
+fn output_effects_cli(analysis: SpecAnalysis) -> Nil {
+  io.println("\nSpec: " <> analysis.spec_name)
+  io.println("")
+
+  case analysis.behavior_effects {
+    [] -> {
+      io.println("No behaviors found matching the criteria")
+      cli_ui.print_warning("No behaviors to analyze")
+    }
+    _ -> {
+      // Display each behavior's effects
+      list.each(analysis.behavior_effects, fn(behavior_effect) {
+        let output =
+          effects_analyzer.format_effects_cli(
+            behavior_effect.behavior_name,
+            behavior_effect.effects,
+          )
+        io.println(output)
+        io.println("")
+      })
+    }
   }
+}
 
-  // TODO: Implement actual CUE parsing and effects analysis
-  // For now, show a demo
-  io.println("\nDemo effects analysis:")
-  io.println("📝 State Change: Creates new resource")
-  io.println("📧 Notification: May trigger events")
-  io.println("🔗 Cascade: May affect related records")
-  io.println("⚠️  Race Condition: Concurrent access possible")
-  io.println("🔄 Rollback Required: Operation should be reversible")
+fn output_effects_json(analysis: SpecAnalysis) -> Nil {
+  // Build JSON structure for all behaviors
+  let behaviors_json =
+    list.map(analysis.behavior_effects, fn(behavior_effect) {
+      let effects_json =
+        list.map(behavior_effect.effects, fn(effect) {
+          json.object([
+            #("type", json.string(effect_type_to_json_string(effect.type_))),
+            #("description", json.string(effect.description)),
+            #("severity", json.string(severity_to_json_string(effect.severity))),
+            #("suggestion", json.string(effect.suggestion)),
+          ])
+        })
 
-  cli_ui.print_success("Effects analysis complete")
-  exit(exit_pass)
+      #(
+        behavior_effect.behavior_name,
+        json.array(from: effects_json, of: fn(_) { json.object([]) }),
+      )
+    })
+
+  let output_json =
+    json.object([
+      #("spec", json.string(analysis.spec_name)),
+      ..behaviors_json,
+    ])
+    |> json.to_string()
+
+  io.println(output_json)
+}
+
+fn effect_type_to_json_string(
+  type_: EffectType,
+) -> String {
+  case type_ {
+    StateChange -> "state_change"
+    Notification -> "notification"
+    Cascade -> "cascade"
+    RaceCondition -> "race_condition"
+    RollbackRequired -> "rollback_required"
+  }
+}
+
+fn severity_to_json_string(severity: effects_analyzer.Severity) -> String {
+  case severity {
+    High -> "high"
+    Medium -> "medium"
+    Low -> "low"
+  }
+}
+
+fn format_parse_errors(
+  errors: List(dynamic.DecodeError),
+) -> String {
+  errors
+  |> list.map(fn(err) {
+    "  - "
+    <> string.join(err.path, ".")
+    <> ": expected "
+    <> err.expected
+    <> ", found "
+    <> err.found
+  })
+  |> string.join("\n")
 }
 
 @external(erlang, "erlang", "halt")

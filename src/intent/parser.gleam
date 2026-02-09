@@ -417,3 +417,8 @@ fn parse_security_hints(
   )(data))
   Ok(SecurityHints(password_hashing, jwt_algorithm, jwt_expiry, rate_limiting))
 }
+
+/// Decode a spec from a dynamic JSON value (for use with shellout cue export)
+pub fn decode_dynamic(data: dynamic.Dynamic) -> Result(Spec, List(dynamic.DecodeError)) {
+  parse_spec(data)
+}
