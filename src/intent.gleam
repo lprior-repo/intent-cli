@@ -13,11 +13,11 @@ import glint/flag
 import intent/batch
 import intent/bead_templates
 import intent/cli_ui
-import intent/env
 import intent/effects_analyzer.{
   type EffectType, type SpecAnalysis, Cascade, High, Low, Medium, Notification,
   RaceCondition, RollbackRequired, StateChange,
 }
+import intent/env
 import intent/init_prompt
 import intent/interview
 import intent/interview_storage
@@ -41,6 +41,21 @@ const exit_fail = 1
 
 @external(erlang, "erlang", "halt")
 fn exit(code: Int) -> Nil
+
+/// List of all available commands
+const available_commands = [
+  "init", "interview", "beads", "bead-status", "history", "version", "diff",
+  "sessions", "plan", "plan-next", "plan-approve", "plan-emit-beads",
+  "beads-regenerate", "vision", "ready", "effects", "validate", "batch",
+]
+
+/// Check if a command name exists in the available commands list
+pub fn command_exists(name: String) -> Bool {
+  case list.find(available_commands, fn(cmd) { cmd == name }) {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
 
 pub fn main() {
   let args = argv.load().arguments
@@ -67,7 +82,21 @@ pub fn main() {
       // Convert "help <command>" to "<command> --help"
       case args {
         ["help"] -> ["--help"]
-        ["help", command, ..rest] -> [command, "--help", ..rest]
+        ["help", command, ..rest] -> {
+          // Validate that command exists before adding --help
+          case command_exists(command) {
+            True -> [command, "--help", ..rest]
+            False -> {
+              io.println_error("error: unknown command: " <> command)
+              io.println("")
+              io.println(
+                "Available commands: init, interview, beads, bead-status, history, version, diff, sessions, plan, plan-next, plan-approve, plan-emit-beads, beads-regenerate, vision, ready, effects, validate, batch",
+              )
+              exit(exit_fail)
+              ["--help"]
+            }
+          }
+        }
         _ -> ["--help"]
       }
     }
@@ -104,10 +133,16 @@ pub fn main() {
 
   case glint.execute(app, processed_args) {
     Ok(glint.Out(_)) -> {
-      io.println_error(
-        "error: failed to run command
-cause:
-  0: command not found",
+      // Extract the command name from args to show in error
+      let assert [cmd, ..] = processed_args
+      let command_name = case cmd, cmd != "--help", cmd != "-" {
+        c, True, True -> c
+        _, _, _ -> "unknown"
+      }
+      io.println_error("error: command not found: " <> command_name)
+      io.println("")
+      io.println(
+        "Available commands: init, interview, beads, bead-status, history, version, diff, sessions, plan, plan-next, plan-approve, plan-emit-beads, beads-regenerate, vision, ready, effects, validate, batch",
       )
       exit(exit_fail)
     }
@@ -115,8 +150,22 @@ cause:
       io.println(help_text)
       exit(exit_pass)
     }
-    Error(err) -> {
-      io.println_error(err)
+    Error(_err) -> {
+      // Extract the command name from args to show in error
+      let command_name = case processed_args {
+        [cmd, ..] -> {
+          case cmd, cmd == "--help", string.starts_with(cmd, "-") {
+            c, False, False -> c
+            _, _, _ -> "unknown"
+          }
+        }
+        _ -> "unknown"
+      }
+      io.println_error("error: command not found: " <> command_name)
+      io.println("")
+      io.println(
+        "Available commands: init, interview, beads, bead-status, history, version, diff, sessions, plan, plan-next, plan-approve, plan-emit-beads, beads-regenerate, vision, ready, effects, validate, batch",
+      )
       exit(exit_fail)
     }
   }
@@ -236,7 +285,6 @@ fn is_bool_literal(value: String) -> Bool {
   }
 }
 
-
 /// ============================================================================
 /// INIT COMMAND
 /// ============================================================================
@@ -261,9 +309,7 @@ fn init_command() -> glint.Command(Nil) {
         run_init_with_name(spec_name, template, output)
       }
       _ -> {
-        cli_ui.print_error(
-          "Error: init takes at most one argument (spec name)",
-        )
+        cli_ui.print_error("Error: init takes at most one argument (spec name)")
         io.println(
           "\nUsage: intent init [<name>] [--profile <template>] [--output <file>]",
         )
@@ -333,7 +379,8 @@ fn run_init_interactive(template_flag: String, output_flag: String) -> Nil {
     Error(err) -> {
       cli_ui.print_error("Failed to get spec name: " <> err)
       exit(exit_fail)
-      "" // Never reached, but needed for type consistency
+      ""
+      // Never reached, but needed for type consistency
     }
   }
 
@@ -353,7 +400,8 @@ fn run_init_with_name(
     Error(err) -> {
       cli_ui.print_error(err)
       exit(exit_fail)
-      "" // Never reached, but needed for type consistency
+      ""
+      // Never reached, but needed for type consistency
     }
   }
 
@@ -366,7 +414,8 @@ fn run_init_with_name(
         Error(err) -> {
           cli_ui.print_error("Failed to get template selection: " <> err)
           exit(exit_fail)
-          spec_templates.ApiSpec // Never reached, but needed for type consistency
+          spec_templates.ApiSpec
+          // Never reached, but needed for type consistency
         }
       }
     }
@@ -377,7 +426,8 @@ fn run_init_with_name(
         Error(err) -> {
           cli_ui.print_error(err)
           exit(exit_fail)
-          spec_templates.ApiSpec // Never reached, but needed for type consistency
+          spec_templates.ApiSpec
+          // Never reached, but needed for type consistency
         }
       }
     }
@@ -401,7 +451,8 @@ fn run_init_with_name(
         Error(err) -> {
           cli_ui.print_error("Failed to get output filename: " <> err)
           exit(exit_fail)
-          "" // Never reached, but needed for type consistency
+          ""
+          // Never reached, but needed for type consistency
         }
       }
     }
@@ -423,7 +474,9 @@ fn run_init_with_name(
 
       cli_ui.print_success("Spec initialized successfully!")
       io.println("")
-      io.println("Template: " <> spec_templates.format_template_type(template_type))
+      io.println(
+        "Template: " <> spec_templates.format_template_type(template_type),
+      )
       io.println("")
       io.println("Next steps:")
       io.println("  1. Review and customize the spec:")
@@ -1381,9 +1434,17 @@ fn sessions_command() -> glint.Command(Nil) {
       flag.get_string(input.flags, "profile")
       |> result.unwrap("")
 
-    // Validate no extra arguments
+    // Validate no extra arguments and profile value
     case validation.validate_no_args(input.args, "sessions") {
-      Ok(Nil) -> list_sessions(profile)
+      Ok(Nil) -> {
+        case validation.validate_profile_filter(profile) {
+          Ok(valid_profile) -> list_sessions(valid_profile)
+          Error(err) -> {
+            cli_ui.print_error(err)
+            exit(exit_fail)
+          }
+        }
+      }
       Error(err) -> {
         cli_ui.print_error(err)
         exit(exit_fail)
@@ -2082,7 +2143,14 @@ Troubleshooting:",
         }
         Ok(True) -> {
           // Export CUE to JSON
-          case shellout.command("cue", ["export", validated_path, "-e", "spec"], ".", []) {
+          case
+            shellout.command(
+              "cue",
+              ["export", validated_path, "-e", "spec"],
+              ".",
+              [],
+            )
+          {
             Ok(json_str) -> {
               // Parse JSON to get spec
               case json.decode(json_str, dynamic.dynamic) {
@@ -2342,7 +2410,14 @@ Troubleshooting:",
         }
         Ok(True) -> {
           // Export CUE to JSON
-          case shellout.command("cue", ["export", validated_path, "-e", "spec"], ".", []) {
+          case
+            shellout.command(
+              "cue",
+              ["export", validated_path, "-e", "spec"],
+              ".",
+              [],
+            )
+          {
             Ok(json_str) -> {
               // Parse JSON to get spec
               case json.decode(json_str, dynamic.dynamic) {
@@ -2660,7 +2735,6 @@ fn format_br_command_error(stderr: String) -> Nil {
 
 @external(erlang, "intent_ffi", "current_iso8601_timestamp")
 fn current_iso8601_timestamp() -> String
-
 
 /// ============================================================================
 /// BATCH COMMAND

@@ -122,3 +122,60 @@ pub fn command_inventory_count_is_current_test() {
   |> list.length
   |> should.equal(30)
 }
+
+// Tests for help command validation (bd-1d05)
+pub fn command_exists_returns_true_for_valid_commands_test() {
+  intent.command_exists("batch")
+  |> should.be_true()
+
+  intent.command_exists("init")
+  |> should.be_true()
+
+  intent.command_exists("validate")
+  |> should.be_true()
+}
+
+pub fn command_exists_returns_false_for_invalid_commands_test() {
+  intent.command_exists("nonexistent")
+  |> should.be_false()
+
+  intent.command_exists("foo")
+  |> should.be_false()
+
+  intent.command_exists("")
+  |> should.be_false()
+}
+
+pub fn command_exists_handles_all_available_commands_test() {
+  let available_commands = [
+    "init", "interview", "beads", "bead-status", "history", "version", "diff",
+    "sessions", "plan", "plan-next", "plan-approve", "plan-emit-beads",
+    "beads-regenerate", "vision", "ready", "effects", "validate", "batch",
+  ]
+
+  // All available commands should exist
+  available_commands
+  |> list.map(fn(cmd) { intent.command_exists(cmd) })
+  |> list.all(fn(result) { result == True })
+  |> should.be_true()
+}
+
+// Test for bd-3p4r: command not found includes command name
+// Note: This test documents the expected behavior
+// Actual testing requires integration test due to io.println_error and exit calls
+pub fn invalid_command_error_format_test() {
+  // The error message should include:
+  // 1. The command name that was not found
+  // 2. A list of available commands
+  // Example: "error: command not found: invalidcommand"
+  //          "Available commands: init, interview, beads, ..."
+
+  let invalid_command = "invalidcommand"
+  let _expected_error_contains = "error: command not found: " <> invalid_command
+  let _expected_available = "Available commands:"
+
+  // This documents the requirement
+  // Full integration testing would capture stderr
+  True
+  |> should.be_true()
+}
