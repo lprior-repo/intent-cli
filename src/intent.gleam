@@ -18,6 +18,7 @@ import intent/effects_analyzer.{
   RaceCondition, RollbackRequired, StateChange,
 }
 import intent/env
+import intent/flag_suggestions
 import intent/init_prompt
 import intent/interview
 import intent/interview_storage
@@ -131,7 +132,16 @@ pub fn main() {
     // Batch command
     |> glint.add(at: ["batch"], do: batch_command())
 
-  case glint.execute(app, processed_args) {
+  // Validate flags before executing glint
+  case flag_suggestions.validate_flags(processed_args) {
+    Error(message) -> {
+      cli_ui.print_error(message)
+      io.println("")
+      exit(exit_fail)
+    }
+    Ok(_) -> {
+      // Flags are valid, proceed with glint execution
+      case glint.execute(app, processed_args) {
     Ok(glint.Out(_)) -> {
       // Extract the command name from args to show in error
       let assert [cmd, ..] = processed_args
@@ -167,6 +177,8 @@ pub fn main() {
         "Available commands: init, interview, beads, bead-status, history, version, diff, sessions, plan, plan-next, plan-approve, plan-emit-beads, beads-regenerate, vision, ready, effects, validate, batch",
       )
       exit(exit_fail)
+    }
+      }
     }
   }
 }
@@ -705,12 +717,47 @@ fn generate_beads(
   format: String,
   _output_dir: String,
 ) -> Nil {
-  // TODO: Implement bead generation
   cli_ui.print_header("Generate Beads")
-  io.println("Session: " <> session_id)
-  io.println("Format: " <> format)
-  cli_ui.print_success("Beads command - implementation needed")
-  exit(exit_pass)
+
+  let sessions_path = ".interview/sessions.jsonl"
+
+  // Validate session exists before proceeding
+  case interview_storage.get_session_from_jsonl(sessions_path, session_id) {
+    Error(err) -> {
+      cli_ui.print_error("Session not found: " <> session_id)
+      io.println("\n" <> err)
+      io.println("\nAvailable sessions:")
+      case interview_storage.list_sessions_from_jsonl(sessions_path) {
+        Ok(sessions) -> {
+          case sessions {
+            [] -> io.println("  No sessions found")
+            _ -> {
+              list.each(sessions, fn(s) {
+                io.println(
+                  "  - "
+                  <> s.id
+                  <> " ("
+                  <> interview.profile_to_string(s.profile)
+                  <> ", "
+                  <> interview.stage_to_string(s.stage)
+                  <> ")",
+                )
+              })
+            }
+          }
+        }
+        Error(_) -> io.println("  Unable to load sessions")
+      }
+      exit(exit_fail)
+    }
+    Ok(_current_session) -> {
+      // Session exists, proceed with bead generation
+      io.println("Session: " <> session_id)
+      io.println("Format: " <> format)
+      cli_ui.print_success("Beads command - implementation needed")
+      exit(exit_pass)
+    }
+  }
 }
 
 /// ============================================================================
@@ -1053,7 +1100,11 @@ Example output:
 Related commands:
   - interview    Start a new session
   - diff         Show changes in a specific session
-  - sessions     List sessions with filtering options",
+  - sessions     List sessions with filtering options
+
+Flag shortcuts:
+  -h, --help          Show help
+  -v, --version       Show version",
   )
 }
 
@@ -1091,25 +1142,22 @@ fn show_history() -> Nil {
       }
       exit(exit_pass)
     }
-    Error(err) -> {
-      // Check if it's a "file not found" error
-      case
-        string.contains(err, "No such file")
-        || string.contains(err, "not found")
-        || string.contains(err, "Enoent")
-      {
-        True -> {
-          cli_ui.print_warning("No sessions found")
-          io.println("")
-          io.println("Start a new session with:")
-          io.println("  intent interview --profile <profile>")
-          exit(exit_pass)
-        }
-        False -> {
-          cli_ui.print_error("Failed to load sessions: " <> err)
-          exit(exit_fail)
-        }
-      }
+    Error(interview_storage.FileNotFound(_)) -> {
+      // File doesn't exist - show friendly message
+      cli_ui.print_warning("No sessions found")
+      io.println("")
+      io.println("Start a new session with:")
+      io.println("  intent interview --profile <profile>")
+      exit(exit_pass)
+    }
+    Error(interview_storage.FileCorrupt(_err)) -> {
+      // File is corrupt - error already displayed by interview_storage
+      // Just exit with failure
+      exit(exit_fail)
+    }
+    Error(interview_storage.OtherError(err)) -> {
+      cli_ui.print_error("Failed to load sessions: " <> err)
+      exit(exit_fail)
     }
   }
 }
@@ -1474,7 +1522,12 @@ Output shows status indicators:
 
 Related commands:
   - history    Simpler chronological list
-  - diff       Show changes in a specific session",
+  - diff       Show changes in a specific session
+
+Flag shortcuts:
+  -h, --help          Show help
+  -v, --version       Show version
+  -p, --profile       Filter by profile type",
   )
   |> glint.flag(
     "profile",
@@ -1545,7 +1598,15 @@ fn list_sessions(profile_filter: String) -> Nil {
 
       exit(exit_pass)
     }
-    Error(err) -> {
+    Error(interview_storage.FileNotFound(_)) -> {
+      cli_ui.print_warning("No sessions found")
+      exit(exit_pass)
+    }
+    Error(interview_storage.FileCorrupt(_err)) -> {
+      // File is corrupt - error already displayed
+      exit(exit_fail)
+    }
+    Error(interview_storage.OtherError(err)) -> {
       cli_ui.print_error("Failed to load sessions: " <> err)
       exit(exit_fail)
     }
@@ -2626,7 +2687,10 @@ Examples:
 
 Output formats:
   Default - Human-readable error messages with line numbers
-  --json  - Machine-readable JSON output for CI/CD integration",
+  -j, --json  - Machine-readable JSON output for CI/CD integration
+
+Flag shortcuts:
+  -j, --json          Output JSON",
   )
   |> glint.flag(
     "json",
@@ -2847,7 +2911,12 @@ Quality scoring:
 Related commands:
   - effects    Analyze second-order effects
   - vision     Generate vision document
-  - ready      Generate ready document",
+  - ready      Generate ready document
+
+Flag shortcuts:
+  -d, --dir          Directory containing .cue spec files
+  -o, --out          Output directory for results
+  -j, --json         Output JSON (reserved for future use)",
   )
   |> glint.flag(
     "dir",
